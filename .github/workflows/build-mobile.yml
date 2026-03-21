@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       EAS_BUILD_NO_EXPO_GO_WARNING: 'true'
+      EAS_NO_VCS: '1'
     steps:
       - uses: actions/checkout@v4
 

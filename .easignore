@@ -1,0 +1,17 @@
+node_modules/
+.pnpm-store/
+.env
+.env.local
+.env.production
+apps/api/serviceAccountKey.json
+dist/
+build/
+.expo/
+*.tsbuildinfo
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+.DS_Store
+Thumbs.db
+*.log
+logs/

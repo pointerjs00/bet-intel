@@ -8,7 +8,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "lint": "eslint app components hooks stores services --ext .tsx,.ts"
+    "lint": "eslint app components hooks stores services --ext .tsx,.ts",
+    "postinstall": "cd ../.. && pnpm --filter @betintel/shared build"
   },
   "dependencies": {
     "@betintel/shared": "workspace:*",
