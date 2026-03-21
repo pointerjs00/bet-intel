@@ -30,22 +30,22 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build shared package
-        run: pnpm --filter @betintel/shared build
-
       - name: Vendor shared package for EAS
         run: |
           rm -rf apps/mobile/_vendor/shared
-          mkdir -p apps/mobile/_vendor/shared
-          cp packages/shared/package.json apps/mobile/_vendor/shared/package.json
-          cp -R packages/shared/dist apps/mobile/_vendor/shared/dist
-          # Empty .npmignore overrides .gitignore so npm includes dist/ when installing the file: dep
-          touch apps/mobile/_vendor/shared/.npmignore
+          mkdir -p apps/mobile/_vendor/shared/src
+          # Copy TypeScript source — Metro resolves @betintel/shared via extraNodeModules
+          # and transforms the TS files directly, so no compilation or dist/ needed.
+          cp -R packages/shared/src/. apps/mobile/_vendor/shared/src/
+          # Vendored package.json points main at TypeScript source
+          echo '{"name":"@betintel/shared","version":"1.0.0","main":"src/index.ts"}' \
+            > apps/mobile/_vendor/shared/package.json
           node -e "
             const fs = require('fs');
             const pkgPath = 'apps/mobile/package.json';
             const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-            pkg.dependencies['@betintel/shared'] = 'file:./_vendor/shared';
+            // Remove @betintel/shared — resolved by Metro extraNodeModules, not npm
+            delete pkg.dependencies['@betintel/shared'];
             delete pkg.packageManager;
             fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
           "
