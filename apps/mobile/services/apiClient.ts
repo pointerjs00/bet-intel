@@ -18,10 +18,14 @@ const expoExtra = Constants.expoConfig?.extra as {
   apiBaseUrl?: string;
 } | undefined;
 
+// On Android emulator, 10.0.2.2 maps to the host machine's localhost.
+// On iOS simulator, localhost works directly.
+const defaultApiUrl = 'http://10.0.2.2:3000/api';
+
 const baseURL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
   expoExtra?.apiBaseUrl ??
-  'http://localhost:3000/api';
+  defaultApiUrl;
 
 export const apiClient = axios.create({
   baseURL,
