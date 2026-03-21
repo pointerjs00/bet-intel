@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared package
+        run: pnpm --filter @betintel/shared build
+
       - name: Vendor shared package for EAS
         run: |
           rm -rf apps/mobile/.eas
