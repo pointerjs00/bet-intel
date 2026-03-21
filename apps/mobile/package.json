@@ -11,6 +11,7 @@
     "lint": "eslint app components hooks stores services --ext .tsx,.ts"
   },
   "dependencies": {
+    "@babel/runtime": "^7.29.2",
     "@betintel/shared": "workspace:*",
     "@expo/vector-icons": "^14.0.0",
     "@gorhom/bottom-sheet": "^4.6.4",
