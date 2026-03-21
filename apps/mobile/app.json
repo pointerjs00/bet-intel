@@ -80,6 +80,9 @@
     "experiments": {
       "typedRoutes": true
     },
+    "autolinking": {
+      "searchPaths": ["../../node_modules"]
+    },
     "owner": "jaosuza"
   }
 }
