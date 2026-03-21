@@ -109,6 +109,7 @@ jobs:
             ENV_FILE="$HOME/betintel/apps/api/.env"
             IMAGE_ARCHIVE="$HOME/betintel/images/betintel-api.tar.gz"
             gunzip -c "$IMAGE_ARCHIVE" | docker load
+            docker network inspect app_network >/dev/null 2>&1 || docker network create app_network
             if command -v docker-compose >/dev/null 2>&1; then
               docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api
             else
