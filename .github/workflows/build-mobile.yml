@@ -33,8 +33,12 @@ jobs:
           ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
           IOS_GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST }}
         run: |
+          test -n "$ANDROID_GOOGLE_SERVICES_JSON" || { echo "Missing ANDROID_GOOGLE_SERVICES_JSON secret"; exit 1; }
+          test -n "$IOS_GOOGLE_SERVICE_INFO_PLIST" || { echo "Missing IOS_GOOGLE_SERVICE_INFO_PLIST secret"; exit 1; }
           printf '%s' "$ANDROID_GOOGLE_SERVICES_JSON" > apps/mobile/google-services.json
           printf '%s' "$IOS_GOOGLE_SERVICE_INFO_PLIST" > apps/mobile/GoogleService-Info.plist
+          test -s apps/mobile/google-services.json || { echo "google-services.json was created empty"; exit 1; }
+          test -s apps/mobile/GoogleService-Info.plist || { echo "GoogleService-Info.plist was created empty"; exit 1; }
 
       - uses: expo/expo-github-action@v8
         with:
