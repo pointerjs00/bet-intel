@@ -38,13 +38,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Upload Docker Compose file
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.HETZNER_HOST }}
-          username: ${{ secrets.HETZNER_USER }}
-          key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: apps/api/docker-compose.yml
-          target: betintel
+        env:
+          HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
+          HETZNER_USER: ${{ secrets.HETZNER_USER }}
+          HETZNER_SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+        run: |
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$HETZNER_SSH_KEY" > "$HOME/.ssh/hetzner_key"
+          chmod 600 "$HOME/.ssh/hetzner_key"
+          ssh -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no "$HETZNER_USER@$HETZNER_HOST" 'mkdir -p ~/betintel/apps/api'
+          scp -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no apps/api/docker-compose.yml "$HETZNER_USER@$HETZNER_HOST:~/betintel/apps/api/docker-compose.yml"
 
       - name: Deploy to Hetzner via SSH
         uses: appleboy/ssh-action@v1
