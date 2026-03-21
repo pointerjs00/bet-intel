@@ -119,7 +119,7 @@ function NotificationLifecycleManager() {
     }
 
     void syncDevicePushToken();
-  }, [accessToken, isAuthenticated]);
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const unsubscribeSocket = addSocketListener('notification:new', () => {
