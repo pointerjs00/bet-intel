@@ -22,4 +22,18 @@ config.resolver.extraNodeModules = {
   '@betintel/shared': path.resolve(__dirname, '_vendor/shared'),
 };
 
+// The Expo virtual entry file uses relative `./node_modules/X` requires which
+// only work when node_modules is local. In a pnpm hoisted monorepo it lives at
+// the repo root. Intercept and strip the prefix so nodeModulesPaths takes over.
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName.startsWith('./node_modules/')) {
+    return context.resolveRequest(
+      context,
+      moduleName.slice('./node_modules/'.length),
+      platform
+    );
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = withNativeWind(config, { input: './global.css' });
