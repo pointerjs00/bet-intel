@@ -39,6 +39,8 @@ jobs:
           mkdir -p apps/mobile/_vendor/shared
           cp packages/shared/package.json apps/mobile/_vendor/shared/package.json
           cp -R packages/shared/dist apps/mobile/_vendor/shared/dist
+          # Empty .npmignore overrides .gitignore so npm includes dist/ when installing the file: dep
+          touch apps/mobile/_vendor/shared/.npmignore
           node -e "
             const fs = require('fs');
             const pkgPath = 'apps/mobile/package.json';
