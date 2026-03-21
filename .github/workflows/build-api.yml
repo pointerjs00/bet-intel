@@ -51,6 +51,7 @@ jobs:
           SMTP_FROM: ${{ secrets.SMTP_FROM }}
           APP_URL: ${{ secrets.APP_URL }}
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
         run: |
           cat > "$RUNNER_TEMP/api.env" <<EOF
           DATABASE_URL=${DATABASE_URL}
@@ -67,6 +68,7 @@ jobs:
           ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
           PORT=3000
           NODE_ENV=production
+          LOG_LEVEL=${LOG_LEVEL:-info}
           EOF
 
       - name: Upload Docker Compose file
@@ -84,14 +86,19 @@ jobs:
 
       - name: Deploy to Hetzner via SSH
         uses: appleboy/ssh-action@v1
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
         with:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
+          envs: GHCR_USERNAME,GHCR_TOKEN
           script: |
             export GITHUB_REPO=${{ github.repository }}
             COMPOSE_FILE="$HOME/betintel/apps/api/docker-compose.yml"
             ENV_FILE="$HOME/betintel/apps/api/.env"
+            printf '%s\n' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
             docker pull ghcr.io/${{ github.repository }}/betintel-api:latest
             if command -v docker-compose >/dev/null 2>&1; then
               docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api

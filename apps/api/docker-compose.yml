@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api:
     image: ghcr.io/${GITHUB_REPO}/betintel-api:latest
@@ -16,6 +14,9 @@ services:
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
       APP_URL: ${APP_URL}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      NODE_ENV: ${NODE_ENV}
+      LOG_LEVEL: ${LOG_LEVEL}
       PORT: 3000
     ports:
       - '3000:3000'
