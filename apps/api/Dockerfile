@@ -1,18 +1,20 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json ./
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
 
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 COPY apps/api ./apps/api
 COPY packages/shared ./packages/shared
 
-RUN npm run build --workspace @betintel/shared
-RUN npm run build --workspace api
-RUN npx prisma generate --schema apps/api/src/prisma/schema.prisma
+RUN pnpm --filter @betintel/shared build
+RUN pnpm --filter api build
+RUN pnpm --filter api exec prisma generate --schema src/prisma/schema.prisma
 
 FROM node:20-alpine AS runner
 RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
@@ -24,6 +26,7 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 WORKDIR /app
 
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
