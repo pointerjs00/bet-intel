@@ -13,6 +13,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EAS_BUILD_NO_EXPO_GO_WARNING: 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -25,6 +27,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Restore Firebase native config files
+        env:
+          ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
+          IOS_GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.IOS_GOOGLE_SERVICE_INFO_PLIST }}
+        run: |
+          printf '%s' "$ANDROID_GOOGLE_SERVICES_JSON" > apps/mobile/google-services.json
+          printf '%s' "$IOS_GOOGLE_SERVICE_INFO_PLIST" > apps/mobile/GoogleService-Info.plist
 
       - uses: expo/expo-github-action@v8
         with:
