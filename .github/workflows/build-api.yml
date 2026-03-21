@@ -37,6 +37,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create deploy env file
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          APP_URL: ${{ secrets.APP_URL }}
+          ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
+        run: |
+          cat > "$RUNNER_TEMP/api.env" <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          JWT_SECRET=${JWT_SECRET}
+          JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+          REDIS_URL=${REDIS_URL}
+          FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SERVICE_ACCOUNT_JSON}
+          SMTP_HOST=${SMTP_HOST}
+          SMTP_PORT=${SMTP_PORT}
+          SMTP_USER=${SMTP_USER}
+          SMTP_PASS=${SMTP_PASS}
+          SMTP_FROM=${SMTP_FROM}
+          APP_URL=${APP_URL}
+          ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+          PORT=3000
+          NODE_ENV=production
+          EOF
+
       - name: Upload Docker Compose file
         env:
           HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
@@ -48,6 +80,7 @@ jobs:
           chmod 600 "$HOME/.ssh/hetzner_key"
           ssh -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no "$HETZNER_USER@$HETZNER_HOST" 'mkdir -p ~/betintel/apps/api'
           scp -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no apps/api/docker-compose.yml "$HETZNER_USER@$HETZNER_HOST:~/betintel/apps/api/docker-compose.yml"
+          scp -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no "$RUNNER_TEMP/api.env" "$HETZNER_USER@$HETZNER_HOST:~/betintel/apps/api/.env"
 
       - name: Deploy to Hetzner via SSH
         uses: appleboy/ssh-action@v1
@@ -59,10 +92,6 @@ jobs:
             export GITHUB_REPO=${{ github.repository }}
             COMPOSE_FILE="$HOME/betintel/apps/api/docker-compose.yml"
             ENV_FILE="$HOME/betintel/apps/api/.env"
-            if [ ! -f "$ENV_FILE" ]; then
-              echo "Missing deploy env file: $ENV_FILE"
-              exit 1
-            fi
             docker pull ghcr.io/${{ github.repository }}/betintel-api:latest
             if command -v docker-compose >/dev/null 2>&1; then
               docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api
