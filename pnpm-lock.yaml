@@ -35,6 +35,9 @@ importers:
       cors:
         specifier: ^2.8.5
         version: 2.8.6
+      dotenv:
+        specifier: ^16.4.7
+        version: 16.4.7
       express:
         specifier: ^4.19.2
         version: 4.22.1
@@ -135,9 +138,6 @@ importers:
 
   apps/mobile:
     dependencies:
-      '@babel/runtime':
-        specifier: ^7.29.2
-        version: 7.29.2
       '@betintel/shared':
         specifier: workspace:*
         version: link:../../packages/shared
