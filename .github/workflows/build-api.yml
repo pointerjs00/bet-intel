@@ -35,6 +35,17 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload Docker Compose file
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          source: apps/api/docker-compose.yml
+          target: betintel
+
       - name: Deploy to Hetzner via SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -42,5 +53,11 @@ jobs:
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
+            export GITHUB_REPO=${{ github.repository }}
+            COMPOSE_FILE="$HOME/betintel/apps/api/docker-compose.yml"
             docker pull ghcr.io/${{ github.repository }}/betintel-api:latest
-            docker-compose -f /opt/betintel/docker-compose.yml up -d --no-deps api
+            if command -v docker-compose >/dev/null 2>&1; then
+              docker-compose -f "$COMPOSE_FILE" up -d --no-deps api
+            else
+              docker compose -f "$COMPOSE_FILE" up -d --no-deps api
+            fi
