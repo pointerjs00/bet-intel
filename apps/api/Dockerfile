@@ -14,7 +14,6 @@ COPY packages/shared ./packages/shared
 
 RUN pnpm --filter @betintel/shared build
 RUN pnpm --filter api build
-RUN pnpm --filter api exec prisma generate --schema src/prisma/schema.prisma
 
 FROM node:20-alpine AS runner
 RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
