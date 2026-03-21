@@ -1,0 +1,253 @@
+// apps/api/src/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum AuthProvider {
+  EMAIL  // username + password
+  GOOGLE // Google OAuth via Firebase
+  HYBRID // account has both methods linked
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum Sport {
+  FOOTBALL
+  BASKETBALL
+  TENNIS
+  HANDBALL
+  VOLLEYBALL
+  HOCKEY
+  RUGBY
+  AMERICAN_FOOTBALL
+  BASEBALL
+  OTHER
+}
+
+enum EventStatus {
+  UPCOMING
+  LIVE
+  FINISHED
+  CANCELLED
+  POSTPONED
+}
+
+enum BoletinStatus {
+  PENDING // awaiting results
+  WON
+  LOST
+  VOID    // cancelled/void events
+  PARTIAL // some events void
+}
+
+enum ItemResult {
+  PENDING
+  WON
+  LOST
+  VOID
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum NotificationType {
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  BOLETIN_SHARED
+  EVENT_RESULT
+  ODDS_CHANGE
+  SYSTEM
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id                  String       @id @default(cuid())
+  email               String       @unique
+  username            String       @unique
+  passwordHash        String?      // null for Google-only accounts
+  googleId            String?      @unique // Firebase UID from Google Sign-In
+  authProvider        AuthProvider @default(EMAIL)
+  isEmailVerified     Boolean      @default(false)
+  emailVerifyToken    String?      @unique
+  emailVerifyExpiry   DateTime?
+  passwordResetToken  String?      @unique
+  passwordResetExpiry DateTime?
+  displayName         String?
+  avatarUrl           String?
+  bio                 String?
+  expoPushToken       String?
+  preferredSites      String[]     // betting site slugs
+  theme               Theme        @default(SYSTEM)
+  currency            String       @default("EUR")
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int          @default(0)
+  lockedUntil         DateTime?    // brute-force lockout
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  boletins         Boletin[]
+  refreshTokens    RefreshToken[]
+  friendships      Friendship[]    @relation("UserFriendships")
+  friendOf         Friendship[]    @relation("FriendFriendships")
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+  sentSharedBoletins     SharedBoletin[] @relation("SharedBoletinSender")
+  receivedSharedBoletins SharedBoletin[] @relation("SharedBoletinRecipient")
+  notifications    Notification[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model BettingSite {
+  id          String    @id @default(cuid())
+  slug        String    @unique // e.g. "betclic", "bet365", "placard"
+  name        String
+  logoUrl     String?
+  baseUrl     String
+  isActive    Boolean   @default(true)
+  lastScraped DateTime?
+  createdAt   DateTime  @default(now())
+
+  odds         Odd[]
+  boletinItems BoletinItem[]
+}
+
+model SportEvent {
+  id         String      @id @default(cuid())
+  externalId String?     // ID from betting site
+  sport      Sport
+  league     String
+  homeTeam   String
+  awayTeam   String
+  eventDate  DateTime
+  status     EventStatus @default(UPCOMING)
+  homeScore  Int?
+  awayScore  Int?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  odds         Odd[]
+  boletinItems BoletinItem[]
+}
+
+model Odd {
+  id        String      @id @default(cuid())
+  siteId    String
+  site      BettingSite @relation(fields: [siteId], references: [id])
+  eventId   String
+  event     SportEvent  @relation(fields: [eventId], references: [id])
+  market    String      // e.g. "1X2", "Over/Under 2.5", "BTTS"
+  selection String      // e.g. "1", "X", "2", "Over", "Under"
+  value     Decimal     @db.Decimal(10, 2)
+  isActive  Boolean     @default(true)
+  scrapedAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+model Boletin {
+  id              String        @id @default(cuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String?
+  stake           Decimal       @db.Decimal(10, 2)
+  totalOdds       Decimal       @db.Decimal(10, 4)
+  potentialReturn Decimal       @db.Decimal(10, 2)
+  status          BoletinStatus @default(PENDING)
+  actualReturn    Decimal?      @db.Decimal(10, 2)
+  notes           String?
+  isPublic        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items      BoletinItem[]
+  sharedWith SharedBoletin[]
+}
+
+model BoletinItem {
+  id        String     @id @default(cuid())
+  boletinId String
+  boletin   Boletin    @relation(fields: [boletinId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     SportEvent @relation(fields: [eventId], references: [id])
+  siteId    String
+  site      BettingSite @relation(fields: [siteId], references: [id])
+  market    String
+  selection String
+  oddValue  Decimal    @db.Decimal(10, 2)
+  result    ItemResult @default(PENDING)
+
+  @@index([boletinId])
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  user      User     @relation("UserFriendships", fields: [userId], references: [id])
+  friend    User     @relation("FriendFriendships", fields: [friendId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, friendId])
+}
+
+model FriendRequest {
+  id         String        @id @default(cuid())
+  senderId   String
+  receiverId String
+  sender     User          @relation("SentRequests", fields: [senderId], references: [id])
+  receiver   User          @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  status     RequestStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([senderId, receiverId])
+}
+
+model SharedBoletin {
+  id         String   @id @default(cuid())
+  boletinId  String
+  boletin    Boletin  @relation(fields: [boletinId], references: [id], onDelete: Cascade)
+  sharedById String
+  sharedBy   User     @relation("SharedBoletinSender", fields: [sharedById], references: [id])
+  sharedWithId String
+  sharedWith User     @relation("SharedBoletinRecipient", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  message    String?
+  createdAt  DateTime @default(now())
+
+  @@unique([boletinId, sharedWithId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}

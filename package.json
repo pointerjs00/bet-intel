@@ -12,5 +12,8 @@
     "dev:mobile": "pnpm --filter mobile start",
     "build:api": "pnpm --filter api build",
     "lint": "pnpm -r lint"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
   }
 }

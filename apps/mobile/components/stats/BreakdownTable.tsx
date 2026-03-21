@@ -1,0 +1,155 @@
+import React from 'react';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import type { StatsBreakdownRow } from '@betintel/shared';
+import { useTheme } from '../../theme/useTheme';
+import { formatCurrency, formatPercentage } from '../../utils/formatters';
+
+interface BreakdownTableProps<TRow extends StatsBreakdownRow> {
+  title: string;
+  rows: TRow[];
+  maxRows?: number;
+  renderLabel?: (row: TRow) => React.ReactNode;
+}
+
+/** Generic table for sport, site, and market breakdowns. */
+export function BreakdownTable<TRow extends StatsBreakdownRow>({
+  title,
+  rows,
+  maxRows = 6,
+  renderLabel,
+}: BreakdownTableProps<TRow>) {
+  const { colors } = useTheme();
+  const visibleRows = rows.slice(0, maxRows);
+
+  return (
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+
+      <View style={[styles.headerRow, { borderColor: colors.border }]}> 
+        <Text style={[styles.headerCellLabel, { color: colors.textSecondary }]}>Grupo</Text>
+        <Text style={[styles.headerCellValue, { color: colors.textSecondary }]}>Bets</Text>
+        <Text style={[styles.headerCellValue, { color: colors.textSecondary }]}>Win</Text>
+        <Text style={[styles.headerCellValue, { color: colors.textSecondary }]}>ROI</Text>
+      </View>
+
+      {visibleRows.map((row) => (
+        <View key={row.key} style={[styles.dataRow, { borderColor: colors.border }]}> 
+          <View style={styles.labelCell}>
+            {renderLabel ? (
+              renderLabel(row)
+            ) : (
+              <Text numberOfLines={1} style={[styles.label, { color: colors.textPrimary }]}>
+                {row.label}
+              </Text>
+            )}
+            <Text style={[styles.meta, { color: colors.textSecondary }]}>{formatCurrency(row.totalStaked)}</Text>
+          </View>
+          <Text style={[styles.value, { color: colors.textPrimary }]}>{row.totalBets}</Text>
+          <Text style={[styles.value, { color: colors.textPrimary }]}>{formatPercentage(row.winRate)}</Text>
+          <Text style={[styles.value, { color: row.roi >= 0 ? colors.primary : colors.danger }]}>{formatPercentage(row.roi)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+interface SiteBreakdownLabelProps {
+  name: string;
+  logoUrl: string | null;
+}
+
+/** Compact site label with optional logo fallback for site breakdown tables. */
+export function SiteBreakdownLabel({ name, logoUrl }: SiteBreakdownLabelProps) {
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.siteLabelWrap}>
+      {logoUrl ? (
+        <Image source={{ uri: logoUrl }} style={styles.siteLogo} />
+      ) : (
+        <View style={[styles.siteFallback, { backgroundColor: colors.primary }]}>
+          <Text style={styles.siteFallbackText}>{name.slice(0, 2).toUpperCase()}</Text>
+        </View>
+      )}
+      <Text numberOfLines={1} style={[styles.label, { color: colors.textPrimary }]}>{name}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    borderRadius: 24,
+    borderWidth: 1,
+    gap: 12,
+    padding: 18,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  headerRow: {
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    paddingBottom: 10,
+  },
+  headerCellLabel: {
+    flex: 1.7,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  headerCellValue: {
+    flex: 0.8,
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'right',
+    textTransform: 'uppercase',
+  },
+  dataRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    paddingBottom: 10,
+    paddingTop: 2,
+  },
+  labelCell: {
+    flex: 1.7,
+    gap: 3,
+    paddingRight: 12,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  meta: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  value: {
+    flex: 0.8,
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  siteLabelWrap: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  siteLogo: {
+    borderRadius: 8,
+    height: 22,
+    width: 22,
+  },
+  siteFallback: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 22,
+    justifyContent: 'center',
+    width: 22,
+  },
+  siteFallbackText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+});
