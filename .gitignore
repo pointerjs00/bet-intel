@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.production
+
+# Firebase config files — contain secrets
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist
+apps/api/serviceAccountKey.json
+
+# Build outputs
+dist/
+build/
+.expo/
+*.tsbuildinfo
+
+# Expo
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
