@@ -39,7 +39,16 @@ jobs:
           mkdir -p apps/mobile/.eas/shared
           cp packages/shared/package.json apps/mobile/.eas/shared/package.json
           cp -R packages/shared/dist apps/mobile/.eas/shared/dist
-          node -e "const fs=require('fs'); const path='apps/mobile/package.json'; const pkg=JSON.parse(fs.readFileSync(path,'utf8')); pkg.dependencies['@betintel/shared']='file:./.eas/shared'; fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');"
+          node -e "
+            const fs = require('fs');
+            const pkgPath = 'apps/mobile/package.json';
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            pkg.dependencies['@betintel/shared'] = 'file:./.eas/shared';
+            delete pkg.packageManager;
+            fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
+          "
+          # Create a minimal package-lock.json so EAS detects npm (not yarn)
+          echo '{"name":"mobile","version":"1.0.0","lockfileVersion":3,"requires":true,"packages":{}}' > apps/mobile/package-lock.json
 
       - name: Strip workspace config so EAS builder treats apps/mobile as standalone
         run: |
