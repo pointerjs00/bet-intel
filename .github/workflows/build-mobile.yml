@@ -30,6 +30,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Vendor shared package for EAS
+        run: |
+          rm -rf apps/mobile/.eas
+          mkdir -p apps/mobile/.eas/shared
+          cp packages/shared/package.json apps/mobile/.eas/shared/package.json
+          cp -R packages/shared/dist apps/mobile/.eas/shared/dist
+          node -e "const fs=require('fs'); const path='apps/mobile/package.json'; const pkg=JSON.parse(fs.readFileSync(path,'utf8')); pkg.dependencies['@betintel/shared']='file:./.eas/shared'; fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');"
+
       - name: Restore Firebase native config files
         env:
           ANDROID_GOOGLE_SERVICES_JSON: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON }}
