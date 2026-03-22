@@ -40,6 +40,13 @@ const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
  */
 function createScrapeQueue(): Bull.Queue<ScrapeJobData> {
   const queue = new Bull<ScrapeJobData>('scraping', REDIS_URL, {
+    settings: {
+      // Scrapers can take 15-30 min (200+ events × API enrichment calls).
+      // Extend the lock so Bull doesn't mark long-running jobs as stalled.
+      lockDuration: 1_800_000,    // 30 minutes
+      stalledInterval: 60_000,    // check for stalls every 60 s (default 30 s)
+      maxStalledCount: 0,         // never auto-retry on stall — let the job finish
+    },
     defaultJobOptions: {
       removeOnComplete: 50,  // keep only last 50 completed jobs in Redis
       removeOnFail: 100,
