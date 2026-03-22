@@ -283,27 +283,26 @@ async function persistEvent(siteId: string, ev: ScrapedEvent): Promise<PersistRe
 
   let eventId: string;
 
-  // Determine status purely from what the scraper observed on the betting site:
-  // • isLive: true  → LIVE (site shows it as in-play right now)
-  // • isLive: false but eventDate is 0–150 min in the past → LIVE fallback
-  //   Scraper live-detection can miss live events when the site doesn't use the
-  //   expected data attributes.  The global cleanup handles events that genuinely
-  //   finished (no odds update for >10 min → FINISHED) so false positives are
-  //   short-lived.
-  // • isLive: false AND existing row is LIVE → UPCOMING
-  //   (site still lists the event but not as live — game finished or not started)
-  // • isLive: false AND existing row is not LIVE → no change
-  // Events that aren't returned by the scraper at all are handled in
-  // runScraperInstance (they get marked FINISHED there).
+  // Determine status from scraper observations, with time-window guards:
+  // • Match started 0–150 min ago AND (scraper signals live OR time implies live)
+  //   → LIVE
+  // • Match started >150 min ago AND existing status is LIVE
+  //   → FINISHED immediately (don't wait for the periodic cleanup; the scraper's
+  //     isLive flag can fire on "90+3'" elapsed-time text rendered for matches that
+  //     already ended, so we gate everything on the 150-min window)
+  // • Anything else → undefined (preserve existing status unchanged)
+  // IMPORTANT: never downgrade FINISHED → UPCOMING; the periodic cleanup owns
+  // the authoritative LIVE → FINISHED transition and must not be undone here.
   const now = Date.now();
   const minutesSinceStart = (now - ev.eventDate.getTime()) / 60_000;
-  const likelyLiveByTime = minutesSinceStart >= 0 && minutesSinceStart <= 150;
+  const withinLiveWindow = minutesSinceStart >= 0 && minutesSinceStart <= 150;
+  const isLiveSignal = (ev.isLive || withinLiveWindow) && withinLiveWindow;
 
   const scrapedStatus: EventStatus | undefined =
-    ev.isLive || likelyLiveByTime
+    isLiveSignal
       ? EventStatus.LIVE
-      : existing?.status === EventStatus.LIVE
-        ? EventStatus.UPCOMING
+      : minutesSinceStart > 150 && existing?.status === EventStatus.LIVE
+        ? EventStatus.FINISHED
         : undefined;
 
   if (existing) {
