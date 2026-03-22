@@ -11,6 +11,9 @@
  * - PUPPETEER_EXECUTABLE_PATH env var → system Chromium in Docker
  */
 
+import * as fs from 'fs';
+import * as https from 'https';
+import * as path from 'path';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -39,14 +42,12 @@ const USER_AGENTS: readonly string[] = [
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 14.4; rv:124.0) Gecko/20100101 Firefox/124.0',
 ];
 
-/** Browser launch args suitable for Docker (runs as root in Alpine container) */
+/** Browser launch args — drop --no-zygote / --single-process which are Linux process‑model flags that crash Edge on Windows */
 const BROWSER_ARGS = [
   '--no-sandbox',
   '--disable-setuid-sandbox',
   '--disable-dev-shm-usage',
   '--disable-gpu',
-  '--no-zygote',
-  '--single-process',
 ];
 
 // ─── Internal types (DOM-serialisable — used inside page.evaluate()) ──────────
@@ -57,11 +58,64 @@ interface RawEventData {
   homeTeam: string;
   awayTeam: string;
   eventDateIso: string;
+  detailPath?: string;
+  detailMarkets?: ScrapedMarket[];
   /** Decimal odds as string (may use comma as decimal separator) */
   home: string;
   draw: string;
   away: string;
+  isLive: boolean;
 }
+
+interface ProtoField {
+  fieldNumber: number;
+  wireType: number;
+  value: bigint | number | string | ProtoMessage;
+}
+
+interface ProtoMessage {
+  fields: ProtoField[];
+}
+
+interface ProtoSummaryEntry {
+  depth: number;
+  field: number;
+  type: 'string' | 'number';
+  value: string | number;
+}
+
+const API_ENRICH_CONCURRENCY = 4;
+const DETAIL_FALLBACK_LIMIT = 8;
+const API_MARKET_MINIMUM = 2;
+
+const DETAIL_MARKET_ALIASES: Readonly<Record<string, string>> = {
+  'Resultado (Tempo Regulamentar)': '1X2',
+  Resultado: '1X2',
+  'Resultado duplo': 'Resultado duplo',
+  'Equipa a marcar o golo 2': 'Equipa a marcar o golo 2',
+  Marcador: 'Marcador',
+  'As duas equipas marcam': 'As duas equipas marcam',
+  'Ambas as equipas marcam': 'As duas equipas marcam',
+  'Resultado - Primeira Parte': 'Resultado - Primeira Parte',
+};
+
+const DETAIL_MARKET_TITLES = new Set(Object.keys(DETAIL_MARKET_ALIASES));
+const DETAIL_IGNORED_TITLES = new Set([
+  'Top',
+  'Marcadores',
+  'Estatísticas',
+  'Dicas da Casa',
+  'SuperSub 90\'',
+]);
+
+const DETAIL_IGNORED_TITLE_PATTERNS = [
+  /^top$/i,
+  /^estatísticas$/i,
+  /^dicas da casa$/i,
+  /^supersub 90'$/i,
+  /^apostas feitas nos últimos/i,
+  /^in$/i,
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +132,531 @@ function randomDelay(minMs = 500, maxMs = 2000): Promise<void> {
 /** Converts a decimal-odds string (with possible comma separator) to a number. */
 function parseOdds(raw: string): number {
   return parseFloat(raw.replace(',', '.').trim());
+}
+
+function normaliseWhitespace(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function isOddToken(value: string): boolean {
+  return /^\d+(?:[.,]\d+)?$/.test(value.trim());
+}
+
+function extractEventIdFromPath(detailPath: string): string | null {
+  const match = detailPath.match(/-m(\d+)/i)
+    ?? detailPath.match(/[?&](?:eventId|matchId|id)=(\d+)/i)
+    ?? detailPath.match(/\/(\d{6,})(?:[/?#-]|$)/)
+    ?? detailPath.match(/(\d{6,})/);
+  return match?.[1] ?? null;
+}
+
+function encodeVarint(value: bigint): Buffer {
+  const bytes: number[] = [];
+  let current = value;
+
+  while (current >= 0x80n) {
+    bytes.push(Number((current & 0x7fn) | 0x80n));
+    current >>= 7n;
+  }
+
+  bytes.push(Number(current));
+  return Buffer.from(bytes);
+}
+
+function buildGrpcWebFrame(payload: Buffer): Buffer {
+  const header = Buffer.alloc(5);
+  header[0] = 0x00;
+  header.writeUInt32BE(payload.length, 1);
+  return Buffer.concat([header, payload]);
+}
+
+function buildGetMatchRequestBody(eventId: string): Buffer {
+  const payload = Buffer.concat([
+    Buffer.from([0x08]),
+    encodeVarint(BigInt(eventId)),
+    Buffer.from([0x12, 0x02, 0x70, 0x74]),
+  ]);
+
+  return buildGrpcWebFrame(payload);
+}
+
+function extractGrpcWebDataFrames(buffer: Buffer): Buffer[] {
+  const frames: Buffer[] = [];
+  let offset = 0;
+
+  while (offset + 5 <= buffer.length) {
+    const flag = buffer[offset];
+    const length = buffer.readUInt32BE(offset + 1);
+    const start = offset + 5;
+    const end = start + length;
+    if (end > buffer.length) {
+      break;
+    }
+
+    if ((flag & 0x80) === 0) {
+      frames.push(buffer.subarray(start, end));
+    }
+
+    offset = end;
+  }
+
+  return frames;
+}
+
+function readVarint(buffer: Buffer, offset: number): { value: bigint; offset: number } {
+  let result = 0n;
+  let shift = 0n;
+  let cursor = offset;
+
+  while (cursor < buffer.length) {
+    const byte = BigInt(buffer[cursor] ?? 0);
+    result |= (byte & 0x7fn) << shift;
+    cursor += 1;
+
+    if ((byte & 0x80n) === 0n) {
+      return { value: result, offset: cursor };
+    }
+
+    shift += 7n;
+  }
+
+  throw new Error('unterminated protobuf varint');
+}
+
+function printableRatio(value: string): number {
+  if (!value) {
+    return 0;
+  }
+
+  let printable = 0;
+  for (const char of value) {
+    const code = char.charCodeAt(0);
+    if ((code >= 32 && code <= 126) || code >= 160 || code === 9 || code === 10 || code === 13) {
+      printable += 1;
+    }
+  }
+
+  return printable / value.length;
+}
+
+function parseProtoMessage(buffer: Buffer): ProtoMessage {
+  const fields: ProtoField[] = [];
+  let offset = 0;
+
+  while (offset < buffer.length) {
+    const key = readVarint(buffer, offset);
+    offset = key.offset;
+    const fieldNumber = Number(key.value >> 3n);
+    const wireType = Number(key.value & 0x07n);
+
+    if (wireType === 0) {
+      const value = readVarint(buffer, offset);
+      offset = value.offset;
+      fields.push({ fieldNumber, wireType, value: value.value });
+      continue;
+    }
+
+    if (wireType === 1) {
+      const value = buffer.readDoubleLE(offset);
+      offset += 8;
+      fields.push({ fieldNumber, wireType, value });
+      continue;
+    }
+
+    if (wireType === 2) {
+      const lengthInfo = readVarint(buffer, offset);
+      offset = lengthInfo.offset;
+      const length = Number(lengthInfo.value);
+      const slice = buffer.subarray(offset, offset + length);
+      offset += length;
+
+      const text = slice.toString('utf8');
+      let nested: ProtoMessage | null = null;
+      try {
+        nested = parseProtoMessage(slice);
+      } catch {
+        nested = null;
+      }
+
+      if (printableRatio(text) > 0.85 && !text.includes('\u0000')) {
+        fields.push({ fieldNumber, wireType, value: text });
+      } else if (nested && nested.fields.length > 0) {
+        fields.push({ fieldNumber, wireType, value: nested });
+      } else {
+        fields.push({ fieldNumber, wireType, value: slice.toString('hex') });
+      }
+      continue;
+    }
+
+    if (wireType === 5) {
+      const value = buffer.readFloatLE(offset);
+      offset += 4;
+      fields.push({ fieldNumber, wireType, value });
+      continue;
+    }
+
+    throw new Error(`unsupported protobuf wire type: ${wireType}`);
+  }
+
+  return { fields };
+}
+
+function summariseProtoMessage(node: ProtoMessage, depth = 0, summary: ProtoSummaryEntry[] = []): ProtoSummaryEntry[] {
+  for (const field of node.fields) {
+    if (typeof field.value === 'string') {
+      const value = normaliseWhitespace(field.value);
+      if (value) {
+        summary.push({ depth, field: field.fieldNumber, type: 'string', value });
+      }
+      continue;
+    }
+
+    if (typeof field.value === 'number') {
+      summary.push({ depth, field: field.fieldNumber, type: 'number', value: field.value });
+      continue;
+    }
+
+    if (field.value && typeof field.value === 'object' && 'fields' in field.value) {
+      summariseProtoMessage(field.value, depth + 1, summary);
+    }
+  }
+
+  return summary;
+}
+
+function extractMarketsFromApiResponse(responseBody: Buffer, homeTeam: string, awayTeam: string): ScrapedMarket[] {
+  const frames = extractGrpcWebDataFrames(responseBody);
+  const messageFrame = frames[0];
+  if (!messageFrame) {
+    return [];
+  }
+
+  const summary = summariseProtoMessage(parseProtoMessage(messageFrame));
+  const markets = new Map<string, Map<string, number>>();
+  let currentMarket: string | null = null;
+  let pendingSelection: string | null = null;
+
+  for (const entry of summary) {
+    if (entry.type === 'string' && (entry.field === 2 || entry.field === 3) && entry.depth >= 4 && entry.depth <= 5) {
+      const title = normaliseWhitespace(String(entry.value));
+      if (!title || title === currentMarket || title === homeTeam || title === awayTeam) {
+        continue;
+      }
+
+      currentMarket = title;
+      pendingSelection = null;
+      if (!markets.has(currentMarket)) {
+        markets.set(currentMarket, new Map());
+      }
+      continue;
+    }
+
+    if (!currentMarket) {
+      continue;
+    }
+
+    if (entry.type === 'string' && (entry.field === 10 || entry.field === 11) && entry.depth >= 6) {
+      pendingSelection = normaliseWhitespace(String(entry.value));
+      continue;
+    }
+
+    if (entry.type === 'number' && entry.field === 12 && entry.depth >= 6 && pendingSelection) {
+      const odd = Number(entry.value);
+      if (Number.isFinite(odd) && odd >= 1.01) {
+        markets.get(currentMarket)?.set(pendingSelection, odd);
+      }
+      pendingSelection = null;
+    }
+  }
+
+  const parsedMarkets: ScrapedMarket[] = [];
+  for (const [marketName, selectionsMap] of markets.entries()) {
+    const selections = filterSelectionsForMarket(
+      DETAIL_MARKET_ALIASES[marketName] ?? marketName,
+      Array.from(selectionsMap.entries()).map(([selection, value]) => ({
+        selection,
+        value,
+      })),
+      homeTeam,
+      awayTeam,
+    );
+
+    if (selections.length < 2) {
+      continue;
+    }
+
+    parsedMarkets.push({
+      market: DETAIL_MARKET_ALIASES[marketName] ?? marketName,
+      selections,
+    });
+  }
+
+  return parsedMarkets;
+}
+
+async function fetchBetclicMatchMarkets(eventId: string, homeTeam: string, awayTeam: string): Promise<ScrapedMarket[]> {
+  const requestBody = buildGetMatchRequestBody(eventId);
+
+  const responseBuffer = await new Promise<Buffer>((resolve, reject) => {
+    const request = https.request({
+      method: 'POST',
+      hostname: 'offering.begmedia.com',
+      path: '/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification',
+      headers: {
+        accept: '*/*',
+        'accept-language': 'pt-PT,pt;q=0.9,en;q=0.8',
+        'content-length': requestBody.length,
+        'content-type': 'application/grpc-web+proto',
+        'ngsw-bypass': '1',
+        origin: 'https://www.betclic.pt',
+        referer: 'https://www.betclic.pt/',
+        'user-agent': randomUA(),
+        'x-bg-ref-brand': 'BETCLIC',
+        'x-bg-ref-platform': 'DESKTOP',
+        'x-bg-ref-regulator-zone': 'PT',
+        'x-bg-regulation': 'PT',
+        'x-grpc-web': '1',
+      },
+    }, (response) => {
+      const chunks: Buffer[] = [];
+      response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      response.on('end', () => {
+        const grpcStatus = response.headers['grpc-status'];
+        if (grpcStatus && grpcStatus !== '0') {
+          reject(new Error(`grpc-status ${grpcStatus}: ${String(response.headers['grpc-message'] ?? '')}`));
+          return;
+        }
+
+        resolve(Buffer.concat(chunks));
+      });
+    });
+
+    request.on('error', reject);
+    request.write(requestBody);
+    request.end();
+  });
+
+  return extractMarketsFromApiResponse(responseBuffer, homeTeam, awayTeam);
+}
+
+function tryParseInlineSelection(line: string): { selection: string; value: number } | null {
+  const match = normaliseWhitespace(line).match(/^(.*?)\s+(\d+(?:[.,]\d+)?)$/);
+  if (!match) {
+    return null;
+  }
+
+  const selection = normaliseWhitespace(match[1] ?? '');
+  const value = parseOdds(match[2] ?? '');
+  if (!selection || !Number.isFinite(value) || value < 1.01) {
+    return null;
+  }
+
+  return { selection, value };
+}
+
+function canonicaliseSelectionLabel(selection: string, homeTeam: string, awayTeam: string): string {
+  const normalised = normaliseWhitespace(selection);
+  if (normalised === homeTeam) {
+    return '1';
+  }
+
+  if (normalised === awayTeam) {
+    return '2';
+  }
+
+  if (/^empate$/i.test(normalised)) {
+    return 'X';
+  }
+
+  return normalised;
+}
+
+function isIgnoredDetailTitle(title: string): boolean {
+  return DETAIL_IGNORED_TITLES.has(title)
+    || DETAIL_IGNORED_TITLE_PATTERNS.some((pattern) => pattern.test(title));
+}
+
+function canonicaliseMarketTitle(title: string): string | null {
+  const cleanedTitle = normaliseWhitespace(title)
+    .replace(/\s+[|:]\s+mais mercados$/i, '')
+    .replace(/\s+-\s+ao vivo$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleanedTitle || isIgnoredDetailTitle(cleanedTitle)) {
+    return null;
+  }
+
+  return DETAIL_MARKET_ALIASES[cleanedTitle] ?? cleanedTitle;
+}
+
+function filterSelectionsForMarket(
+  market: string,
+  selections: Array<{ selection: string; value: number }>,
+  homeTeam: string,
+  awayTeam: string,
+): Array<{ selection: string; value: number }> {
+  if (market === 'As duas equipas marcam') {
+    return selections.filter(({ selection }) => /^(sim|não|nao)$/i.test(selection));
+  }
+
+  if (market === 'Resultado duplo') {
+    return selections.filter(({ selection }) => selection.includes(' ou '));
+  }
+
+  if (market === 'Equipa a marcar o golo 2') {
+    return selections.filter(({ selection }) =>
+      selection === homeTeam || selection === awayTeam || /^nenhum golo$/i.test(selection),
+    );
+  }
+
+  if (market === 'Resultado - Primeira Parte') {
+    return selections.filter(({ selection }) =>
+      selection === homeTeam || selection === awayTeam || /^empate$/i.test(selection),
+    );
+  }
+
+  if (market === 'Marcador') {
+    return selections.filter(({ selection }) =>
+      !/^acima de$/i.test(selection)
+      && !/^abaixo de$/i.test(selection)
+      && !/^sim$/i.test(selection)
+      && !/^não$/i.test(selection)
+      && !/^nao$/i.test(selection),
+    );
+  }
+
+  return selections;
+}
+
+function upsertDetailMarket(
+  target: Map<string, ScrapedMarket>,
+  title: string,
+  selections: Array<{ selection: string; value: number }>,
+  homeTeam: string,
+  awayTeam: string,
+): void {
+  const canonicalTitle = canonicaliseMarketTitle(title);
+  if (!canonicalTitle) {
+    return;
+  }
+
+  const deduped = new Map<string, number>();
+  for (const entry of selections) {
+    const selection = canonicalTitle === '1X2'
+      ? canonicaliseSelectionLabel(entry.selection, homeTeam, awayTeam)
+      : normaliseWhitespace(entry.selection);
+
+    if (!selection || !Number.isFinite(entry.value) || entry.value < 1.01) {
+      continue;
+    }
+
+    deduped.set(selection, entry.value);
+  }
+
+  const filteredSelections = filterSelectionsForMarket(
+    canonicalTitle,
+    Array.from(deduped.entries()).map(([selection, value]) => ({ selection, value })),
+    homeTeam,
+    awayTeam,
+  );
+
+  if (canonicalTitle === '1X2') {
+    const labels = new Set(filteredSelections.map((selection) => selection.selection));
+    if (!labels.has('1') || !labels.has('X') || !labels.has('2')) {
+      return;
+    }
+  } else if (filteredSelections.length < 2) {
+    return;
+  }
+
+  target.set(canonicalTitle, {
+    market: canonicalTitle,
+    selections: filteredSelections,
+  });
+}
+
+function parseDetailMarkets(detailText: string, homeTeam: string, awayTeam: string): ScrapedMarket[] {
+  const lines = detailText
+    .split('\n')
+    .map((line) => normaliseWhitespace(line))
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return [];
+  }
+
+  const detailStart = Math.max(lines.indexOf('Top'), 0);
+  const relevantLines = lines.slice(detailStart);
+  const collectedMarkets = new Map<string, ScrapedMarket>();
+  let currentTitle: string | null = null;
+  let pendingLabelParts: string[] = [];
+  let pendingSelections: Array<{ selection: string; value: number }> = [];
+
+  const flushPendingLabel = (): string => {
+    const value = normaliseWhitespace(pendingLabelParts.join(' '));
+    pendingLabelParts = [];
+    return value;
+  };
+
+  const flushMarket = (): void => {
+    if (!currentTitle) {
+      pendingSelections = [];
+      pendingLabelParts = [];
+      return;
+    }
+
+    upsertDetailMarket(collectedMarkets, currentTitle, pendingSelections, homeTeam, awayTeam);
+    currentTitle = null;
+    pendingSelections = [];
+    pendingLabelParts = [];
+  };
+
+  for (const line of relevantLines) {
+    if (isIgnoredDetailTitle(line)) {
+      flushMarket();
+      continue;
+    }
+
+    if (DETAIL_MARKET_TITLES.has(line)) {
+      flushMarket();
+      currentTitle = line;
+      continue;
+    }
+
+    if (!currentTitle) {
+      continue;
+    }
+
+    if (/^\d+'$/.test(line) || /apostas feitas nos últimos/i.test(line) || /^IN$/i.test(line)) {
+      continue;
+    }
+
+    const inlineSelection = tryParseInlineSelection(line);
+    if (inlineSelection) {
+      pendingSelections.push(inlineSelection);
+      pendingLabelParts = [];
+      continue;
+    }
+
+    if (isOddToken(line)) {
+      const selection = flushPendingLabel();
+      const value = parseOdds(line);
+      if (selection && Number.isFinite(value) && value >= 1.01) {
+        pendingSelections.push({ selection, value });
+      }
+      continue;
+    }
+
+    pendingLabelParts.push(line);
+  }
+
+  flushMarket();
+  return Array.from(collectedMarkets.values());
+}
+
+function takeDebugHtmlSnapshot(page: Page, filenameBase: string): Promise<string> {
+  return page.evaluate(() => document.documentElement?.outerHTML?.slice(0, 25_000) ?? '');
 }
 
 // ─── Scraper class ────────────────────────────────────────────────────────────
@@ -100,15 +679,19 @@ export class BetclicScraper implements IScraper {
 
       // Set rotating user-agent
       await page.setUserAgent(randomUA());
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+      });
 
       // Realistic viewport
       await page.setViewport({ width: 1366, height: 768 });
 
-      // Block heavy resources we don't need (images, fonts, media)
+      // Keep stylesheets enabled here. Betclic detail pages proved more reliable
+      // when rendered as a more normal browser session during inspection.
       await page.setRequestInterception(true);
       page.on('request', (req: HTTPRequest) => {
         const type = req.resourceType();
-        if (['image', 'media', 'font', 'stylesheet'].includes(type)) {
+        if (['image', 'media', 'font'].includes(type)) {
           req.abort();
         } else {
           req.continue();
@@ -126,27 +709,78 @@ export class BetclicScraper implements IScraper {
 
       // Dismiss cookie consent banner if present
       await this.dismissCookieConsent(page);
+      await this.waitForCookieOverlayToClear(page);
       await randomDelay(300, 800);
 
       // Wait for event list to render (Angular hydration)
       try {
-        await page.waitForSelector('sports-events-list, .sportEvent-list, [data-type="sport-event"]', {
+        await page.waitForSelector('sports-events-list, .sportEvent-list, [data-type="sport-event"], a.cardEvent[href*="/futebol-sfootball/"]', {
           timeout: 20_000,
         });
       } catch {
-        logger.warn('BetclicScraper: event list selector not found — page may have changed structure');
+        const currentUrl = page.url();
+        let pageTitle = '';
+        try { pageTitle = await page.title(); } catch { /* ignore */ }
+        logger.warn('BetclicScraper: event list selector not found — page may have changed structure', {
+          url: currentUrl,
+          title: pageTitle,
+        });
+        try {
+          const screenshotDir = path.join(process.cwd(), 'debug-screenshots');
+          fs.mkdirSync(screenshotDir, { recursive: true });
+          const ts = Date.now();
+          await page.screenshot({ path: path.join(screenshotDir, `betclic-${ts}.png`) });
+          const html = await takeDebugHtmlSnapshot(page, `betclic-${ts}`);
+          fs.writeFileSync(path.join(screenshotDir, `betclic-${ts}.html`), html);
+          logger.debug('BetclicScraper: debug screenshot + HTML saved to debug-screenshots/');
+        } catch { /* screenshot is best-effort */ }
         await browser.close();
         return [];
       }
 
       // Scroll down to trigger lazy loading of more events
       await this.scrollDown(page);
-      await randomDelay(500, 1200);
+
+      // Wait for individual event items — they render after the outer container,
+      // which is what the initial waitForSelector found.
+      try {
+        await page.waitForSelector(
+          'a.cardEvent[href*="/futebol-sfootball/"], sport-event-listitem, [class*="event_item"], [data-type="sport-event"] > *',
+          { timeout: 15_000 },
+        );
+      } catch {
+        logger.debug('BetclicScraper: inner item selector timed out; attempting extract anyway');
+      }
+      await randomDelay(1000, 2500);
 
       // Extract raw event data from the DOM
       const rawEvents = await this.extractEvents(page);
 
+      if (rawEvents.length > 0) {
+        await this.enrichEventsFromApi(rawEvents);
+
+        const fallbackTargets = rawEvents
+          .filter((event) => (event.detailMarkets?.length ?? 0) < API_MARKET_MINIMUM)
+          .slice(0, DETAIL_FALLBACK_LIMIT);
+
+        if (fallbackTargets.length > 0) {
+          await this.enrichEventsFromDetailPages(page, fallbackTargets);
+        }
+      }
+
       logger.info(`BetclicScraper: extracted ${rawEvents.length} raw events`);
+
+      if (rawEvents.length === 0) {
+        try {
+          const screenshotDir = path.join(process.cwd(), 'debug-screenshots');
+          fs.mkdirSync(screenshotDir, { recursive: true });
+          const ts = Date.now();
+          await page.screenshot({ path: path.join(screenshotDir, `betclic-${ts}.png`) });
+          const html = await takeDebugHtmlSnapshot(page, `betclic-${ts}`);
+          fs.writeFileSync(path.join(screenshotDir, `betclic-${ts}.html`), html);
+          logger.debug('BetclicScraper: debug snapshot saved (0 events)');
+        } catch { /* diagnostic is best-effort */ }
+      }
 
       // Parse raw data into ScrapedEvent objects
       const events = this.parseRawEvents(rawEvents);
@@ -154,9 +788,18 @@ export class BetclicScraper implements IScraper {
       await browser.close();
       return events;
     } catch (err) {
-      logger.error('BetclicScraper: uncaught error', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      let errorMsg: string;
+      if (err instanceof Error) {
+        errorMsg = `${err.constructor.name}: ${err.message}`;
+      } else if (err !== null && typeof err === 'object') {
+        const props = Object.getOwnPropertyNames(err as object);
+        errorMsg = props.length
+          ? props.map((k) => `${k}: ${String((err as Record<string, unknown>)[k])}`).join('; ')
+          : (JSON.stringify(err) || '[empty object]');
+      } else {
+        errorMsg = String(err);
+      }
+      logger.error('BetclicScraper: uncaught error', { error: errorMsg });
       if (browser) {
         await browser.close().catch(() => undefined);
       }
@@ -170,10 +813,17 @@ export class BetclicScraper implements IScraper {
   /** Tries to click the cookie consent accept button silently. */
   private async dismissCookieConsent(page: Page): Promise<void> {
     const selectors = [
+      '#tc_privacy_button_2',
+      '#popin_tc_privacy_button_2',
+      '#footer_tc_privacy_button_2',
+      '#header_tc_privacy_button_2',
       '[data-testid="cookie-accept"]',
       '[id*="cookie"] button[class*="accept"]',
       'button[class*="cookieConsent"]',
       '#onetrust-accept-btn-handler',
+      '#tc-privacy-button',
+      '#privacy-button',
+      '[class*="privacy"] button',
       '.cc-btn.cc-allow',
     ];
     for (const sel of selectors) {
@@ -188,16 +838,199 @@ export class BetclicScraper implements IScraper {
         // Silently skip missing elements
       }
     }
+
+    try {
+      const clicked = await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button, [role="button"], a'));
+        const candidates = buttons
+          .map((element) => ({
+            element,
+            text: element.textContent?.trim().toLowerCase() ?? '',
+          }))
+          .filter(({ text }) => text.length > 0);
+
+        const target = candidates.find(({ text }) => text.includes('aceitar tudo'))
+          ?? candidates.find(({ text }) => text.includes('accept all'))
+          ?? candidates.find(({ text }) => text.includes('aceitar'))
+          ?? candidates.find(({ text }) => text.includes('accept'));
+
+        if (!target) {
+          return false;
+        }
+
+        (target.element as HTMLElement).click();
+        return true;
+      });
+
+      if (clicked) {
+        logger.debug('BetclicScraper: dismissed cookie consent via visible button text');
+      }
+    } catch {
+      // Ignore text-search fallback failures.
+    }
+
+    try {
+      const clickedById = await page.evaluate(() => {
+        const element = document.querySelector(
+          '#tc_privacy_button_2, #popin_tc_privacy_button_2, #footer_tc_privacy_button_2, #header_tc_privacy_button_2',
+        ) as HTMLElement | null;
+
+        if (!element) {
+          return false;
+        }
+
+        element.click();
+        return true;
+      });
+
+      if (clickedById) {
+        logger.debug('BetclicScraper: dismissed cookie consent via TrustCommander accept-all button');
+      }
+    } catch {
+      // Ignore direct TrustCommander click failures.
+    }
+  }
+
+  private async waitForCookieOverlayToClear(page: Page): Promise<void> {
+    try {
+      await page.waitForFunction(
+        () => {
+          const pageText = document.body?.innerText?.toLowerCase() ?? '';
+          return !pageText.includes('aceitar tudo')
+            && !pageText.includes('recusar tudo')
+            && !pageText.includes('cookies, tu escolhes');
+        },
+        { timeout: 10_000 },
+      );
+    } catch {
+      logger.debug('BetclicScraper: cookie overlay still visible after dismissal attempt');
+    }
   }
 
   private async scrollDown(page: Page): Promise<void> {
-    await page.evaluate(() => {
-      window.scrollTo({ top: document.body.scrollHeight * 0.5, behavior: 'smooth' });
+    // Betclic is an Angular SPA that lazy-loads events as you scroll.
+    // We do 6 progressive scroll steps with pauses so Angular can render
+    // each batch before we scroll further.
+    for (let step = 1; step <= 6; step++) {
+      const ratio = step / 6;
+      await page.evaluate((r) => {
+        window.scrollTo({ top: document.body.scrollHeight * r, behavior: 'smooth' });
+      }, ratio);
+      await randomDelay(800, 1500);
+    }
+    // Final pass: scroll back to absolute bottom and wait for any remaining renders
+    await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
+    await randomDelay(1500, 2500);
+  }
+
+  private async enrichEventsFromApi(rawEvents: RawEventData[]): Promise<void> {
+    const queue = rawEvents
+      .map((event) => ({
+        event,
+        eventId: extractEventIdFromPath(event.detailPath ?? '') ?? (/^\d+$/.test(event.externalId) ? event.externalId : null),
+      }))
+      .filter((candidate): candidate is { event: RawEventData; eventId: string } => Boolean(candidate.eventId));
+
+    logger.debug('BetclicScraper: API enrichment candidates prepared', {
+      totalEvents: rawEvents.length,
+      candidates: queue.length,
+      sampleIds: queue.slice(0, 3).map((candidate) => candidate.eventId),
     });
-    await randomDelay(400, 900);
-    await page.evaluate(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+    let currentIndex = 0;
+    const workerCount = Math.min(API_ENRICH_CONCURRENCY, queue.length);
+
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (currentIndex < queue.length) {
+        const candidate = queue[currentIndex];
+        currentIndex += 1;
+        if (!candidate) {
+          break;
+        }
+
+        try {
+          const apiMarkets = await fetchBetclicMatchMarkets(
+            candidate.eventId,
+            candidate.event.homeTeam,
+            candidate.event.awayTeam,
+          );
+
+          if (apiMarkets.length >= API_MARKET_MINIMUM) {
+            candidate.event.detailMarkets = apiMarkets;
+            logger.debug('BetclicScraper: enriched event from match API', {
+              event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+              eventId: candidate.eventId,
+              markets: apiMarkets.map((market) => market.market).slice(0, 12),
+            });
+          } else {
+            logger.debug('BetclicScraper: match API returned incomplete market set', {
+              event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+              eventId: candidate.eventId,
+              markets: apiMarkets.map((market) => market.market),
+            });
+          }
+        } catch (error) {
+          logger.debug('BetclicScraper: match API enrichment failed', {
+            event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+            eventId: candidate.eventId,
+            error: error instanceof Error ? error.message : JSON.stringify(error),
+          });
+        }
+      }
     });
+
+    await Promise.all(workers);
+  }
+
+  private async enrichEventsFromDetailPages(page: Page, rawEvents: RawEventData[]): Promise<void> {
+    const candidates = rawEvents
+      .filter((event) => Boolean(event.detailPath))
+      .slice(0, DETAIL_FALLBACK_LIMIT);
+
+    logger.debug('BetclicScraper: DOM fallback enrichment candidates prepared', {
+      totalEvents: rawEvents.length,
+      candidates: candidates.length,
+      samplePaths: candidates.slice(0, 3).map((event) => event.detailPath),
+    });
+
+    for (const event of candidates) {
+      if (!event.detailPath) {
+        continue;
+      }
+
+      try {
+        const detailUrl = new URL(event.detailPath, FOOTBALL_URL).toString();
+        await page.goto(detailUrl, {
+          waitUntil: 'networkidle2',
+          timeout: 45_000,
+        });
+        await this.dismissCookieConsent(page);
+        await this.waitForCookieOverlayToClear(page);
+        await randomDelay(1200, 2200);
+
+        const detailText = await page.evaluate(() => document.body?.innerText ?? '');
+        const detailMarkets = parseDetailMarkets(detailText, event.homeTeam, event.awayTeam);
+
+        if (detailMarkets.length > (event.detailMarkets?.length ?? 0)) {
+          event.detailMarkets = detailMarkets;
+          logger.debug('BetclicScraper: enriched event from DOM fallback', {
+            event: `${event.homeTeam} vs ${event.awayTeam}`,
+            markets: detailMarkets.map((market) => market.market),
+          });
+        } else {
+          logger.debug('BetclicScraper: DOM fallback yielded no better market set', {
+            event: `${event.homeTeam} vs ${event.awayTeam}`,
+            detailPath: event.detailPath,
+          });
+        }
+      } catch (error) {
+        logger.debug('BetclicScraper: failed to enrich event via DOM fallback', {
+          event: `${event.homeTeam} vs ${event.awayTeam}`,
+          detailPath: event.detailPath,
+          error: error instanceof Error ? error.message : JSON.stringify(error),
+        });
+      }
+    }
   }
 
   /**
@@ -226,8 +1059,256 @@ export class BetclicScraper implements IScraper {
     return page.evaluate((): RawEventData[] => {
       const results: RawEventData[] = [];
 
+      const resolveDetailHref = (item: Element): string | undefined => {
+        const hrefCandidates = [
+          item.getAttribute('href'),
+          item.getAttribute('data-href'),
+          item.getAttribute('routerlink'),
+          item.getAttribute('ng-reflect-router-link'),
+          item.closest('a[href*="/futebol-"]')?.getAttribute('href'),
+          item.querySelector('a[href*="/futebol-"]')?.getAttribute('href'),
+          item.querySelector('a[href*="-m"]')?.getAttribute('href'),
+        ]
+          .map((value) => value?.trim())
+          .filter((value): value is string => Boolean(value));
+
+        return hrefCandidates.find((value) => value.includes('/futebol-')) ?? hrefCandidates[0];
+      };
+
+      const parseTextFallback = (): RawEventData[] => {
+        const fallbackResults: RawEventData[] = [];
+
+        const parseTeamAndOdd = (value: string): { team: string; odd: string } | null => {
+          const match = value.match(/^(.*?)\s+(\d+(?:[.,]\d+)?)$/);
+          if (!match) {
+            return null;
+          }
+
+          return {
+            team: match[1]?.trim() ?? '',
+            odd: match[2]?.trim() ?? '',
+          };
+        };
+
+        const anchorCards = Array.from(
+          document.querySelectorAll('a.cardEvent[href*="/futebol-"]'),
+        );
+
+        for (const anchor of anchorCards) {
+          const oddTexts = Array.from(
+            anchor.querySelectorAll('button, oddbutton, [class*="is-odd"], [class*="oddValue"], [class*="odd_value"]'),
+          )
+            .map((element) => element.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+            .filter(Boolean);
+
+          if (oddTexts.length < 3) {
+            continue;
+          }
+
+          const homeData = parseTeamAndOdd(oddTexts[0] ?? '');
+          const drawMatch = (oddTexts[1] ?? '').match(/Empate\s+(\d+(?:[.,]\d+)?)/i);
+          const awayData = parseTeamAndOdd(oddTexts[2] ?? '');
+
+          if (!homeData || !drawMatch || !awayData) {
+            continue;
+          }
+
+          const lines = (anchor.textContent ?? '')
+            .split('\n')
+            .map((line) => line.replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+
+          const league = lines.find((candidate) =>
+            candidate.includes('Jornada')
+            || candidate.includes('Liga')
+            || candidate.includes('League')
+            || candidate.includes('MLS')
+            || candidate.includes('Primera')
+            || candidate.includes('National')
+            || candidate.includes('Conference'),
+          ) ?? 'Futebol';
+
+          const timeEl = anchor.querySelector('time[datetime]');
+          const dateAttr = timeEl?.getAttribute('datetime');
+          const eventDateIso = dateAttr && !Number.isNaN(new Date(dateAttr).getTime())
+            ? dateAttr
+            : new Date().toISOString();
+          const detailHref = resolveDetailHref(anchor);
+          const externalId = detailHref?.match(/(\d{6,})/)?.[1] ?? `${homeData.team}__${awayData.team}__${league}`;
+
+          fallbackResults.push({
+            externalId,
+            league,
+            homeTeam: homeData.team,
+            awayTeam: awayData.team,
+            eventDateIso,
+            detailPath: detailHref,
+            home: homeData.odd,
+            draw: drawMatch[1] ?? '',
+            away: awayData.odd,
+            isLive: false,
+          });
+        }
+
+        if (fallbackResults.length > 0) {
+          return fallbackResults;
+        }
+
+        const buttonRows = Array.from(document.querySelectorAll('button'))
+          .map((button) => {
+            const text = button.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+            const rect = button.getBoundingClientRect();
+            return {
+              text,
+              top: Math.round(rect.top),
+              left: Math.round(rect.left),
+            };
+          })
+          .filter(({ text }) => text.length > 0 && /\d+(?:[.,]\d+)?$/.test(text));
+
+        const groupedRows: Array<Array<{ text: string; top: number; left: number }>> = [];
+        for (const button of buttonRows.sort((left, right) => left.top - right.top || left.left - right.left)) {
+          const currentGroup = groupedRows[groupedRows.length - 1];
+          if (!currentGroup || Math.abs(currentGroup[0].top - button.top) > 10) {
+            groupedRows.push([button]);
+            continue;
+          }
+          currentGroup.push(button);
+        }
+
+        const textNodes = Array.from(document.querySelectorAll('a, span, div, p, time'))
+          .map((element) => {
+            const text = element.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+            const rect = element.getBoundingClientRect();
+            return {
+              text,
+              top: Math.round(rect.top),
+              left: Math.round(rect.left),
+            };
+          })
+          .filter(({ text }) => text.length > 0);
+
+        for (const row of groupedRows) {
+          if (row.length < 3) {
+            continue;
+          }
+
+          const sortedRow = [...row].sort((left, right) => left.left - right.left);
+          const drawButton = sortedRow.find(({ text }) => text.toLowerCase().includes('empate'));
+          if (!drawButton) {
+            continue;
+          }
+
+          const firstButton = sortedRow[0];
+          const lastButton = sortedRow[sortedRow.length - 1];
+          const homeData = parseTeamAndOdd(firstButton.text);
+          const awayData = parseTeamAndOdd(lastButton.text);
+          const drawMatch = drawButton.text.match(/Empate\s+(\d+(?:[.,]\d+)?)/i);
+
+          if (!homeData || !awayData || !drawMatch) {
+            continue;
+          }
+
+          const league = textNodes
+            .filter(({ top, text }) => {
+              if (!(top < firstButton.top && firstButton.top - top <= 120)) {
+                return false;
+              }
+
+              if (text.length > 120) {
+                return false;
+              }
+
+              if (text.includes('Empate')) {
+                return false;
+              }
+
+              return true;
+            })
+            .map(({ text }) => text)
+            .find((candidate) =>
+              candidate.includes('Jornada')
+              || candidate.includes('Liga')
+              || candidate.includes('League')
+              || candidate.includes('MLS')
+              || candidate.includes('Primera')
+              || candidate.includes('National')
+              || candidate.includes('Conference'),
+            ) ?? 'Futebol';
+
+          fallbackResults.push({
+            externalId: `${homeData.team}__${awayData.team}__${league}`,
+            league,
+            homeTeam: homeData.team,
+            awayTeam: awayData.team,
+            eventDateIso: new Date().toISOString(),
+            home: homeData.odd,
+            draw: drawMatch[1] ?? '',
+            away: awayData.odd,
+            isLive: false,
+          });
+        }
+
+        if (fallbackResults.length > 0) {
+          return fallbackResults;
+        }
+
+        const bodyText = document.body?.innerText ?? '';
+        const lines = bodyText
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        const oddsLinePattern = /^(.*?)\s+(\d+(?:[.,]\d+)?)\s+Empate\s+(\d+(?:[.,]\d+)?)\s+(.*?)\s+(\d+(?:[.,]\d+)?)$/i;
+
+        for (let index = 0; index < lines.length; index += 1) {
+          const line = lines[index] ?? '';
+          const match = line.match(oddsLinePattern);
+          if (!match) {
+            continue;
+          }
+
+          const homeTeam = match[1]?.trim() ?? '';
+          const home = match[2]?.trim() ?? '';
+          const draw = match[3]?.trim() ?? '';
+          const awayTeam = match[4]?.trim() ?? '';
+          const away = match[5]?.trim() ?? '';
+
+          if (!homeTeam || !awayTeam || !home || !draw || !away) {
+            continue;
+          }
+
+          const recentContext = lines.slice(Math.max(0, index - 5), index);
+          const league = recentContext.find((candidate) =>
+            candidate.includes('Jornada')
+            || candidate.includes('Liga')
+            || candidate.includes('League')
+            || candidate.includes('MLS')
+            || candidate.includes('Primera')
+            || candidate.includes('National')
+            || candidate.includes('Conference'),
+          ) ?? 'Futebol';
+
+          const eventDateIso = new Date().toISOString();
+          fallbackResults.push({
+            externalId: `${homeTeam}__${awayTeam}__${league}`,
+            league,
+            homeTeam,
+            awayTeam,
+            eventDateIso,
+            home,
+            draw,
+            away,
+            isLive: false,
+          });
+        }
+
+        return fallbackResults;
+      };
+
       // Try in-order from most to least specific
       const itemSelectors = [
+        'a.cardEvent[href*="/futebol-"]',
         'sport-event-listitem',
         '[class*="event_item"]',
         '[data-type="sport-event"]',
@@ -240,6 +1321,10 @@ export class BetclicScraper implements IScraper {
           items = Array.from(found);
           break;
         }
+      }
+
+      if (items.length === 0) {
+        return parseTextFallback();
       }
 
       const getLeague = (el: Element): string => {
@@ -300,18 +1385,63 @@ export class BetclicScraper implements IScraper {
 
           if (!home || !draw || !away) return; // Skip events without visible odds
 
+          const detailHref = resolveDetailHref(item);
+
+          // ── Live detection ────────────────────────────────────────────────
+          // Data-attribute check covers sites that annotate live status in HTML.
+          // Child-text check covers Betclic: live event cards contain a minute
+          // counter ("41'", "90+3'") or fixed strings ("Início", "Intervalo")
+          // as visible text within DESCENDANT elements only (item.querySelectorAll
+          // is scoped to the card, so ancestor nav text "Ao Vivo" is excluded).
+          const hasLiveAttr =
+            item.querySelector(
+              '[data-live="true"], [data-status="live"], [data-status="LIVE"], [data-status="inprogress"], ' +
+              '[data-match-status="live"], [data-match-status="LIVE"], ' +
+              '[class*="inplay"], [class*="InPlay"], [class*="in-play"], ' +
+              '[class*="live-score"], [class*="livescore"], [class*="live-time"], ' +
+              '[class*="live-clock"], [class*="live-indicator"], [class*="match-live"]'
+            ) !== null;
+
+          // Check for in-play time indicators rendered inside the event card.
+          // These only appear in live event rows: "41'", "90+5'", "Início", "Intervalo".
+          const hasLiveChildText = Array.from(item.querySelectorAll('*')).some((el) => {
+            const txt = ((el as HTMLElement).innerText ?? (el as HTMLElement).textContent ?? '').trim();
+            return (
+              /^\d+['']\s*(?:\+\s*\d+['']\s*)?$/.test(txt) ||   // "41'", "90+3'"
+              /^(Início|Intervalo|HT|Intervalo\s+\d+)$/i.test(txt)
+            );
+          });
+
+          const isLive = hasLiveAttr || hasLiveChildText;
+
           // ── External ID ───────────────────────────────────────────────────
           const externalId =
+            (detailHref ? (detailHref.match(/(\d{6,})/)?.[1] ?? detailHref) : null) ??
             item.getAttribute('data-id') ??
             item.getAttribute('id') ??
             item.getAttribute('data-event-id') ??
             `${homeTeam}__${awayTeam}__${eventDateIso}`;
 
-          results.push({ externalId, league, homeTeam, awayTeam, eventDateIso, home, draw, away });
+          results.push({
+            externalId,
+            league,
+            homeTeam,
+            awayTeam,
+            eventDateIso,
+            detailPath: detailHref,
+            home,
+            draw,
+            away,
+            isLive,
+          });
         } catch {
           // Skip malformed rows — never throw inside evaluate()
         }
       });
+
+      if (results.length === 0) {
+        return parseTextFallback();
+      }
 
       return results;
     });
@@ -344,19 +1474,29 @@ export class BetclicScraper implements IScraper {
           },
         ];
 
+        for (const detailMarket of r.detailMarkets ?? []) {
+          const existingIndex = markets.findIndex((market) => market.market === detailMarket.market);
+          if (existingIndex >= 0) {
+            markets[existingIndex] = detailMarket;
+          } else {
+            markets.push(detailMarket);
+          }
+        }
+
         events.push({
-          externalId: r.externalId,
+          externalId: extractEventIdFromPath(r.detailPath ?? '') ?? r.externalId,
           sport: Sport.FOOTBALL,
           league: r.league || 'Futebol',
           homeTeam: r.homeTeam,
           awayTeam: r.awayTeam,
           eventDate: new Date(r.eventDateIso),
           markets,
+          isLive: r.isLive,
         });
       } catch (err) {
         logger.debug('BetclicScraper: failed to parse raw event', {
           event: `${r.homeTeam} vs ${r.awayTeam}`,
-          error: err instanceof Error ? err.message : String(err),
+          error: err instanceof Error ? err.message : JSON.stringify(err),
         });
       }
     }
