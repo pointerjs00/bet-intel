@@ -53,13 +53,17 @@ pnpm install
 docker compose -f apps/api/docker-compose.yml up -d redis
 
 # 3. Copy env file and fill in values
-cp apps/api/src/.env.example apps/api/.env
+copy apps\api\src\.env.example apps\api\.env
 
-# 4. Run database migrations
-cd apps/api && pnpm prisma:migrate:dev && cd ../..
+# 4. Run database migrations (must be run from apps/api)
+cd apps\api
+pnpm prisma:migrate:dev
+cd ..\..  
 
-# 5. Seed betting sites
-cd apps/api && pnpm prisma:seed && cd ../..
+# 5. Seed betting sites (must be run from apps/api)
+cd apps\api
+pnpm prisma:seed
+cd ..\..
 ```
 
 ### Start API in dev mode
@@ -80,7 +84,11 @@ pnpm start
 ```sh
 git pull
 pnpm install          # in case new deps were added
-cd apps/api && pnpm prisma:migrate:dev   # in case schema changed
+
+# If the schema changed, run migrations (from apps/api)
+cd apps\api
+pnpm prisma:migrate:dev
+cd ..\..
 ```
 
 ---
@@ -90,14 +98,14 @@ cd apps/api && pnpm prisma:migrate:dev   # in case schema changed
 Run these after any scraper data quality issues:
 
 ```sh
-# Merge all duplicate Betclic SportEvent rows (run from repo root)
-cd apps/api && pnpm maintenance:repair-betclic-fetched-events
+# All maintenance scripts must be run from apps/api
+cd apps\api
+
+# Merge all duplicate Betclic SportEvent rows
+pnpm maintenance:repair-betclic-fetched-events
 
 # Fix a specific event (replace values as needed)
-cd apps/api && pnpm maintenance:dedupe-betclic-event \
-  --externalId=<betclic-event-id> \
-  --canonicalId=<prisma-cuid-to-keep> \
-  --eventDate=<correct-ISO-date>
+pnpm maintenance:dedupe-betclic-event --externalId=<betclic-event-id> --canonicalId=<prisma-cuid-to-keep> --eventDate=<correct-ISO-date>
 ```
 
 ---
@@ -109,5 +117,5 @@ cd apps/api && pnpm maintenance:dedupe-betclic-event \
 | Deploy latest API | Push to `main` (auto) or trigger GH Action | Any `apps/api` change |
 | Build latest mobile app | Push to `main` (auto) or trigger GH Action | Any `apps/mobile` change |
 | Install new app build on device | Download from Expo dashboard or TestFlight/Play Console | After EAS build completes |
-| Apply DB migrations | `cd apps/api && pnpm prisma:migrate:deploy` | After schema changes |
+| Apply DB migrations | `cd apps\api` then `pnpm prisma:migrate:deploy` | After schema changes |
 | Fix duplicate event data | `cd apps/api && pnpm maintenance:repair-betclic-fetched-events` | Ad hoc |
