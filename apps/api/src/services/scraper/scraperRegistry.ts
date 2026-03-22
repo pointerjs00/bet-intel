@@ -3,8 +3,7 @@ import { prisma } from '../../prisma';
 import { logger } from '../../utils/logger';
 import type { IScraper, ScrapedEvent } from './types';
 import { emitOddsUpdated } from '../../sockets/oddsSocket';
-import { emitEventStatusChange } from '../../sockets/index';
-import type { EventStatus as SharedEventStatus, OddsUpdatedPayload } from '@betintel/shared';
+import type { OddsUpdatedPayload } from '@betintel/shared';
 import { invalidateOddsCache } from '../odds/oddsService';
 import { BetanoScraper } from './sites/betanoScraper';
 import { Bet365Scraper } from './sites/bet365Scraper';
@@ -20,10 +19,17 @@ import { SolverdeScraper } from './sites/solverdeScraper';
  * Collected socket emissions from a single persistEvent call.
  * Deferred until after the Redis cache is invalidated so all mobile refetches
  * triggered by these events see fresh data (no cache hit on stale values).
+ *
+ * NOTE: status changes are no longer emitted from persistEvent — event status
+ * is owned exclusively by the sports-data status service (API-Football) and
+ * the periodic cleanup in updateEventStatuses(). Scrapers only write odds.
  */
 interface PersistResult {
   oddsChanges: OddsUpdatedPayload[];
-  statusChange: { eventId: string; status: SharedEventStatus } | null;
+}
+
+interface PersistSiteOptions {
+  incremental?: boolean;
 }
 
 const registry = new Map<string, IScraper>();
@@ -89,10 +95,12 @@ export async function runAllScrapers(): Promise<void> {
     });
   }
 
-  // ── Global LIVE cleanup ──────────────────────────────────────────────────────
+  // ── Global odds deactivation for unseen LIVE events ─────────────────────────
   // All scrapers have now run. Any LIVE event with NO active odd updated in the
   // last 10 minutes was not confirmed live by any scraper this cycle.
-  // 10 min is generous enough to cover sequential scraping of all 7 sites.
+  // We deactivate their odds so stale prices don't appear in the feed.
+  // Status (FINISHED) will be set by the sports-data status service once it
+  // confirms the match is over — we don't guess here.
   try {
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
     const stale = await prisma.sportEvent.findMany({
@@ -104,21 +112,18 @@ export async function runAllScrapers(): Promise<void> {
     });
 
     if (stale.length > 0) {
-      await prisma.sportEvent.updateMany({
-        where: { id: { in: stale.map((e) => e.id) } },
-        data: { status: EventStatus.FINISHED as never },
+      // Deactivate all odds for these events — they'll disappear from the odds feed
+      await prisma.odd.updateMany({
+        where: { eventId: { in: stale.map((e) => e.id) }, isActive: true },
+        data: { isActive: false },
       });
-      // Invalidate FIRST — then broadcast so that mobile refetches see fresh data
       await invalidateOddsCache();
-      for (const event of stale) {
-        emitEventStatusChange({ eventId: event.id, status: 'FINISHED' as unknown as SharedEventStatus, homeScore: null, awayScore: null });
-      }
-      logger.info(`Global LIVE cleanup: ${stale.length} events → FINISHED`, {
+      logger.info(`Global odds cleanup: deactivated odds for ${stale.length} LIVE events not seen by any scraper`, {
         events: stale.map((e) => `${e.homeTeam} vs ${e.awayTeam}`),
       });
     }
   } catch (err) {
-    logger.warn('Global LIVE cleanup failed', { error: (err as Error).message });
+    logger.warn('Global odds cleanup failed', { error: (err as Error).message });
   }
 }
 
@@ -145,44 +150,7 @@ async function runScraperInstance(scraper: IScraper): Promise<number> {
     return 0;
   }
 
-  // Ensure BettingSite row exists in DB
-  const site = await prisma.bettingSite.upsert({
-    where: { slug: scraper.siteSlug },
-    create: {
-      slug: scraper.siteSlug,
-      name: scraper.siteName,
-      baseUrl: resolveSiteBaseUrl(scraper.siteSlug),
-      isActive: true,
-    },
-    update: { lastScraped: new Date() },
-  });
-
-  // If the upsert hit the existing path, update lastScraped separately
-  if (site.lastScraped === null || site.lastScraped < new Date(Date.now() - 1000)) {
-    await prisma.bettingSite.update({
-      where: { id: site.id },
-      data: { lastScraped: new Date() },
-    });
-  }
-
-  let persisted = 0;
-  const pendingOddsChanges: OddsUpdatedPayload[] = [];
-  const pendingStatusChanges: Array<{ eventId: string; status: SharedEventStatus }> = [];
-
-  for (const ev of events) {
-    try {
-      const result = await persistEvent(site.id, ev);
-      persisted++;
-      pendingOddsChanges.push(...result.oddsChanges);
-      if (result.statusChange) pendingStatusChanges.push(result.statusChange);
-    } catch (err) {
-      logger.warn(`Failed to persist event`, {
-        slug: scraper.siteSlug,
-        event: `${ev.homeTeam} vs ${ev.awayTeam}`,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+  const persisted = await persistScrapedEventsForSite(scraper.siteSlug, scraper.siteName, events);
 
   logger.info(`Scraper finished`, {
     slug: scraper.siteSlug,
@@ -191,12 +159,66 @@ async function runScraperInstance(scraper: IScraper): Promise<number> {
     durationMs: Date.now() - startMs,
   });
 
+  return persisted;
+}
+
+async function ensureBettingSite(siteSlug: string, siteName: string) {
+  const site = await prisma.bettingSite.upsert({
+    where: { slug: siteSlug },
+    create: {
+      slug: siteSlug,
+      name: siteName,
+      baseUrl: resolveSiteBaseUrl(siteSlug),
+      isActive: true,
+    },
+    update: { lastScraped: new Date() },
+  });
+
+  if (site.lastScraped === null || site.lastScraped < new Date(Date.now() - 1000)) {
+    await prisma.bettingSite.update({
+      where: { id: site.id },
+      data: { lastScraped: new Date() },
+    });
+  }
+
+  return site;
+}
+
+export async function persistScrapedEventsForSite(
+  siteSlug: string,
+  siteName: string,
+  events: ScrapedEvent[],
+  options: PersistSiteOptions = {},
+): Promise<number> {
+  if (events.length === 0) {
+    return 0;
+  }
+
+  const site = await ensureBettingSite(siteSlug, siteName);
+
+  let persisted = 0;
+  const pendingOddsChanges: OddsUpdatedPayload[] = [];
+
+  for (const ev of events) {
+    try {
+      const result = await persistEvent(site.id, ev);
+      persisted++;
+      pendingOddsChanges.push(...result.oddsChanges);
+    } catch (err) {
+      logger.warn(`Failed to persist event`, {
+        slug: siteSlug,
+        event: `${ev.homeTeam} vs ${ev.awayTeam}`,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   // After a successful scrape, any LIVE event from this site that wasn't
   // returned by the scraper at all is no longer listed on the betting site —
   // the match ended or was removed. Mark it FINISHED immediately so the feed
   // reflects the betting site's truth with no time-based guessing.
   let cacheInvalidated = persisted > 0;
-  if (events.length > 0) {
+  if (!options.incremental) {
     // All team-name keys the scraper returned (live or upcoming)
     const seenKeys = new Set(
       events.map((ev) =>
@@ -220,17 +242,16 @@ async function runScraperInstance(scraper: IScraper): Promise<number> {
       .map((dbEv) => dbEv.id);
 
     if (notSeenIds.length > 0) {
-      // Betting site no longer lists these events → they are over
-      const result = await prisma.sportEvent.updateMany({
-        where: { id: { in: notSeenIds } },
-        data: { status: EventStatus.FINISHED as never },
+      // Betting site no longer lists these events → they may be over.
+      // We don't force FINISHED here — the sports-data status service owns the
+      // authoritative status. Instead deactivate their odds so stale odds are
+      // hidden from the feed. The status cleanup will finalise them shortly.
+      await prisma.odd.updateMany({
+        where: { siteId: site.id, eventId: { in: notSeenIds }, isActive: true },
+        data: { isActive: false },
       });
-      // Collect status changes — will be emitted after cache is cleared below
-      for (const eventId of notSeenIds) {
-        pendingStatusChanges.push({ eventId, status: 'FINISHED' as unknown as SharedEventStatus });
-      }
-      logger.info(`Marked ${result.count} unseen LIVE events as FINISHED`, {
-        slug: scraper.siteSlug,
+      logger.info(`Deactivated odds for ${notSeenIds.length} events no longer listed by scraper`, {
+        slug: siteSlug,
       });
       cacheInvalidated = true;
     }
@@ -243,9 +264,6 @@ async function runScraperInstance(scraper: IScraper): Promise<number> {
     await invalidateOddsCache();
   }
 
-  for (const change of pendingStatusChanges) {
-    emitEventStatusChange({ eventId: change.eventId, status: change.status, homeScore: null, awayScore: null });
-  }
   for (const payload of pendingOddsChanges) {
     emitOddsUpdated(payload);
   }
@@ -259,9 +277,16 @@ async function runScraperInstance(scraper: IScraper): Promise<number> {
  * Events are matched across sites by: sport + normalised team names +
  * event date ±30 min window. This allows odds from multiple sites to point
  * at the same `SportEvent` row, enabling cross-site comparison.
+ *
+ * This function is **odds-only** — it never writes to the `status` column.
+ * Event status is owned exclusively by the sports-data status service
+ * (eventStatusService.ts) which polls API-Football for authoritative results,
+ * and by the periodic updateEventStatuses() safety-net cleanup. Keeping the
+ * two concerns separate eliminates false-positive LIVE promotions that were
+ * previously caused by scraper HTML artefacts (e.g. elapsed-time text).
  */
 async function persistEvent(siteId: string, ev: ScrapedEvent): Promise<PersistResult> {
-  const result: PersistResult = { oddsChanges: [], statusChange: null };
+  const result: PersistResult = { oddsChanges: [] };
   const home = normaliseTeamName(ev.homeTeam);
   const away = normaliseTeamName(ev.awayTeam);
   const league = sanitiseLeagueName(ev.league, home, away);
@@ -278,35 +303,14 @@ async function persistEvent(siteId: string, ev: ScrapedEvent): Promise<PersistRe
       awayTeam: { equals: away, mode: 'insensitive' },
       eventDate: { gte: windowStart, lte: windowEnd },
     },
-    select: { id: true, externalId: true, status: true },
+    select: { id: true, externalId: true },
   });
 
   let eventId: string;
 
-  // Determine status from scraper observations, with time-window guards:
-  // • Match started 0–150 min ago AND (scraper signals live OR time implies live)
-  //   → LIVE
-  // • Match started >150 min ago AND existing status is LIVE
-  //   → FINISHED immediately (don't wait for the periodic cleanup; the scraper's
-  //     isLive flag can fire on "90+3'" elapsed-time text rendered for matches that
-  //     already ended, so we gate everything on the 150-min window)
-  // • Anything else → undefined (preserve existing status unchanged)
-  // IMPORTANT: never downgrade FINISHED → UPCOMING; the periodic cleanup owns
-  // the authoritative LIVE → FINISHED transition and must not be undone here.
-  const now = Date.now();
-  const minutesSinceStart = (now - ev.eventDate.getTime()) / 60_000;
-  const withinLiveWindow = minutesSinceStart >= 0 && minutesSinceStart <= 150;
-  const isLiveSignal = (ev.isLive || withinLiveWindow) && withinLiveWindow;
-
-  const scrapedStatus: EventStatus | undefined =
-    isLiveSignal
-      ? EventStatus.LIVE
-      : minutesSinceStart > 150 && existing?.status === EventStatus.LIVE
-        ? EventStatus.FINISHED
-        : undefined;
-
   if (existing) {
     eventId = existing.id;
+    // Update metadata only — status is intentionally excluded
     await prisma.sportEvent.update({
       where: { id: eventId },
       data: {
@@ -315,13 +319,8 @@ async function persistEvent(siteId: string, ev: ScrapedEvent): Promise<PersistRe
         homeTeam: home,
         awayTeam: away,
         eventDate: ev.eventDate,
-        ...(scrapedStatus ? { status: scrapedStatus } : {}),
       },
     });
-    // Collect status change — emitted after cache is cleared in runScraperInstance
-    if (scrapedStatus && scrapedStatus !== existing.status) {
-      result.statusChange = { eventId, status: scrapedStatus as unknown as SharedEventStatus };
-    }
   } else {
     const created = await prisma.sportEvent.create({
       data: {
@@ -331,7 +330,7 @@ async function persistEvent(siteId: string, ev: ScrapedEvent): Promise<PersistRe
         homeTeam: home,
         awayTeam: away,
         eventDate: ev.eventDate,
-        status: scrapedStatus ?? EventStatus.UPCOMING,
+        status: EventStatus.UPCOMING, // all new events start as UPCOMING
       },
       select: { id: true },
     });

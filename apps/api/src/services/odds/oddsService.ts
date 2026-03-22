@@ -408,38 +408,27 @@ export async function getLeagues(sport?: Sport): Promise<{ sport: string; league
 // ─── Event status lifecycle ───────────────────────────────────────────────────
 
 /**
- * Cleans up stale event statuses. LIVE status is set exclusively by scrapers
- * when they observe the event is in-play — this function never promotes events
- * to LIVE on its own.
+ * Safety-net cleanup for stale event statuses.
+ *
+ * Status transitions (UPCOMING → LIVE, LIVE → FINISHED with scores) are owned
+ * by the sports-data status service (eventStatusService.ts) which polls
+ * API-Football for authoritative real-time match state.
+ *
+ * This function is the last line of defence: it marks events FINISHED purely
+ * by elapsed time, in case the sports-data service missed them (e.g. unknown
+ * event IDs, API rate limits, network issues).
  *
  * Rules:
- *  • LIVE     → FINISHED  when `eventDate + 3h <= now`  (scraper should have
- *                          un-listed it, but this is the safety net)
- *  • UPCOMING → FINISHED  when `eventDate + 4h <= now`  (event was never picked
- *                          up as live — either it was cancelled or the scraper
- *                          missed it; hide it from the feed)
+ *  • LIVE     → FINISHED  when `eventDate + 3h <= now`
+ *  • UPCOMING → FINISHED  when `eventDate + 4h <= now`  (never seen as live —
+ *                          either cancelled or not covered by the status API)
  */
 export async function updateEventStatuses(): Promise<{ toLive: number; toFinished: number }> {
   const now = new Date();
-  // Football matches finish within ~115 min (90 + injury time + possible extra time).
-  // 2 h is a safe safety-net — scrapers should revert events much sooner than this.
-  const liveFinishCutoff     = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 h
-  const upcomingFinishCutoff = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 h
-  const liveWindowStart      = new Date(now.getTime() - 150 * 60 * 1000);    // 150 min ago
+  const liveFinishCutoff     = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 h safety net
+  const upcomingFinishCutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000); // 4 h
 
-  // UPCOMING events whose kick-off was 0-150 minutes ago → mark LIVE
-  // This runs every job cycle so the mobile app sees live events even if the
-  // scraper hasn't completed yet. Scrapers can refine individual event status
-  // via the per-event isLive detection inside persistEvent().
-  const toLiveResult = await prisma.sportEvent.updateMany({
-    where: {
-      status: 'UPCOMING' as unknown as Prisma.EnumEventStatusFilter['equals'],
-      eventDate: { lte: now, gte: liveWindowStart },
-    },
-    data: { status: 'LIVE' as never },
-  });
-
-  // LIVE events whose kick-off was 2+ hours ago → mark FINISHED
+  // LIVE events whose kick-off was 3+ hours ago → mark FINISHED (safety net only)
   const liveExpiredResult = await prisma.sportEvent.updateMany({
     where: {
       status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
@@ -448,8 +437,8 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
     data: { status: 'FINISHED' as never },
   });
 
-  // UPCOMING events whose kick-off was 3+ hours ago → mark FINISHED
-  // (They were never seen as live by any scraper — hide them)
+  // UPCOMING events whose kick-off was 4+ hours ago → mark FINISHED
+  // (Never picked up by the status API — cancelled or outside coverage)
   const upcomingExpiredResult = await prisma.sportEvent.updateMany({
     where: {
       status: 'UPCOMING' as unknown as Prisma.EnumEventStatusFilter['equals'],
@@ -458,10 +447,10 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
     data: { status: 'FINISHED' as never },
   });
 
-  const toLive = toLiveResult.count;
+  const toLive = 0; // UPCOMING→LIVE is now done by eventStatusService, not here
   const toFinished = liveExpiredResult.count + upcomingExpiredResult.count;
 
-  if (toLive > 0 || toFinished > 0) {
+  if (toFinished > 0) {
     await invalidateOddsCache();
   }
 

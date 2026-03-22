@@ -19,6 +19,8 @@ import { notificationsRouter } from './routes/notificationsRoutes';
 import { defaultLimiter } from './middleware/rateLimiter';
 import { initScrapeJobs, closeScrapeJobs } from './jobs/scrapeJobs';
 import { initializeSocketServer } from './sockets';
+import { startEventStatusPolling, stopEventStatusPolling } from './services/eventStatus/eventStatusService';
+import { startBetclicLiveWatcher, stopBetclicLiveWatcher } from './services/scraper/betclicLiveWatcher';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
 
@@ -106,12 +108,21 @@ async function start(): Promise<void> {
 
   initializeSocketServer(server);
 
+  // Start authoritative match status polling (API-Football)
+  // Must be started after Socket.io is initialised so it can emit status changes.
+  startEventStatusPolling();
+
+  // Start the long-lived Betclic live watcher for incremental odds persistence.
+  await startBetclicLiveWatcher();
+
   // Start scraping job queue
   await initScrapeJobs();
 
   // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`Received ${signal} — shutting down gracefully`);
+    stopEventStatusPolling();
+    await stopBetclicLiveWatcher();
     await closeScrapeJobs();
     server.close(async () => {
       await prisma.$disconnect();

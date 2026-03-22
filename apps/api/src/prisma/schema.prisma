@@ -138,6 +138,7 @@ model BettingSite {
 model SportEvent {
   id         String      @id @default(cuid())
   externalId String?     // ID from betting site
+  apiFootballFixtureId Int? @unique
   sport      Sport
   league     String
   homeTeam   String

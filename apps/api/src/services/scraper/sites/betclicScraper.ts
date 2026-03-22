@@ -18,7 +18,7 @@ import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import puppeteerCore from 'puppeteer-core';
-import type { HTTPRequest, Page } from 'puppeteer-core';
+import type { HTTPRequest, HTTPResponse, Page } from 'puppeteer-core';
 import { Sport } from '@betintel/shared';
 import { logger } from '../../../utils/logger';
 import type { IScraper, ScrapedEvent, ScrapedMarket } from '../types';
@@ -67,6 +67,12 @@ interface RawEventData {
   isLive: boolean;
 }
 
+export interface BetclicLiveWatchDispatch {
+  events: ScrapedEvent[];
+  incremental: boolean;
+  source: 'catalogue' | 'network';
+}
+
 interface ProtoField {
   fieldNumber: number;
   wireType: number;
@@ -87,6 +93,7 @@ interface ProtoSummaryEntry {
 const API_ENRICH_CONCURRENCY = 4;
 const DETAIL_FALLBACK_LIMIT = 8;
 const API_MARKET_MINIMUM = 2;
+const BETCLIC_MATCH_API_PATH = '/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification';
 
 const DETAIL_MARKET_ALIASES: Readonly<Record<string, string>> = {
   'Resultado (Tempo Regulamentar)': '1X2',
@@ -178,6 +185,82 @@ function buildGetMatchRequestBody(eventId: string): Buffer {
   ]);
 
   return buildGrpcWebFrame(payload);
+}
+
+function extractEventIdFromGrpcWebRequestBody(requestBody: Buffer): string | null {
+  const frames = extractGrpcWebDataFrames(requestBody);
+  const messageFrame = frames[0];
+  if (!messageFrame) {
+    return null;
+  }
+
+  try {
+    const message = parseProtoMessage(messageFrame);
+    const idField = message.fields.find((field) => field.fieldNumber === 1 && typeof field.value === 'bigint');
+    return idField ? idField.value.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function getRequestPostDataBuffer(request: HTTPRequest): Buffer | null {
+  const requestWithBuffer = request as HTTPRequest & { postDataBuffer?: () => Buffer | undefined };
+  if (typeof requestWithBuffer.postDataBuffer === 'function') {
+    const buffer = requestWithBuffer.postDataBuffer();
+    if (buffer && buffer.length > 0) {
+      return buffer;
+    }
+  }
+
+  const postData = request.postData();
+  if (!postData) {
+    return null;
+  }
+
+  return Buffer.from(postData, 'binary');
+}
+
+async function readBetclicMatchApiResponse(
+  response: HTTPResponse,
+): Promise<{ eventId: string; responseBody: Buffer } | null> {
+  const url = response.url();
+  if (!url.includes(BETCLIC_MATCH_API_PATH)) {
+    return null;
+  }
+
+  const request = response.request();
+  if (request.method() !== 'POST') {
+    return null;
+  }
+
+  const requestBody = getRequestPostDataBuffer(request);
+  if (!requestBody) {
+    return null;
+  }
+
+  const eventId = extractEventIdFromGrpcWebRequestBody(requestBody);
+  if (!eventId) {
+    return null;
+  }
+
+  try {
+    const responseBody = await response.buffer();
+    if (responseBody.length === 0) {
+      return null;
+    }
+
+    logger.debug('BetclicScraper: intercepted MatchService response', {
+      eventId,
+      url: url.slice(0, 200),
+    });
+    return { eventId, responseBody };
+  } catch (error) {
+    logger.debug('BetclicScraper: failed to read intercepted MatchService response', {
+      eventId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 function extractGrpcWebDataFrames(buffer: Buffer): Buffer[] {
@@ -676,6 +759,7 @@ export class BetclicScraper implements IScraper {
       });
 
       const page = await browser.newPage();
+  const interceptedMatchResponses = new Map<string, Buffer>();
 
       // Set rotating user-agent
       await page.setUserAgent(randomUA());
@@ -696,6 +780,15 @@ export class BetclicScraper implements IScraper {
         } else {
           req.continue();
         }
+      });
+      page.on('response', (response: HTTPResponse) => {
+        void readBetclicMatchApiResponse(response).then((captured) => {
+          if (!captured) {
+            return;
+          }
+
+          interceptedMatchResponses.set(captured.eventId, captured.responseBody);
+        });
       });
 
       logger.debug(`BetclicScraper: navigating to ${FOOTBALL_URL}`);
@@ -757,7 +850,7 @@ export class BetclicScraper implements IScraper {
       const rawEvents = await this.extractEvents(page);
 
       if (rawEvents.length > 0) {
-        await this.enrichEventsFromApi(rawEvents);
+        await this.enrichEventsFromApi(rawEvents, interceptedMatchResponses);
 
         const fallbackTargets = rawEvents
           .filter((event) => (event.detailMarkets?.length ?? 0) < API_MARKET_MINIMUM)
@@ -806,6 +899,180 @@ export class BetclicScraper implements IScraper {
       // Never let a scraper crash the queue — return empty array
       return [];
     }
+  }
+
+  async startLiveWatch(
+    onDispatch: (dispatch: BetclicLiveWatchDispatch) => Promise<void>,
+  ): Promise<() => Promise<void>> {
+    const browser = await puppeteer.launch({
+      executablePath:
+        process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
+      headless: true,
+      args: BROWSER_ARGS,
+    });
+
+    const page = await browser.newPage();
+    const liveEventsById = new Map<string, RawEventData>();
+    let refreshTimer: NodeJS.Timeout | null = null;
+    let refreshInFlight = false;
+    let stopped = false;
+    let dispatchChain = Promise.resolve();
+
+    const queueDispatch = (dispatch: BetclicLiveWatchDispatch): void => {
+      if (dispatch.events.length === 0 || stopped) {
+        return;
+      }
+
+      dispatchChain = dispatchChain
+        .then(() => onDispatch(dispatch))
+        .catch((error: unknown) => {
+          logger.warn('Betclic live watcher dispatch failed', {
+            source: dispatch.source,
+            incremental: dispatch.incremental,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+    };
+
+    await page.setUserAgent(randomUA());
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+    });
+    await page.setViewport({ width: 1366, height: 768 });
+    await page.setRequestInterception(true);
+
+    page.on('request', (req: HTTPRequest) => {
+      const type = req.resourceType();
+      if (['image', 'media', 'font'].includes(type)) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    page.on('response', (response: HTTPResponse) => {
+      void readBetclicMatchApiResponse(response).then((captured) => {
+        if (!captured || stopped) {
+          return;
+        }
+
+        const rawEvent = liveEventsById.get(captured.eventId);
+        if (!rawEvent) {
+          return;
+        }
+
+        const detailMarkets = extractMarketsFromApiResponse(
+          captured.responseBody,
+          rawEvent.homeTeam,
+          rawEvent.awayTeam,
+        );
+        if (detailMarkets.length < API_MARKET_MINIMUM) {
+          return;
+        }
+
+        rawEvent.detailMarkets = detailMarkets;
+        const [event] = this.parseRawEvents([rawEvent]);
+        if (!event) {
+          return;
+        }
+
+        queueDispatch({
+          events: [event],
+          incremental: true,
+          source: 'network',
+        });
+      });
+    });
+
+    const refreshCatalogue = async (): Promise<void> => {
+      if (stopped || refreshInFlight) {
+        return;
+      }
+
+      refreshInFlight = true;
+      try {
+        logger.debug('Betclic live watcher: refreshing catalogue');
+        await page.goto(FOOTBALL_URL, {
+          waitUntil: 'networkidle2',
+          timeout: 45_000,
+        });
+
+        await randomDelay();
+        await this.dismissCookieConsent(page);
+        await this.waitForCookieOverlayToClear(page);
+        await randomDelay(300, 800);
+
+        try {
+          await page.waitForSelector(
+            'sports-events-list, .sportEvent-list, [data-type="sport-event"], a.cardEvent[href*="/futebol-sfootball/"]',
+            { timeout: 20_000 },
+          );
+        } catch {
+          logger.warn('Betclic live watcher: event list selector not found');
+          return;
+        }
+
+        await this.scrollForLiveWatch(page);
+        const rawEvents = await this.extractEvents(page);
+        const nextLiveEvents = new Map<string, RawEventData>();
+
+        for (const rawEvent of rawEvents) {
+          const eventId = extractEventIdFromPath(rawEvent.detailPath ?? '')
+            ?? (/^\d+$/.test(rawEvent.externalId) ? rawEvent.externalId : null);
+          if (!eventId) {
+            continue;
+          }
+
+          const eventDate = new Date(rawEvent.eventDateIso);
+          const minutesSinceStart = (Date.now() - eventDate.getTime()) / 60_000;
+          const withinLiveWindow = minutesSinceStart >= 0 && minutesSinceStart <= 150;
+          if (!rawEvent.isLive && !withinLiveWindow) {
+            continue;
+          }
+
+          const previous = liveEventsById.get(eventId);
+          if ((rawEvent.detailMarkets?.length ?? 0) === 0 && previous?.detailMarkets?.length) {
+            rawEvent.detailMarkets = previous.detailMarkets;
+          }
+
+          nextLiveEvents.set(eventId, rawEvent);
+        }
+
+        liveEventsById.clear();
+        nextLiveEvents.forEach((value, key) => liveEventsById.set(key, value));
+
+        queueDispatch({
+          events: this.parseRawEvents(Array.from(liveEventsById.values())),
+          incremental: false,
+          source: 'catalogue',
+        });
+
+        logger.info('Betclic live watcher catalogue refreshed', {
+          trackedEvents: liveEventsById.size,
+        });
+      } catch (error) {
+        logger.warn('Betclic live watcher refresh failed', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        refreshInFlight = false;
+      }
+    };
+
+    await refreshCatalogue();
+    refreshTimer = setInterval(() => {
+      void refreshCatalogue();
+    }, 20_000);
+
+    return async () => {
+      stopped = true;
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+      }
+
+      await dispatchChain.catch(() => undefined);
+      await browser.close().catch(() => undefined);
+    };
   }
 
   // ─── Page interaction helpers ───────────────────────────────────────────────
@@ -923,7 +1190,23 @@ export class BetclicScraper implements IScraper {
     await randomDelay(1500, 2500);
   }
 
-  private async enrichEventsFromApi(rawEvents: RawEventData[]): Promise<void> {
+  private async scrollForLiveWatch(page: Page): Promise<void> {
+    for (let step = 1; step <= 2; step++) {
+      const ratio = step / 2;
+      await page.evaluate((r) => {
+        window.scrollTo({ top: document.body.scrollHeight * r, behavior: 'smooth' });
+      }, ratio);
+      await randomDelay(500, 900);
+    }
+
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await randomDelay(300, 600);
+  }
+
+  private async enrichEventsFromApi(
+    rawEvents: RawEventData[],
+    interceptedMatchResponses: ReadonlyMap<string, Buffer>,
+  ): Promise<void> {
     const queue = rawEvents
       .map((event) => ({
         event,
@@ -949,23 +1232,32 @@ export class BetclicScraper implements IScraper {
         }
 
         try {
-          const apiMarkets = await fetchBetclicMatchMarkets(
-            candidate.eventId,
-            candidate.event.homeTeam,
-            candidate.event.awayTeam,
-          );
+          const interceptedResponse = interceptedMatchResponses.get(candidate.eventId);
+          const apiMarkets = interceptedResponse
+            ? extractMarketsFromApiResponse(
+                interceptedResponse,
+                candidate.event.homeTeam,
+                candidate.event.awayTeam,
+              )
+            : await fetchBetclicMatchMarkets(
+                candidate.eventId,
+                candidate.event.homeTeam,
+                candidate.event.awayTeam,
+              );
 
           if (apiMarkets.length >= API_MARKET_MINIMUM) {
             candidate.event.detailMarkets = apiMarkets;
             logger.debug('BetclicScraper: enriched event from match API', {
               event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
               eventId: candidate.eventId,
+              source: interceptedResponse ? 'page-network' : 'direct-fetch',
               markets: apiMarkets.map((market) => market.market).slice(0, 12),
             });
           } else {
             logger.debug('BetclicScraper: match API returned incomplete market set', {
               event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
               eventId: candidate.eventId,
+              source: interceptedResponse ? 'page-network' : 'direct-fetch',
               markets: apiMarkets.map((market) => market.market),
             });
           }
