@@ -420,13 +420,14 @@ export async function getLeagues(sport?: Sport): Promise<{ sport: string; league
  *
  * Rules:
  *  • LIVE     → FINISHED  when `eventDate + 3h <= now`
- *  • UPCOMING → FINISHED  when `eventDate + 4h <= now`  (never seen as live —
- *                          either cancelled or not covered by the status API)
+ *  • UPCOMING → FINISHED  when `eventDate + 2h <= now`  (never seen as live —
+ *                          either cancelled or not covered by the status API;
+ *                          2 h is enough for any sport including extra time)
  */
 export async function updateEventStatuses(): Promise<{ toLive: number; toFinished: number }> {
   const now = new Date();
   const liveFinishCutoff     = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 h safety net
-  const upcomingFinishCutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000); // 4 h
+  const upcomingFinishCutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 h
 
   // LIVE events whose kick-off was 3+ hours ago → mark FINISHED (safety net only)
   const liveExpiredResult = await prisma.sportEvent.updateMany({
