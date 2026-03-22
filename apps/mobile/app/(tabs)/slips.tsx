@@ -3,9 +3,13 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BoletinStatus } from '@betintel/shared';
 import { BoletinCard } from '../../components/boletins/BoletinCard';
 import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Chip } from '../../components/ui/Chip';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { filterBoletinsByStatus, useBoletins, useDeleteBoletinMutation } from '../../services/boletinService';
@@ -69,7 +73,7 @@ export default function SlipsScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <View style={styles.titleRow}>
+            <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.titleRow}>
               <View style={styles.titleBlock}>
                 <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Meus boletins</Text>
                 <Text style={[styles.title, { color: colors.textPrimary }]}>Acompanha cada entrada e o teu retorno.</Text>
@@ -81,71 +85,68 @@ export default function SlipsScreen() {
               >
                 <Ionicons color="#FFFFFF" name="add" size={20} />
               </Pressable>
-            </View>
+            </Animated.View>
 
-            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={styles.summaryMetric}>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
-                <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(summary.totalStaked)}</Text>
-              </View>
-              <View style={styles.summaryMetric}>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno</Text>
-                <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(summary.totalReturned)}</Text>
-              </View>
-              <View style={styles.summaryMetric}>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>ROI</Text>
-                <Text style={[styles.summaryValue, { color: roi >= 0 ? colors.primary : colors.danger }]}>{roi.toFixed(1)}%</Text>
-              </View>
-            </View>
+            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+              <Card style={styles.summaryCard}>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
+                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(summary.totalStaked)}</Text>
+                </View>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno</Text>
+                  <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(summary.totalReturned)}</Text>
+                </View>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>ROI</Text>
+                  <Text style={[styles.summaryValue, { color: roi >= 0 ? colors.primary : colors.danger }]}>{roi.toFixed(1)}%</Text>
+                </View>
+              </Card>
+            </Animated.View>
 
-            <FlatList
-              contentContainerStyle={styles.filterList}
-              data={FILTERS}
-              horizontal
-              keyExtractor={(item) => item.key}
-              renderItem={({ item }) => {
-                const active = item.key === selectedFilter;
-                return (
-                  <Pressable
+            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+              <FlatList
+                contentContainerStyle={styles.filterList}
+                data={FILTERS}
+                horizontal
+                keyExtractor={(item) => item.key}
+                renderItem={({ item }) => (
+                  <Chip
+                    label={item.label}
+                    selected={item.key === selectedFilter}
                     onPress={() => setSelectedFilter(item.key)}
-                    style={[
-                      styles.filterChip,
-                      {
-                        backgroundColor: active ? colors.primary : colors.surfaceRaised,
-                        borderColor: active ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.filterLabel, { color: active ? '#FFFFFF' : colors.textPrimary }]}>{item.label}</Text>
-                  </Pressable>
-                );
-              }}
-              showsHorizontalScrollIndicator={false}
-            />
+                  />
+                )}
+                showsHorizontalScrollIndicator={false}
+                ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+              />
+            </Animated.View>
           </View>
         }
         ListEmptyComponent={
           !boletinsQuery.isLoading ? (
-            <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Ainda não tens boletins</Text>
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Adiciona seleções no detalhe de um evento e fecha o teu primeiro boletin.</Text>
-              <Button onPress={() => router.push('/(tabs)')} title="Explorar odds" />
-            </View>
+            <EmptyState
+              icon="receipt"
+              title="Ainda não tens boletins"
+              message="Adiciona seleções no detalhe de um evento e fecha o teu primeiro boletin."
+              action={<Button onPress={() => router.push('/(tabs)')} title="Explorar odds" />}
+            />
           ) : null
         }
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           if ('type' in item) {
             return (
-              <View style={[styles.skeletonCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Card style={styles.skeletonCard}>
                 <Skeleton height={20} width={110} />
                 <Skeleton height={26} width="88%" />
                 <Skeleton height={80} width="100%" />
-              </View>
+              </Card>
             );
           }
 
           return (
-            <BoletinCard
+            <Animated.View entering={FadeInDown.delay(300 + index * 60).duration(400).springify()}>
+              <BoletinCard
               boletin={item}
               onDelete={async () => {
                 try {
@@ -158,6 +159,7 @@ export default function SlipsScreen() {
               onPress={() => router.push(`/boletins/${item.id}`)}
               onShare={() => showToast('A partilha para amigos fica visível quando o módulo social estiver pronto.', 'info')}
             />
+            </Animated.View>
           );
         }}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.lg }} />}
@@ -201,16 +203,11 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   iconButton: { alignItems: 'center', borderRadius: 16, height: 44, justifyContent: 'center', width: 44 },
-  summaryCard: { borderRadius: 22, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 },
+  summaryCard: { flexDirection: 'row', gap: 12 },
   summaryMetric: { flex: 1, gap: 6 },
   summaryLabel: { fontSize: 12, fontWeight: '700' },
   summaryValue: { fontSize: 18, fontWeight: '900' },
   filterList: { gap: 8 },
-  filterChip: { borderRadius: 999, borderWidth: 1, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14 },
-  filterLabel: { fontSize: 13, fontWeight: '800' },
-  emptyCard: { borderRadius: 22, borderWidth: 1, gap: 14, padding: 20 },
-  emptyTitle: { fontSize: 22, fontWeight: '900' },
-  emptyText: { fontSize: 14, lineHeight: 22 },
-  skeletonCard: { borderRadius: 22, borderWidth: 1, gap: 14, padding: 16 },
+  skeletonCard: { gap: 14 },
   footerBar: { bottom: 0, left: 0, position: 'absolute', right: 0 },
 });

@@ -4,8 +4,11 @@ import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { ItemResult } from '@betintel/shared';
 import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { useToast } from '../../components/ui/Toast';
 import { BoletinItem as BoletinSelectionRow } from '../../components/boletins/BoletinItem';
@@ -51,7 +54,7 @@ export default function CreateBoletinScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <View style={styles.topRow}>
+            <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.topRow}>
               <View style={styles.titleBlock}>
                 <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Construtor</Text>
                 <Text style={[styles.title, { color: colors.textPrimary }]}>Fecha o boletin com stake, notas e visibilidade.</Text>
@@ -60,32 +63,41 @@ export default function CreateBoletinScreen() {
               <Pressable hitSlop={10} onPress={reset}>
                 <Ionicons color={colors.danger} name="refresh-outline" size={22} />
               </Pressable>
-            </View>
+            </Animated.View>
 
-            <OddsCalculator potentialReturn={potentialReturn} stake={stake} totalOdds={totalOdds} />
+            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+              <OddsCalculator potentialReturn={potentialReturn} stake={stake} totalOdds={totalOdds} />
+            </Animated.View>
 
-            <StakeInput onChange={setStake} value={stake} />
+            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+              <StakeInput onChange={setStake} value={stake} />
+            </Animated.View>
 
-            <Input label="Nome" onChangeText={setName} placeholder="Liga Portugal Domingo" value={name} />
-            <Input label="Notas" multiline onChangeText={setNotes} placeholder="Notas opcionais" value={notes} />
+            <Animated.View entering={FadeInDown.delay(250).duration(400).springify()} style={{ gap: tokens.spacing.lg }}>
+              <Input label="Nome" onChangeText={setName} placeholder="Liga Portugal Domingo" value={name} />
+              <Input label="Notas" multiline onChangeText={setNotes} placeholder="Notas opcionais" value={notes} />
+            </Animated.View>
 
-            <View style={[styles.publicRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={styles.publicTextWrap}>
-                <Text style={[styles.publicTitle, { color: colors.textPrimary }]}>Tornar boletin público</Text>
-                <Text style={[styles.publicSubtitle, { color: colors.textSecondary }]}>Permite mostrar este boletin no teu perfil e em futuras partilhas.</Text>
-              </View>
-              <Switch onValueChange={setPublic} value={isPublic} />
-            </View>
+            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
+              <Card style={styles.publicRow}>
+                <View style={styles.publicTextWrap}>
+                  <Text style={[styles.publicTitle, { color: colors.textPrimary }]}>Tornar boletin público</Text>
+                  <Text style={[styles.publicSubtitle, { color: colors.textSecondary }]}>Permite mostrar este boletin no teu perfil e em futuras partilhas.</Text>
+                </View>
+                <Switch onValueChange={setPublic} value={isPublic} />
+              </Card>
+            </Animated.View>
 
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Seleções</Text>
           </View>
         }
         ListEmptyComponent={
-          <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>O boletin está vazio</Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Abre o detalhe de um evento e toca numa odd para adicionares seleções.</Text>
-            <Button onPress={() => router.push('/(tabs)')} title="Explorar odds" />
-          </View>
+          <EmptyState
+            icon="layers-triple-outline"
+            title="O boletin está vazio"
+            message="Abre o detalhe de um evento e toca numa odd para adicionares seleções."
+            action={<Button onPress={() => router.push('/(tabs)')} title="Explorar odds" />}
+          />
         }
         renderItem={({ item }) => (
           <BoletinSelectionRow
@@ -157,13 +169,10 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1, gap: 6, paddingRight: 12 },
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 28, fontWeight: '900', lineHeight: 34 },
-  publicRow: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 16, padding: 16 },
+  publicRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
   publicTextWrap: { flex: 1, gap: 4 },
   publicTitle: { fontSize: 15, fontWeight: '800' },
   publicSubtitle: { fontSize: 13, lineHeight: 20 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
-  emptyCard: { borderRadius: 22, borderWidth: 1, gap: 14, padding: 20 },
-  emptyTitle: { fontSize: 22, fontWeight: '900' },
-  emptyText: { fontSize: 14, lineHeight: 22 },
   footerBar: { bottom: 0, left: 0, position: 'absolute', right: 0 },
 });

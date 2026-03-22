@@ -169,6 +169,9 @@ function attachPersistentListeners(): void {
 function resubscribeRooms(): void {
   if (!socket?.connected) {
     socket?.once('connect', () => {
+      // Always join the live feed room so the client receives odds:updated
+      // and event:statusChange events without needing an explicit subscription call
+      socket?.emit('subscribe:live');
       eventSubscriptionCounts.forEach((_count, eventId) => {
         socket?.emit('subscribe:event', { eventId });
       });
@@ -176,6 +179,8 @@ function resubscribeRooms(): void {
     return;
   }
 
+  // Already connected — re-join rooms immediately
+  socket.emit('subscribe:live');
   eventSubscriptionCounts.forEach((_count, eventId) => {
     socket?.emit('subscribe:event', { eventId });
   });

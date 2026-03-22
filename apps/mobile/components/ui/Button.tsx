@@ -9,7 +9,14 @@ import {
   ViewStyle,
   type PressableProps,
 } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { useTheme } from '../../theme/useTheme';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   title: string;
@@ -32,19 +39,31 @@ export function Button({
 }: ButtonProps) {
   const { colors, tokens } = useTheme();
   const isDisabled = disabled || loading;
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       disabled={isDisabled}
-      style={({ pressed }) => [
+      onPressIn={() => {
+        scale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      }}
+      style={[
         styles.base,
         {
           backgroundColor: getBackgroundColor(variant, colors),
           borderColor: getBorderColor(variant, colors),
-          opacity: isDisabled ? 0.55 : pressed ? 0.9 : 1,
-          paddingVertical: getVerticalPadding(size),
+          opacity: isDisabled ? 0.55 : 1,
+          height: getHeight(size),
         },
+        animatedStyle,
         style,
       ]}
       {...props}
@@ -67,7 +86,7 @@ export function Button({
           {title}
         </Text>
       </View>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -111,23 +130,22 @@ function getTextColor(variant: ButtonProps['variant'], colors: ReturnType<typeof
   }
 }
 
-function getVerticalPadding(size: ButtonProps['size']) {
+function getHeight(size: ButtonProps['size']) {
   switch (size) {
     case 'sm':
-      return 10;
+      return 36;
     case 'lg':
-      return 16;
+      return 52;
     case 'md':
     default:
-      return 14;
+      return 44;
   }
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
-    minHeight: 52,
     justifyContent: 'center',
     paddingHorizontal: 16,
   },

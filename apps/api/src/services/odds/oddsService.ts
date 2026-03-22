@@ -78,8 +78,8 @@ export interface OddRow {
 
 // ─── Cache helpers ────────────────────────────────────────────────────────────
 
-const CACHE_TTL_SECONDS = 300;        // 5 minutes
-const LIVE_CACHE_TTL_SECONDS = 30;    // 30 seconds for live events
+const CACHE_TTL_SECONDS = 60;         // 60 s — matches scraper cycle; invalidated earlier by scraper
+const LIVE_CACHE_TTL_SECONDS = 20;    // 20 seconds for live events
 const CACHE_PREFIX = 'odds:';
 
 function cacheKey(namespace: string, params: unknown): string {
@@ -115,6 +115,25 @@ async function withCache<T>(
   }
 
   return result;
+}
+
+export async function invalidateOddsCache(): Promise<void> {
+  try {
+    let cursor = '0';
+
+    do {
+      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', `${CACHE_PREFIX}*`, 'COUNT', '100');
+      cursor = nextCursor;
+
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } while (cursor !== '0');
+  } catch (err) {
+    logger.warn('Redis odds cache invalidation failed', {
+      error: (err as Error).message,
+    });
+  }
 }
 
 // ─── Prisma select shape ──────────────────────────────────────────────────────
@@ -155,6 +174,9 @@ const EVENT_WITH_ODDS_SELECT = {
 
 function buildEventWhere(params: OddsFilterParams): Prisma.SportEventWhereInput {
   const where: Prisma.SportEventWhereInput = {};
+  const oddsWhere: Prisma.OddWhereInput = {
+    isActive: true,
+  };
 
   if (params.sport) {
     // The shared Sport enum values match Prisma's Sport enum values exactly
@@ -167,6 +189,11 @@ function buildEventWhere(params: OddsFilterParams): Prisma.SportEventWhereInput 
 
   if (params.status) {
     where.status = params.status as unknown as Prisma.EnumEventStatusFilter['equals'];
+  } else {
+    // Default: exclude finished, cancelled, and postponed events
+    where.status = {
+      in: ['UPCOMING', 'LIVE'] as unknown as Prisma.EnumEventStatusFilter['in'],
+    };
   }
 
   if (params.dateFrom || params.dateTo) {
@@ -175,48 +202,23 @@ function buildEventWhere(params: OddsFilterParams): Prisma.SportEventWhereInput 
     if (params.dateTo)   where.eventDate.lte = new Date(params.dateTo);
   }
 
-  // Filter by specific betting sites — at least one odd from those sites must exist
   if (params.sites && params.sites.length > 0) {
-    where.odds = {
-      some: {
-        isActive: true,
-        site: { slug: { in: params.sites } },
-      },
-    };
+    oddsWhere.site = { slug: { in: params.sites } };
   }
 
-  // filter by market — at least one active odd for that market must exist
   if (params.market) {
-    const oddsCondition: Prisma.OddListRelationFilter = {
-      some: {
-        isActive: true,
-        market: { equals: params.market, mode: 'insensitive' },
-        ...(params.sites && params.sites.length > 0
-          ? { site: { slug: { in: params.sites } } }
-          : {}),
-      },
-    };
-    // Merge with existing odds condition if sites filter already set
-    where.odds = oddsCondition;
+    oddsWhere.market = { equals: params.market, mode: 'insensitive' };
   }
 
-  // Odds value range: at least one active odd within the range must exist
   if (params.minOdds !== undefined || params.maxOdds !== undefined) {
     const valueFilter: Prisma.DecimalFilter = {};
     if (params.minOdds !== undefined) valueFilter.gte = new Prisma.Decimal(params.minOdds);
     if (params.maxOdds !== undefined) valueFilter.lte = new Prisma.Decimal(params.maxOdds);
 
-    where.odds = {
-      some: {
-        isActive: true,
-        value: valueFilter,
-        ...(params.market ? { market: { equals: params.market, mode: 'insensitive' } } : {}),
-        ...(params.sites && params.sites.length > 0
-          ? { site: { slug: { in: params.sites } } }
-          : {}),
-      },
-    };
+    oddsWhere.value = valueFilter;
   }
+
+  where.odds = { some: oddsWhere };
 
   return where;
 }
@@ -229,6 +231,7 @@ type PrismaEventRow = Prisma.SportEventGetPayload<{ select: typeof EVENT_WITH_OD
 function serialiseEvent(ev: PrismaEventRow): EventWithOdds {
   return {
     ...ev,
+    league: sanitiseLeagueLabel(ev.league, ev.homeTeam, ev.awayTeam),
     sport: ev.sport as unknown as string,
     status: ev.status as unknown as string,
     odds: ev.odds.map((o) => ({
@@ -236,6 +239,34 @@ function serialiseEvent(ev: PrismaEventRow): EventWithOdds {
       value: o.value.toString(),
     })),
   };
+}
+
+function sanitiseLeagueLabel(league: string, homeTeam: string, awayTeam: string): string {
+  let normalised = league.replace(/\s+/g, ' ').trim();
+
+  if (normalised.length === 0) {
+    return 'Futebol';
+  }
+
+  const suspicious =
+    normalised.length > 120
+    || /\bempate\b/i.test(normalised)
+    || /\d+[.,]\d+/.test(normalised)
+    || normalised.toLowerCase().includes(homeTeam.toLowerCase())
+    || normalised.toLowerCase().includes(awayTeam.toLowerCase());
+
+  if (suspicious) return 'Futebol';
+
+  // Strip trailing round/group details:
+  //   "Áustria - Bundesliga - Grupo Relegation Round, Jornada 24" → "Áustria - Bundesliga"
+  //   "Liga Portugal - Jornada 30"  → "Liga Portugal"
+  normalised = normalised
+    .replace(/\s*[-–]\s*(?:Grupo|Group|Round|Ronda|Jornada|Giornata|Matchday|Spieltag|Journée|Fase|Phase|Playoff|Play-off|Relegation|Qualification|Qualificação)\b.*/i, '')
+    .replace(/\s*,\s*(?:Jornada|Round|Matchday|Spieltag|Giornata|Journée)\b.*/i, '')
+    .replace(/\s+\d+['+]*$/, '')
+    .trim();
+
+  return normalised || 'Futebol';
 }
 
 // ─── Service functions ────────────────────────────────────────────────────────
@@ -369,7 +400,56 @@ export async function getLeagues(sport?: Sport): Promise<{ sport: string; league
 
     return rows.map((r) => ({
       sport: r.sport as unknown as string,
-      league: r.league,
+      league: sanitiseLeagueLabel(r.league, '', ''),
     }));
   });
+}
+
+// ─── Event status lifecycle ───────────────────────────────────────────────────
+
+/**
+ * Cleans up stale event statuses. LIVE status is set exclusively by scrapers
+ * when they observe the event is in-play — this function never promotes events
+ * to LIVE on its own.
+ *
+ * Rules:
+ *  • LIVE     → FINISHED  when `eventDate + 3h <= now`  (scraper should have
+ *                          un-listed it, but this is the safety net)
+ *  • UPCOMING → FINISHED  when `eventDate + 4h <= now`  (event was never picked
+ *                          up as live — either it was cancelled or the scraper
+ *                          missed it; hide it from the feed)
+ */
+export async function updateEventStatuses(): Promise<{ toLive: number; toFinished: number }> {
+  const now = new Date();
+  // Football matches finish within ~115 min (90 + injury time + possible extra time).
+  // 2 h is a safe safety-net — scrapers should revert events much sooner than this.
+  const liveFinishCutoff     = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 h
+  const upcomingFinishCutoff = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 h
+
+  // LIVE events whose kick-off was 3+ hours ago → mark FINISHED
+  const liveExpiredResult = await prisma.sportEvent.updateMany({
+    where: {
+      status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
+      eventDate: { lte: liveFinishCutoff },
+    },
+    data: { status: 'FINISHED' as never },
+  });
+
+  // UPCOMING events whose kick-off was 4+ hours ago → mark FINISHED
+  // (They were never seen as live by any scraper — hide them)
+  const upcomingExpiredResult = await prisma.sportEvent.updateMany({
+    where: {
+      status: 'UPCOMING' as unknown as Prisma.EnumEventStatusFilter['equals'],
+      eventDate: { lte: upcomingFinishCutoff },
+    },
+    data: { status: 'FINISHED' as never },
+  });
+
+  const toFinished = liveExpiredResult.count + upcomingExpiredResult.count;
+
+  if (toFinished > 0) {
+    await invalidateOddsCache();
+  }
+
+  return { toLive: 0, toFinished };
 }

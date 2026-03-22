@@ -1,60 +1,71 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../../theme/useTheme';
 import { useFilterStore } from '../../stores/filterStore';
 import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
-import { useBettingSites, useLiveEvents, useOddsFeed, useSports, type OddsEvent } from '../../services/oddsService';
+import { useBettingSites, useLeagues, useLiveEvents, useOddsFeed, useSports, type OddsEvent } from '../../services/oddsService';
 import { LiveBadge } from '../../components/odds/LiveBadge';
 import { OddsCard } from '../../components/odds/OddsCard';
 import { SiteLogoChip } from '../../components/odds/SiteLogoChip';
+import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { Chip } from '../../components/ui/Chip';
 import { useToast } from '../../components/ui/Toast';
 import { useUnreadNotificationsCount } from '../../services/socialService';
 import type { Sport } from '@betintel/shared';
 
-const HOME_PAGE_LIMIT = 8;
+const HOME_PAGE_LIMIT = 20;
+
 type HomeListItem = OddsEvent | { id: string; type: 'skeleton' };
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
-  const selectedSites = useFilterStore((state) => state.selectedSites);
-  const selectedSports = useFilterStore((state) => state.selectedSports);
-  const selectedMarkets = useFilterStore((state) => state.selectedMarkets);
-  const minOdds = useFilterStore((state) => state.minOdds);
-  const maxOdds = useFilterStore((state) => state.maxOdds);
-  const dateRange = useFilterStore((state) => state.dateRange);
-  const activeFilterCount = useFilterStore((state) => state.activeFilterCount);
-  const toggleSport = useFilterStore((state) => state.toggleSport);
-  const toggleSite = useFilterStore((state) => state.toggleSite);
-  const addBuilderItem = useBoletinBuilderStore((state) => state.addItem);
+  const selectedSites = useFilterStore((s) => s.selectedSites);
+  const selectedSports = useFilterStore((s) => s.selectedSports);
+  const selectedMarkets = useFilterStore((s) => s.selectedMarkets);
+  const selectedLeague = useFilterStore((s) => s.selectedLeague);
+  const minOdds = useFilterStore((s) => s.minOdds);
+  const maxOdds = useFilterStore((s) => s.maxOdds);
+  const dateRange = useFilterStore((s) => s.dateRange);
+  const activeFilterCount = useFilterStore((s) => s.activeFilterCount);
+  const setLeague = useFilterStore((s) => s.setLeague);
+  const addBuilderItem = useBoletinBuilderStore((s) => s.addItem);
   const unreadNotificationCount = useUnreadNotificationsCount().data ?? 0;
   const [page, setPage] = useState(1);
   const [feedItems, setFeedItems] = useState<OddsEvent[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [leagueSearch, setLeagueSearch] = useState('');
 
   const filters = useMemo(
     () => ({
       selectedSites,
       selectedSports,
       selectedMarkets,
+      selectedLeague,
       minOdds,
       maxOdds,
       dateRange,
       page,
       limit: HOME_PAGE_LIMIT,
     }),
-    [dateRange, maxOdds, minOdds, page, selectedMarkets, selectedSites, selectedSports],
+    [dateRange, maxOdds, minOdds, page, selectedLeague, selectedMarkets, selectedSites, selectedSports],
   );
 
   const filterKey = JSON.stringify({
     selectedSites,
     selectedSports,
     selectedMarkets,
+    selectedLeague,
     minOdds,
     maxOdds,
     dateRange: dateRange
@@ -66,6 +77,45 @@ export default function HomeScreen() {
   const liveEventsQuery = useLiveEvents();
   const sitesQuery = useBettingSites();
   const sportsQuery = useSports();
+  const leaguesQuery = useLeagues(selectedSports[0] as Sport | undefined);
+
+  // Derive unique league names from available leagues data
+  const availableLeagues = useMemo(() => {
+    if (!leaguesQuery.data) return [];
+    const unique = new Map<string, string>();
+    leaguesQuery.data.forEach((item) => {
+      if (!unique.has(item.league)) {
+        unique.set(item.league, item.sport);
+      }
+    });
+    return Array.from(unique.keys());
+  }, [leaguesQuery.data]);
+
+  const categorizedLeagues = useMemo(() => {
+    const searchLower = leagueSearch.toLowerCase();
+    const filtered = leagueSearch
+      ? availableLeagues.filter((l) => l.toLowerCase().includes(searchLower))
+      : availableLeagues;
+
+    const portuguese: string[] = [];
+    const topEuropean: string[] = [];
+    const others: string[] = [];
+    const PT_KW = ['portugal', 'liga nos', 'primeira liga', 'segunda liga', 'taça'];
+    const EU_KW = ['premier league', 'la liga', 'laliga', 'bundesliga', 'serie a', 'ligue 1'];
+
+    for (const league of filtered) {
+      const lower = league.toLowerCase();
+      if (PT_KW.some((kw) => lower.includes(kw))) portuguese.push(league);
+      else if (EU_KW.some((kw) => lower.includes(kw))) topEuropean.push(league);
+      else others.push(league);
+    }
+
+    return {
+      portuguese: portuguese.sort(),
+      topEuropean: topEuropean.sort(),
+      others: others.sort((a, b) => a.localeCompare(b)),
+    };
+  }, [availableLeagues, leagueSearch]);
 
   useEffect(() => {
     setPage(1);
@@ -75,12 +125,12 @@ export default function HomeScreen() {
   useEffect(() => {
     if (!oddsFeedQuery.data) return;
     setFeedItems((current) => {
-      if (page === 1) {
-        return oddsFeedQuery.data.events;
-      }
+      const events = oddsFeedQuery.data.events;
+
+      if (page === 1) return events;
 
       const merged = [...current];
-      oddsFeedQuery.data.events.forEach((event) => {
+      events.forEach((event) => {
         if (!merged.some((item) => item.id === event.id)) {
           merged.push(event);
         }
@@ -89,113 +139,233 @@ export default function HomeScreen() {
     });
   }, [oddsFeedQuery.data, page]);
 
+  const onRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    setPage(1);
+    setFeedItems([]);
+    await queryClient.invalidateQueries({ queryKey: ['odds'] });
+    setIsRefreshing(false);
+  }, [queryClient]);
+
   const hasMore = page < (oddsFeedQuery.data?.meta.totalPages ?? 1);
   const listData: HomeListItem[] =
     oddsFeedQuery.isLoading && feedItems.length === 0
       ? [1, 2, 3].map((item) => ({ id: `skeleton-${item}`, type: 'skeleton' as const }))
       : feedItems;
 
+  const liveEvents = liveEventsQuery.data ?? [];
+
   const header = (
     <View style={styles.headerSection}>
-      <View style={styles.topBar}>
+      {/* Top bar */}
+      <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.topBar}>
         <View style={styles.logoWrap}>
           <Text style={[styles.logo, { color: colors.textPrimary }]}>BetIntel</Text>
-          <Text style={[styles.tagline, { color: colors.textSecondary }]}>Odds em direto e melhores comparações</Text>
+          <Text style={[styles.tagline, { color: colors.textMuted }]}>Odds em direto e melhores comparações</Text>
         </View>
-
         <View style={styles.topActions}>
           <Pressable
             onPress={() => router.push('/(tabs)/profile')}
-            style={[styles.iconButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
-            <Ionicons color={colors.textPrimary} name="notifications-outline" size={20} />
+            <MaterialCommunityIcons color={colors.textPrimary} name="bell-outline" size={20} />
             {unreadNotificationCount > 0 ? (
-              <View style={[styles.filterBadge, { backgroundColor: colors.live }]}> 
-                <Text style={styles.filterBadgeText}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text>
+              <View style={[styles.badge, { backgroundColor: colors.danger }]}>
+                <Text style={styles.badgeText}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text>
               </View>
             ) : null}
           </Pressable>
           <Pressable
             onPress={() => router.push('/odds/filter')}
-            style={[styles.iconButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
           >
-            <Ionicons color={colors.textPrimary} name="options-outline" size={20} />
+            <MaterialCommunityIcons color={colors.textPrimary} name="tune-variant" size={20} />
             {activeFilterCount > 0 ? (
-              <View style={[styles.filterBadge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>{activeFilterCount}</Text>
               </View>
             ) : null}
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
 
-      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Ao vivo</Text>
-      {liveEventsQuery.isLoading ? (
-        <FlatList
-          data={[1, 2, 3]}
-          horizontal
-          keyExtractor={(item) => String(item)}
-          renderItem={() => (
-            <View style={[styles.liveCardSkeleton, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-              <Skeleton height={14} width={72} />
-              <Skeleton height={18} width={160} />
-              <Skeleton height={14} width={90} />
+      {/* Live events strip */}
+      <Animated.View entering={FadeInDown.delay(80).duration(400).springify()}>
+        <View style={styles.sectionHeader}>
+          <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Ao vivo</Text>
+          {liveEvents.length > 0 ? (
+            <View style={[styles.countPill, { backgroundColor: colors.surfaceRaised }]}>
+              <Text style={[styles.countPillText, { color: colors.live }]}>{liveEvents.length}</Text>
             </View>
-          )}
-          showsHorizontalScrollIndicator={false}
-          style={styles.liveList}
-        />
-      ) : (
-        <FlatList
-          data={liveEventsQuery.data ?? []}
-          horizontal
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push(`/odds/${item.id}`)}
-              style={[styles.liveCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            >
-              <LiveBadge />
-              <Text numberOfLines={1} style={[styles.liveMatch, { color: colors.textPrimary }]}>
-                {item.homeTeam} vs {item.awayTeam}
-              </Text>
-              <Text style={[styles.liveScore, { color: colors.textSecondary }]}>
-                {item.homeScore ?? 0} - {item.awayScore ?? 0}
-              </Text>
-            </Pressable>
-          )}
-          showsHorizontalScrollIndicator={false}
-          style={styles.liveList}
-        />
-      )}
+          ) : null}
+        </View>
 
-      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Filtros rápidos</Text>
-      <FlatList
-        data={buildQuickFilterItems(sportsQuery.data ?? [], sitesQuery.data ?? [], selectedSports, selectedSites)}
-        horizontal
-        keyExtractor={(item) => item.key}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={item.onPress ?? (() => undefined)}
-            style={[
-              styles.quickChip,
-              {
-                backgroundColor: item.active ? colors.primary : colors.surfaceRaised,
-                borderColor: item.active ? colors.primary : colors.border,
-              },
-            ]}
-          >
-            {item.site ? (
-              <SiteLogoChip compact logoUrl={item.site.logoUrl} name={item.site.name} slug={item.site.slug} />
-            ) : null}
-            <Text style={[styles.quickChipText, { color: item.active ? '#FFFFFF' : colors.textPrimary }]}>{item.label}</Text>
-          </Pressable>
+        {liveEventsQuery.isLoading ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.liveStrip}>
+            {[1, 2, 3].map((k) => (
+              <Card key={k} style={styles.liveCardSkeleton}>
+                <Skeleton height={14} width={72} />
+                <Skeleton height={18} width={160} />
+                <Skeleton height={14} width={90} />
+              </Card>
+            ))}
+          </ScrollView>
+        ) : liveEvents.length === 0 ? (
+          <Card style={styles.liveEmptyCard}>
+            <MaterialCommunityIcons color={colors.textMuted} name="broadcast-off" size={22} />
+            <Text style={[styles.liveEmptyText, { color: colors.textMuted }]}>Sem eventos ao vivo neste momento</Text>
+          </Card>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.liveStrip} contentContainerStyle={{ gap: 10 }}>
+            {liveEvents.map((item, index) => (
+              <Animated.View key={item.id} entering={FadeInRight.delay(index * 80).duration(400).springify()}>
+                <Card onPress={() => router.push(`/odds/${item.id}`)} style={styles.liveCard}>
+                  <View style={styles.liveCardTop}>
+                    <LiveBadge />
+                    <Text style={[styles.liveLeague, { color: colors.textMuted }]} numberOfLines={1}>{item.league}</Text>
+                  </View>
+                  <Text numberOfLines={1} style={[styles.liveTeams, { color: colors.textPrimary }]}>
+                    {item.homeTeam} vs {item.awayTeam}
+                  </Text>
+                  <View style={styles.liveScoreRow}>
+                    <Text style={[styles.liveScoreText, { color: colors.primary }]}>
+                      {item.homeScore != null && item.awayScore != null
+                        ? `${item.homeScore} – ${item.awayScore}`
+                        : 'Ao vivo'}
+                    </Text>
+                    <MaterialCommunityIcons color={colors.textMuted} name="chevron-right" size={16} />
+                  </View>
+                </Card>
+              </Animated.View>
+            ))}
+          </ScrollView>
         )}
-        showsHorizontalScrollIndicator={false}
-        style={styles.quickFiltersList}
-      />
+      </Animated.View>
 
-      <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Feed de odds</Text>
+      {/* Sport + site filters */}
+      <Animated.View entering={FadeInDown.delay(160).duration(400).springify()}>
+        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Filtros rápidos</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterStrip} contentContainerStyle={{ gap: 8 }}>
+          {buildQuickFilterItems(sportsQuery.data ?? [], sitesQuery.data ?? [], selectedSports, selectedSites).map((item) => (
+            <Chip
+              key={item.key}
+              label={item.label}
+              selected={item.active}
+              onPress={item.onPress ?? (() => undefined)}
+              icon={item.site ? (
+                <SiteLogoChip compact logoUrl={item.site.logoUrl} name={item.site.name} slug={item.site.slug} />
+              ) : undefined}
+            />
+          ))}
+        </ScrollView>
+      </Animated.View>
+
+      {/* League vertical list */}
+      {availableLeagues.length > 0 ? (
+        <Animated.View entering={FadeInDown.delay(240).duration(400).springify()}>
+          <View style={styles.sectionHeader}>
+            <MaterialCommunityIcons color={colors.textSecondary} name="trophy-outline" size={18} />
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Competições</Text>
+            {selectedLeague ? (
+              <View style={[styles.countPill, { backgroundColor: colors.primary + '20' }]}>
+                <Text style={[styles.countPillText, { color: colors.primary }]} numberOfLines={1}>
+                  {selectedLeague}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          <Card style={styles.leagueCard}>
+            <View style={[styles.leagueSearchWrap, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+              <MaterialCommunityIcons color={colors.textMuted} name="magnify" size={18} />
+              <TextInput
+                placeholder="Pesquisar competição..."
+                placeholderTextColor={colors.textMuted}
+                value={leagueSearch}
+                onChangeText={setLeagueSearch}
+                style={[styles.leagueSearchInput, { color: colors.textPrimary }]}
+              />
+              {leagueSearch.length > 0 ? (
+                <Pressable onPress={() => setLeagueSearch('')} hitSlop={8}>
+                  <MaterialCommunityIcons color={colors.textMuted} name="close-circle" size={16} />
+                </Pressable>
+              ) : null}
+            </View>
+            <ScrollView style={styles.leagueList} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+              <Pressable
+                onPress={() => setLeague(null)}
+                style={[styles.leagueRow, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.leagueRowText, { color: selectedLeague === null ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === null ? '700' : '500' }]}>
+                  Todas as competições
+                </Text>
+                {selectedLeague === null ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+              </Pressable>
+
+              {categorizedLeagues.portuguese.length > 0 ? (
+                <>
+                  <View style={styles.leagueGroupHeader}>
+                    <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>🇵🇹 Liga Portuguesa</Text>
+                  </View>
+                  {categorizedLeagues.portuguese.map((league) => (
+                    <Pressable key={league} onPress={() => setLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
+                      <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
+                      {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+                    </Pressable>
+                  ))}
+                </>
+              ) : null}
+
+              {categorizedLeagues.topEuropean.length > 0 ? (
+                <>
+                  <View style={styles.leagueGroupHeader}>
+                    <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>🏆 Top Europeias</Text>
+                  </View>
+                  {categorizedLeagues.topEuropean.map((league) => (
+                    <Pressable key={league} onPress={() => setLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
+                      <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
+                      {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+                    </Pressable>
+                  ))}
+                </>
+              ) : null}
+
+              {categorizedLeagues.others.length > 0 ? (
+                <>
+                  <View style={styles.leagueGroupHeader}>
+                    <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>📋 Outras</Text>
+                  </View>
+                  {categorizedLeagues.others.map((league) => (
+                    <Pressable key={league} onPress={() => setLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
+                      <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
+                      {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+                    </Pressable>
+                  ))}
+                </>
+              ) : null}
+
+              {categorizedLeagues.portuguese.length === 0 && categorizedLeagues.topEuropean.length === 0 && categorizedLeagues.others.length === 0 ? (
+                <View style={styles.leagueEmptySearch}>
+                  <Text style={[styles.leagueEmptyText, { color: colors.textMuted }]}>Nenhuma competição encontrada</Text>
+                </View>
+              ) : null}
+            </ScrollView>
+          </Card>
+        </Animated.View>
+      ) : null}
+
+      {/* Feed section header */}
+      <Animated.View entering={FadeInDown.delay(320).duration(400).springify()}>
+        <View style={styles.sectionHeader}>
+          <MaterialCommunityIcons color={colors.textSecondary} name="format-list-bulleted" size={18} />
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Feed de odds</Text>
+          {feedItems.length > 0 ? (
+            <View style={[styles.countPill, { backgroundColor: colors.surfaceRaised }]}>
+              <Text style={[styles.countPillText, { color: colors.textSecondary }]}>{feedItems.length}</Text>
+            </View>
+          ) : null}
+        </View>
+      </Animated.View>
     </View>
   );
 
@@ -203,7 +373,7 @@ export default function HomeScreen() {
     <FlatList
       contentContainerStyle={{
         backgroundColor: colors.background,
-        paddingBottom: tokens.spacing.xxl,
+        paddingBottom: insets.bottom + 100,
         paddingHorizontal: tokens.spacing.lg,
         paddingTop: insets.top + tokens.spacing.md,
       }}
@@ -212,10 +382,11 @@ export default function HomeScreen() {
       ListHeaderComponent={header}
       ListEmptyComponent={
         !oddsFeedQuery.isLoading ? (
-          <View style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Sem eventos para estes filtros</Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>Ajusta os filtros ou espera pela próxima atualização dos scrapers.</Text>
-          </View>
+          <EmptyState
+            icon="magnify"
+            title="Sem eventos para estes filtros"
+            message="Ajusta os filtros ou espera pela próxima atualização dos scrapers."
+          />
         ) : null
       }
       onEndReached={() => {
@@ -224,58 +395,68 @@ export default function HomeScreen() {
         }
       }}
       onEndReachedThreshold={0.45}
-      renderItem={({ item }) =>
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={onRefresh}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
+      renderItem={({ item, index }) =>
         'type' in item ? (
-          <View style={[styles.skeletonCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Card style={styles.skeletonCard}>
             <Skeleton height={14} width={120} />
             <Skeleton height={22} width="84%" />
             <Skeleton height={14} width={140} />
             <Skeleton height={120} width="100%" />
-          </View>
+          </Card>
         ) : (
-          <OddsCard
-            event={item}
-            onAddPress={() => {
-              const firstAvailableOdd = item.odds.find((odd) => odd.market === '1X2');
+          <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+            <OddsCard
+              event={item}
+              onAddPress={() => {
+                const firstAvailableOdd = item.odds.find((odd) => odd.market === '1X2');
 
-              if (!firstAvailableOdd) {
-                showToast('Abre o evento para escolheres uma odd disponível.', 'info');
-                router.push(`/odds/${item.id}`);
-                return;
-              }
+                if (!firstAvailableOdd) {
+                  showToast('Abre o evento para escolheres uma odd disponível.', 'info');
+                  router.push(`/odds/${item.id}`);
+                  return;
+                }
 
-              addBuilderItem({
-                id: `${item.id}:${firstAvailableOdd.site.id}:${firstAvailableOdd.market}:${firstAvailableOdd.selection}`,
-                eventId: item.id,
-                siteId: firstAvailableOdd.site.id,
-                market: firstAvailableOdd.market,
-                selection: firstAvailableOdd.selection,
-                oddValue: Number(firstAvailableOdd.value),
-                event: {
-                  awayTeam: item.awayTeam,
-                  eventDate: item.eventDate,
-                  homeTeam: item.homeTeam,
-                  league: item.league,
-                },
-                site: {
-                  id: firstAvailableOdd.site.id,
-                  slug: firstAvailableOdd.site.slug,
-                  name: firstAvailableOdd.site.name,
-                  logoUrl: firstAvailableOdd.site.logoUrl,
-                },
-              });
-              showToast('Seleção adicionada ao boletin.', 'success');
-              router.push('/boletins/create');
-            }}
-            onPress={() => router.push(`/odds/${item.id}`)}
-          />
+                addBuilderItem({
+                  id: `${item.id}:${firstAvailableOdd.site.id}:${firstAvailableOdd.market}:${firstAvailableOdd.selection}`,
+                  eventId: item.id,
+                  siteId: firstAvailableOdd.site.id,
+                  market: firstAvailableOdd.market,
+                  selection: firstAvailableOdd.selection,
+                  oddValue: Number(firstAvailableOdd.value),
+                  event: {
+                    awayTeam: item.awayTeam,
+                    eventDate: item.eventDate,
+                    homeTeam: item.homeTeam,
+                    league: item.league,
+                  },
+                  site: {
+                    id: firstAvailableOdd.site.id,
+                    slug: firstAvailableOdd.site.slug,
+                    name: firstAvailableOdd.site.name,
+                    logoUrl: firstAvailableOdd.site.logoUrl,
+                  },
+                });
+                showToast('Seleção adicionada ao boletin.', 'success');
+                router.push('/boletins/create');
+              }}
+              onPress={() => router.push(`/odds/${item.id}`)}
+            />
+          </Animated.View>
         )
       }
       showsVerticalScrollIndicator={false}
       ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.lg }} />}
       ListFooterComponent={
         oddsFeedQuery.isFetching && feedItems.length > 0 ? (
-          <View style={styles.footerSkeletonWrap}>
+          <View style={styles.footerLoading}>
             <Skeleton height={18} width="100%" />
           </View>
         ) : null
@@ -344,12 +525,8 @@ function getSportLabel(sport: string) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    gap: 12,
-  },
   headerSection: {
-    gap: 18,
+    gap: 20,
     marginBottom: 18,
   },
   topBar: {
@@ -374,7 +551,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  iconButton: {
+  iconBtn: {
     alignItems: 'center',
     borderRadius: 16,
     borderWidth: 1,
@@ -383,15 +560,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: 44,
   },
-  badgeDot: {
-    borderRadius: 4,
-    height: 8,
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    width: 8,
-  },
-  filterBadge: {
+  badge: {
     alignItems: 'center',
     borderRadius: 10,
     height: 20,
@@ -402,80 +571,147 @@ const styles = StyleSheet.create({
     right: -4,
     top: -4,
   },
-  filterBadgeText: {
+  badgeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
   },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
   },
-  liveList: {
-    marginHorizontal: -4,
+  countPill: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  countPillText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  liveDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+
+  /* Live strip */
+  liveStrip: {
+    marginTop: 8,
   },
   liveCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 10,
-    marginHorizontal: 4,
-    padding: 14,
-    width: 220,
+    gap: 8,
+    width: 230,
   },
   liveCardSkeleton: {
-    borderRadius: 18,
-    borderWidth: 1,
     gap: 12,
-    marginHorizontal: 4,
-    padding: 14,
-    width: 220,
+    marginRight: 10,
+    width: 230,
   },
-  liveMatch: {
+  liveCardTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  liveLeague: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  liveTeams: {
     fontSize: 15,
     fontWeight: '800',
   },
-  liveScore: {
+  liveScoreRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  liveScoreText: {
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  liveEmptyCard: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  liveEmptyText: {
     fontSize: 13,
     fontWeight: '600',
   },
-  quickFiltersList: {
-    marginHorizontal: -4,
+
+  /* Filter strips */
+  filterStrip: {
+    marginTop: 8,
   },
-  quickChip: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    marginHorizontal: 4,
-    minHeight: 40,
-    paddingHorizontal: 14,
-  },
-  quickChipText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+
+  /* Feed */
   skeletonCard: {
-    borderRadius: 20,
-    borderWidth: 1,
     gap: 14,
-    padding: 16,
   },
-  footerSkeletonWrap: {
+  footerLoading: {
     paddingTop: 16,
   },
-  emptyState: {
-    borderRadius: 20,
-    borderWidth: 1,
+
+  /* League list */
+  leagueCard: {
+    marginTop: 8,
+    overflow: 'hidden',
+    padding: 0,
+  },
+  leagueSearchWrap: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
     gap: 8,
-    padding: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  emptyText: {
+  leagueSearchInput: {
+    flex: 1,
     fontSize: 14,
-    lineHeight: 22,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  leagueList: {
+    maxHeight: 220,
+  },
+  leagueGroupHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  leagueGroupLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  leagueRow: {
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  leagueRowText: {
+    flex: 1,
+    fontSize: 14,
+  },
+  leagueEmptySearch: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  leagueEmptyText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

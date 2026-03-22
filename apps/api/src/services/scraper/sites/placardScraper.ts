@@ -7,13 +7,18 @@ import { scrapeConfiguredFootballSite } from './browserSiteScraper';
 
 const CONFIG = {
   siteLabel: 'PlacardScraper',
-  footballUrl: 'https://www.placard.pt/apostas-desportivas/futebol',
-  waitForSelector: '[data-testid="event-card"], .match-row, .events-list__item',
+  // Original /apostas-desportivas/futebol redirects to /apostas
+  footballUrl: 'https://www.placard.pt/apostas/futebol',
+  spaExtraWaitMs: 8000,
+  waitForSelector: '[data-testid="event-card"], .match-row, .events-list__item, [class*="event-item"], [class*="EventItem"]',
   eventSelectors: [
     '[data-testid="event-card"]',
     '.match-row',
     '.events-list__item',
     '.sports-event-card',
+    '[class*="event-item"]',
+    '[class*="EventItem"]',
+    '[class*="sport-event"]',
   ],
   teamSelectors: [
     '[data-testid="participant-name"]',
@@ -41,6 +46,13 @@ const CONFIG = {
     '#onetrust-accept-btn-handler',
     '[data-testid="cookie-accept"]',
     'button[class*="cookie"]',
+  ],
+  apiInterceptPatterns: [
+    '/api/',
+    'events',
+    'matches',
+    'offering',
+    'sports',
   ],
 } as const;
 

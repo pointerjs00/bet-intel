@@ -16,10 +16,10 @@ config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, 'node_modules'),
 ];
 
-// Resolve @betintel/shared from vendored TypeScript source so Metro transforms
-// it directly — bypasses npm pack semantics that strip dist/ from file: deps.
+// Resolve @betintel/shared directly from the monorepo TypeScript source so
+// Metro transforms it — no dist/ build step required in development.
 config.resolver.extraNodeModules = {
-  '@betintel/shared': path.resolve(__dirname, '_vendor/shared'),
+  '@betintel/shared': path.resolve(repoRoot, 'packages/shared/src'),
 };
 
 // The Expo virtual entry file uses relative `./node_modules/X` requires which

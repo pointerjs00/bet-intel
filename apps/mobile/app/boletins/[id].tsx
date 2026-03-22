@@ -3,11 +3,15 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BoletinStatus } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { OddsCalculator } from '../../components/boletins/OddsCalculator';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Chip } from '../../components/ui/Chip';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { useBoletinDetail, useUpdateBoletinMutation } from '../../services/boletinService';
@@ -51,16 +55,26 @@ export default function BoletinDetailScreen() {
     return (
       <View style={[styles.loadingScreen, { backgroundColor: colors.background, paddingTop: insets.top + tokens.spacing.lg, paddingHorizontal: tokens.spacing.lg }]}>
         <Skeleton height={36} width="75%" />
-        <Skeleton height={140} width="100%" style={{ marginTop: 18 }} />
-        <Skeleton height={280} width="100%" style={{ marginTop: 18 }} />
+        <Card style={{ marginTop: 18, gap: 12 }}>
+          <Skeleton height={18} width={120} />
+          <Skeleton height={40} width="100%" />
+        </Card>
+        <Card style={{ marginTop: 14, gap: 14 }}>
+          <Skeleton height={18} width={140} />
+          <Skeleton height={80} width="100%" />
+        </Card>
       </View>
     );
   }
 
   if (!boletin) {
     return (
-      <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
-        <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Boletin não encontrado</Text>
+      <View style={[styles.loadingScreen, styles.center, { backgroundColor: colors.background }]}>
+        <EmptyState
+          icon="file-document-outline"
+          title="Boletin não encontrado"
+          message="O boletin pode ter sido removido ou não existe."
+        />
       </View>
     );
   }
@@ -78,43 +92,50 @@ export default function BoletinDetailScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <View style={[styles.statusBanner, { backgroundColor: bannerColor }]}>
-              <StatusBadge status={boletin.status} />
-              <Text style={styles.bannerTitle}>{boletin.name ?? 'Boletin sem nome'}</Text>
-              <Text style={styles.bannerSubtitle}>{formatLongDate(boletin.createdAt)}</Text>
-            </View>
-
-            <OddsCalculator
-              potentialReturn={Number(boletin.actualReturn ?? boletin.potentialReturn)}
-              stake={Number(boletin.stake)}
-              totalOdds={Number(boletin.totalOdds)}
-            />
-
-            <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <View style={styles.summaryMetric}>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Stake</Text>
-                <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
+            <Animated.View entering={FadeInUp.duration(400).springify()}>
+              <View style={[styles.statusBanner, { backgroundColor: bannerColor }]}>
+                <StatusBadge status={boletin.status} />
+                <Text style={styles.bannerTitle}>{boletin.name ?? 'Boletin sem nome'}</Text>
+                <Text style={styles.bannerSubtitle}>{formatLongDate(boletin.createdAt)}</Text>
               </View>
-              <View style={styles.summaryMetric}>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno atual</Text>
-                <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(boletin.actualReturn ?? boletin.potentialReturn)}</Text>
-              </View>
-              <View style={styles.summaryMetric}>
-                <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Visibilidade</Text>
-                <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{boletin.isPublic ? 'Público' : 'Privado'}</Text>
-              </View>
-            </View>
+            </Animated.View>
 
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Estado</Text>
-            <FlatList
-              contentContainerStyle={styles.statusActions}
-              data={STATUS_ACTIONS}
-              horizontal
-              keyExtractor={(item) => item.key}
-              renderItem={({ item }) => {
-                const active = item.key === boletin.status;
-                return (
-                  <Pressable
+            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+              <OddsCalculator
+                potentialReturn={Number(boletin.actualReturn ?? boletin.potentialReturn)}
+                stake={Number(boletin.stake)}
+                totalOdds={Number(boletin.totalOdds)}
+              />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+              <Card style={styles.summaryCard}>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Stake</Text>
+                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
+                </View>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno atual</Text>
+                  <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(boletin.actualReturn ?? boletin.potentialReturn)}</Text>
+                </View>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Visibilidade</Text>
+                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{boletin.isPublic ? 'Público' : 'Privado'}</Text>
+                </View>
+              </Card>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Estado</Text>
+              <FlatList
+                contentContainerStyle={styles.statusActions}
+                data={STATUS_ACTIONS}
+                horizontal
+                keyExtractor={(item) => item.key}
+                renderItem={({ item }) => (
+                  <Chip
+                    label={item.label}
+                    selected={item.key === boletin.status}
                     onPress={async () => {
                       try {
                         await updateMutation.mutateAsync({ id: boletin.id, payload: { status: item.key } });
@@ -123,22 +144,14 @@ export default function BoletinDetailScreen() {
                         showToast(getErrorMessage(error), 'error');
                       }
                     }}
-                    style={[
-                      styles.statusChip,
-                      {
-                        backgroundColor: active ? colors.primary : colors.surfaceRaised,
-                        borderColor: active ? colors.primary : colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.statusChipText, { color: active ? '#FFFFFF' : colors.textPrimary }]}>{item.label}</Text>
-                  </Pressable>
-                );
-              }}
-              showsHorizontalScrollIndicator={false}
-            />
+                  />
+                )}
+                showsHorizontalScrollIndicator={false}
+                ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+              />
+            </Animated.View>
 
-            <View style={styles.actionButtons}>
+            <Animated.View entering={FadeInDown.delay(350).duration(400).springify()} style={styles.actionButtons}>
               <Button
                 leftSlot={<Ionicons color={colors.textPrimary} name="globe-outline" size={16} />}
                 onPress={async () => {
@@ -160,25 +173,28 @@ export default function BoletinDetailScreen() {
                 title="Partilhar"
                 variant="secondary"
               />
-            </View>
+            </Animated.View>
 
             {boletin.notes ? (
-              <Pressable
-                onPress={() => setNotesExpanded((value) => !value)}
-                style={[styles.notesCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-              >
-                <View style={styles.notesHeader}>
-                  <Text style={[styles.notesTitle, { color: colors.textPrimary }]}>Notas</Text>
-                  <Ionicons color={colors.textSecondary} name={notesExpanded ? 'chevron-up' : 'chevron-down'} size={18} />
-                </View>
-                {notesExpanded ? <Text style={[styles.notesBody, { color: colors.textSecondary }]}>{boletin.notes}</Text> : null}
-              </Pressable>
+              <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
+                <Card onPress={() => setNotesExpanded((value) => !value)} style={styles.notesCard}>
+                  <View style={styles.notesHeader}>
+                    <Text style={[styles.notesTitle, { color: colors.textPrimary }]}>Notas</Text>
+                    <Ionicons color={colors.textSecondary} name={notesExpanded ? 'chevron-up' : 'chevron-down'} size={18} />
+                  </View>
+                  {notesExpanded ? <Text style={[styles.notesBody, { color: colors.textSecondary }]}>{boletin.notes}</Text> : null}
+                </Card>
+              </Animated.View>
             ) : null}
 
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Seleções</Text>
           </View>
         }
-        renderItem={({ item }) => <BoletinItem item={item} />}
+        renderItem={({ item, index }) => (
+          <Animated.View entering={FadeInDown.delay(450 + index * 60).duration(400).springify()}>
+            <BoletinItem item={item} />
+          </Animated.View>
+        )}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.md }} />}
         showsVerticalScrollIndicator={false}
       />
@@ -211,21 +227,19 @@ function getErrorMessage(error: unknown): string {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   loadingScreen: { alignItems: 'stretch', flex: 1, justifyContent: 'flex-start' },
-  emptyTitle: { fontSize: 22, fontWeight: '900' },
+  center: { alignItems: 'center', justifyContent: 'center' },
   headerWrap: { gap: 18, marginBottom: 18 },
   statusBanner: { borderRadius: 24, gap: 10, padding: 18 },
   bannerTitle: { color: '#FFFFFF', fontSize: 28, fontWeight: '900', lineHeight: 34 },
   bannerSubtitle: { color: 'rgba(255,255,255,0.86)', fontSize: 13, fontWeight: '700' },
-  summaryCard: { borderRadius: 22, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 16 },
+  summaryCard: { flexDirection: 'row', gap: 12 },
   summaryMetric: { flex: 1, gap: 6 },
   summaryLabel: { fontSize: 12, fontWeight: '700' },
   summaryValue: { fontSize: 16, fontWeight: '900' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   statusActions: { gap: 8 },
-  statusChip: { borderRadius: 999, borderWidth: 1, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14 },
-  statusChipText: { fontSize: 13, fontWeight: '800' },
   actionButtons: { flexDirection: 'row', gap: 10 },
-  notesCard: { borderRadius: 18, borderWidth: 1, gap: 10, padding: 16 },
+  notesCard: { gap: 10 },
   notesHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   notesTitle: { fontSize: 16, fontWeight: '800' },
   notesBody: { fontSize: 14, lineHeight: 22 },

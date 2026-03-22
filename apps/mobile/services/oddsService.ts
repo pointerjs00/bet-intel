@@ -60,6 +60,7 @@ export interface OddsFeedFilters {
   selectedSites: string[];
   selectedSports: Sport[];
   selectedMarkets: string[];
+  selectedLeague?: string | null;
   minOdds: number;
   maxOdds: number;
   dateRange: FilterDateRange | null;
@@ -71,6 +72,7 @@ function buildOddsParams(filters: OddsFeedFilters) {
   return {
     sites: filters.selectedSites.length > 0 ? filters.selectedSites.join(',') : undefined,
     sport: filters.selectedSports[0],
+    league: filters.selectedLeague ?? undefined,
     market: filters.selectedMarkets[0],
     minOdds: filters.minOdds,
     maxOdds: filters.maxOdds,
@@ -100,6 +102,7 @@ export function useOddsFeed(filters: OddsFeedFilters) {
       };
     },
     placeholderData: (previousData) => previousData,
+    refetchInterval: 30_000,
   });
 }
 
@@ -122,6 +125,7 @@ export function useEventOdds(eventId: string) {
       return response.data.data;
     },
     enabled: Boolean(eventId),
+    refetchInterval: 15_000,
   });
 }
 

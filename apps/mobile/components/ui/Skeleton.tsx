@@ -1,5 +1,13 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, View, type ViewStyle, type StyleProp } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, View, type ViewStyle, type StyleProp } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  interpolate,
+  Easing,
+} from 'react-native-reanimated';
 import { useTheme } from '../../theme/useTheme';
 
 interface SkeletonProps {
@@ -11,19 +19,19 @@ interface SkeletonProps {
 
 export function Skeleton({ width = '100%', height = 16, borderRadius = 10, style }: SkeletonProps) {
   const { colors } = useTheme();
-  const opacity = useRef(new Animated.Value(0.35)).current;
+  const progress = useSharedValue(0);
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.7, duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.35, duration: 700, useNativeDriver: true }),
-      ]),
+    progress.value = withRepeat(
+      withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      true,
     );
+  }, [progress]);
 
-    animation.start();
-    return () => animation.stop();
-  }, [opacity]);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.5, 1], [0.35, 0.65, 0.35]),
+  }));
 
   return (
     <Animated.View
@@ -34,8 +42,8 @@ export function Skeleton({ width = '100%', height = 16, borderRadius = 10, style
           height,
           borderRadius,
           backgroundColor: colors.surfaceRaised,
-          opacity,
         },
+        animatedStyle,
         style,
       ]}
     />

@@ -12,12 +12,15 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { registerSchema, type RegisterInput } from '@betintel/shared';
 import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../theme/useTheme';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Divider } from '../../components/ui/Divider';
 import { useToast } from '../../components/ui/Toast';
 import { signInWithGoogle } from '../../services/auth/googleAuth';
 
@@ -125,162 +128,168 @@ export default function RegisterScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + tokens.spacing.xl,
           paddingBottom: insets.bottom + tokens.spacing.xl,
-          paddingHorizontal: tokens.spacing.lg,
+          paddingHorizontal: tokens.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
         style={styles.flex}
       >
-        <View style={styles.header}>
+        <Animated.View entering={FadeInUp.duration(500).springify()} style={styles.header}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Criar conta</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Começa a acompanhar e comparar odds em segundos.</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.form}>
-          <Controller
-            control={control}
-            name="displayName"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                error={errors.displayName?.message}
-                label="Nome completo"
-                onChangeText={onChange}
-                placeholder="João Silva"
-                value={value}
+        <Animated.View entering={FadeInDown.delay(120).duration(500).springify()}>
+          <Card style={styles.formCard}>
+            <View style={styles.form}>
+              <Controller
+                control={control}
+                name="displayName"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    error={errors.displayName?.message}
+                    label="Nome completo"
+                    onChangeText={onChange}
+                    placeholder="João Silva"
+                    value={value}
+                  />
+                )}
               />
-            )}
-          />
 
-          <Controller
-            control={control}
-            name="username"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                autoCapitalize="none"
-                error={errors.username?.message}
-                icon={
-                  usernameAvailable === null ? null : (
-                    <Ionicons
-                      color={usernameAvailable ? colors.primary : colors.danger}
-                      name={usernameAvailable ? 'checkmark-circle' : 'close-circle'}
-                      size={18}
-                    />
-                  )
-                }
-                label="Username"
-                onChangeText={onChange}
-                placeholder="joao_aposta"
-                value={value}
+              <Controller
+                control={control}
+                name="username"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    autoCapitalize="none"
+                    error={errors.username?.message}
+                    rightSlot={
+                      usernameAvailable === null ? undefined : (
+                        <Ionicons
+                          color={usernameAvailable ? colors.primary : colors.danger}
+                          name={usernameAvailable ? 'checkmark-circle' : 'close-circle'}
+                          size={18}
+                        />
+                      )
+                    }
+                    label="Username"
+                    onChangeText={onChange}
+                    placeholder="joao_aposta"
+                    value={value}
+                  />
+                )}
               />
-            )}
-          />
 
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                autoCapitalize="none"
-                autoComplete="email"
-                error={errors.email?.message}
-                keyboardType="email-address"
-                label="Email"
-                onChangeText={onChange}
-                placeholder="teu@email.pt"
-                value={value}
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    error={errors.email?.message}
+                    keyboardType="email-address"
+                    label="Email"
+                    onChangeText={onChange}
+                    placeholder="teu@email.pt"
+                    value={value}
+                  />
+                )}
               />
-            )}
-          />
 
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                error={errors.password?.message}
-                label="Password"
-                onChangeText={onChange}
-                placeholder="Cria uma password forte"
-                secureTextEntry
-                value={value}
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    error={errors.password?.message}
+                    label="Password"
+                    onChangeText={onChange}
+                    placeholder="Cria uma password forte"
+                    secureTextEntry
+                    value={value}
+                  />
+                )}
               />
-            )}
-          />
 
-          <View style={styles.passwordMeterWrap}>
-            <View style={[styles.passwordMeterTrack, { backgroundColor: colors.border }]}>
-              <View
-                style={[
-                  styles.passwordMeterFill,
-                  { backgroundColor: passwordStrength.color, width: passwordStrength.width },
-                ]}
-              />
-            </View>
-            <Text style={[styles.passwordMeterLabel, { color: colors.textSecondary }]}>
-              Força da password: {passwordStrength.label}
-            </Text>
-          </View>
-
-          <Controller
-            control={control}
-            name="confirmPassword"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                error={errors.confirmPassword?.message}
-                label="Confirmar password"
-                onChangeText={onChange}
-                placeholder="Repete a password"
-                secureTextEntry
-                value={value}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="acceptTerms"
-            render={({ field: { onChange, value } }) => (
-              <Pressable onPress={() => onChange(!value)} style={styles.termsRow}>
-                <View
-                  style={[
-                    styles.checkbox,
-                    {
-                      backgroundColor: value ? colors.primary : 'transparent',
-                      borderColor: value ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  {value ? <Ionicons color="#FFFFFF" name="checkmark" size={14} /> : null}
+              <View style={styles.passwordMeterWrap}>
+                <View style={[styles.passwordMeterTrack, { backgroundColor: colors.border }]}>
+                  <Animated.View
+                    style={[
+                      styles.passwordMeterFill,
+                      { backgroundColor: passwordStrength.color, width: passwordStrength.width },
+                    ]}
+                  />
                 </View>
-                <Text style={[styles.termsText, { color: colors.textSecondary }]}>Aceito os Termos de Serviço e Política de Privacidade</Text>
-              </Pressable>
-            )}
+                <Text style={[styles.passwordMeterLabel, { color: colors.textMuted }]}>
+                  {passwordStrength.label}
+                </Text>
+              </View>
+
+              <Controller
+                control={control}
+                name="confirmPassword"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    error={errors.confirmPassword?.message}
+                    label="Confirmar password"
+                    onChangeText={onChange}
+                    placeholder="Repete a password"
+                    secureTextEntry
+                    value={value}
+                  />
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="acceptTerms"
+                render={({ field: { onChange, value } }) => (
+                  <Pressable onPress={() => onChange(!value)} style={styles.termsRow}>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        {
+                          backgroundColor: value ? colors.primary : 'transparent',
+                          borderColor: value ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      {value ? <Ionicons color="#FFFFFF" name="checkmark" size={14} /> : null}
+                    </View>
+                    <Text style={[styles.termsText, { color: colors.textSecondary }]}>Aceito os Termos de Serviço e Política de Privacidade</Text>
+                  </Pressable>
+                )}
+              />
+              {errors.acceptTerms?.message ? (
+                <Text style={[styles.errorText, { color: colors.danger }]}>{errors.acceptTerms.message}</Text>
+              ) : null}
+
+              <Button loading={isSubmitting} onPress={onSubmit} title="Criar conta" />
+            </View>
+          </Card>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(240).duration(500).springify()} style={styles.dividerWrap}>
+          <Divider style={styles.dividerLine} />
+          <Text style={[styles.dividerText, { color: colors.textMuted }]}>ou continuar com</Text>
+          <Divider style={styles.dividerLine} />
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+          <Button
+            leftSlot={<Ionicons color="#1F1F1F" name="logo-google" size={18} />}
+            loading={isGoogleLoading}
+            onPress={handleGoogle}
+            style={styles.googleButton}
+            title="Continuar com Google"
+            variant="secondary"
           />
-          {errors.acceptTerms?.message ? (
-            <Text style={[styles.errorText, { color: colors.danger }]}>{errors.acceptTerms.message}</Text>
-          ) : null}
+        </Animated.View>
 
-          <Button loading={isSubmitting} onPress={onSubmit} title="Criar conta" />
-        </View>
-
-        <View style={styles.dividerWrap}>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-          <Text style={[styles.dividerText, { color: colors.textSecondary }]}>ou continuar com</Text>
-          <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-        </View>
-
-        <Button
-          leftSlot={<Ionicons color="#1F1F1F" name="logo-google" size={18} />}
-          loading={isGoogleLoading}
-          onPress={handleGoogle}
-          style={{ backgroundColor: '#FFFFFF', borderColor: '#DADCE0' }}
-          title="Continuar com Google"
-          variant="secondary"
-        />
-
-        <View style={styles.footerRow}>
+        <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.footerRow}>
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>Já tens conta?</Text>
           <Link href="/(auth)/login" style={[styles.footerLink, { color: colors.primary }]}>Entrar</Link>
-        </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -308,11 +317,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    gap: 12,
-    marginBottom: 28,
+    gap: 10,
+    marginBottom: 24,
   },
   title: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '900',
     letterSpacing: -0.8,
   },
@@ -320,25 +329,31 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  formCard: {
+    gap: 0,
+  },
   form: {
     gap: 16,
   },
   passwordMeterWrap: {
-    gap: 8,
-    marginTop: -6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: -8,
   },
   passwordMeterTrack: {
     borderRadius: 999,
-    height: 8,
+    flex: 1,
+    height: 6,
     overflow: 'hidden',
   },
   passwordMeterFill: {
     borderRadius: 999,
-    height: 8,
+    height: 6,
   },
   passwordMeterLabel: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
   },
   termsRow: {
     alignItems: 'center',
@@ -348,41 +363,45 @@ const styles = StyleSheet.create({
   checkbox: {
     alignItems: 'center',
     borderRadius: 6,
-    borderWidth: 1,
-    height: 20,
+    borderWidth: 1.5,
+    height: 22,
     justifyContent: 'center',
-    width: 20,
+    width: 22,
   },
   termsText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     lineHeight: 20,
   },
   errorText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     marginTop: -8,
   },
   dividerWrap: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 12,
+    gap: 14,
     marginVertical: 24,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
   },
   dividerText: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'lowercase',
+  },
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DADCE0',
   },
   footerRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 28,
   },
   footerText: {
     fontSize: 14,

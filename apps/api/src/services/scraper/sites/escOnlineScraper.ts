@@ -1,5 +1,9 @@
 /**
- * ESC Online scraper — https://www.esportesonline.com
+ * ESC Online Portugal scraper
+ *
+ * NOTE: The original URL esportesonline.com is a Brazilian B2B solutions company,
+ * NOT the Portuguese betting site. The correct domain is esconline.pt.
+ * TODO: Verify selectors against esconline.pt when URL is confirmed.
  */
 
 import type { IScraper, ScrapedEvent } from '../types';
@@ -7,13 +11,18 @@ import { scrapeConfiguredFootballSite } from './browserSiteScraper';
 
 const CONFIG = {
   siteLabel: 'EscOnlineScraper',
-  footballUrl: 'https://www.esportesonline.com/pt/apostas/futebol',
-  waitForSelector: '.event-card, .sports-event, [data-testid="event-card"]',
+  // esconline.pt redirects to estorilsolcasinos.pt — use PT path directly to sports betting
+  footballUrl: 'https://www.estorilsolcasinos.pt/pt/apostas-desportivas/futebol',
+  spaExtraWaitMs: 3000,
+  waitForSelector: '.event-card, .sports-event, [data-testid="event-card"], .match-event, [class*="EventRow"], [class*="event-row"]',
   eventSelectors: [
     '.event-card',
     '.sports-event',
     '[data-testid="event-card"]',
     '.match-row',
+    '.match-event',
+    '[class*="EventRow"]',
+    '[class*="event-row"]',
   ],
   teamSelectors: [
     '[data-testid="team-name"]',
@@ -38,9 +47,12 @@ const CONFIG = {
     '.bet-price',
   ],
   cookieSelectors: [
+    // Didomi consent framework used by estorilsolcasinos.pt
+    '#didomi-accept-btn-handler',
+    '.didomi-components-radio__option--agree',
+    'button[id*="didomi-accept"]',
     '#onetrust-accept-btn-handler',
     '[data-testid="cookie-accept"]',
-    'button[class*="cookie"]',
   ],
 } as const;
 

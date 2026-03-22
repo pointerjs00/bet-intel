@@ -21,6 +21,7 @@ import {
   runScraper,
   runAllScrapers,
 } from '../services/scraper/scraperRegistry';
+import { updateEventStatuses } from '../services/odds/oddsService';
 import type { ScrapeJobData } from '../services/scraper/types';
 
 // ─── Scraper registration ─────────────────────────────────────────────────────
@@ -60,6 +61,16 @@ async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
 
   logger.info(`Scrape job started`, { jobType, siteSlug: siteSlug ?? 'all' });
 
+  // Update event statuses (UPCOMING→LIVE, LIVE→FINISHED) on every job run
+  try {
+    const statusChanges = await updateEventStatuses();
+    if (statusChanges.toLive > 0 || statusChanges.toFinished > 0) {
+      logger.info('Event statuses updated', statusChanges);
+    }
+  } catch (err) {
+    logger.warn('Event status update failed', { error: (err as Error).message });
+  }
+
   try {
     if (siteSlug) {
       await runScraper(siteSlug);
@@ -83,14 +94,24 @@ async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
 
 /**
  * Adds the four repeating jobs to the queue.
- * Safe to call multiple times — Bull deduplicates by job name + repeat key.
+ * Existing repeatable jobs are cleared first so interval changes take effect
+ * immediately without leaving stale Bull repeat records in Redis.
  */
 async function scheduleJobs(queue: Bull.Queue<ScrapeJobData>): Promise<void> {
-  // Live events — every 60 seconds (Bull supports ms-based interval)
+  // Remove all existing repeatable jobs — avoids duplicate executions when
+  // the repeat interval changes between deployments (e.g. 60s → 30s).
+  const existing = await queue.getRepeatableJobs();
+  for (const job of existing) {
+    await queue.removeRepeatableByKey(job.key);
+  }
+
+  // Live events — every 30 seconds for near-real-time odds freshness.
+  // Socket emissions fire immediately after each scrape so the mobile UI
+  // reflects changes the moment the scraper detects them.
   await queue.add(
     { jobType: 'live' },
     {
-      repeat: { every: 60_000 },
+      repeat: { every: 30_000 },
       jobId: 'scrape-live',
     },
   );
@@ -123,7 +144,7 @@ async function scheduleJobs(queue: Bull.Queue<ScrapeJobData>): Promise<void> {
   );
 
   logger.info('Scrape jobs scheduled', {
-    jobs: ['live (60s)', 'upcoming-24h (5min)', 'upcoming-7d (30min)', 'discovery (2h)'],
+    jobs: ['live (30s)', 'upcoming-24h (5min)', 'upcoming-7d (30min)', 'discovery (2h)'],
   });
 }
 

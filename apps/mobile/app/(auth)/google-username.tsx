@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { googleCompleteRegistrationSchema } from '@betintel/shared';
 import type { z } from 'zod';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
 import { useTheme } from '../../theme/useTheme';
 import { apiClient } from '../../services/apiClient';
 import { useToast } from '../../components/ui/Toast';
@@ -100,47 +104,65 @@ export default function GoogleUsernameScreen() {
         contentContainerStyle={{
           paddingTop: insets.top + tokens.spacing.xxl,
           paddingBottom: insets.bottom + tokens.spacing.xl,
-          paddingHorizontal: tokens.spacing.lg,
+          paddingHorizontal: tokens.spacing.xl,
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.profileHeader}>
+        <Animated.View entering={FadeInUp.duration(500).springify()} style={styles.profileHeader}>
           {typeof picture === 'string' && picture.length > 0 ? (
             <Image source={{ uri: picture }} style={styles.avatar} />
           ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: colors.surfaceRaised }]} />
+            <View style={[styles.avatarFallback, { backgroundColor: colors.surfaceRaised }]}>
+              <Ionicons color={colors.textMuted} name="person" size={36} />
+            </View>
           )}
           <Text style={[styles.title, { color: colors.textPrimary }]}>Escolhe o teu username</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             {typeof name === 'string' && name.length > 0 ? `${name}, ` : ''}escolhe um nome de utilizador único para o BetIntel.
           </Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.form}>
-          <Controller
-            control={control}
-            name="username"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                autoCapitalize="none"
-                error={errors.username?.message}
-                label="Username"
-                onChangeText={onChange}
-                placeholder="3-20 caracteres, letras, números e underscores"
-                value={value}
+        <Animated.View entering={FadeInDown.delay(150).duration(500).springify()}>
+          <Card style={styles.formCard}>
+            <View style={styles.form}>
+              <Controller
+                control={control}
+                name="username"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    autoCapitalize="none"
+                    error={errors.username?.message}
+                    label="Username"
+                    onChangeText={onChange}
+                    placeholder="3-20 caracteres, letras, números e _"
+                    rightSlot={
+                      usernameAvailable === null ? undefined : (
+                        <Ionicons
+                          color={usernameAvailable ? colors.primary : colors.danger}
+                          name={usernameAvailable ? 'checkmark-circle' : 'close-circle'}
+                          size={18}
+                        />
+                      )
+                    }
+                    value={value}
+                  />
+                )}
               />
-            )}
-          />
 
-          <Text style={[styles.rules, { color: colors.textSecondary }]}>Regras: 3-20 caracteres, letras, números e underscores apenas.</Text>
-          {usernameAvailable !== null ? (
-            <Text style={{ color: usernameAvailable ? colors.primary : colors.danger, fontWeight: '600' }}>
-              {usernameAvailable ? 'Username disponível' : 'Username indisponível'}
-            </Text>
-          ) : null}
+              {usernameAvailable !== null ? (
+                <Badge
+                  label={usernameAvailable ? 'Disponível' : 'Indisponível'}
+                  variant={usernameAvailable ? 'primary' : 'danger'}
+                  size="sm"
+                />
+              ) : null}
 
-          <Button loading={isSubmitting} onPress={onSubmit} title="Continuar" />
-        </View>
+              <Text style={[styles.rules, { color: colors.textMuted }]}>Letras, números e underscores. 3 a 20 caracteres.</Text>
+
+              <Button loading={isSubmitting} onPress={onSubmit} title="Continuar" />
+            </View>
+          </Card>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -173,17 +195,19 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   avatar: {
-    borderRadius: 44,
-    height: 88,
-    width: 88,
+    borderRadius: 40,
+    height: 80,
+    width: 80,
   },
   avatarFallback: {
-    borderRadius: 44,
-    height: 88,
-    width: 88,
+    alignItems: 'center',
+    borderRadius: 40,
+    height: 80,
+    justifyContent: 'center',
+    width: 80,
   },
   title: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
     textAlign: 'center',
   },
@@ -192,11 +216,15 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
   },
+  formCard: {
+    gap: 0,
+  },
   form: {
     gap: 16,
   },
   rules: {
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: -8,
   },
 });

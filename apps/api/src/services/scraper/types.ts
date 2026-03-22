@@ -37,6 +37,8 @@ export interface ScrapedEvent {
   /** Scheduled kick-off / start time */
   eventDate: Date;
   markets: ScrapedMarket[];
+  /** Whether the betting site reports this event as currently live / in-play. */
+  isLive?: boolean;
 }
 
 // ─── Scraper contract ─────────────────────────────────────────────────────────

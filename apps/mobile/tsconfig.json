@@ -3,18 +3,31 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM"],
+    "lib": [
+      "ES2020",
+      "DOM"
+    ],
     "moduleResolution": "bundler",
-    "types": ["react", "react-native", "node"],
+    "types": [
+      "react",
+      "react-native",
+      "node"
+    ],
     "paths": {
-      "@betintel/shared": ["../../packages/shared/src"],
-      "@betintel/shared/*": ["../../packages/shared/src/*"]
+      "@betintel/shared": [
+        "../../packages/shared/src"
+      ],
+      "@betintel/shared/*": [
+        "../../packages/shared/src/*"
+      ]
     }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.d.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "nativewind-env.d.ts",
+    ".expo/types/**/*.ts"
   ]
 }

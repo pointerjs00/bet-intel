@@ -41,6 +41,13 @@ const CONFIG = {
     'button[class*="cookie"]',
   ],
   acceptLanguage: 'pt-PT,pt;q=0.9,en;q=0.8',
+  apiInterceptPatterns: [
+    '/SportsBook/',
+    '/V1/',
+    'offering',
+    'events',
+    'fixtures',
+  ],
 } as const;
 
 export class Bet365Scraper implements IScraper {

@@ -1,10 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { ActivityFeedItem } from '../../components/social/ActivityFeedItem';
 import { FriendCard } from '../../components/social/FriendCard';
 import { FriendRequestCard } from '../../components/social/FriendRequestCard';
+import { Card } from '../../components/ui/Card';
+import { Chip } from '../../components/ui/Chip';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
@@ -56,42 +60,34 @@ export default function FriendsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + tokens.spacing.md,
-          paddingBottom: insets.bottom + tokens.spacing.xxl,
+          paddingBottom: insets.bottom + 100,
           paddingHorizontal: tokens.spacing.lg,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerWrap}>
+        <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.headerWrap}>
           <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Social</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Segue atividade pública, gere amizades e responde a pedidos.</Text>
-        </View>
+        </Animated.View>
 
-        <View style={[styles.tabBar, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          {TAB_LABELS.map((tab) => {
-            const active = tab.key === activeTab;
-            const badgeValue = tab.key === 'requests' ? requestCount : 0;
+        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+          <Card noPadding style={styles.tabBar}>
+            {TAB_LABELS.map((tab) => {
+              const active = tab.key === activeTab;
+              const badgeValue = tab.key === 'requests' ? requestCount : 0;
 
-            return (
-              <Pressable
-                key={tab.key}
-                onPress={() => setActiveTab(tab.key)}
-                style={[
-                  styles.tabButton,
-                  {
-                    backgroundColor: active ? colors.primary : 'transparent',
-                  },
-                ]}
-              >
-                <Text style={[styles.tabLabel, { color: active ? '#FFFFFF' : colors.textPrimary }]}>{tab.label}</Text>
-                {badgeValue > 0 ? (
-                  <View style={[styles.badge, { backgroundColor: active ? '#FFFFFF22' : colors.primary }]}>
-                    <Text style={styles.badgeText}>{badgeValue}</Text>
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
+              return (
+                <Chip
+                  key={tab.key}
+                  label={badgeValue > 0 ? `${tab.label} (${badgeValue})` : tab.label}
+                  selected={active}
+                  onPress={() => setActiveTab(tab.key)}
+                  style={styles.tabChip}
+                />
+              );
+            })}
+          </Card>
+        </Animated.View>
 
         {activeTab === 'feed' ? (
           <View style={styles.sectionStack}>
@@ -101,9 +97,13 @@ export default function FriendsScreen() {
                 <Skeleton height={108} width="100%" />
               </View>
             ) : feedQuery.data && feedQuery.data.length > 0 ? (
-              feedQuery.data.map((item) => <ActivityFeedItem item={item} key={item.id} />)
+              feedQuery.data.map((item, index) => (
+                <Animated.View key={item.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                  <ActivityFeedItem item={item} />
+                </Animated.View>
+              ))
             ) : (
-              <EmptyPanel description="Quando os teus amigos publicarem boletins, eles aparecem aqui." title="Feed vazio" />
+              <EmptyState icon="newspaper-variant-outline" title="Feed vazio" message="Quando os teus amigos publicarem boletins, eles aparecem aqui." />
             )}
           </View>
         ) : null}
@@ -123,7 +123,8 @@ export default function FriendsScreen() {
                 {searchQuery.isLoading ? (
                   <Skeleton height={96} width="100%" />
                 ) : searchResults.length > 0 ? (
-                  searchResults.map((user) => (
+                  searchResults.map((user, index) => (
+                    <Animated.View key={user.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
                     <FriendCard
                       actionLabel={user.isFriend ? undefined : user.hasPendingRequest ? undefined : 'Adicionar'}
                       actionLoading={sendRequestMutation.isPending}
@@ -136,7 +137,6 @@ export default function FriendsScreen() {
                               ? 'Este utilizador já te enviou um pedido.'
                               : user.bio ?? undefined
                       }
-                      key={user.id}
                       onAction={async () => {
                         try {
                           await sendRequestMutation.mutateAsync(user.id);
@@ -147,9 +147,10 @@ export default function FriendsScreen() {
                       }}
                       user={user}
                     />
+                    </Animated.View>
                   ))
                 ) : (
-                  <EmptyPanel description="Tenta outro username ou nome." title="Sem resultados" />
+                  <EmptyState icon="magnify" title="Sem resultados" message="Tenta outro username ou nome." />
                 )}
               </View>
             ) : null}
@@ -161,24 +162,25 @@ export default function FriendsScreen() {
                 <Skeleton height={96} width="100%" />
               </View>
             ) : friendsQuery.data && friendsQuery.data.length > 0 ? (
-              friendsQuery.data.map((friendship) => (
-                <FriendCard
-                  actionLabel="Remover"
-                  actionLoading={removeFriendMutation.isPending}
-                  key={friendship.id}
-                  onAction={async () => {
-                    try {
-                      await removeFriendMutation.mutateAsync(friendship.friend.id);
-                      showToast('Amigo removido.', 'success');
-                    } catch (error) {
-                      showToast(getApiErrorMessage(error), 'error');
-                    }
-                  }}
-                  user={friendship.friend}
-                />
+              friendsQuery.data.map((friendship, index) => (
+                <Animated.View key={friendship.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                  <FriendCard
+                    actionLabel="Remover"
+                    actionLoading={removeFriendMutation.isPending}
+                    onAction={async () => {
+                      try {
+                        await removeFriendMutation.mutateAsync(friendship.friend.id);
+                        showToast('Amigo removido.', 'success');
+                      } catch (error) {
+                        showToast(getApiErrorMessage(error), 'error');
+                      }
+                    }}
+                    user={friendship.friend}
+                  />
+                </Animated.View>
               ))
             ) : (
-              <EmptyPanel description="Usa a pesquisa para começares a construir a tua rede." title="Ainda sem amigos" />
+              <EmptyState icon="account-group-outline" title="Ainda sem amigos" message="Usa a pesquisa para começares a construir a tua rede." />
             )}
           </View>
         ) : null}
@@ -189,56 +191,48 @@ export default function FriendsScreen() {
             {requestsQuery.isLoading ? (
               <Skeleton height={96} width="100%" />
             ) : requestsQuery.data && requestsQuery.data.received.length > 0 ? (
-              requestsQuery.data.received.map((request) => (
-                <FriendRequestCard
-                  key={request.id}
-                  loading={acceptRequestMutation.isPending}
-                  onAccept={async () => {
-                    try {
-                      await acceptRequestMutation.mutateAsync(request.id);
-                      showToast('Pedido aceite.', 'success');
-                    } catch (error) {
-                      showToast(getApiErrorMessage(error), 'error');
-                    }
-                  }}
-                  onDecline={async () => {
-                    try {
-                      await declineRequestMutation.mutateAsync(request.id);
-                      showToast('Pedido recusado.', 'info');
-                    } catch (error) {
-                      showToast(getApiErrorMessage(error), 'error');
-                    }
-                  }}
-                  request={request}
-                  variant="received"
-                />
+              requestsQuery.data.received.map((request, index) => (
+                <Animated.View key={request.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                  <FriendRequestCard
+                    loading={acceptRequestMutation.isPending}
+                    onAccept={async () => {
+                      try {
+                        await acceptRequestMutation.mutateAsync(request.id);
+                        showToast('Pedido aceite.', 'success');
+                      } catch (error) {
+                        showToast(getApiErrorMessage(error), 'error');
+                      }
+                    }}
+                    onDecline={async () => {
+                      try {
+                        await declineRequestMutation.mutateAsync(request.id);
+                        showToast('Pedido recusado.', 'info');
+                      } catch (error) {
+                        showToast(getApiErrorMessage(error), 'error');
+                      }
+                    }}
+                    request={request}
+                    variant="received"
+                  />
+                </Animated.View>
               ))
             ) : (
-              <EmptyPanel description="Os novos pedidos recebidos aparecem aqui." title="Sem pedidos recebidos" />
+              <EmptyState icon="email-outline" title="Sem pedidos recebidos" message="Os novos pedidos recebidos aparecem aqui." />
             )}
 
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Enviados</Text>
             {requestsQuery.data && requestsQuery.data.sent.length > 0 ? (
-              requestsQuery.data.sent.map((request) => (
-                <FriendRequestCard key={request.id} request={request} variant="sent" />
+              requestsQuery.data.sent.map((request, index) => (
+                <Animated.View key={request.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                  <FriendRequestCard request={request} variant="sent" />
+                </Animated.View>
               ))
             ) : (
-              <EmptyPanel description="Quando enviares pedidos, vais acompanhar o estado nesta lista." title="Sem pedidos enviados" />
+              <EmptyState icon="send-outline" title="Sem pedidos enviados" message="Quando enviares pedidos, vais acompanhar o estado nesta lista." />
             )}
           </View>
         ) : null}
       </ScrollView>
-    </View>
-  );
-}
-
-function EmptyPanel({ title, description }: { title: string; description: string }) {
-  const { colors } = useTheme();
-
-  return (
-    <View style={[styles.emptyCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-      <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>{title}</Text>
-      <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{description}</Text>
     </View>
   );
 }
@@ -249,14 +243,8 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   tabBar: { borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 8, marginBottom: 20, padding: 8 },
-  tabButton: { alignItems: 'center', borderRadius: 14, flex: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', minHeight: 42, paddingHorizontal: 10 },
-  tabLabel: { fontSize: 13, fontWeight: '800' },
-  badge: { borderRadius: 999, minWidth: 20, paddingHorizontal: 6, paddingVertical: 3 },
-  badgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '900', textAlign: 'center' },
+  tabChip: { flex: 1 },
   sectionStack: { gap: 14 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   loadingStack: { gap: 12 },
-  emptyCard: { borderRadius: 22, borderWidth: 1, gap: 10, padding: 18 },
-  emptyTitle: { fontSize: 18, fontWeight: '900' },
-  emptyText: { fontSize: 14, lineHeight: 22 },
 });

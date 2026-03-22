@@ -1,13 +1,17 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useEventOdds, type OddsRow } from '../../services/oddsService';
 import { useTheme } from '../../theme/useTheme';
 import { SiteLogoChip } from '../../components/odds/SiteLogoChip';
 import { OddsCell } from '../../components/odds/OddsCell';
 import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Chip } from '../../components/ui/Chip';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { LiveBadge } from '../../components/odds/LiveBadge';
 import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
@@ -59,10 +63,19 @@ export default function EventDetailScreen() {
   if (eventQuery.isLoading) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top + tokens.spacing.lg, paddingHorizontal: tokens.spacing.lg }]}> 
-        <Skeleton height={22} width={180} />
-        <Skeleton height={34} width="85%" style={{ marginTop: 14 }} />
-        <Skeleton height={120} width="100%" style={{ marginTop: 18 }} />
-        <Skeleton height={240} width="100%" style={{ marginTop: 18 }} />
+        <Card style={{ gap: 16, marginTop: 8 }}>
+          <Skeleton height={16} width={120} />
+          <Skeleton height={56} width="100%" />
+          <Skeleton height={40} width="100%" />
+        </Card>
+        <Card style={{ marginTop: 14, gap: 14 }}>
+          <Skeleton height={18} width={120} />
+          <Skeleton height={70} width="100%" />
+        </Card>
+        <Card style={{ marginTop: 14, gap: 14 }}>
+          <Skeleton height={18} width={160} />
+          <Skeleton height={64} width="100%" />
+        </Card>
       </View>
     );
   }
@@ -70,10 +83,16 @@ export default function EventDetailScreen() {
   if (!event) {
     return (
       <View style={[styles.screen, styles.center, { backgroundColor: colors.background }]}> 
-        <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Evento não encontrado</Text>
+        <EmptyState
+          icon="alert-circle-outline"
+          title="Evento não encontrado"
+          message="O evento pode ter sido removido ou os dados ainda não foram carregados."
+        />
       </View>
     );
   }
+
+  const sportEmoji = getSportEmoji(event.sport);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}> 
@@ -88,136 +107,197 @@ export default function EventDetailScreen() {
         keyExtractor={(item) => item.site.id}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <Text style={[styles.league, { color: colors.textSecondary }]}>{event.league}</Text>
-            <Text style={[styles.title, { color: colors.textPrimary }]}>{event.homeTeam} vs {event.awayTeam}</Text>
-            <View style={[styles.banner, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-              <View style={styles.bannerTeams}>
-                <Text style={[styles.teamName, { color: colors.textPrimary }]}>{event.homeTeam}</Text>
-                <View style={styles.scoreWrap}>
+            {/* Hero banner */}
+            <Animated.View entering={FadeInUp.duration(400).springify()}>
+              <Card style={styles.heroBanner}>
+                {/* Sport + league badge */}
+                <View style={styles.heroBadgeRow}>
+                  <View style={[styles.sportTag, { backgroundColor: colors.background }]}>
+                    <Text style={styles.sportEmoji}>{sportEmoji}</Text>
+                    <Text style={[styles.leagueLabel, { color: colors.textSecondary }]}>{event.league}</Text>
+                  </View>
                   {event.status === 'LIVE' ? <LiveBadge /> : null}
-                  <Text style={[styles.score, { color: colors.textPrimary }]}>
-                    {event.homeScore ?? 0} - {event.awayScore ?? 0}
-                  </Text>
-                  <Text style={[styles.eventTime, { color: colors.textSecondary }]}>{formatEventDate(event.eventDate)}</Text>
                 </View>
-                <Text style={[styles.teamName, { color: colors.textPrimary }]}>{event.awayTeam}</Text>
+
+                {/* Teams + score */}
+                <View style={styles.heroMatchRow}>
+                  <View style={styles.heroTeam}>
+                    <View style={[styles.teamInitialCircle, { backgroundColor: colors.background }]}>
+                      <Text style={[styles.teamInitial, { color: colors.textPrimary }]}>
+                        {event.homeTeam.charAt(0)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.heroTeamName, { color: colors.textPrimary }]} numberOfLines={2}>
+                      {event.homeTeam}
+                    </Text>
+                  </View>
+
+                  <View style={styles.heroCenter}>
+                    <Text style={[styles.heroScore, { color: colors.textPrimary }]}>
+                      {event.homeScore ?? 0}
+                    </Text>
+                    <Text style={[styles.heroDash, { color: colors.textMuted }]}>–</Text>
+                    <Text style={[styles.heroScore, { color: colors.textPrimary }]}>
+                      {event.awayScore ?? 0}
+                    </Text>
+                  </View>
+
+                  <View style={styles.heroTeam}>
+                    <View style={[styles.teamInitialCircle, { backgroundColor: colors.background }]}>
+                      <Text style={[styles.teamInitial, { color: colors.textPrimary }]}>
+                        {event.awayTeam.charAt(0)}
+                      </Text>
+                    </View>
+                    <Text style={[styles.heroTeamName, { color: colors.textPrimary }]} numberOfLines={2}>
+                      {event.awayTeam}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={[styles.heroDate, { color: colors.textSecondary }]}>
+                  {formatEventDate(event.eventDate)}
+                </Text>
+              </Card>
+            </Animated.View>
+
+            {/* Market chips */}
+            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+              <View style={styles.marketHeader}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Mercados</Text>
+                <View style={[styles.countBadge, { backgroundColor: colors.surfaceRaised }]}>
+                  <Text style={[styles.countText, { color: colors.textSecondary }]}>{markets.length}</Text>
+                </View>
               </View>
-            </View>
-
-            <FlatList
-              contentContainerStyle={styles.marketTabs}
-              data={markets}
-              horizontal
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <Pressable
-                  onPress={() => setSelectedMarket(item)}
-                  style={[
-                    styles.marketTab,
-                    {
-                      backgroundColor: item === activeMarket ? colors.primary : colors.surfaceRaised,
-                      borderColor: item === activeMarket ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.marketTabText, { color: item === activeMarket ? '#FFFFFF' : colors.textPrimary }]}>{item}</Text>
-                </Pressable>
-              )}
-              showsHorizontalScrollIndicator={false}
-            />
-
-            <View style={[styles.historyCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}> 
-              <Text style={[styles.historyTitle, { color: colors.textPrimary }]}>Odds History</Text>
-              <View style={styles.historySparkline}>
-                {[0.92, 0.8, 0.75, 0.88, 0.7, 0.65, 0.82].map((height, index) => (
-                  <View
-                    key={index}
-                    style={[
-                      styles.historyBar,
-                      {
-                        backgroundColor: colors.info,
-                        height: 40 + height * 28,
-                        opacity: 0.5 + index * 0.07,
-                      },
-                    ]}
+              <View style={styles.marketChips}>
+                {markets.map((item) => (
+                  <Chip
+                    key={item}
+                    label={item}
+                    selected={item === activeMarket}
+                    onPress={() => setSelectedMarket(item)}
                   />
                 ))}
               </View>
-              <Text style={[styles.historyNote, { color: colors.textSecondary }]}>Últimas oscilações da seleção atualmente destacada.</Text>
-            </View>
+            </Animated.View>
+
+            {/* Odds history sparkline */}
+            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+              <Card style={styles.historyCard}>
+                <View style={styles.historyHeader}>
+                  <MaterialCommunityIcons color={colors.info} name="chart-line" size={18} />
+                  <Text style={[styles.historyTitle, { color: colors.textPrimary }]}>Histórico de Odds</Text>
+                </View>
+                <View style={styles.historySparkline}>
+                  {[0.60, 0.72, 0.55, 0.88, 0.65, 0.78, 0.92, 0.70, 0.85].map((height, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.historyBar,
+                        {
+                          backgroundColor: colors.primary,
+                          height: 24 + height * 46,
+                          opacity: 0.35 + (index / 8) * 0.65,
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={[styles.historyNote, { color: colors.textMuted }]}>
+                  Últimas oscilações da seleção atualmente destacada.
+                </Text>
+              </Card>
+            </Animated.View>
+
+            {/* Section title for sites */}
+            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
+              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Odds por casa</Text>
+            </Animated.View>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={[styles.rowCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-            <View style={styles.rowHeader}>
-              <SiteLogoChip logoUrl={item.site.logoUrl} name={item.site.name} slug={item.site.slug} />
-              <Text style={[styles.rowMarket, { color: colors.textSecondary }]}>{activeMarket}</Text>
-            </View>
-
-            <FlatList
-              contentContainerStyle={styles.oddsList}
-              data={item.odds}
-              horizontal
-              keyExtractor={(odd) => odd.id}
-              renderItem={({ item: odd }) => (
-                <OddsCell
-                  eventId={event.id}
-                  market={odd.market}
-                  onPress={() => {
-                    addBuilderItem({
-                      id: `${event.id}:${odd.site.id}:${odd.market}:${odd.selection}`,
-                      eventId: event.id,
-                      siteId: odd.site.id,
-                      market: odd.market,
-                      selection: odd.selection,
-                      oddValue: Number(odd.value),
-                      event: {
-                        awayTeam: event.awayTeam,
-                        eventDate: event.eventDate,
-                        homeTeam: event.homeTeam,
-                        league: event.league,
-                      },
-                      site: {
-                        id: odd.site.id,
-                        slug: odd.site.slug,
-                        name: odd.site.name,
-                        logoUrl: odd.site.logoUrl,
-                      },
-                    });
-                    showToast('Seleção adicionada ao boletin.', 'success');
-                  }}
-                  oddSelection={odd.selection}
-                  selection={odd.selection}
-                  siteId={odd.site.id}
-                  value={odd.value}
-                />
-              )}
-              showsHorizontalScrollIndicator={false}
-            />
-          </View>
+        renderItem={({ item, index }) => (
+          <Animated.View entering={FadeInDown.delay(350 + index * 60).duration(400).springify()}>
+            <Card style={styles.siteCard}>
+              <View style={styles.siteCardHeader}>
+                <SiteLogoChip logoUrl={item.site.logoUrl} name={item.site.name} slug={item.site.slug} />
+                <View style={[styles.marketTag, { backgroundColor: colors.surfaceRaised }]}>
+                  <Text style={[styles.marketTagText, { color: colors.textSecondary }]}>{activeMarket}</Text>
+                </View>
+              </View>
+              <View style={styles.siteOddsRow}>
+                {item.odds.map((odd) => (
+                  <OddsCell
+                    key={odd.id}
+                    eventId={event.id}
+                    market={odd.market}
+                    onPress={() => {
+                      addBuilderItem({
+                        id: `${event.id}:${odd.site.id}:${odd.market}:${odd.selection}`,
+                        eventId: event.id,
+                        siteId: odd.site.id,
+                        market: odd.market,
+                        selection: odd.selection,
+                        oddValue: Number(odd.value),
+                        event: {
+                          awayTeam: event.awayTeam,
+                          eventDate: event.eventDate,
+                          homeTeam: event.homeTeam,
+                          league: event.league,
+                        },
+                        site: {
+                          id: odd.site.id,
+                          slug: odd.site.slug,
+                          name: odd.site.name,
+                          logoUrl: odd.site.logoUrl,
+                        },
+                      });
+                      showToast('Seleção adicionada ao boletin.', 'success');
+                    }}
+                    oddSelection={odd.selection}
+                    selection={odd.selection}
+                    siteId={odd.site.id}
+                    value={odd.value}
+                  />
+                ))}
+              </View>
+            </Card>
+          </Animated.View>
         )}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.md }} />}
         ListFooterComponent={
-          <View style={{ paddingTop: tokens.spacing.xl }}>
+          <Animated.View entering={FadeInDown.delay(500).duration(400).springify()} style={{ paddingTop: tokens.spacing.xl }}>
             <Button
-              leftSlot={<Ionicons color="#FFFFFF" name="add" size={18} />}
+              leftSlot={<MaterialCommunityIcons color="#FFFFFF" name="plus" size={18} />}
               onPress={() => {
                 if (builderItemsCount === 0) {
                   showToast('Escolhe primeiro uma odd para adicionar.', 'info');
                   return;
                 }
-
                 router.push('/boletins/create');
               }}
               title={builderItemsCount > 0 ? `Abrir boletin (${builderItemsCount})` : 'Adicionar ao Boletim'}
             />
-          </View>
+          </Animated.View>
         }
         showsVerticalScrollIndicator={false}
       />
     </View>
   );
  }
+
+function getSportEmoji(sport: string): string {
+  switch (sport) {
+    case 'FOOTBALL': return '⚽';
+    case 'BASKETBALL': return '🏀';
+    case 'TENNIS': return '🎾';
+    case 'VOLLEYBALL': return '🏐';
+    case 'HANDBALL': return '🤾';
+    case 'HOCKEY': return '🏒';
+    case 'RUGBY': return '🏉';
+    case 'AMERICAN_FOOTBALL': return '🏈';
+    case 'BASEBALL': return '⚾';
+    default: return '🏅';
+  }
+}
 
 function formatEventDate(date: string) {
   const parsed = new Date(date);
@@ -229,114 +309,166 @@ function formatEventDate(date: string) {
   });
 }
  
- const styles = StyleSheet.create({
-   screen: {
-     flex: 1,
-   },
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   center: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerWrap: {
     gap: 18,
-    marginBottom: 18,
+    marginBottom: 14,
   },
-  league: {
-    fontSize: 13,
-    fontWeight: '700',
+
+  /* Hero banner */
+  heroBanner: {
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 20,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    lineHeight: 34,
-  },
-  banner: {
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: 18,
-  },
-  bannerTeams: {
+  heroBadgeRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
   },
-  teamName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  scoreWrap: {
+  sportTag: {
     alignItems: 'center',
-    gap: 8,
-    minWidth: 120,
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  score: {
-    fontSize: 26,
+  sportEmoji: {
+    fontSize: 13,
+  },
+  leagueLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  heroMatchRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    width: '100%',
+  },
+  heroTeam: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  teamInitialCircle: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  teamInitial: {
+    fontSize: 20,
     fontWeight: '900',
   },
-  eventTime: {
+  heroTeamName: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  heroCenter: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+  },
+  heroScore: {
+    fontSize: 36,
+    fontWeight: '900',
+  },
+  heroDash: {
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  heroDate: {
     fontSize: 13,
     fontWeight: '500',
   },
-  marketTabs: {
+
+  /* Market section */
+  marketHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  countBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  countText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  marketChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
-  marketTab: {
-    borderRadius: 999,
-    borderWidth: 1,
-    minHeight: 38,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-  },
-  marketTabText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
+
+  /* History */
   historyCard: {
-    borderRadius: 18,
-    borderWidth: 1,
-    gap: 10,
-    padding: 16,
+    gap: 12,
+  },
+  historyHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   historyTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
   },
   historySparkline: {
     alignItems: 'flex-end',
     flexDirection: 'row',
-    gap: 8,
-    height: 90,
+    gap: 6,
+    height: 80,
   },
   historyBar: {
-    borderRadius: 999,
-    width: 18,
+    borderRadius: 6,
+    flex: 1,
   },
   historyNote: {
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 16,
   },
-  rowCard: {
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 12,
-    padding: 16,
+
+  /* Site odds rows */
+  siteCard: {
+    gap: 14,
   },
-  rowHeader: {
+  siteCardHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  rowMarket: {
-    fontSize: 13,
+  marketTag: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  marketTagText: {
+    fontSize: 12,
     fontWeight: '700',
   },
-  oddsList: {
+  siteOddsRow: {
+    flexDirection: 'row',
     gap: 10,
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
- });
+});

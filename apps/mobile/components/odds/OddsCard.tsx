@@ -1,11 +1,13 @@
-import React, { useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
 import type { OddsEvent, OddsRow } from '../../services/oddsService';
 import { OddsCell } from './OddsCell';
 import { SiteLogoChip } from './SiteLogoChip';
 import { LiveBadge } from './LiveBadge';
+import { addSocketListener, subscribeToEvent, unsubscribeFromEvent } from '../../services/socketService';
+import type { EventStatusChangePayload } from '@betintel/shared';
 
 interface OddsCardProps {
   event: OddsEvent;
@@ -20,6 +22,35 @@ interface SiteMarketRow {
 
 export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
   const { colors, tokens } = useTheme();
+
+  // Real-time score + status tracking via WebSocket
+  const [liveStatus, setLiveStatus] = useState(event.status);
+  const [liveHomeScore, setLiveHomeScore] = useState(event.homeScore);
+  const [liveAwayScore, setLiveAwayScore] = useState(event.awayScore);
+
+  useEffect(() => {
+    setLiveStatus(event.status);
+    setLiveHomeScore(event.homeScore);
+    setLiveAwayScore(event.awayScore);
+  }, [event.status, event.homeScore, event.awayScore]);
+
+  useEffect(() => {
+    subscribeToEvent(event.id);
+
+    const removeListener = addSocketListener('event:statusChange', (payload: EventStatusChangePayload) => {
+      if (payload.eventId !== event.id) return;
+      setLiveStatus(payload.status);
+      if (payload.homeScore != null) setLiveHomeScore(payload.homeScore);
+      if (payload.awayScore != null) setLiveAwayScore(payload.awayScore);
+    });
+
+    return () => {
+      removeListener();
+      unsubscribeFromEvent(event.id);
+    };
+  }, [event.id]);
+
+  const isLive = liveStatus === 'LIVE';
 
   const marketRows = useMemo(() => {
     const rows = new Map<string, SiteMarketRow>();
@@ -54,6 +85,8 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
     return result;
   }, [marketRows]);
 
+  const sportEmoji = getSportEmoji(event.sport);
+
   return (
     <Pressable
       onLongPress={onAddPress}
@@ -68,56 +101,52 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
         },
       ]}
     >
+      {/* Top row: sport + league tag, live badge, add button */}
       <View style={styles.topRow}>
-        <View style={styles.headerTextWrap}>
-          <Text style={[styles.league, { color: colors.textSecondary }]}>{event.league}</Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>{event.homeTeam} vs {event.awayTeam}</Text>
-          <Text style={[styles.date, { color: colors.textSecondary }]}>{formatEventDate(event.eventDate)}</Text>
+        <View style={styles.topLeft}>
+          <View style={[styles.sportTag, { backgroundColor: colors.surfaceRaised }]}>
+            <Text style={styles.sportEmoji}>{sportEmoji}</Text>
+            <Text style={[styles.league, { color: colors.textSecondary }]}>{event.league}</Text>
+          </View>
+          {isLive ? <LiveBadge /> : null}
         </View>
         <Pressable
           hitSlop={10}
           onPress={onAddPress}
           style={[styles.addButton, { backgroundColor: colors.primary }]}
         >
-          <Ionicons color="#FFFFFF" name="add" size={18} />
+          <MaterialCommunityIcons color="#FFFFFF" name="plus" size={18} />
         </Pressable>
       </View>
 
-      {event.status === 'LIVE' ? (
-        <View style={styles.liveRow}>
-          <LiveBadge />
-          <Text style={[styles.score, { color: colors.textPrimary }]}>
-            {event.homeScore ?? 0} - {event.awayScore ?? 0}
+      {/* Match title + score or date */}
+      <View style={styles.matchInfo}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>
+          {event.homeTeam} vs {event.awayTeam}
+        </Text>
+        {isLive ? (
+          <Text style={[styles.liveScore, { color: colors.primary }]}>
+            {liveHomeScore != null && liveAwayScore != null
+              ? `${liveHomeScore} – ${liveAwayScore}`
+              : 'Ao vivo'}
           </Text>
-        </View>
-      ) : null}
-
-      <View style={[styles.headerRow, { borderColor: colors.border }]}> 
-        <Text style={[styles.headerCellSite, { color: colors.textMuted }]}>Site</Text>
-        <Text style={[styles.headerCellMarket, { color: colors.textMuted }]}>1X2</Text>
-        <View style={styles.headerOddsLabels}>
-          <Text style={[styles.headerOddsLabel, { color: colors.textMuted }]}>1</Text>
-          <Text style={[styles.headerOddsLabel, { color: colors.textMuted }]}>X</Text>
-          <Text style={[styles.headerOddsLabel, { color: colors.textMuted }]}>2</Text>
-        </View>
+        ) : (
+          <Text style={[styles.date, { color: colors.textMuted }]}>{formatEventDate(event.eventDate)}</Text>
+        )}
       </View>
 
-      <FlatList
-        data={marketRows}
-        keyExtractor={(item) => item.site.id}
-        renderItem={({ item }) => (
-          <View style={[styles.marketRow, { borderColor: colors.border }]}> 
-            <View style={styles.siteCell}>
-              <SiteLogoChip compact logoUrl={item.site.logoUrl} name={item.site.name} slug={item.site.slug} />
-            </View>
-            <Text style={[styles.marketCell, { color: colors.textSecondary }]}>1X2</Text>
-            <View style={styles.oddsRow}>
+      {/* Odds rows — one per site, no header */}
+      <View style={styles.oddsSection}>
+        {marketRows.map((row) => (
+          <View key={row.site.id} style={styles.siteRow}>
+            <SiteLogoChip compact logoUrl={row.site.logoUrl} name={row.site.name} slug={row.site.slug} />
+            <View style={styles.oddsGroup}>
               {(['1', 'X', '2'] as const).map((selection) => {
-                const odd = item.selections[selection];
+                const odd = row.selections[selection];
                 return odd ? (
                   <OddsCell
                     eventId={event.id}
-                    key={`${item.site.id}-${selection}`}
+                    key={`${row.site.id}-${selection}`}
                     highlight={Number(odd.value) === bestBySelection[selection] && bestBySelection[selection] > 0}
                     market={odd.market}
                     oddSelection={odd.selection}
@@ -127,20 +156,34 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
                   />
                 ) : (
                   <View
-                    key={`${item.site.id}-${selection}`}
+                    key={`${row.site.id}-${selection}`}
                     style={[styles.emptyCell, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
                   >
-                    <Text style={[styles.emptyCellText, { color: colors.textMuted }]}>-</Text>
+                    <Text style={[styles.emptyCellText, { color: colors.textMuted }]}>–</Text>
                   </View>
                 );
               })}
             </View>
           </View>
-        )}
-        scrollEnabled={false}
-      />
+        ))}
+      </View>
     </Pressable>
   );
+}
+
+function getSportEmoji(sport: string): string {
+  switch (sport) {
+    case 'FOOTBALL': return '⚽';
+    case 'BASKETBALL': return '🏀';
+    case 'TENNIS': return '🎾';
+    case 'VOLLEYBALL': return '🏐';
+    case 'HANDBALL': return '🤾';
+    case 'HOCKEY': return '🏒';
+    case 'RUGBY': return '🏉';
+    case 'AMERICAN_FOOTBALL': return '🏈';
+    case 'BASEBALL': return '⚾';
+    default: return '🏅';
+  }
 }
 
 function formatEventDate(date: string) {
@@ -157,33 +200,36 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
     borderWidth: 1,
-    gap: 14,
+    gap: 12,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 18,
   },
   topRow: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  headerTextWrap: {
+  topLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
     flex: 1,
-    gap: 4,
-    paddingRight: 12,
+    gap: 8,
+  },
+  sportTag: {
+    alignItems: 'center',
+    borderRadius: 999,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  sportEmoji: {
+    fontSize: 13,
   },
   league: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '900',
-    lineHeight: 26,
-  },
-  date: {
-    fontSize: 13,
-    fontWeight: '500',
   },
   addButton: {
     alignItems: 'center',
@@ -192,73 +238,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 34,
   },
-  liveRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
+  matchInfo: {
+    gap: 4,
   },
-  score: {
-    fontSize: 14,
+  title: {
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 24,
+  },
+  liveScore: {
+    fontSize: 15,
     fontWeight: '800',
   },
-  headerRow: {
+  date: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  oddsSection: {
+    gap: 10,
+  },
+  siteRow: {
     alignItems: 'center',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    paddingBottom: 8,
-  },
-  headerCellSite: {
-    flex: 1.2,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  headerCellMarket: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    width: 40,
-  },
-  headerOddsLabels: {
-    flex: 1.8,
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  headerOddsLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-    width: 64,
-  },
-  marketRow: {
-    alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     gap: 10,
-    paddingVertical: 10,
   },
-  siteCell: {
-    flex: 1.2,
-  },
-  marketCell: {
-    fontSize: 12,
-    fontWeight: '700',
-    width: 40,
-  },
-  oddsRow: {
-    flex: 1.8,
+  oddsGroup: {
+    flex: 1,
     flexDirection: 'row',
     gap: 8,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
   },
   emptyCell: {
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 58,
-    minWidth: 64,
+    minHeight: 52,
+    minWidth: 60,
   },
   emptyCellText: {
     fontSize: 18,

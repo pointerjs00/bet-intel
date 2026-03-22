@@ -1,22 +1,26 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Sport } from '@betintel/shared';
 import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Chip } from '../../components/ui/Chip';
 import { Input } from '../../components/ui/Input';
-import { useBettingSites, useSports } from '../../services/oddsService';
+import { useBettingSites, useLeagues, useSports } from '../../services/oddsService';
 import { useFilterStore, type FilterDateRange } from '../../stores/filterStore';
 import { useTheme } from '../../theme/useTheme';
 
 const MARKET_OPTIONS = ['1X2', 'Over/Under 2.5', 'BTTS', 'Handicap'];
 const SORT_OPTIONS = [
-  { label: 'Best odds', value: 'best-odds' },
-  { label: 'Soonest', value: 'soonest' },
-  { label: 'Most markets', value: 'most-markets' },
+  { label: 'Melhores odds', value: 'best-odds' },
+  { label: 'Mais próximos', value: 'soonest' },
+  { label: 'Mais mercados', value: 'most-markets' },
 ] as const;
 
-type SectionKey = 'sites' | 'sports' | 'odds-range' | 'dates' | 'markets' | 'sort';
+type SectionKey = 'sites' | 'sports' | 'leagues' | 'odds-range' | 'dates' | 'markets' | 'sort';
 
 export default function FilterScreen() {
   const router = useRouter();
@@ -33,12 +37,47 @@ export default function FilterScreen() {
   const [maxOdds, setMaxOdds] = useState(String(store.maxOdds));
   const [sortBy, setSortBy] = useState(store.sortBy);
   const [dateRange, setDateRange] = useState<FilterDateRange | null>(store.dateRange);
+  const [selectedLeague, setSelectedLeague] = useState(store.selectedLeague);
+  const [leagueSearch, setLeagueSearch] = useState('');
+
+  const leaguesQuery = useLeagues(selectedSports[0] as Sport | undefined);
+
+  const availableLeagues = useMemo(() => {
+    if (!leaguesQuery.data) return [];
+    const unique = new Map<string, string>();
+    leaguesQuery.data.forEach((item) => {
+      if (!unique.has(item.league)) unique.set(item.league, item.sport);
+    });
+    return Array.from(unique.keys());
+  }, [leaguesQuery.data]);
+
+  const categorizedLeagues = useMemo(() => {
+    const searchLower = leagueSearch.toLowerCase();
+    const filtered = leagueSearch
+      ? availableLeagues.filter((l) => l.toLowerCase().includes(searchLower))
+      : availableLeagues;
+
+    const portuguese: string[] = [];
+    const topEuropean: string[] = [];
+    const others: string[] = [];
+    const PT_KW = ['portugal', 'liga nos', 'primeira liga', 'segunda liga', 'taça'];
+    const EU_KW = ['premier league', 'la liga', 'laliga', 'bundesliga', 'serie a', 'ligue 1'];
+
+    for (const league of filtered) {
+      const lower = league.toLowerCase();
+      if (PT_KW.some((kw) => lower.includes(kw))) portuguese.push(league);
+      else if (EU_KW.some((kw) => lower.includes(kw))) topEuropean.push(league);
+      else others.push(league);
+    }
+
+    return { portuguese: portuguese.sort(), topEuropean: topEuropean.sort(), others: others.sort((a, b) => a.localeCompare(b)) };
+  }, [availableLeagues, leagueSearch]);
 
   const datePresets = useMemo(
     () => [
       {
         key: 'today',
-        label: 'Today',
+        label: 'Hoje',
         onPress: () => {
           const start = new Date();
           start.setHours(0, 0, 0, 0);
@@ -49,7 +88,7 @@ export default function FilterScreen() {
       },
       {
         key: 'tomorrow',
-        label: 'Tomorrow',
+        label: 'Amanhã',
         onPress: () => {
           const start = new Date();
           start.setDate(start.getDate() + 1);
@@ -61,7 +100,7 @@ export default function FilterScreen() {
       },
       {
         key: 'week',
-        label: 'This Week',
+        label: 'Esta Semana',
         onPress: () => {
           const start = new Date();
           const end = new Date();
@@ -73,7 +112,7 @@ export default function FilterScreen() {
     [],
   );
 
-  const sections: SectionKey[] = ['sites', 'sports', 'odds-range', 'dates', 'markets', 'sort'];
+  const sections: SectionKey[] = ['sites', 'sports', 'leagues', 'odds-range', 'dates', 'markets', 'sort'];
 
   const toggleString = (value: string, current: string[], setter: (next: string[]) => void) => {
     setter(current.includes(value) ? current.filter((item) => item !== value) : [...current, value]);
@@ -93,6 +132,7 @@ export default function FilterScreen() {
     store.setFilter('maxOdds', Math.max(1.01, Number(maxOdds) || 20));
     store.setFilter('sortBy', sortBy);
     store.setDateRange(dateRange);
+    store.setLeague(selectedLeague);
     router.back();
   };
 
@@ -104,6 +144,8 @@ export default function FilterScreen() {
     setMaxOdds('20');
     setSortBy('best-odds');
     setDateRange(null);
+    setSelectedLeague(null);
+    setLeagueSearch('');
     store.reset();
   };
 
@@ -125,166 +167,243 @@ export default function FilterScreen() {
         }}
         data={sections}
         keyExtractor={(item) => item}
-        renderItem={({ item }) => {
+        renderItem={({ item, index }) => {
           if (item === 'sites') {
             return (
-              <Section title="Betting Sites" textColor={colors.textPrimary}>
-                <FlatList
-                  contentContainerStyle={styles.gridList}
-                  data={sitesQuery.data ?? []}
-                  keyExtractor={(site) => site.slug}
-                  numColumns={2}
-                  renderItem={({ item: site }) => (
-                    <Chip
-                      active={selectedSites.includes(site.slug)}
-                      color={colors.primary}
-                      label={site.name}
-                      mutedColor={colors.textPrimary}
-                      onPress={() => toggleString(site.slug, selectedSites, setSelectedSites)}
-                      surface={colors.surfaceRaised}
-                    />
-                  )}
-                  scrollEnabled={false}
-                />
-              </Section>
+              <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Section icon="web" title="Sites de apostas" textColor={colors.textPrimary}>
+                  <Card noPadding style={styles.cardSection}>
+                    <View style={styles.chipGrid}>
+                      {(sitesQuery.data ?? []).map((site) => (
+                        <Chip
+                          key={site.slug}
+                          label={site.name}
+                          selected={selectedSites.includes(site.slug)}
+                          onPress={() => toggleString(site.slug, selectedSites, setSelectedSites)}
+                          style={styles.gridChip}
+                        />
+                      ))}
+                    </View>
+                  </Card>
+                </Section>
+              </Animated.View>
             );
           }
 
           if (item === 'sports') {
             return (
-              <Section title="Sports" textColor={colors.textPrimary}>
-                <FlatList
-                  contentContainerStyle={styles.gridList}
-                  data={(sportsQuery.data ?? []).map((sport) => sport as Sport)}
-                  keyExtractor={(sport) => sport}
-                  numColumns={2}
-                  renderItem={({ item: sport }) => (
-                    <Chip
-                      active={selectedSports.includes(sport)}
-                      color={colors.primary}
-                      label={sportLabel(sport)}
-                      mutedColor={colors.textPrimary}
-                      onPress={() => toggleSport(sport)}
-                      surface={colors.surfaceRaised}
-                    />
-                  )}
-                  scrollEnabled={false}
-                />
-              </Section>
+              <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Section icon="soccer" title="Desportos" textColor={colors.textPrimary}>
+                  <Card noPadding style={styles.cardSection}>
+                    <View style={styles.chipGrid}>
+                      {((sportsQuery.data ?? []) as Sport[]).map((sport) => (
+                        <Chip
+                          key={sport}
+                          label={sportLabel(sport)}
+                          selected={selectedSports.includes(sport)}
+                          onPress={() => toggleSport(sport)}
+                          style={styles.gridChip}
+                        />
+                      ))}
+                    </View>
+                  </Card>
+                </Section>
+              </Animated.View>
+            );
+          }
+
+          if (item === 'leagues') {
+            return (
+              <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Section icon="trophy-outline" title="Competições" textColor={colors.textPrimary}>
+                  <Card noPadding style={styles.cardSection}>
+                    <View style={[styles.leagueSearchWrap, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                      <MaterialCommunityIcons color={colors.textMuted} name="magnify" size={18} />
+                      <TextInput
+                        placeholder="Pesquisar competição..."
+                        placeholderTextColor={colors.textMuted}
+                        value={leagueSearch}
+                        onChangeText={setLeagueSearch}
+                        style={[styles.leagueSearchInput, { color: colors.textPrimary }]}
+                      />
+                      {leagueSearch.length > 0 ? (
+                        <Pressable onPress={() => setLeagueSearch('')} hitSlop={8}>
+                          <MaterialCommunityIcons color={colors.textMuted} name="close-circle" size={16} />
+                        </Pressable>
+                      ) : null}
+                    </View>
+                    <ScrollView style={styles.leagueList} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                      <Pressable
+                        onPress={() => setSelectedLeague(null)}
+                        style={[styles.leagueRow, { borderColor: colors.border }]}
+                      >
+                        <Text style={[styles.leagueRowText, { color: selectedLeague === null ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === null ? '700' : '500' }]}>
+                          Todas as competições
+                        </Text>
+                        {selectedLeague === null ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+                      </Pressable>
+                      {categorizedLeagues.portuguese.length > 0 ? (
+                        <>
+                          <View style={styles.leagueGroupHeader}>
+                            <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>🇵🇹 Liga Portuguesa</Text>
+                          </View>
+                          {categorizedLeagues.portuguese.map((league) => (
+                            <Pressable key={league} onPress={() => setSelectedLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
+                              <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
+                              {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+                            </Pressable>
+                          ))}
+                        </>
+                      ) : null}
+                      {categorizedLeagues.topEuropean.length > 0 ? (
+                        <>
+                          <View style={styles.leagueGroupHeader}>
+                            <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>🏆 Top Europeias</Text>
+                          </View>
+                          {categorizedLeagues.topEuropean.map((league) => (
+                            <Pressable key={league} onPress={() => setSelectedLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
+                              <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
+                              {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+                            </Pressable>
+                          ))}
+                        </>
+                      ) : null}
+                      {categorizedLeagues.others.length > 0 ? (
+                        <>
+                          <View style={styles.leagueGroupHeader}>
+                            <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>📋 Outras</Text>
+                          </View>
+                          {categorizedLeagues.others.map((league) => (
+                            <Pressable key={league} onPress={() => setSelectedLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
+                              <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
+                              {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
+                            </Pressable>
+                          ))}
+                        </>
+                      ) : null}
+                      {categorizedLeagues.portuguese.length === 0 && categorizedLeagues.topEuropean.length === 0 && categorizedLeagues.others.length === 0 ? (
+                        <View style={styles.leagueEmptySearch}>
+                          <Text style={[styles.leagueEmptyText, { color: colors.textMuted }]}>Nenhuma competição encontrada</Text>
+                        </View>
+                      ) : null}
+                    </ScrollView>
+                  </Card>
+                </Section>
+              </Animated.View>
             );
           }
 
           if (item === 'odds-range') {
             return (
-              <Section title="Odds Range" textColor={colors.textPrimary}>
-                <View style={styles.rangeRow}>
-                  <View style={styles.rangeField}>
-                    <Input keyboardType="decimal-pad" label="Min" onChangeText={setMinOdds} value={minOdds} />
-                  </View>
-                  <View style={styles.rangeField}>
-                    <Input keyboardType="decimal-pad" label="Max" onChangeText={setMaxOdds} value={maxOdds} />
-                  </View>
-                </View>
-              </Section>
+              <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Section icon="chart-line-variant" title="Range de odds" textColor={colors.textPrimary}>
+                  <Card style={styles.cardSection}>
+                    <View style={styles.rangeRow}>
+                      <View style={styles.rangeField}>
+                        <Input keyboardType="decimal-pad" label="Min" onChangeText={setMinOdds} value={minOdds} />
+                      </View>
+                      <View style={styles.rangeField}>
+                        <Input keyboardType="decimal-pad" label="Max" onChangeText={setMaxOdds} value={maxOdds} />
+                      </View>
+                    </View>
+                  </Card>
+                </Section>
+              </Animated.View>
             );
           }
 
           if (item === 'dates') {
             return (
-              <Section title="Date Range" textColor={colors.textPrimary}>
-                <FlatList
-                  contentContainerStyle={styles.presetRow}
-                  data={datePresets}
-                  horizontal
-                  keyExtractor={(preset) => preset.key}
-                  renderItem={({ item: preset }) => (
-                    <Chip
-                      active={false}
-                      color={colors.primary}
-                      label={preset.label}
-                      mutedColor={colors.textPrimary}
-                      onPress={preset.onPress}
-                      surface={colors.surfaceRaised}
-                    />
-                  )}
-                  showsHorizontalScrollIndicator={false}
-                />
-                <View style={styles.rangeRow}>
-                  <View style={styles.rangeField}>
-                    <Input
-                      label="From"
-                      onChangeText={(text) => {
-                        const parsed = new Date(text);
-                        if (!Number.isNaN(parsed.getTime())) {
-                          setDateRange({ from: parsed, to: dateRange?.to ?? parsed });
-                        }
-                      }}
-                      placeholder="YYYY-MM-DD"
-                      value={dateRange ? formatDateInput(dateRange.from) : ''}
-                    />
-                  </View>
-                  <View style={styles.rangeField}>
-                    <Input
-                      label="To"
-                      onChangeText={(text) => {
-                        const parsed = new Date(text);
-                        if (!Number.isNaN(parsed.getTime())) {
-                          setDateRange({ from: dateRange?.from ?? parsed, to: parsed });
-                        }
-                      }}
-                      placeholder="YYYY-MM-DD"
-                      value={dateRange ? formatDateInput(dateRange.to) : ''}
-                    />
-                  </View>
-                </View>
-              </Section>
+              <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Section icon="calendar-range" title="Datas" textColor={colors.textPrimary}>
+                  <FlatList
+                    contentContainerStyle={styles.presetRow}
+                    data={datePresets}
+                    horizontal
+                    keyExtractor={(preset) => preset.key}
+                    renderItem={({ item: preset }) => (
+                      <Chip
+                        label={preset.label}
+                        onPress={preset.onPress}
+                      />
+                    )}
+                    showsHorizontalScrollIndicator={false}
+                  />
+                  <Card style={styles.cardSection}>
+                    <View style={styles.rangeRow}>
+                      <View style={styles.rangeField}>
+                        <Input
+                          label="De"
+                          onChangeText={(text) => {
+                            const parsed = new Date(text);
+                            if (!Number.isNaN(parsed.getTime())) {
+                              setDateRange({ from: parsed, to: dateRange?.to ?? parsed });
+                            }
+                          }}
+                          placeholder="YYYY-MM-DD"
+                          value={dateRange ? formatDateInput(dateRange.from) : ''}
+                        />
+                      </View>
+                      <View style={styles.rangeField}>
+                        <Input
+                          label="Até"
+                          onChangeText={(text) => {
+                            const parsed = new Date(text);
+                            if (!Number.isNaN(parsed.getTime())) {
+                              setDateRange({ from: dateRange?.from ?? parsed, to: parsed });
+                            }
+                          }}
+                          placeholder="YYYY-MM-DD"
+                          value={dateRange ? formatDateInput(dateRange.to) : ''}
+                        />
+                      </View>
+                    </View>
+                  </Card>
+                </Section>
+              </Animated.View>
             );
           }
 
           if (item === 'markets') {
             return (
-              <Section title="Market Types" textColor={colors.textPrimary}>
-                <FlatList
-                  contentContainerStyle={styles.gridList}
-                  data={MARKET_OPTIONS}
-                  keyExtractor={(market) => market}
-                  numColumns={2}
-                  renderItem={({ item: market }) => (
-                    <Chip
-                      active={selectedMarkets.includes(market)}
-                      color={colors.primary}
-                      label={market}
-                      mutedColor={colors.textPrimary}
-                      onPress={() => toggleString(market, selectedMarkets, setSelectedMarkets)}
-                      surface={colors.surfaceRaised}
-                    />
-                  )}
-                  scrollEnabled={false}
-                />
-              </Section>
+              <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Section icon="tag-multiple" title="Tipos de mercado" textColor={colors.textPrimary}>
+                  <Card noPadding style={styles.cardSection}>
+                    <View style={styles.chipGrid}>
+                      {MARKET_OPTIONS.map((market) => (
+                        <Chip
+                          key={market}
+                          label={market}
+                          selected={selectedMarkets.includes(market)}
+                          onPress={() => toggleString(market, selectedMarkets, setSelectedMarkets)}
+                          style={styles.gridChip}
+                        />
+                      ))}
+                    </View>
+                  </Card>
+                </Section>
+              </Animated.View>
             );
           }
 
           return (
-            <Section title="Sort By" textColor={colors.textPrimary}>
-              <FlatList
-                contentContainerStyle={styles.gridList}
-                data={SORT_OPTIONS as readonly { label: string; value: 'best-odds' | 'soonest' | 'most-markets' }[]}
-                keyExtractor={(option) => option.value}
-                numColumns={2}
-                renderItem={({ item: option }) => (
-                  <Chip
-                    active={sortBy === option.value}
-                    color={colors.primary}
-                    label={option.label}
-                    mutedColor={colors.textPrimary}
-                    onPress={() => setSortBy(option.value)}
-                    surface={colors.surfaceRaised}
-                  />
-                )}
-                scrollEnabled={false}
-              />
-            </Section>
+            <Animated.View entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Section icon="sort-variant" title="Ordenar por" textColor={colors.textPrimary}>
+                <Card noPadding style={styles.cardSection}>
+                  <View style={styles.chipGrid}>
+                    {SORT_OPTIONS.map((option) => (
+                      <Chip
+                        key={option.value}
+                        label={option.label}
+                        selected={sortBy === option.value}
+                        onPress={() => setSortBy(option.value)}
+                        style={styles.gridChip}
+                      />
+                    ))}
+                  </View>
+                </Card>
+              </Section>
+            </Animated.View>
           );
         }}
         showsVerticalScrollIndicator={false}
@@ -302,20 +421,23 @@ export default function FilterScreen() {
         ]}
       >
         <View style={styles.footerButton}>
-          <Button onPress={resetFilters} title="Reset" variant="ghost" />
+          <Button onPress={resetFilters} title="Limpar" variant="ghost" />
         </View>
         <View style={styles.footerButton}>
-          <Button onPress={applyFilters} title="Apply" />
+          <Button onPress={applyFilters} title="Aplicar" />
         </View>
       </View>
     </View>
   );
 }
 
-function Section({ children, title, textColor }: { children: React.ReactNode; title: string; textColor: string }) {
+function Section({ children, title, textColor, icon }: { children: React.ReactNode; title: string; textColor: string; icon?: React.ComponentProps<typeof MaterialCommunityIcons>['name'] }) {
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: textColor }]}>{title}</Text>
+      <View style={styles.sectionHeaderRow}>
+        {icon ? <MaterialCommunityIcons color={textColor} name={icon} size={20} /> : null}
+        <Text style={[styles.sectionTitle, { color: textColor }]}>{title}</Text>
+      </View>
       {children}
     </View>
   );
@@ -336,37 +458,6 @@ function sportLabel(sport: Sport) {
 
 function formatDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
-}
-
-function Chip({
-  active,
-  color,
-  label,
-  mutedColor,
-  onPress,
-  surface,
-}: {
-  active: boolean;
-  color: string;
-  label: string;
-  mutedColor: string;
-  onPress: () => void;
-  surface: string;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[
-        styles.chip,
-        {
-          backgroundColor: active ? color : surface,
-          borderColor: active ? color : 'transparent',
-        },
-      ]}
-    >
-      <Text style={[styles.chipText, { color: active ? '#FFFFFF' : mutedColor }]}>{label}</Text>
-    </Pressable>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -392,26 +483,26 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 22,
   },
+  sectionHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',
-    marginBottom: 12,
   },
-  gridList: {
-    gap: 10,
+  cardSection: {
+    padding: 14,
   },
-  chip: {
-    borderRadius: 14,
-    borderWidth: 1,
-    flex: 1,
-    margin: 4,
-    minHeight: 48,
-    justifyContent: 'center',
-    paddingHorizontal: 14,
+  chipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '700',
+  gridChip: {
+    marginBottom: 0,
   },
   rangeRow: {
     flexDirection: 'row',
@@ -436,5 +527,55 @@ const styles = StyleSheet.create({
   },
   footerButton: {
     flex: 1,
+  },
+
+  /* League list */
+  leagueSearchWrap: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  leagueSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  leagueList: {
+    maxHeight: 240,
+  },
+  leagueGroupHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  leagueGroupLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  leagueRow: {
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  leagueRowText: {
+    flex: 1,
+    fontSize: 14,
+  },
+  leagueEmptySearch: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  leagueEmptyText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

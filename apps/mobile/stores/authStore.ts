@@ -7,6 +7,10 @@ import { detachDevicePushToken, resetDevicePushTokenCache } from '../services/no
 const ACCESS_TOKEN_KEY = 'betintel_access_token';
 const REFRESH_TOKEN_KEY = 'betintel_refresh_token';
 
+// Module-level reentrancy guard — prevents recursive logout loops that occur when
+// detachDevicePushToken() fails with 401 → interceptor calls clearSession() → logout() again.
+let isLoggingOut = false;
+
 interface AuthStore {
   user: PublicUser | null;
   accessToken: string | null;
@@ -15,6 +19,7 @@ interface AuthStore {
   isHydrating: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  clearLocalSession: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
   hydrate: () => Promise<void>;
   setSession: (payload: {
@@ -42,20 +47,46 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   async logout() {
-    const refreshToken = get().refreshTokenValue;
+    if (isLoggingOut) return;
+    isLoggingOut = true;
     try {
-      await detachDevicePushToken();
+      const refreshToken = get().refreshTokenValue;
+      try {
+        await detachDevicePushToken();
 
-      if (refreshToken) {
-        await apiClient.post('/auth/logout', { refreshToken });
+        if (refreshToken) {
+          await apiClient.post('/auth/logout', { refreshToken });
+        }
+      } catch {
+        // Best-effort logout — clear local state even if server call fails
       }
-    } catch {
-      // Best-effort logout — clear local state even if server call fails
+
+      await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+
+      set({
+        user: null,
+        accessToken: null,
+        refreshTokenValue: null,
+        isAuthenticated: false,
+        isHydrating: false,
+      });
+
+      resetDevicePushTokenCache();
+    } finally {
+      isLoggingOut = false;
     }
+  },
 
-    await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
-    await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
-
+  /** Clears local auth state and SecureStore without making any API calls.
+   * Use before Google new-user onboarding to prevent stale sessions from
+   * interfering with AuthGate routing or push-token sync loops. */
+  async clearLocalSession() {
+    await Promise.all([
+      SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+      SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+    ]);
+    resetDevicePushTokenCache();
     set({
       user: null,
       accessToken: null,
@@ -63,8 +94,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: false,
       isHydrating: false,
     });
-
-    resetDevicePushTokenCache();
   },
 
   async refreshToken() {
@@ -94,17 +123,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   async hydrate() {
-    const [accessToken, refreshTokenValue] = await Promise.all([
-      SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
-      SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
-    ]);
+    try {
+      const [accessToken, refreshTokenValue] = await Promise.all([
+        SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
+        SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
+      ]);
 
-    set({
-      accessToken,
-      refreshTokenValue,
-      isAuthenticated: Boolean(accessToken),
-      isHydrating: false,
-    });
+      set({
+        accessToken,
+        refreshTokenValue,
+        isAuthenticated: Boolean(accessToken),
+        isHydrating: false,
+      });
+    } catch {
+      // SecureStore unavailable (e.g. first install, emulator keystore issue)
+      set({ isHydrating: false });
+    }
   },
 
   async setSession({ user, accessToken, refreshToken }) {

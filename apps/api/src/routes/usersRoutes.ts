@@ -13,7 +13,7 @@ const usersRouter: Router = Router();
 
 usersRouter.use(defaultLimiter);
 
-usersRouter.get('/check-username', authenticate, checkUsernameAvailabilityHandler);
+usersRouter.get('/check-username', checkUsernameAvailabilityHandler);
 usersRouter.get('/search', authenticate, searchUsersHandler);
 usersRouter.get('/me', authenticate, getMeHandler);
 usersRouter.patch('/me', authenticate, updateMeHandler);

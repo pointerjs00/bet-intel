@@ -12,6 +12,7 @@ interface FilterStateValues {
   selectedSites: string[];
   selectedSports: Sport[];
   selectedMarkets: string[];
+  selectedLeague: string | null;
   minOdds: number;
   maxOdds: number;
   dateRange: FilterDateRange | null;
@@ -24,14 +25,16 @@ interface FilterStore extends FilterStateValues {
   toggleSite: (slug: string) => void;
   toggleSport: (sport: Sport) => void;
   toggleMarket: (market: string) => void;
+  setLeague: (league: string | null) => void;
   setDateRange: (range: FilterDateRange | null) => void;
   reset: () => void;
 }
 
-const DEFAULT_STATE: Omit<FilterStore, 'setFilter' | 'toggleSite' | 'toggleSport' | 'toggleMarket' | 'setDateRange' | 'reset'> = {
+const DEFAULT_STATE: Omit<FilterStore, 'setFilter' | 'toggleSite' | 'toggleSport' | 'toggleMarket' | 'setLeague' | 'setDateRange' | 'reset'> = {
   selectedSites: [],
   selectedSports: [],
   selectedMarkets: [],
+  selectedLeague: null,
   minOdds: 1.01,
   maxOdds: 20,
   dateRange: null,
@@ -44,6 +47,7 @@ function computeActiveFilterCount(state: FilterStateValues): number {
   if (state.selectedSites.length > 0) count += 1;
   if (state.selectedSports.length > 0) count += 1;
   if (state.selectedMarkets.length > 0) count += 1;
+  if (state.selectedLeague) count += 1;
   if (state.minOdds > 1.01 || state.maxOdds < 20) count += 1;
   if (state.dateRange) count += 1;
   if (state.sortBy !== 'best-odds') count += 1;
@@ -93,6 +97,8 @@ export const useFilterStore = create<FilterStore>()(
 
           return withComputed({ ...state, selectedMarkets });
         }),
+      setLeague: (league) =>
+        set((state) => withComputed({ ...state, selectedLeague: league })),
       setDateRange: (dateRange) =>
         set((state) => withComputed({ ...state, dateRange })),
       reset: () => set(withComputed(DEFAULT_STATE)),
@@ -104,6 +110,7 @@ export const useFilterStore = create<FilterStore>()(
         selectedSites: state.selectedSites,
         selectedSports: state.selectedSports,
         selectedMarkets: state.selectedMarkets,
+        selectedLeague: state.selectedLeague,
         minOdds: state.minOdds,
         maxOdds: state.maxOdds,
         dateRange: state.dateRange,

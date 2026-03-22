@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type { StatsPeriod } from '@betintel/shared';
 import { BreakdownTable, SiteBreakdownLabel } from '../../components/stats/BreakdownTable';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
 import { PnLChart } from '../../components/stats/PnLChart';
 import { ROICard } from '../../components/stats/ROICard';
 import { WinRateRing } from '../../components/stats/WinRateRing';
+import { Card } from '../../components/ui/Card';
+import { Chip } from '../../components/ui/Chip';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { usePersonalStats } from '../../services/statsService';
 import { useTheme } from '../../theme/useTheme';
@@ -35,81 +38,88 @@ export default function StatsScreen() {
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + tokens.spacing.md,
-          paddingBottom: insets.bottom + tokens.spacing.xxl,
+          paddingBottom: insets.bottom + 100,
           paddingHorizontal: tokens.spacing.lg,
         }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerWrap}>
+        <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.headerWrap}>
           <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Dashboard</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Lê o teu histórico e encontra onde tens vantagem.</Text>
-        </View>
+        </Animated.View>
 
-        <ScrollView contentContainerStyle={styles.periodTabs} horizontal showsHorizontalScrollIndicator={false}>
-          {PERIOD_OPTIONS.map((option) => {
-            const active = option.key === period;
-            return (
-              <Pressable
+        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+          <ScrollView contentContainerStyle={styles.periodTabs} horizontal showsHorizontalScrollIndicator={false}>
+            {PERIOD_OPTIONS.map((option) => (
+              <Chip
                 key={option.key}
+                label={option.label}
+                selected={option.key === period}
                 onPress={() => setPeriod(option.key)}
-                style={[
-                  styles.periodChip,
-                  {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
-                    borderColor: active ? colors.primary : colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.periodLabel, { color: active ? '#FFFFFF' : colors.textPrimary }]}>{option.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+              />
+            ))}
+          </ScrollView>
+        </Animated.View>
 
         {statsQuery.isLoading || !stats ? (
           <View style={styles.loadingStack}>
-            <Skeleton height={160} width="100%" />
-            <Skeleton height={220} width="100%" />
-            <Skeleton height={220} width="100%" />
+            <Card style={{ gap: 12 }}><Skeleton height={24} width="60%" /><Skeleton height={80} width="100%" /></Card>
+            <Card style={{ gap: 12 }}><Skeleton height={18} width={140} /><Skeleton height={160} width="100%" /></Card>
           </View>
         ) : (
           <View style={styles.contentStack}>
-            <ROICard summary={stats.summary} title="ROI do período" />
+            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+              <ROICard summary={stats.summary} title="ROI do período" />
+            </Animated.View>
 
-            <View style={styles.heroMetricsRow}>
-              <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Animated.View entering={FadeInDown.delay(250).duration(400).springify()} style={styles.heroMetricsRow}>
+              <Card style={styles.metricCard}>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Apostado</Text>
                 <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.totalStaked)}</Text>
-              </View>
-              <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              </Card>
+              <Card style={styles.metricCard}>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Lucro / Prejuízo</Text>
                 <Text style={[styles.metricValue, { color: stats.summary.profitLoss >= 0 ? colors.primary : colors.danger }]}>
                   {formatCurrency(stats.summary.profitLoss)}
                 </Text>
-              </View>
-            </View>
+              </Card>
+            </Animated.View>
 
-            <WinRateRing winRate={stats.summary.winRate} />
-            <PnLChart data={stats.timeline} />
+            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
+              <WinRateRing winRate={stats.summary.winRate} />
+            </Animated.View>
 
-            <BreakdownTable
-              rows={stats.bySport}
-              title="Por desporto"
-              renderLabel={(row) => (
-                <Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>
-                  {row.label}
-                </Text>
-              )}
-            />
+            <Animated.View entering={FadeInDown.delay(350).duration(400).springify()}>
+              <PnLChart data={stats.timeline} />
+            </Animated.View>
 
-            <BreakdownTable
-              rows={stats.bySite}
-              title="Por casa"
-              renderLabel={(row) => <SiteBreakdownLabel logoUrl={row.logoUrl} name={row.label} />}
-            />
+            <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
+              <BreakdownTable
+                rows={stats.bySport}
+                title="Por desporto"
+                renderLabel={(row) => (
+                  <Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>
+                    {row.label}
+                  </Text>
+                )}
+              />
+            </Animated.View>
 
-            <BreakdownTable rows={stats.byMarket} title="Por mercado" />
-            <OddsRangeBar rows={stats.byOddsRange} />
+            <Animated.View entering={FadeInDown.delay(450).duration(400).springify()}>
+              <BreakdownTable
+                rows={stats.bySite}
+                title="Por casa"
+                renderLabel={(row) => <SiteBreakdownLabel logoUrl={row.logoUrl} name={row.label} />}
+              />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(500).duration(400).springify()}>
+              <BreakdownTable rows={stats.byMarket} title="Por mercado" />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(550).duration(400).springify()}>
+              <OddsRangeBar rows={stats.byOddsRange} />
+            </Animated.View>
 
             <SectionTitle color={colors.textPrimary} title="Melhores boletins" />
             <ScrollView contentContainerStyle={styles.horizontalCards} horizontal showsHorizontalScrollIndicator={false}>
@@ -169,12 +179,12 @@ function MiniBoletinCard({
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.miniCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <Card style={styles.miniCard}>
       <Text style={[styles.miniLabel, { color: accentColor }]}>{label}</Text>
       <Text numberOfLines={2} style={[styles.miniTitle, { color: colors.textPrimary }]}>{title}</Text>
       <Text style={[styles.miniMeta, { color: colors.textSecondary }]}>Stake {formatCurrency(stake)} • Odds {formatOdds(totalOdds)}</Text>
       <Text style={[styles.miniProfit, { color: profitLoss >= 0 ? colors.primary : colors.danger }]}>{formatCurrency(profitLoss)}</Text>
-    </View>
+    </Card>
   );
 }
 
@@ -184,18 +194,16 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   periodTabs: { gap: 8, marginBottom: 22 },
-  periodChip: { borderRadius: 999, borderWidth: 1, minHeight: 40, justifyContent: 'center', paddingHorizontal: 14 },
-  periodLabel: { fontSize: 13, fontWeight: '800' },
   loadingStack: { gap: 16 },
   contentStack: { gap: 18 },
   heroMetricsRow: { flexDirection: 'row', gap: 12 },
-  metricCard: { borderRadius: 20, borderWidth: 1, flex: 1, gap: 6, padding: 16 },
+  metricCard: { flex: 1, gap: 6 },
   metricLabel: { fontSize: 12, fontWeight: '700' },
   metricValue: { fontSize: 18, fontWeight: '900' },
   tableLabel: { fontSize: 14, fontWeight: '800' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   horizontalCards: { gap: 12 },
-  miniCard: { borderRadius: 22, borderWidth: 1, gap: 8, padding: 16, width: 250 },
+  miniCard: { gap: 8, width: 250 },
   miniLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   miniTitle: { fontSize: 18, fontWeight: '900', lineHeight: 24 },
   miniMeta: { fontSize: 12, fontWeight: '600', lineHeight: 18 },

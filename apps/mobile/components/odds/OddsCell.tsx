@@ -40,6 +40,7 @@ export function OddsCell({
   const flash = useSharedValue(0);
   const direction = useSharedValue(0);
   const resolvedSelection = oddSelection ?? selection;
+  const baseBackground = highlight ? 'rgba(201, 162, 39, 0.14)' : colors.surface;
 
   useEffect(() => {
     setDisplayValue(value);
@@ -83,12 +84,12 @@ export function OddsCell({
   const animatedStyle = useAnimatedStyle(() => ({
     backgroundColor:
       direction.value === 0
-        ? colors.surface
+        ? baseBackground
         : interpolateColor(
             flash.value,
             [0, 1],
             [
-              highlight ? colors.gold : colors.surface,
+              baseBackground,
               direction.value > 0 ? 'rgba(0, 200, 81, 0.24)' : 'rgba(255, 59, 48, 0.24)',
             ],
           ),
@@ -107,7 +108,7 @@ export function OddsCell({
       ]}
     >
       <Text style={[styles.selection, { color: colors.textSecondary }]}>{selection}</Text>
-      <Text style={[styles.value, { color: highlight ? colors.gold : colors.textPrimary }]}>{formatOdds(displayValue)}</Text>
+      <Text style={[styles.value, { color: colors.textPrimary }]}>{formatOdds(displayValue)}</Text>
     </AnimatedPressable>
   );
 

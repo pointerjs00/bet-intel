@@ -30,3 +30,6 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Scraper debug output
+apps/api/debug-screenshots/
