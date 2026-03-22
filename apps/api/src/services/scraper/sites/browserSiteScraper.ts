@@ -317,7 +317,7 @@ async function extractEvents(page: Page, config: BrowserSiteScraperConfig): Prom
 
     // Strategy 1: Try window.initial_state (Betano)
     try {
-      const state = (window as Record<string, unknown>)['initial_state'] as {
+      const state = (window as unknown as Record<string, unknown>)['initial_state'] as {
         data?: {
           topLeagues?: Array<{ name?: string; regionName?: string; displayName?: string }>;
           regionGroups?: Array<{
