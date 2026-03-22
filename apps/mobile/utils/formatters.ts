@@ -53,6 +53,7 @@ export function formatShortDateTime(value: string): string {
     month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Lisbon',
   });
 }
 
@@ -62,5 +63,6 @@ export function formatLongDate(value: string): string {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+    timeZone: 'Europe/Lisbon',
   });
 }

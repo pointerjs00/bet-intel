@@ -3,17 +3,14 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../theme/useTheme';
 import { useUnreadNotificationsCount } from '../../services/socialService';
 
 const TAB_BAR_HEIGHT = 64;
 const TAB_BAR_MARGIN = 16;
 
-function FloatingTabBar({ state, descriptors, navigation }: {
-  state: { routes: Array<{ key: string; name: string }>; index: number };
-  descriptors: Record<string, { options: { title?: string; tabBarIcon?: (props: { color: string; size: number; focused: boolean }) => React.ReactNode; tabBarBadge?: string | number } }>;
-  navigation: { emit: (event: { type: string; target: string; canPreventDefault: boolean }) => { defaultPrevented: boolean }; navigate: (name: string) => void };
-}) {
+function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 

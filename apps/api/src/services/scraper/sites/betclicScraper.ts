@@ -30,6 +30,7 @@ puppeteer.use(StealthPlugin());
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const FOOTBALL_URL = 'https://www.betclic.pt/futebol-s1';
+const BETCLIC_HOME_URL = 'https://www.betclic.pt/';
 
 /** Pool of real browser UA strings — one is picked at random per session */
 const USER_AGENTS: readonly string[] = [
@@ -48,6 +49,9 @@ const BROWSER_ARGS = [
   '--disable-setuid-sandbox',
   '--disable-dev-shm-usage',
   '--disable-gpu',
+  '--disable-blink-features=AutomationControlled',
+  '--lang=pt-PT',
+  '--window-size=1366,768',
 ];
 
 // ─── Internal types (DOM-serialisable — used inside page.evaluate()) ──────────
@@ -94,6 +98,9 @@ const API_ENRICH_CONCURRENCY = 4;
 const DETAIL_FALLBACK_LIMIT = 8;
 const API_MARKET_MINIMUM = 2;
 const BETCLIC_MATCH_API_PATH = '/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification';
+const BETCLIC_TIME_ZONE = 'Europe/Lisbon';
+const BETCLIC_NAVIGATION_TIMEOUT_MS = 45_000;
+const BETCLIC_NAVIGATION_RETRIES = 3;
 
 const DETAIL_MARKET_ALIASES: Readonly<Record<string, string>> = {
   'Resultado (Tempo Regulamentar)': '1X2',
@@ -155,6 +162,114 @@ function extractEventIdFromPath(detailPath: string): string | null {
     ?? detailPath.match(/\/(\d{6,})(?:[/?#-]|$)/)
     ?? detailPath.match(/(\d{6,})/);
   return match?.[1] ?? null;
+}
+
+function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+
+  const parts = formatter.formatToParts(date);
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, Number(part.value)]),
+  ) as Record<string, number>;
+
+  const asUtc = Date.UTC(
+    values.year,
+    (values.month ?? 1) - 1,
+    values.day ?? 1,
+    values.hour ?? 0,
+    values.minute ?? 0,
+    values.second ?? 0,
+  );
+
+  return asUtc - date.getTime();
+}
+
+function createDateInTimeZone(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timeZone: string,
+): Date {
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  const offset = getTimeZoneOffsetMs(utcGuess, timeZone);
+  return new Date(utcGuess.getTime() - offset);
+}
+
+function parseBetclicEventDate(dateAttr?: string | null, dateText?: string | null, referenceDate = new Date()): string | null {
+  if (dateAttr) {
+    const parsedAttr = new Date(dateAttr);
+    if (!Number.isNaN(parsedAttr.getTime())) {
+      return parsedAttr.toISOString();
+    }
+  }
+
+  const rawText = normaliseWhitespace(dateText ?? '');
+  if (!rawText) {
+    return null;
+  }
+
+  const normalisedText = rawText
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/,/g, ' ')
+    .toLowerCase();
+
+  const explicitDateMatch = normalisedText.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+(\d{1,2}):(\d{2})/);
+  if (explicitDateMatch) {
+    const day = Number(explicitDateMatch[1]);
+    const month = Number(explicitDateMatch[2]);
+    const yearToken = explicitDateMatch[3];
+    const year = yearToken
+      ? (yearToken.length === 2 ? 2000 + Number(yearToken) : Number(yearToken))
+      : referenceDate.getUTCFullYear();
+    const hour = Number(explicitDateMatch[4]);
+    const minute = Number(explicitDateMatch[5]);
+    return createDateInTimeZone(year, month, day, hour, minute, BETCLIC_TIME_ZONE).toISOString();
+  }
+
+  const relativeMatch = normalisedText.match(/\b(hoje|amanha)\b\s+(\d{1,2}):(\d{2})/);
+  if (relativeMatch) {
+    const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
+    const dayOffset = relativeMatch[1] === 'amanha' ? 1 : 0;
+    const baseDay = new Date(localReference);
+    baseDay.setDate(baseDay.getDate() + dayOffset);
+    return createDateInTimeZone(
+      baseDay.getFullYear(),
+      baseDay.getMonth() + 1,
+      baseDay.getDate(),
+      Number(relativeMatch[2]),
+      Number(relativeMatch[3]),
+      BETCLIC_TIME_ZONE,
+    ).toISOString();
+  }
+
+  const timeOnlyMatch = normalisedText.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (timeOnlyMatch) {
+    const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
+    return createDateInTimeZone(
+      localReference.getFullYear(),
+      localReference.getMonth() + 1,
+      localReference.getDate(),
+      Number(timeOnlyMatch[1]),
+      Number(timeOnlyMatch[2]),
+      BETCLIC_TIME_ZONE,
+    ).toISOString();
+  }
+
+  return null;
 }
 
 function encodeVarint(value: bigint): Buffer {
@@ -756,19 +871,13 @@ export class BetclicScraper implements IScraper {
           process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
         headless: true,
         args: BROWSER_ARGS,
+        userDataDir: path.join(process.cwd(), '.scraper-profiles', 'betclic-catalogue'),
       });
 
       const page = await browser.newPage();
-  const interceptedMatchResponses = new Map<string, Buffer>();
+      const interceptedMatchResponses = new Map<string, Buffer>();
 
-      // Set rotating user-agent
-      await page.setUserAgent(randomUA());
-      await page.setExtraHTTPHeaders({
-        'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-      });
-
-      // Realistic viewport
-      await page.setViewport({ width: 1366, height: 768 });
+      await this.configurePage(page);
 
       // Keep stylesheets enabled here. Betclic detail pages proved more reliable
       // when rendered as a more normal browser session during inspection.
@@ -791,25 +900,19 @@ export class BetclicScraper implements IScraper {
         });
       });
 
-      logger.debug(`BetclicScraper: navigating to ${FOOTBALL_URL}`);
-      await page.goto(FOOTBALL_URL, {
-        waitUntil: 'networkidle2',
-        timeout: 45_000,
-      });
-
-      // Random delay after page load — mimics human reading time
-      await randomDelay();
-
-      // Dismiss cookie consent banner if present
-      await this.dismissCookieConsent(page);
-      await this.waitForCookieOverlayToClear(page);
-      await randomDelay(300, 800);
+      const ready = await this.navigateToFootballCatalogue(page, 'catalogue');
+      if (!ready) {
+        await this.saveDebugSnapshot(page, 'betclic');
+        await browser.close();
+        return [];
+      }
 
       // Wait for event list to render (Angular hydration)
       try {
-        await page.waitForSelector('sports-events-list, .sportEvent-list, [data-type="sport-event"], a.cardEvent[href*="/futebol-sfootball/"]', {
-          timeout: 20_000,
-        });
+        await page.waitForSelector(
+          'sports-events-list, sport-event-listitem, a.cardEvent, [class*="cardEvent"], .sportEvent-list',
+          { timeout: 25_000 },
+        );
       } catch {
         const currentUrl = page.url();
         let pageTitle = '';
@@ -818,15 +921,7 @@ export class BetclicScraper implements IScraper {
           url: currentUrl,
           title: pageTitle,
         });
-        try {
-          const screenshotDir = path.join(process.cwd(), 'debug-screenshots');
-          fs.mkdirSync(screenshotDir, { recursive: true });
-          const ts = Date.now();
-          await page.screenshot({ path: path.join(screenshotDir, `betclic-${ts}.png`) });
-          const html = await takeDebugHtmlSnapshot(page, `betclic-${ts}`);
-          fs.writeFileSync(path.join(screenshotDir, `betclic-${ts}.html`), html);
-          logger.debug('BetclicScraper: debug screenshot + HTML saved to debug-screenshots/');
-        } catch { /* screenshot is best-effort */ }
+        await this.saveDebugSnapshot(page, 'betclic');
         await browser.close();
         return [];
       }
@@ -834,11 +929,10 @@ export class BetclicScraper implements IScraper {
       // Scroll down to trigger lazy loading of more events
       await this.scrollDown(page);
 
-      // Wait for individual event items — they render after the outer container,
-      // which is what the initial waitForSelector found.
+      // Wait for individual event items — they render after the outer container.
       try {
         await page.waitForSelector(
-          'a.cardEvent[href*="/futebol-sfootball/"], sport-event-listitem, [class*="event_item"], [data-type="sport-event"] > *',
+          'a.cardEvent, sport-event-listitem, [class*="event_item"]',
           { timeout: 15_000 },
         );
       } catch {
@@ -864,15 +958,8 @@ export class BetclicScraper implements IScraper {
       logger.info(`BetclicScraper: extracted ${rawEvents.length} raw events`);
 
       if (rawEvents.length === 0) {
-        try {
-          const screenshotDir = path.join(process.cwd(), 'debug-screenshots');
-          fs.mkdirSync(screenshotDir, { recursive: true });
-          const ts = Date.now();
-          await page.screenshot({ path: path.join(screenshotDir, `betclic-${ts}.png`) });
-          const html = await takeDebugHtmlSnapshot(page, `betclic-${ts}`);
-          fs.writeFileSync(path.join(screenshotDir, `betclic-${ts}.html`), html);
-          logger.debug('BetclicScraper: debug snapshot saved (0 events)');
-        } catch { /* diagnostic is best-effort */ }
+        await this.saveDebugSnapshot(page, 'betclic');
+        logger.debug('BetclicScraper: debug snapshot saved (0 events)');
       }
 
       // Parse raw data into ScrapedEvent objects
@@ -909,6 +996,7 @@ export class BetclicScraper implements IScraper {
         process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
       headless: true,
       args: BROWSER_ARGS,
+      userDataDir: path.join(process.cwd(), '.scraper-profiles', 'betclic-live'),
     });
 
     const page = await browser.newPage();
@@ -934,11 +1022,7 @@ export class BetclicScraper implements IScraper {
         });
     };
 
-    await page.setUserAgent(randomUA());
-    await page.setExtraHTTPHeaders({
-      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
-    });
-    await page.setViewport({ width: 1366, height: 768 });
+    await this.configurePage(page);
     await page.setRequestInterception(true);
 
     page.on('request', (req: HTTPRequest) => {
@@ -992,20 +1076,16 @@ export class BetclicScraper implements IScraper {
       refreshInFlight = true;
       try {
         logger.debug('Betclic live watcher: refreshing catalogue');
-        await page.goto(FOOTBALL_URL, {
-          waitUntil: 'networkidle2',
-          timeout: 45_000,
-        });
-
-        await randomDelay();
-        await this.dismissCookieConsent(page);
-        await this.waitForCookieOverlayToClear(page);
-        await randomDelay(300, 800);
+        const ready = await this.navigateToFootballCatalogue(page, 'live-watch');
+        if (!ready) {
+          logger.warn('Betclic live watcher: football catalogue unavailable after retries');
+          return;
+        }
 
         try {
           await page.waitForSelector(
-            'sports-events-list, .sportEvent-list, [data-type="sport-event"], a.cardEvent[href*="/futebol-sfootball/"]',
-            { timeout: 20_000 },
+            'sports-events-list, sport-event-listitem, a.cardEvent, [class*="cardEvent"]',
+            { timeout: 25_000 },
           );
         } catch {
           logger.warn('Betclic live watcher: event list selector not found');
@@ -1171,6 +1251,136 @@ export class BetclicScraper implements IScraper {
       );
     } catch {
       logger.debug('BetclicScraper: cookie overlay still visible after dismissal attempt');
+    }
+  }
+
+  private async configurePage(page: Page): Promise<void> {
+    await page.setUserAgent(randomUA());
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'pt-PT,pt;q=0.9,en;q=0.8',
+      'Upgrade-Insecure-Requests': '1',
+    });
+    await page.setViewport({ width: 1366, height: 768 });
+    await page.emulateTimezone(BETCLIC_TIME_ZONE).catch(() => undefined);
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'language', {
+        configurable: true,
+        get: () => 'pt-PT',
+      });
+      Object.defineProperty(navigator, 'languages', {
+        configurable: true,
+        get: () => ['pt-PT', 'pt', 'en-US', 'en'],
+      });
+    });
+  }
+
+  private async isForbiddenPage(page: Page, response?: HTTPResponse | null): Promise<boolean> {
+    if (response?.status() === 403) {
+      return true;
+    }
+
+    let title = '';
+    let pageText = '';
+
+    try {
+      title = await page.title();
+    } catch {
+      title = '';
+    }
+
+    try {
+      pageText = await page.evaluate(() => document.body?.innerText?.slice(0, 1_500) ?? '');
+    } catch {
+      pageText = '';
+    }
+
+    return /error\s*403|forbidden|please try again in a few minutes|0x2005002/i.test(`${title}\n${pageText}`);
+  }
+
+  private async navigateToFootballCatalogue(page: Page, context: string): Promise<boolean> {
+    for (let attempt = 1; attempt <= BETCLIC_NAVIGATION_RETRIES; attempt += 1) {
+      await this.configurePage(page);
+
+      logger.debug('BetclicScraper: warming Betclic session', {
+        context,
+        attempt,
+      });
+
+      const homeResponse = await page.goto(BETCLIC_HOME_URL, {
+        waitUntil: 'networkidle2',
+        timeout: BETCLIC_NAVIGATION_TIMEOUT_MS,
+      });
+
+      await randomDelay(1200, 2200);
+
+      if (await this.isForbiddenPage(page, homeResponse)) {
+        logger.warn('BetclicScraper: homepage returned forbidden response', { context, attempt });
+        await randomDelay(3000 * attempt, 4500 * attempt);
+        continue;
+      }
+
+      await this.dismissCookieConsent(page);
+      await this.waitForCookieOverlayToClear(page);
+      await randomDelay(600, 1200);
+
+      logger.debug('BetclicScraper: navigating to football catalogue', {
+        context,
+        attempt,
+        targetUrl: FOOTBALL_URL,
+      });
+
+      const catalogueResponse = await page.goto(FOOTBALL_URL, {
+        referer: BETCLIC_HOME_URL,
+        timeout: BETCLIC_NAVIGATION_TIMEOUT_MS,
+        waitUntil: 'domcontentloaded',
+      });
+
+      await randomDelay(1200, 2200);
+      await this.dismissCookieConsent(page);
+      await this.waitForCookieOverlayToClear(page);
+
+      if (!(await this.isForbiddenPage(page, catalogueResponse))) {
+        // Wait for Angular to bootstrap and render at least the event container.
+        // `domcontentloaded` fires before the SPA renders — we need the
+        // component to actually appear before the caller's waitForSelector.
+        try {
+          await page.waitForFunction(
+            () => Boolean(
+              document.querySelector(
+                'sports-events-list, sport-event-listitem, a.cardEvent, [class*="cardEvent"]',
+              ),
+            ),
+            { timeout: 20_000 },
+          );
+        } catch {
+          // Angular may still be warming up; the caller waitForSelector will
+          // provide a second chance with its own timeout.
+        }
+        return true;
+      }
+
+      logger.warn('BetclicScraper: football catalogue returned forbidden response', {
+        context,
+        attempt,
+        targetUrl: FOOTBALL_URL,
+      });
+      await randomDelay(3000 * attempt, 4500 * attempt);
+    }
+
+    return false;
+  }
+
+  private async saveDebugSnapshot(page: Page, prefix: string): Promise<void> {
+    try {
+      const screenshotDir = path.join(process.cwd(), 'debug-screenshots');
+      fs.mkdirSync(screenshotDir, { recursive: true });
+      const ts = Date.now();
+      await page.screenshot({ path: path.join(screenshotDir, `${prefix}-${ts}.png`) });
+      const html = await takeDebugHtmlSnapshot(page, `${prefix}-${ts}`);
+      fs.writeFileSync(path.join(screenshotDir, `${prefix}-${ts}.html`), html);
+      logger.debug('BetclicScraper: debug screenshot + HTML saved to debug-screenshots/');
+    } catch {
+      // Best-effort diagnostic only.
     }
   }
 
@@ -1350,6 +1560,121 @@ export class BetclicScraper implements IScraper {
   private async extractEvents(page: Page): Promise<RawEventData[]> {
     return page.evaluate((): RawEventData[] => {
       const results: RawEventData[] = [];
+      const BETCLIC_TIME_ZONE = 'Europe/Lisbon';
+
+      const normaliseBrowserWhitespace = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+      const getBrowserTimeZoneOffsetMs = (date: Date, timeZone: string): number => {
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+          timeZone,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hourCycle: 'h23',
+        });
+
+        const parts = formatter.formatToParts(date);
+        const values = Object.fromEntries(
+          parts
+            .filter((part) => part.type !== 'literal')
+            .map((part) => [part.type, Number(part.value)]),
+        ) as Record<string, number>;
+
+        const asUtc = Date.UTC(
+          values.year,
+          (values.month ?? 1) - 1,
+          values.day ?? 1,
+          values.hour ?? 0,
+          values.minute ?? 0,
+          values.second ?? 0,
+        );
+
+        return asUtc - date.getTime();
+      };
+
+      const createBrowserDateInTimeZone = (
+        year: number,
+        month: number,
+        day: number,
+        hour: number,
+        minute: number,
+        timeZone: string,
+      ): Date => {
+        const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+        const offset = getBrowserTimeZoneOffsetMs(utcGuess, timeZone);
+        return new Date(utcGuess.getTime() - offset);
+      };
+
+      const parseBetclicEventDate = (
+        dateAttr?: string | null,
+        dateText?: string | null,
+        referenceDate = new Date(),
+      ): string | null => {
+        if (dateAttr) {
+          const parsedAttr = new Date(dateAttr);
+          if (!Number.isNaN(parsedAttr.getTime())) {
+            return parsedAttr.toISOString();
+          }
+        }
+
+        const rawText = normaliseBrowserWhitespace(dateText ?? '');
+        if (!rawText) {
+          return null;
+        }
+
+        const normalisedText = rawText
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/,/g, ' ')
+          .toLowerCase();
+
+        const explicitDateMatch = normalisedText.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+(\d{1,2}):(\d{2})/);
+        if (explicitDateMatch) {
+          const day = Number(explicitDateMatch[1]);
+          const month = Number(explicitDateMatch[2]);
+          const yearToken = explicitDateMatch[3];
+          const year = yearToken
+            ? (yearToken.length === 2 ? 2000 + Number(yearToken) : Number(yearToken))
+            : referenceDate.getUTCFullYear();
+          const hour = Number(explicitDateMatch[4]);
+          const minute = Number(explicitDateMatch[5]);
+          return createBrowserDateInTimeZone(year, month, day, hour, minute, BETCLIC_TIME_ZONE).toISOString();
+        }
+
+        const relativeMatch = normalisedText.match(/\b(hoje|amanha)\b\s+(\d{1,2}):(\d{2})/);
+        if (relativeMatch) {
+          const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
+          const dayOffset = relativeMatch[1] === 'amanha' ? 1 : 0;
+          const baseDay = new Date(localReference);
+          baseDay.setDate(baseDay.getDate() + dayOffset);
+          return createBrowserDateInTimeZone(
+            baseDay.getFullYear(),
+            baseDay.getMonth() + 1,
+            baseDay.getDate(),
+            Number(relativeMatch[2]),
+            Number(relativeMatch[3]),
+            BETCLIC_TIME_ZONE,
+          ).toISOString();
+        }
+
+        const timeOnlyMatch = normalisedText.match(/\b(\d{1,2}):(\d{2})\b/);
+        if (timeOnlyMatch) {
+          const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
+          return createBrowserDateInTimeZone(
+            localReference.getFullYear(),
+            localReference.getMonth() + 1,
+            localReference.getDate(),
+            Number(timeOnlyMatch[1]),
+            Number(timeOnlyMatch[2]),
+            BETCLIC_TIME_ZONE,
+          ).toISOString();
+        }
+
+        return null;
+      };
 
       const resolveDetailHref = (item: Element): string | undefined => {
         const hrefCandidates = [
@@ -1422,9 +1747,10 @@ export class BetclicScraper implements IScraper {
 
           const timeEl = anchor.querySelector('time[datetime]');
           const dateAttr = timeEl?.getAttribute('datetime');
-          const eventDateIso = dateAttr && !Number.isNaN(new Date(dateAttr).getTime())
-            ? dateAttr
-            : new Date().toISOString();
+          const eventDateIso = parseBetclicEventDate(dateAttr, timeEl?.textContent ?? anchor.textContent ?? '');
+          if (!eventDateIso) {
+            continue;
+          }
           const detailHref = resolveDetailHref(anchor);
           const externalId = detailHref?.match(/(\d{6,})/)?.[1] ?? `${homeData.team}__${awayData.team}__${league}`;
 
@@ -1528,12 +1854,27 @@ export class BetclicScraper implements IScraper {
               || candidate.includes('Conference'),
             ) ?? 'Futebol';
 
+          const nearbyDateContext = textNodes
+            .filter(({ top, text }) => {
+              if (!(Math.abs(top - firstButton.top) <= 120 || (top < firstButton.top && firstButton.top - top <= 180))) {
+                return false;
+              }
+
+              return /\b(?:\d{1,2}:\d{2}|\d{1,2}\/\d{1,2}|hoje|amanh[ãa])\b/i.test(text);
+            })
+            .map(({ text }) => text)
+            .join(' ');
+          const eventDateIso = parseBetclicEventDate(undefined, nearbyDateContext);
+          if (!eventDateIso) {
+            continue;
+          }
+
           fallbackResults.push({
             externalId: `${homeData.team}__${awayData.team}__${league}`,
             league,
             homeTeam: homeData.team,
             awayTeam: awayData.team,
-            eventDateIso: new Date().toISOString(),
+            eventDateIso,
             home: homeData.odd,
             draw: drawMatch[1] ?? '',
             away: awayData.odd,
@@ -1581,7 +1922,10 @@ export class BetclicScraper implements IScraper {
             || candidate.includes('Conference'),
           ) ?? 'Futebol';
 
-          const eventDateIso = new Date().toISOString();
+          const eventDateIso = parseBetclicEventDate(undefined, recentContext.join(' '));
+          if (!eventDateIso) {
+            continue;
+          }
           fallbackResults.push({
             externalId: `${homeTeam}__${awayTeam}__${league}`,
             league,
@@ -1647,19 +1991,12 @@ export class BetclicScraper implements IScraper {
           // ── Date ───────────────────────────────────────────────────────────
           const timeEl = item.querySelector('time[datetime]');
           const dateAttr = timeEl?.getAttribute('datetime');
-          let eventDateIso = dateAttr && dateAttr.length > 0
-            ? dateAttr
-            : (() => {
-                // Fallback: look for a date text and try to parse it
-                const dateTxt = item.querySelector(
-                  '[class*="startDate"], [class*="eventDate"], [class*="date"]',
-                )?.textContent?.trim();
-                return dateTxt ? new Date(dateTxt).toISOString() : new Date().toISOString();
-              })();
-
-          // Validate the date string; if invalid, use now (event will be persisted but with wrong date)
-          if (isNaN(new Date(eventDateIso).getTime())) {
-            eventDateIso = new Date().toISOString();
+          const dateTxt = item.querySelector(
+            '[class*="startDate"], [class*="eventDate"], [class*="date"]',
+          )?.textContent?.trim();
+          const eventDateIso = parseBetclicEventDate(dateAttr, dateTxt ?? timeEl?.textContent ?? item.textContent ?? '');
+          if (!eventDateIso) {
+            return;
           }
 
           // ── League ─────────────────────────────────────────────────────────

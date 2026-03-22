@@ -32,4 +32,6 @@ Thumbs.db
 logs/
 
 # Scraper debug output
+debug-screenshots/
 apps/api/debug-screenshots/
+.scraper-profiles/

@@ -291,12 +291,34 @@ async function persistEvent(siteId: string, ev: ScrapedEvent): Promise<PersistRe
   const away = normaliseTeamName(ev.awayTeam);
   const league = sanitiseLeagueName(ev.league, home, away);
 
+  let externalIdMatches: Array<{ id: string; externalId: string | null }> = [];
+  if (ev.externalId) {
+    externalIdMatches = await prisma.sportEvent.findMany({
+      where: {
+        sport: ev.sport as unknown as PrismaSport,
+        externalId: ev.externalId,
+        homeTeam: { equals: home, mode: 'insensitive' },
+        awayTeam: { equals: away, mode: 'insensitive' },
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true, externalId: true },
+    });
+  }
+
+  if (externalIdMatches.length > 1) {
+    const duplicateIds = externalIdMatches.slice(1).map((match) => match.id);
+    await prisma.odd.updateMany({
+      where: { siteId, eventId: { in: duplicateIds }, isActive: true },
+      data: { isActive: false },
+    });
+  }
+
   // Widen by 30 min each side to absorb clock-skew between sites
   const windowStart = new Date(ev.eventDate.getTime() - 30 * 60 * 1000);
   const windowEnd   = new Date(ev.eventDate.getTime() + 30 * 60 * 1000);
 
   // Try to find an existing SportEvent row (possibly created by another scraper)
-  const existing = await prisma.sportEvent.findFirst({
+  const existing = externalIdMatches[0] ?? await prisma.sportEvent.findFirst({
     where: {
       sport: ev.sport as unknown as PrismaSport,
       homeTeam: { equals: home, mode: 'insensitive' },
