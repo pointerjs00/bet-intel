@@ -429,6 +429,19 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
   const liveFinishCutoff     = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 h safety net
   const upcomingFinishCutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 h
   const recentOddsCutoff     = new Date(now.getTime() - 10 * 60 * 1000);      // 10 min
+  const futureKickoffGuard   = new Date(now.getTime() + 5 * 60 * 1000);       // 5 min ahead
+
+  // Safety valve: LIVE events whose kick-off is still ≥ 5 minutes in the future
+  // should never be live — demote them back to UPCOMING immediately.
+  // This corrects any spurious LIVE promotion caused by a prior incorrect date
+  // stored in the DB or a misidentified API-Football fixture match.
+  await prisma.sportEvent.updateMany({
+    where: {
+      status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
+      eventDate: { gt: futureKickoffGuard },
+    },
+    data: { status: 'UPCOMING' as never },
+  });
 
   // LIVE events whose kick-off was 3+ hours ago → mark FINISHED (safety net only)
   const liveExpiredResult = await prisma.sportEvent.updateMany({

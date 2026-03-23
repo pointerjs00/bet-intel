@@ -116,7 +116,7 @@ export default function EventDetailScreen() {
                     <Text style={styles.sportEmoji}>{sportEmoji}</Text>
                     <Text style={[styles.leagueLabel, { color: colors.textSecondary }]}>{event.league}</Text>
                   </View>
-                  {event.status === 'LIVE' ? <LiveBadge /> : null}
+                  {event.status === 'LIVE' && new Date(event.eventDate) <= new Date() ? <LiveBadge /> : null}
                 </View>
 
                 {/* Teams + score */}
@@ -134,11 +134,11 @@ export default function EventDetailScreen() {
 
                   <View style={styles.heroCenter}>
                     <Text style={[styles.heroScore, { color: colors.textPrimary }]}>
-                      {event.homeScore ?? 0}
+                      {event.homeScore != null ? event.homeScore : '–'}
                     </Text>
                     <Text style={[styles.heroDash, { color: colors.textMuted }]}>–</Text>
                     <Text style={[styles.heroScore, { color: colors.textPrimary }]}>
-                      {event.awayScore ?? 0}
+                      {event.awayScore != null ? event.awayScore : '–'}
                     </Text>
                   </View>
 
