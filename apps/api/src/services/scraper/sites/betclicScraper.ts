@@ -13,7 +13,6 @@
 
 import { execSync } from 'child_process';
 import * as fs from 'fs';
-import * as https from 'https';
 import * as path from 'path';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -309,51 +308,6 @@ function buildGetMatchRequestBody(eventId: string): Buffer {
   ]);
 
   return buildGrpcWebFrame(payload);
-}
-
-/**
- * Calls offering.begmedia.com GetMatchWithNotification directly from Node.js.
- * Node.js HTTP requests are not subject to CORS restrictions (CORS is a browser
- * security feature), so this is far more reliable than page.evaluate(fetch(...)).
- * Returns null on network error or empty response.
- */
-async function fetchMatchApiNode(
-  reqBody: Buffer,
-  cookieHeader: string,
-  ua: string,
-): Promise<Buffer | null> {
-  return new Promise((resolve) => {
-    const options: https.RequestOptions = {
-      hostname: 'offering.begmedia.com',
-      path: '/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification',
-      method: 'POST',
-      headers: {
-        'content-type': 'application/grpc-web+proto',
-        'content-length': reqBody.length,
-        'x-grpc-web': '1',
-        'x-bg-ref-brand': 'BETCLIC',
-        'x-bg-ref-platform': 'DESKTOP',
-        'x-bg-ref-regulator-zone': 'PT',
-        'x-bg-regulation': 'PT',
-        'ngsw-bypass': '1',
-        'origin': 'https://www.betclic.pt',
-        'referer': 'https://www.betclic.pt/',
-        'user-agent': ua,
-        ...(cookieHeader ? { cookie: cookieHeader } : {}),
-      },
-    };
-
-    const chunks: Buffer[] = [];
-    const req = https.request(options, (res) => {
-      res.on('data', (chunk: Buffer) => chunks.push(chunk));
-      res.on('end', () => resolve(chunks.length > 0 ? Buffer.concat(chunks) : null));
-      res.on('error', () => resolve(null));
-    });
-    req.on('error', () => resolve(null));
-    req.setTimeout(15_000, () => { req.destroy(); resolve(null); });
-    req.write(reqBody);
-    req.end();
-  });
 }
 
 function extractEventIdFromGrpcWebRequestBody(requestBody: Buffer): string | null {
@@ -1017,7 +971,7 @@ export class BetclicScraper implements IScraper {
           .slice(0, DETAIL_FALLBACK_LIMIT);
 
         if (fallbackTargets.length > 0) {
-          await this.enrichEventsFromDetailPages(page, fallbackTargets);
+          await this.enrichEventsFromDetailPages(page, fallbackTargets, interceptedMatchResponses);
         }
       }
 
@@ -1589,92 +1543,28 @@ export class BetclicScraper implements IScraper {
       }
     }
 
-    // ── Node.js fetch path: call offering.begmedia.com directly from Node.js ──
-    // CORS is a browser security feature — Node.js HTTP requests bypass it entirely.
-    // Cookies are harvested from the Playwright session so any geo-tokens or
-    // consent cookies set by the Angular app are forwarded automatically.
-    const needFetch = queue.filter((c) => !interceptedMatchResponses.has(c.eventId));
-
-    if (needFetch.length === 0) {
-      return;
-    }
-
-    // Harvest cookies from the browser session for both Betclic + offering domains.
-    let cookieHeader = '';
-    try {
-      const cookies = await page.cookies(
-        'https://www.betclic.pt',
-        'https://offering.begmedia.com',
-      );
-      cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
-    } catch {
-      // Best-effort — proceed without cookies
-    }
-
-    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]!;
-
-    // Fire in batches of 3 with a small inter-batch delay to avoid flood-detection.
-    const CONCURRENCY = 3;
-    for (let i = 0; i < needFetch.length; i += CONCURRENCY) {
-      const batch = needFetch.slice(i, i + CONCURRENCY);
-      await Promise.allSettled(
-        batch.map(async (candidate) => {
-          const reqBody = buildGetMatchRequestBody(candidate.eventId);
-          const responseBuffer = await fetchMatchApiNode(reqBody, cookieHeader, ua);
-
-          if (!responseBuffer) {
-            logger.debug('BetclicScraper: match API enrichment failed', {
-              event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-              eventId: candidate.eventId,
-              source: 'node-fetch',
-              error: 'no response',
-            });
-            return;
-          }
-
-          try {
-            const apiMarkets = extractMarketsFromApiResponse(
-              responseBuffer,
-              candidate.event.homeTeam,
-              candidate.event.awayTeam,
-            );
-
-            if (apiMarkets.length >= API_MARKET_MINIMUM) {
-              candidate.event.detailMarkets = apiMarkets;
-              logger.debug('BetclicScraper: enriched event from match API', {
-                event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-                eventId: candidate.eventId,
-                source: 'node-fetch',
-                markets: apiMarkets.map((m) => m.market).slice(0, 12),
-              });
-            } else {
-              logger.debug('BetclicScraper: match API returned incomplete market set', {
-                event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-                eventId: candidate.eventId,
-                source: 'node-fetch',
-                markets: apiMarkets.map((m) => m.market),
-              });
-            }
-          } catch (parseErr) {
-            logger.debug('BetclicScraper: failed to parse node fetch response', {
-              eventId: candidate.eventId,
-              error: parseErr instanceof Error ? parseErr.message : String(parseErr),
-            });
-          }
-        }),
-      );
-      if (i + CONCURRENCY < needFetch.length) {
-        await randomDelay(200, 500);
-      }
+    // Events not captured by page-network interception during catalogue load will be
+    // picked up by enrichEventsFromDetailPages — navigating to each event's detail
+    // page causes the Angular app to call GetMatchWithNotification itself, which the
+    // existing page.on('response') listener intercepts automatically.
+    const unenriched = queue.filter((c) => !interceptedMatchResponses.has(c.eventId));
+    if (unenriched.length > 0) {
+      logger.debug('BetclicScraper: events not captured via page-network — detail-page fallback will handle', {
+        count: unenriched.length,
+      });
     }
   }
 
-  private async enrichEventsFromDetailPages(page: Page, rawEvents: RawEventData[]): Promise<void> {
+  private async enrichEventsFromDetailPages(
+    page: Page,
+    rawEvents: RawEventData[],
+    interceptedMatchResponses: ReadonlyMap<string, Buffer>,
+  ): Promise<void> {
     const candidates = rawEvents
       .filter((event) => Boolean(event.detailPath))
       .slice(0, DETAIL_FALLBACK_LIMIT);
 
-    logger.debug('BetclicScraper: DOM fallback enrichment candidates prepared', {
+    logger.debug('BetclicScraper: detail-page enrichment candidates prepared', {
       totalEvents: rawEvents.length,
       candidates: candidates.length,
       samplePaths: candidates.slice(0, 3).map((event) => event.detailPath),
@@ -1693,7 +1583,35 @@ export class BetclicScraper implements IScraper {
         });
         await this.dismissCookieConsent(page);
         await this.waitForCookieOverlayToClear(page);
-        await randomDelay(1200, 2200);
+        await randomDelay(1000, 1800);
+
+        // Prefer API data intercepted during this navigation over DOM text.
+        // When Angular renders the event detail, it calls GetMatchWithNotification
+        // which the page.on('response') listener in scrapeEvents() captures.
+        const eventId =
+          extractEventIdFromPath(event.detailPath) ??
+          (/^\d+$/.test(event.externalId) ? event.externalId : null);
+        const interceptedBuffer = eventId ? interceptedMatchResponses.get(eventId) : null;
+
+        if (interceptedBuffer) {
+          try {
+            const apiMarkets = extractMarketsFromApiResponse(
+              interceptedBuffer,
+              event.homeTeam,
+              event.awayTeam,
+            );
+            if (apiMarkets.length >= API_MARKET_MINIMUM) {
+              event.detailMarkets = apiMarkets;
+              logger.debug('BetclicScraper: enriched event from detail-page API intercept', {
+                event: `${event.homeTeam} vs ${event.awayTeam}`,
+                markets: apiMarkets.map((m) => m.market).slice(0, 12),
+              });
+              continue;
+            }
+          } catch {
+            // fall through to DOM text parsing
+          }
+        }
 
         const detailText = await page.evaluate(() => document.body?.innerText ?? '');
         const detailMarkets = parseDetailMarkets(detailText, event.homeTeam, event.awayTeam);
@@ -1711,7 +1629,7 @@ export class BetclicScraper implements IScraper {
           });
         }
       } catch (error) {
-        logger.debug('BetclicScraper: failed to enrich event via DOM fallback', {
+        logger.debug('BetclicScraper: failed to enrich event via detail-page fallback', {
           event: `${event.homeTeam} vs ${event.awayTeam}`,
           detailPath: event.detailPath,
           error: error instanceof Error ? error.message : JSON.stringify(error),
