@@ -53,12 +53,12 @@ export function getScraper(slug: string): IScraper | undefined {
 /** Registers the built-in scraper set used by scheduled scrape jobs. */
 export function registerDefaultScrapers(): void {
   registerScraper(new BetclicScraper());
-  registerScraper(new PlacardScraper());
-  registerScraper(new BetanoScraper());
-  registerScraper(new Bet365Scraper());
-  registerScraper(new EscOnlineScraper());
-  registerScraper(new MooshScraper());
-  registerScraper(new SolverdeScraper());
+  // registerScraper(new PlacardScraper());   // disabled — selector failures, re-enable when fixed
+  // registerScraper(new BetanoScraper());    // disabled — selector failures, re-enable when fixed
+  // registerScraper(new Bet365Scraper());    // disabled — bot-detection, re-enable when fixed
+  // registerScraper(new EscOnlineScraper()); // disabled — selector failures, re-enable when fixed
+  // registerScraper(new MooshScraper());     // disabled — selector failures, re-enable when fixed
+  // registerScraper(new SolverdeScraper());  // disabled — selector failures, re-enable when fixed
 }
 
 // ─── Runner ───────────────────────────────────────────────────────────────────

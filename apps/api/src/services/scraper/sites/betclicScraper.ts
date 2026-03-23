@@ -1470,18 +1470,17 @@ export class BetclicScraper implements IScraper {
 
   private async scrollDown(page: Page): Promise<void> {
     // Betclic is an Angular SPA that lazy-loads events as you scroll.
-    // We do 6 progressive scroll steps with pauses so Angular can render
-    // each batch before we scroll further.
-    for (let step = 1; step <= 6; step++) {
-      const ratio = step / 6;
+    // 4 progressive scroll steps with pauses so Angular can render each batch.
+    for (let step = 1; step <= 4; step++) {
+      const ratio = step / 4;
       await page.evaluate((r) => {
         window.scrollTo({ top: document.body.scrollHeight * r, behavior: 'smooth' });
       }, ratio);
-      await randomDelay(800, 1500);
+      await randomDelay(500, 900);
     }
-    // Final pass: scroll back to absolute bottom and wait for any remaining renders
+    // Final pass: scroll to absolute bottom and wait for any remaining renders
     await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
-    await randomDelay(1500, 2500);
+    await randomDelay(800, 1300);
   }
 
   private async scrollForLiveWatch(page: Page): Promise<void> {
