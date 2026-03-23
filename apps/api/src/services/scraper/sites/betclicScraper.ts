@@ -13,6 +13,7 @@
 
 import { execSync } from 'child_process';
 import * as fs from 'fs';
+import * as https from 'https';
 import * as path from 'path';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -308,6 +309,51 @@ function buildGetMatchRequestBody(eventId: string): Buffer {
   ]);
 
   return buildGrpcWebFrame(payload);
+}
+
+/**
+ * Calls offering.begmedia.com GetMatchWithNotification directly from Node.js.
+ * Node.js HTTP requests are not subject to CORS restrictions (CORS is a browser
+ * security feature), so this is far more reliable than page.evaluate(fetch(...)).
+ * Returns null on network error or empty response.
+ */
+async function fetchMatchApiNode(
+  reqBody: Buffer,
+  cookieHeader: string,
+  ua: string,
+): Promise<Buffer | null> {
+  return new Promise((resolve) => {
+    const options: https.RequestOptions = {
+      hostname: 'offering.begmedia.com',
+      path: '/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification',
+      method: 'POST',
+      headers: {
+        'content-type': 'application/grpc-web+proto',
+        'content-length': reqBody.length,
+        'x-grpc-web': '1',
+        'x-bg-ref-brand': 'BETCLIC',
+        'x-bg-ref-platform': 'DESKTOP',
+        'x-bg-ref-regulator-zone': 'PT',
+        'x-bg-regulation': 'PT',
+        'ngsw-bypass': '1',
+        'origin': 'https://www.betclic.pt',
+        'referer': 'https://www.betclic.pt/',
+        'user-agent': ua,
+        ...(cookieHeader ? { cookie: cookieHeader } : {}),
+      },
+    };
+
+    const chunks: Buffer[] = [];
+    const req = https.request(options, (res) => {
+      res.on('data', (chunk: Buffer) => chunks.push(chunk));
+      res.on('end', () => resolve(chunks.length > 0 ? Buffer.concat(chunks) : null));
+      res.on('error', () => resolve(null));
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(15_000, () => { req.destroy(); resolve(null); });
+    req.write(reqBody);
+    req.end();
+  });
 }
 
 function extractEventIdFromGrpcWebRequestBody(requestBody: Buffer): string | null {
@@ -1543,130 +1589,82 @@ export class BetclicScraper implements IScraper {
       }
     }
 
-    // ── Browser fetch path: route remaining calls through Puppeteer page.evaluate ──
-    // This uses Edge/Chromium's TLS fingerprint + CORS credentials instead of a
-    // raw Node.js socket, which bypasses offering.begmedia.com rate-limiting.
+    // ── Node.js fetch path: call offering.begmedia.com directly from Node.js ──
+    // CORS is a browser security feature — Node.js HTTP requests bypass it entirely.
+    // Cookies are harvested from the Playwright session so any geo-tokens or
+    // consent cookies set by the Angular app are forwarded automatically.
     const needFetch = queue.filter((c) => !interceptedMatchResponses.has(c.eventId));
 
     if (needFetch.length === 0) {
       return;
     }
 
-    // Build serialisable request list for page.evaluate (Buffers → base64 strings)
-    const requests = needFetch.map((c) => ({
-      eventId: c.eventId,
-      bodyBase64: buildGetMatchRequestBody(c.eventId).toString('base64'),
-    }));
-
-    type BrowserFetchResult = { eventId: string; dataBase64: string | null; error: string | null };
-
-    let browserResults: BrowserFetchResult[] = [];
+    // Harvest cookies from the browser session for both Betclic + offering domains.
+    let cookieHeader = '';
     try {
-      // 60 s absolute cap: Promise.allSettled resolves even if some fetches fail.
-      browserResults = await page.evaluate(async (reqs) => {
-        const results: Array<{ eventId: string; dataBase64: string | null; error: string | null }> = [];
-
-        await Promise.allSettled(
-          reqs.map(async ({ eventId, bodyBase64 }: { eventId: string; bodyBase64: string }) => {
-            try {
-              // Decode base64 → Uint8Array for fetch body
-              const binaryStr = atob(bodyBase64);
-              const body = new Uint8Array(binaryStr.length);
-              for (let i = 0; i < binaryStr.length; i++) {
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                body[i] = binaryStr.charCodeAt(i);
-              }
-
-              const ctrl = new AbortController();
-              const timer = setTimeout(() => ctrl.abort(), 15_000);
-
-              const response = await fetch(
-                'https://offering.begmedia.com/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification',
-                {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: {
-                    'content-type': 'application/grpc-web+proto',
-                    'x-grpc-web': '1',
-                    'x-bg-ref-brand': 'BETCLIC',
-                    'x-bg-ref-platform': 'DESKTOP',
-                    'x-bg-ref-regulator-zone': 'PT',
-                    'x-bg-regulation': 'PT',
-                    'ngsw-bypass': '1',
-                  },
-                  body,
-                  signal: ctrl.signal,
-                },
-              );
-              clearTimeout(timer);
-
-              const buffer = await response.arrayBuffer();
-              const bytes = new Uint8Array(buffer);
-              let binary = '';
-              for (let i = 0; i < bytes.length; i++) {
-                binary += String.fromCharCode(bytes[i] as number);
-              }
-              results.push({ eventId, dataBase64: btoa(binary), error: null });
-            } catch (err) {
-              results.push({ eventId, dataBase64: null, error: String(err) });
-            }
-          }),
-        );
-
-        return results;
-      }, requests);
-    } catch (evalErr) {
-      logger.debug('BetclicScraper: browser-side enrichment threw', {
-        error: evalErr instanceof Error ? evalErr.message : String(evalErr),
-      });
+      const cookies = await page.cookies(
+        'https://www.betclic.pt',
+        'https://offering.begmedia.com',
+      );
+      cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+    } catch {
+      // Best-effort — proceed without cookies
     }
 
-    // ── Parse browser fetch results ──
-    for (const result of browserResults) {
-      const candidate = needFetch.find((c) => c.eventId === result.eventId);
-      if (!candidate) {
-        continue;
-      }
+    const ua = USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]!;
 
-      if (!result.dataBase64) {
-        logger.debug('BetclicScraper: match API enrichment failed', {
-          event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-          eventId: result.eventId,
-          source: 'browser-fetch',
-          error: result.error,
-        });
-        continue;
-      }
+    // Fire in batches of 3 with a small inter-batch delay to avoid flood-detection.
+    const CONCURRENCY = 3;
+    for (let i = 0; i < needFetch.length; i += CONCURRENCY) {
+      const batch = needFetch.slice(i, i + CONCURRENCY);
+      await Promise.allSettled(
+        batch.map(async (candidate) => {
+          const reqBody = buildGetMatchRequestBody(candidate.eventId);
+          const responseBuffer = await fetchMatchApiNode(reqBody, cookieHeader, ua);
 
-      try {
-        const buf = Buffer.from(result.dataBase64, 'base64');
-        const apiMarkets = extractMarketsFromApiResponse(
-          buf,
-          candidate.event.homeTeam,
-          candidate.event.awayTeam,
-        );
+          if (!responseBuffer) {
+            logger.debug('BetclicScraper: match API enrichment failed', {
+              event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+              eventId: candidate.eventId,
+              source: 'node-fetch',
+              error: 'no response',
+            });
+            return;
+          }
 
-        if (apiMarkets.length >= API_MARKET_MINIMUM) {
-          candidate.event.detailMarkets = apiMarkets;
-          logger.debug('BetclicScraper: enriched event from match API', {
-            event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-            eventId: result.eventId,
-            source: 'browser-fetch',
-            markets: apiMarkets.map((m) => m.market).slice(0, 12),
-          });
-        } else {
-          logger.debug('BetclicScraper: match API returned incomplete market set', {
-            event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-            eventId: result.eventId,
-            source: 'browser-fetch',
-            markets: apiMarkets.map((m) => m.market),
-          });
-        }
-      } catch (parseErr) {
-        logger.debug('BetclicScraper: failed to parse browser fetch response', {
-          eventId: result.eventId,
-          error: parseErr instanceof Error ? parseErr.message : String(parseErr),
-        });
+          try {
+            const apiMarkets = extractMarketsFromApiResponse(
+              responseBuffer,
+              candidate.event.homeTeam,
+              candidate.event.awayTeam,
+            );
+
+            if (apiMarkets.length >= API_MARKET_MINIMUM) {
+              candidate.event.detailMarkets = apiMarkets;
+              logger.debug('BetclicScraper: enriched event from match API', {
+                event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+                eventId: candidate.eventId,
+                source: 'node-fetch',
+                markets: apiMarkets.map((m) => m.market).slice(0, 12),
+              });
+            } else {
+              logger.debug('BetclicScraper: match API returned incomplete market set', {
+                event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+                eventId: candidate.eventId,
+                source: 'node-fetch',
+                markets: apiMarkets.map((m) => m.market),
+              });
+            }
+          } catch (parseErr) {
+            logger.debug('BetclicScraper: failed to parse node fetch response', {
+              eventId: candidate.eventId,
+              error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+            });
+          }
+        }),
+      );
+      if (i + CONCURRENCY < needFetch.length) {
+        await randomDelay(200, 500);
       }
     }
   }
