@@ -256,27 +256,11 @@ function parseBetclicEventDate(dateAttr?: string | null, dateText?: string | nul
     ).toISOString();
   }
 
-  const timeOnlyMatch = normalisedText.match(/\b(\d{1,2}):(\d{2})\b/);
-  if (timeOnlyMatch) {
-    const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
-    const candidate = createDateInTimeZone(
-      localReference.getFullYear(),
-      localReference.getMonth() + 1,
-      localReference.getDate(),
-      Number(timeOnlyMatch[1]),
-      Number(timeOnlyMatch[2]),
-      BETCLIC_TIME_ZONE,
-    );
-    // Only use today if the kick-off time is still in the future.
-    // If the time has already passed we cannot know whether it belongs to
-    // today (a live/finished match) or tomorrow (an upcoming match shown
-    // without a day label) — skip rather than persist a wrong date.
-    if (candidate.getTime() <= referenceDate.getTime()) {
-      return null;
-    }
-    return candidate.toISOString();
-  }
-
+  // A bare time-only token ("23:30") without a date prefix is not handled
+  // here. We cannot tell if it means "today" or "tomorrow", and using today's
+  // date caused events scheduled for the next calendar day to be stored with
+  // the wrong date. Betclic always provides explicit date info on upcoming
+  // events; skip events lacking it rather than guess wrong.
   return null;
 }
 
@@ -1763,27 +1747,13 @@ export class BetclicScraper implements IScraper {
           ).toISOString();
         }
 
-        const timeOnlyMatch = normalisedText.match(/\b(\d{1,2}):(\d{2})\b/);
-        if (timeOnlyMatch) {
-          const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
-          const candidate = createBrowserDateInTimeZone(
-            localReference.getFullYear(),
-            localReference.getMonth() + 1,
-            localReference.getDate(),
-            Number(timeOnlyMatch[1]),
-            Number(timeOnlyMatch[2]),
-            BETCLIC_TIME_ZONE,
-          );
-          // Only trust today's date when the kick-off time is still in the
-          // future. If it has already passed we cannot distinguish between a
-          // live/finished match and an upcoming match shown without a day
-          // label — skip rather than store a wrong date.
-          if (candidate.getTime() <= referenceDate.getTime()) {
-            return null;
-          }
-          return candidate.toISOString();
-        }
-
+        // NOTE: a bare time-only token ("23:30" with no date prefix) is NOT
+        // handled here. We cannot distinguish "today at 23:30" from "tomorrow
+        // at 23:30" — using today's date caused events scheduled for the next
+        // calendar day to be stored with the wrong date and later promoted to
+        // LIVE. Betclic provides explicit date info via the `datetime` attribute,
+        // "DD/MM HH:MM" patterns, or "Hoje/Amanhã" labels on all upcoming events;
+        // events lacking any of those are skipped rather than misdated.
         return null;
       };
 
