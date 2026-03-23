@@ -23,7 +23,7 @@ import https from 'https';
 import { EventStatus, Sport as PrismaSport } from '@prisma/client';
 import { prisma } from '../../prisma';
 import { logger } from '../../utils/logger';
-import { invalidateOddsCache } from '../odds/oddsService';
+import { invalidateOddsCache, updateEventStatuses } from '../odds/oddsService';
 import { emitEventStatusChange } from '../../sockets/index';
 import type { EventStatus as SharedEventStatus } from '@betintel/shared';
 
@@ -140,6 +140,36 @@ function normaliseName(name: string): string {
   return name.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+/**
+ * Common noise tokens stripped before fuzzy team-name comparison.
+ * Covers club type designations and common prepositions used in official names
+ * that betting sites abbreviate away (e.g. "Club Atlético Boca Juniors" → "boca juniors").
+ */
+const NOISE_TOKENS = new Set([
+  'club', 'atletico', 'atletica', 'atlético', 'atlética',
+  'fc', 'cf', 'ac', 'sc', 'rc', 'rcd', 'ssd', 'asd', 'fk', 'sk', 'bk',
+  'sporting', 'association', 'associazione', 'calcio', 'football',
+  'de', 'del', 'la', 'las', 'los', 'el', 'do', 'da', 'dos', 'das', 'van',
+]);
+
+/**
+ * Strips diacritics, punctuation, and noise tokens so that API-Football's
+ * official club names can be compared against abbreviated scraped names.
+ * Example: "Club Atlético Boca Juniors" → "boca juniors"
+ *          "Instituto AC de Córdoba" → "instituto cordoba"
+ */
+function normaliseNameFuzzy(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip diacritics (é→e, ó→o, ü→u)
+    .replace(/[^a-z0-9\s]/g, ' ')    // punctuation → space
+    .split(/\s+/)
+    .filter((w) => w.length > 1 && !NOISE_TOKENS.has(w))
+    .join(' ')
+    .trim();
+}
+
 async function findEventForFixture(fixture: ApiFootballFixture) {
   const existingByFixtureId = await prisma.sportEvent.findUnique({
     where: { apiFootballFixtureId: fixture.fixture.id },
@@ -181,11 +211,55 @@ async function findEventForFixture(fixture: ApiFootballFixture) {
     },
   });
 
-  if (!matchedByHeuristic) {
-    return null;
+  if (matchedByHeuristic) {
+    return { event: matchedByHeuristic, matchedByFixtureId: false };
   }
 
-  return { event: matchedByHeuristic, matchedByFixtureId: false };
+  // ── Second pass: JS-side fuzzy match ─────────────────────────────────────
+  // API-Football uses full official names ("Club Atlético Boca Juniors") while
+  // scrapers store abbreviated names ("Boca Juniors"). Strip noise tokens and
+  // compare with a substring containment check.
+  const homeStripped = normaliseNameFuzzy(fixture.teams.home.name);
+  const awayStripped = normaliseNameFuzzy(fixture.teams.away.name);
+
+  if (!homeStripped || !awayStripped) return null;
+
+  const candidates = await prisma.sportEvent.findMany({
+    where: {
+      sport: PrismaSport.FOOTBALL,
+      eventDate: { gte: windowStart, lte: windowEnd },
+      status: { notIn: [EventStatus.CANCELLED, EventStatus.POSTPONED] },
+    },
+    select: {
+      id: true,
+      homeTeam: true,
+      awayTeam: true,
+      apiFootballFixtureId: true,
+      status: true,
+      homeScore: true,
+      awayScore: true,
+    },
+  });
+
+  for (const candidate of candidates) {
+    const dbHome = normaliseNameFuzzy(candidate.homeTeam);
+    const dbAway = normaliseNameFuzzy(candidate.awayTeam);
+    if (
+      dbHome.length > 1 && dbAway.length > 1 &&
+      (homeStripped.includes(dbHome) || dbHome.includes(homeStripped)) &&
+      (awayStripped.includes(dbAway) || dbAway.includes(awayStripped))
+    ) {
+      logger.debug('Team name fuzzy match (API-Football → DB)', {
+        apiHome: fixture.teams.home.name,
+        dbHome: candidate.homeTeam,
+        apiAway: fixture.teams.away.name,
+        dbAway: candidate.awayTeam,
+      });
+      return { event: candidate, matchedByFixtureId: false };
+    }
+  }
+
+  return null;
 }
 
 // ─── Core polling logic ───────────────────────────────────────────────────────
@@ -325,13 +399,41 @@ export async function syncEventStatuses(): Promise<{ updated: number; errors: nu
 // ─── Polling loop ─────────────────────────────────────────────────────────────
 
 let _pollInterval: NodeJS.Timeout | null = null;
+let _safetyNetInterval: NodeJS.Timeout | null = null;
+
+/**
+ * Runs the time-based LIVE/FINISHED safety-net cleanup every 60 seconds,
+ * independently of the API-Football polling loop and Bull jobs.
+ * This ensures stuck-LIVE events are cleaned up even when Bull stalls.
+ */
+function startSafetyNetInterval(): void {
+  if (_safetyNetInterval) return;
+
+  _safetyNetInterval = setInterval(() => {
+    updateEventStatuses().catch((err: unknown) =>
+      logger.error('Safety-net status cleanup failed', { error: err }),
+    );
+  }, 60_000);
+}
+
+function stopSafetyNetInterval(): void {
+  if (_safetyNetInterval) {
+    clearInterval(_safetyNetInterval);
+    _safetyNetInterval = null;
+  }
+}
 
 /**
  * Starts the 30-second polling loop.
  * Call once at app startup after the Socket.io server is initialised.
  * If API_FOOTBALL_KEY is not set, logs a warning and returns — no polling.
+ * The time-based safety-net cleanup runs independently regardless.
  */
 export function startEventStatusPolling(): void {
+  // Always start the time-based safety-net cleanup (LIVE→FINISHED, UPCOMING→LIVE)
+  // so it runs even when API_FOOTBALL_KEY isn't set or Bull jobs are stalled.
+  startSafetyNetInterval();
+
   if (!process.env.API_FOOTBALL_KEY) {
     logger.warn(
       'API_FOOTBALL_KEY is not set — real-time match status polling is disabled. ' +
@@ -361,6 +463,8 @@ export function startEventStatusPolling(): void {
  * Stops the polling loop. Called during graceful shutdown.
  */
 export function stopEventStatusPolling(): void {
+  stopSafetyNetInterval();
+
   if (_pollInterval) {
     clearInterval(_pollInterval);
     _pollInterval = null;

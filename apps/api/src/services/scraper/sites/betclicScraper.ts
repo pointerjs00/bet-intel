@@ -11,8 +11,8 @@
  * - PUPPETEER_EXECUTABLE_PATH env var → system Chromium in Docker
  */
 
+import { execSync } from 'child_process';
 import * as fs from 'fs';
-import * as https from 'https';
 import * as path from 'path';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -94,7 +94,6 @@ interface ProtoSummaryEntry {
   value: string | number;
 }
 
-const API_ENRICH_CONCURRENCY = 4;
 const DETAIL_FALLBACK_LIMIT = 8;
 const API_MARKET_MINIMUM = 2;
 const BETCLIC_MATCH_API_PATH = '/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification';
@@ -259,14 +258,22 @@ function parseBetclicEventDate(dateAttr?: string | null, dateText?: string | nul
   const timeOnlyMatch = normalisedText.match(/\b(\d{1,2}):(\d{2})\b/);
   if (timeOnlyMatch) {
     const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
-    return createDateInTimeZone(
+    const candidate = createDateInTimeZone(
       localReference.getFullYear(),
       localReference.getMonth() + 1,
       localReference.getDate(),
       Number(timeOnlyMatch[1]),
       Number(timeOnlyMatch[2]),
       BETCLIC_TIME_ZONE,
-    ).toISOString();
+    );
+    // Only use today if the kick-off time is still in the future.
+    // If the time has already passed we cannot know whether it belongs to
+    // today (a live/finished match) or tomorrow (an upcoming match shown
+    // without a day label) — skip rather than persist a wrong date.
+    if (candidate.getTime() <= referenceDate.getTime()) {
+      return null;
+    }
+    return candidate.toISOString();
   }
 
   return null;
@@ -605,51 +612,6 @@ function extractMarketsFromApiResponse(responseBody: Buffer, homeTeam: string, a
   return parsedMarkets;
 }
 
-async function fetchBetclicMatchMarkets(eventId: string, homeTeam: string, awayTeam: string): Promise<ScrapedMarket[]> {
-  const requestBody = buildGetMatchRequestBody(eventId);
-
-  const responseBuffer = await new Promise<Buffer>((resolve, reject) => {
-    const request = https.request({
-      method: 'POST',
-      hostname: 'offering.begmedia.com',
-      path: '/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification',
-      headers: {
-        accept: '*/*',
-        'accept-language': 'pt-PT,pt;q=0.9,en;q=0.8',
-        'content-length': requestBody.length,
-        'content-type': 'application/grpc-web+proto',
-        'ngsw-bypass': '1',
-        origin: 'https://www.betclic.pt',
-        referer: 'https://www.betclic.pt/',
-        'user-agent': randomUA(),
-        'x-bg-ref-brand': 'BETCLIC',
-        'x-bg-ref-platform': 'DESKTOP',
-        'x-bg-ref-regulator-zone': 'PT',
-        'x-bg-regulation': 'PT',
-        'x-grpc-web': '1',
-      },
-    }, (response) => {
-      const chunks: Buffer[] = [];
-      response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
-      response.on('end', () => {
-        const grpcStatus = response.headers['grpc-status'];
-        if (grpcStatus && grpcStatus !== '0') {
-          reject(new Error(`grpc-status ${grpcStatus}: ${String(response.headers['grpc-message'] ?? '')}`));
-          return;
-        }
-
-        resolve(Buffer.concat(chunks));
-      });
-    });
-
-    request.on('error', reject);
-    request.write(requestBody);
-    request.end();
-  });
-
-  return extractMarketsFromApiResponse(responseBuffer, homeTeam, awayTeam);
-}
-
 function tryParseInlineSelection(line: string): { selection: string; value: number } | null {
   const match = normaliseWhitespace(line).match(/^(.*?)\s+(\d+(?:[.,]\d+)?)$/);
   if (!match) {
@@ -870,6 +832,40 @@ function takeDebugHtmlSnapshot(page: Page, filenameBase: string): Promise<string
   return page.evaluate(() => document.documentElement?.outerHTML?.slice(0, 25_000) ?? '');
 }
 
+/**
+ * Kill any browser process that owns the given userDataDir, then wait briefly
+ * for the OS to release the lock before a new browser is launched.
+ *
+ * On Windows, Edge/Chromium holds a named-pipe lock on the profile directory.
+ * Deleting SingletonLock alone cannot break this OS-level lock — the owning
+ * process must exit first.  We target only processes whose command-line
+ * contains the profile folder basename (e.g. "betclic-catalogue" or
+ * "betclic-live"), so genuine user Edge windows are never affected.
+ *
+ * On Linux (Docker production), the lock is a plain symlink — just remove it.
+ */
+async function releaseProfileLock(profileDir: string): Promise<void> {
+  if (process.platform === 'win32') {
+    const keyword = path.basename(profileDir); // "betclic-catalogue" | "betclic-live"
+    try {
+      execSync(
+        `powershell -NoProfile -Command "Get-CimInstance Win32_Process | ` +
+        `Where-Object { $_.CommandLine -like '*${keyword}*' } | ` +
+        `ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"`,
+        { stdio: 'ignore', timeout: 8_000 },
+      );
+    } catch {
+      // No matching processes or PowerShell unavailable — safe to ignore.
+    }
+  } else {
+    // On Linux/Docker: SingletonLock is a symlink; remove it.
+    const lockFile = path.join(profileDir, 'SingletonLock');
+    try { fs.unlinkSync(lockFile); } catch { /* lock may not exist */ }
+  }
+  // Brief pause for the OS to fully release locks before the new launch.
+  await new Promise<void>((resolve) => { setTimeout(resolve, 400); });
+}
+
 // ─── Scraper class ────────────────────────────────────────────────────────────
 
 export class BetclicScraper implements IScraper {
@@ -879,15 +875,22 @@ export class BetclicScraper implements IScraper {
   async scrapeEvents(): Promise<ScrapedEvent[]> {
     let browser;
     try {
-      // Do NOT use a persistent userDataDir — Edge/Chromium leaves a named-pipe
-      // lock on the profile directory when the process crashes or is force-killed
-      // (e.g. ts-node-dev server restart). A fresh temp profile per launch is
-      // lock-free and avoids the browser hanging indefinitely on startup.
+      // Use a persistent userDataDir so cookies/session survive across launches.
+      // releaseProfileLock() kills any zombie browser holding the named-pipe lock
+      // (Windows) or removes the SingletonLock symlink (Linux) before we launch,
+      // preventing the "Failed to launch the browser process" hang on restarts.
+      const catalogueProfileDir = path.join(
+        process.cwd(),
+        '.scraper-profiles',
+        'betclic-catalogue',
+      );
+      await releaseProfileLock(catalogueProfileDir);
       browser = await puppeteer.launch({
         executablePath:
           process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
         headless: true,
         args: BROWSER_ARGS,
+        userDataDir: catalogueProfileDir,
       });
 
       const page = await browser.newPage();
@@ -960,7 +963,7 @@ export class BetclicScraper implements IScraper {
       const rawEvents = await this.extractEvents(page);
 
       if (rawEvents.length > 0) {
-        await this.enrichEventsFromApi(rawEvents, interceptedMatchResponses);
+        await this.enrichEventsFromApi(rawEvents, interceptedMatchResponses, page);
 
         const fallbackTargets = rawEvents
           .filter((event) => (event.detailMarkets?.length ?? 0) < API_MARKET_MINIMUM)
@@ -1007,16 +1010,22 @@ export class BetclicScraper implements IScraper {
   async startLiveWatch(
     onDispatch: (dispatch: BetclicLiveWatchDispatch) => Promise<void>,
   ): Promise<() => Promise<void>> {
-    // Do NOT use a persistent userDataDir for the live watcher.
-    // On Windows, a crashed or force-killed Chromium/Edge process leaves a named-pipe
-    // lock on the profile directory that prevents reuse until the zombie process exits.
-    // By omitting userDataDir, Puppeteer creates a fresh per-launch temp profile,
-    // which is always lock-free and gets cleaned up when the browser closes.
+    // Use a persistent userDataDir so cookies/session survive across watcher
+    // restarts — essential to pass Betclic's bot-detection on the first page load.
+    // releaseProfileLock() ensures no zombie process holds the named-pipe lock
+    // before we launch (Windows) or clears the SingletonLock symlink (Linux).
+    const liveProfileDir = path.join(
+      process.cwd(),
+      '.scraper-profiles',
+      'betclic-live',
+    );
+    await releaseProfileLock(liveProfileDir);
     const browser = await puppeteer.launch({
       executablePath:
         process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
       headless: true,
       args: BROWSER_ARGS,
+      userDataDir: liveProfileDir,
     });
 
     const page = await browser.newPage();
@@ -1436,6 +1445,7 @@ export class BetclicScraper implements IScraper {
   private async enrichEventsFromApi(
     rawEvents: RawEventData[],
     interceptedMatchResponses: ReadonlyMap<string, Buffer>,
+    page: Page,
   ): Promise<void> {
     const queue = rawEvents
       .map((event) => ({
@@ -1450,58 +1460,161 @@ export class BetclicScraper implements IScraper {
       sampleIds: queue.slice(0, 3).map((candidate) => candidate.eventId),
     });
 
-    let currentIndex = 0;
-    const workerCount = Math.min(API_ENRICH_CONCURRENCY, queue.length);
-
-    const workers = Array.from({ length: workerCount }, async () => {
-      while (currentIndex < queue.length) {
-        const candidate = queue[currentIndex];
-        currentIndex += 1;
-        if (!candidate) {
-          break;
-        }
-
-        try {
-          const interceptedResponse = interceptedMatchResponses.get(candidate.eventId);
-          const apiMarkets = interceptedResponse
-            ? extractMarketsFromApiResponse(
-                interceptedResponse,
-                candidate.event.homeTeam,
-                candidate.event.awayTeam,
-              )
-            : await fetchBetclicMatchMarkets(
-                candidate.eventId,
-                candidate.event.homeTeam,
-                candidate.event.awayTeam,
-              );
-
-          if (apiMarkets.length >= API_MARKET_MINIMUM) {
-            candidate.event.detailMarkets = apiMarkets;
-            logger.debug('BetclicScraper: enriched event from match API', {
-              event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-              eventId: candidate.eventId,
-              source: interceptedResponse ? 'page-network' : 'direct-fetch',
-              markets: apiMarkets.map((market) => market.market).slice(0, 12),
-            });
-          } else {
-            logger.debug('BetclicScraper: match API returned incomplete market set', {
-              event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
-              eventId: candidate.eventId,
-              source: interceptedResponse ? 'page-network' : 'direct-fetch',
-              markets: apiMarkets.map((market) => market.market),
-            });
-          }
-        } catch (error) {
-          logger.debug('BetclicScraper: match API enrichment failed', {
+    // ── Fast path: process already-intercepted responses from page network traffic ──
+    for (const candidate of queue) {
+      const interceptedResponse = interceptedMatchResponses.get(candidate.eventId);
+      if (!interceptedResponse) {
+        continue;
+      }
+      try {
+        const apiMarkets = extractMarketsFromApiResponse(
+          interceptedResponse,
+          candidate.event.homeTeam,
+          candidate.event.awayTeam,
+        );
+        if (apiMarkets.length >= API_MARKET_MINIMUM) {
+          candidate.event.detailMarkets = apiMarkets;
+          logger.debug('BetclicScraper: enriched event from match API', {
             event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
             eventId: candidate.eventId,
-            error: error instanceof Error ? error.message : JSON.stringify(error),
+            source: 'page-network',
+            markets: apiMarkets.map((m) => m.market).slice(0, 12),
           });
         }
+      } catch (err) {
+        logger.debug('BetclicScraper: failed to parse intercepted response', {
+          eventId: candidate.eventId,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
-    });
+    }
 
-    await Promise.all(workers);
+    // ── Browser fetch path: route remaining calls through Puppeteer page.evaluate ──
+    // This uses Edge/Chromium's TLS fingerprint + CORS credentials instead of a
+    // raw Node.js socket, which bypasses offering.begmedia.com rate-limiting.
+    const needFetch = queue.filter((c) => !interceptedMatchResponses.has(c.eventId));
+
+    if (needFetch.length === 0) {
+      return;
+    }
+
+    // Build serialisable request list for page.evaluate (Buffers → base64 strings)
+    const requests = needFetch.map((c) => ({
+      eventId: c.eventId,
+      bodyBase64: buildGetMatchRequestBody(c.eventId).toString('base64'),
+    }));
+
+    type BrowserFetchResult = { eventId: string; dataBase64: string | null; error: string | null };
+
+    let browserResults: BrowserFetchResult[] = [];
+    try {
+      // 60 s absolute cap: Promise.allSettled resolves even if some fetches fail.
+      browserResults = await page.evaluate(async (reqs) => {
+        const results: Array<{ eventId: string; dataBase64: string | null; error: string | null }> = [];
+
+        await Promise.allSettled(
+          reqs.map(async ({ eventId, bodyBase64 }: { eventId: string; bodyBase64: string }) => {
+            try {
+              // Decode base64 → Uint8Array for fetch body
+              const binaryStr = atob(bodyBase64);
+              const body = new Uint8Array(binaryStr.length);
+              for (let i = 0; i < binaryStr.length; i++) {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                body[i] = binaryStr.charCodeAt(i);
+              }
+
+              const ctrl = new AbortController();
+              const timer = setTimeout(() => ctrl.abort(), 15_000);
+
+              const response = await fetch(
+                'https://offering.begmedia.com/web/offering.access.api/offering.access.api.MatchService/GetMatchWithNotification',
+                {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: {
+                    'content-type': 'application/grpc-web+proto',
+                    'x-grpc-web': '1',
+                    'x-bg-ref-brand': 'BETCLIC',
+                    'x-bg-ref-platform': 'DESKTOP',
+                    'x-bg-ref-regulator-zone': 'PT',
+                    'x-bg-regulation': 'PT',
+                    'ngsw-bypass': '1',
+                  },
+                  body,
+                  signal: ctrl.signal,
+                },
+              );
+              clearTimeout(timer);
+
+              const buffer = await response.arrayBuffer();
+              const bytes = new Uint8Array(buffer);
+              let binary = '';
+              for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i] as number);
+              }
+              results.push({ eventId, dataBase64: btoa(binary), error: null });
+            } catch (err) {
+              results.push({ eventId, dataBase64: null, error: String(err) });
+            }
+          }),
+        );
+
+        return results;
+      }, requests);
+    } catch (evalErr) {
+      logger.debug('BetclicScraper: browser-side enrichment threw', {
+        error: evalErr instanceof Error ? evalErr.message : String(evalErr),
+      });
+    }
+
+    // ── Parse browser fetch results ──
+    for (const result of browserResults) {
+      const candidate = needFetch.find((c) => c.eventId === result.eventId);
+      if (!candidate) {
+        continue;
+      }
+
+      if (!result.dataBase64) {
+        logger.debug('BetclicScraper: match API enrichment failed', {
+          event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+          eventId: result.eventId,
+          source: 'browser-fetch',
+          error: result.error,
+        });
+        continue;
+      }
+
+      try {
+        const buf = Buffer.from(result.dataBase64, 'base64');
+        const apiMarkets = extractMarketsFromApiResponse(
+          buf,
+          candidate.event.homeTeam,
+          candidate.event.awayTeam,
+        );
+
+        if (apiMarkets.length >= API_MARKET_MINIMUM) {
+          candidate.event.detailMarkets = apiMarkets;
+          logger.debug('BetclicScraper: enriched event from match API', {
+            event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+            eventId: result.eventId,
+            source: 'browser-fetch',
+            markets: apiMarkets.map((m) => m.market).slice(0, 12),
+          });
+        } else {
+          logger.debug('BetclicScraper: match API returned incomplete market set', {
+            event: `${candidate.event.homeTeam} vs ${candidate.event.awayTeam}`,
+            eventId: result.eventId,
+            source: 'browser-fetch',
+            markets: apiMarkets.map((m) => m.market),
+          });
+        }
+      } catch (parseErr) {
+        logger.debug('BetclicScraper: failed to parse browser fetch response', {
+          eventId: result.eventId,
+          error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+        });
+      }
+    }
   }
 
   private async enrichEventsFromDetailPages(page: Page, rawEvents: RawEventData[]): Promise<void> {
@@ -1683,14 +1796,22 @@ export class BetclicScraper implements IScraper {
         const timeOnlyMatch = normalisedText.match(/\b(\d{1,2}):(\d{2})\b/);
         if (timeOnlyMatch) {
           const localReference = new Date(referenceDate.toLocaleString('en-US', { timeZone: BETCLIC_TIME_ZONE }));
-          return createBrowserDateInTimeZone(
+          const candidate = createBrowserDateInTimeZone(
             localReference.getFullYear(),
             localReference.getMonth() + 1,
             localReference.getDate(),
             Number(timeOnlyMatch[1]),
             Number(timeOnlyMatch[2]),
             BETCLIC_TIME_ZONE,
-          ).toISOString();
+          );
+          // Only trust today's date when the kick-off time is still in the
+          // future. If it has already passed we cannot distinguish between a
+          // live/finished match and an upcoming match shown without a day
+          // label — skip rather than store a wrong date.
+          if (candidate.getTime() <= referenceDate.getTime()) {
+            return null;
+          }
+          return candidate.toISOString();
         }
 
         return null;

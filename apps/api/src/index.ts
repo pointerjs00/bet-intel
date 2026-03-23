@@ -96,7 +96,32 @@ app.use((err: AppError, _req: Request, res: Response, _next: NextFunction) => {
 
 const PORT = Number(process.env.PORT ?? 3000);
 
+/**
+ * Wait for PostgreSQL to accept connections before starting the app.
+ * Retries up to `maxAttempts` times with exponential back-off (cap 10 s).
+ * Throws if the DB is still unavailable after all attempts.
+ */
+async function waitForDatabase(maxAttempts = 60): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      if (attempt > 1) {
+        logger.info('Database is ready', { attempt });
+      }
+      return;
+    } catch {
+      const delayMs = Math.min(1_000 * attempt, 10_000); // 1 s, 2 s … 10 s
+      logger.warn('Database not ready — retrying', { attempt, maxAttempts, retryInMs: delayMs });
+      await new Promise<void>((resolve) => { setTimeout(resolve, delayMs); });
+    }
+  }
+  throw new Error(`Database did not become ready after ${maxAttempts} attempts`);
+}
+
 async function start(): Promise<void> {
+  // Wait for PostgreSQL to finish recovery before any queries run.
+  await waitForDatabase();
+
   // Warm Redis connection (lazyConnect means it doesn't auto-connect)
   await redis.connect().catch(() => {
     // Already connected or will retry on first command — non-fatal at startup
@@ -113,7 +138,12 @@ async function start(): Promise<void> {
   startEventStatusPolling();
 
   // Start the long-lived Betclic live watcher for incremental odds persistence.
-  await startBetclicLiveWatcher();
+  // Non-fatal: a missing/broken browser should not prevent the API from starting.
+  await startBetclicLiveWatcher().catch((err: unknown) => {
+    logger.warn('Betclic live watcher failed to start — live odds will rely on Bull queue scraping only', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
 
   // Start scraping job queue
   await initScrapeJobs();
@@ -137,7 +167,10 @@ async function start(): Promise<void> {
 }
 
 start().catch((err: unknown) => {
-  logger.error('Failed to start server', { error: err });
+  logger.error('Failed to start server', {
+    error: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  });
   process.exit(1);
 });
 

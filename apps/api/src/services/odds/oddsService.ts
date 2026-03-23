@@ -428,6 +428,7 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
   const now = new Date();
   const liveFinishCutoff     = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 h safety net
   const upcomingFinishCutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 h
+  const recentOddsCutoff     = new Date(now.getTime() - 10 * 60 * 1000);      // 10 min
 
   // LIVE events whose kick-off was 3+ hours ago → mark FINISHED (safety net only)
   const liveExpiredResult = await prisma.sportEvent.updateMany({
@@ -438,7 +439,19 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
     data: { status: 'FINISHED' as never },
   });
 
-  // UPCOMING events whose kick-off was 4+ hours ago → mark FINISHED
+  // LIVE events with NO active odds → mark FINISHED immediately.
+  // The scraper registry deactivates odds for LIVE events it no longer sees
+  // (scraperRegistry.ts global cleanup). Once all odds are deactivated the
+  // event was a ghost / has wrong data and should not stay LIVE indefinitely.
+  const liveNoOddsResult = await prisma.sportEvent.updateMany({
+    where: {
+      status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
+      odds: { none: { isActive: true } },
+    },
+    data: { status: 'FINISHED' as never },
+  });
+
+  // UPCOMING events whose kick-off was 2+ hours ago → mark FINISHED
   // (Never picked up by the status API — cancelled or outside coverage)
   const upcomingExpiredResult = await prisma.sportEvent.updateMany({
     where: {
@@ -448,8 +461,34 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
     data: { status: 'FINISHED' as never },
   });
 
-  const toLive = 0; // UPCOMING→LIVE is now done by eventStatusService, not here
-  const toFinished = liveExpiredResult.count + upcomingExpiredResult.count;
+  // UPCOMING → LIVE safety net: kick-off has passed but within the 2-hour window,
+  // AND the event has at least one active odd updated within the last 10 minutes.
+  // The odds recency guard prevents events with stale or wrong kick-off dates
+  // from being ghost-promoted to LIVE when no scraper is actively seeing them.
+  const livePromotionCandidates = await prisma.sportEvent.findMany({
+    where: {
+      status: 'UPCOMING' as unknown as Prisma.EnumEventStatusFilter['equals'],
+      eventDate: { lte: now, gte: upcomingFinishCutoff },
+      odds: {
+        some: {
+          isActive: true,
+          updatedAt: { gte: recentOddsCutoff },
+        },
+      },
+    },
+    select: { id: true },
+  });
+
+  let toLive = 0;
+  if (livePromotionCandidates.length > 0) {
+    const promotionResult = await prisma.sportEvent.updateMany({
+      where: { id: { in: livePromotionCandidates.map((e) => e.id) } },
+      data: { status: 'LIVE' as never },
+    });
+    toLive = promotionResult.count;
+  }
+
+  const toFinished = liveExpiredResult.count + liveNoOddsResult.count + upcomingExpiredResult.count;
 
   if (toFinished > 0) {
     await invalidateOddsCache();
