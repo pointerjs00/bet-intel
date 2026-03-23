@@ -30,6 +30,7 @@ puppeteer.use(StealthPlugin());
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const FOOTBALL_URL = 'https://www.betclic.pt/futebol-s1';
+const BETCLIC_LIVE_URL = 'https://www.betclic.pt/live';
 const BETCLIC_HOME_URL = 'https://www.betclic.pt/';
 
 /** Pool of real browser UA strings — one is picked at random per session */
@@ -1104,10 +1105,10 @@ export class BetclicScraper implements IScraper {
 
       refreshInFlight = true;
       try {
-        logger.debug('Betclic live watcher: refreshing catalogue');
-        const ready = await this.navigateToFootballCatalogue(page, 'live-watch');
+        logger.debug('Betclic live watcher: refreshing live page');
+        const ready = await this.navigateToLivePage(page, 'live-watch');
         if (!ready) {
-          logger.warn('Betclic live watcher: football catalogue unavailable after retries');
+          logger.warn('Betclic live watcher: live page unavailable after retries');
           return;
         }
 
@@ -1132,12 +1133,10 @@ export class BetclicScraper implements IScraper {
             continue;
           }
 
-          const eventDate = new Date(rawEvent.eventDateIso);
-          const minutesSinceStart = (Date.now() - eventDate.getTime()) / 60_000;
-          const withinLiveWindow = minutesSinceStart >= 0 && minutesSinceStart <= 150;
-          if (!rawEvent.isLive && !withinLiveWindow) {
-            continue;
-          }
+          // All events on betclic.pt/live are live — no isLive/withinLiveWindow
+          // guard needed (that was for the pre-match page which mixed upcoming events).
+          // Force isLive=true so scraperRegistry treats them correctly.
+          rawEvent.isLive = true;
 
           const previous = liveEventsById.get(eventId);
           if ((rawEvent.detailMarkets?.length ?? 0) === 0 && previous?.detailMarkets?.length) {
@@ -1394,6 +1393,62 @@ export class BetclicScraper implements IScraper {
         targetUrl: FOOTBALL_URL,
       });
       await randomDelay(3000 * attempt, 4500 * attempt);
+    }
+
+    return false;
+  }
+
+  /**
+   * Navigates to the Betclic live betting section (betclic.pt/live).
+   * Used exclusively by the live watcher — the pre-match catalogue page
+   * does not show games already in progress.
+   */
+  private async navigateToLivePage(page: Page, context: string): Promise<boolean> {
+    for (let attempt = 1; attempt <= BETCLIC_NAVIGATION_RETRIES; attempt += 1) {
+      await this.configurePage(page);
+
+      logger.debug('BetclicScraper: navigating to live section', { context, attempt });
+
+      try {
+        const response = await page.goto(BETCLIC_LIVE_URL, {
+          referer: BETCLIC_HOME_URL,
+          timeout: BETCLIC_NAVIGATION_TIMEOUT_MS,
+          waitUntil: 'domcontentloaded',
+        });
+
+        await randomDelay(1200, 2200);
+        await this.dismissCookieConsent(page);
+        await this.waitForCookieOverlayToClear(page);
+
+        if (await this.isForbiddenPage(page, response)) {
+          logger.warn('BetclicScraper: live page returned forbidden response', { context, attempt });
+          await randomDelay(3000 * attempt, 4500 * attempt);
+          continue;
+        }
+
+        // Wait for the live event list to render (Angular SPA)
+        try {
+          await page.waitForFunction(
+            () => Boolean(
+              document.querySelector(
+                'sports-events-list, sport-event-listitem, a.cardEvent, [class*="cardEvent"]',
+              ),
+            ),
+            { timeout: 20_000 },
+          );
+        } catch {
+          // Angular still warming up — caller's waitForSelector will retry
+        }
+
+        return true;
+      } catch (err) {
+        logger.warn('BetclicScraper: live page navigation error', {
+          context,
+          attempt,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        await randomDelay(2000 * attempt, 3500 * attempt);
+      }
     }
 
     return false;
