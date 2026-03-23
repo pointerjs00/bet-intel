@@ -568,9 +568,18 @@ function extractMarketsFromApiResponse(responseBody: Buffer, homeTeam: string, a
   }
 
   const parsedMarkets: ScrapedMarket[] = [];
+  // Track seen canonical market names so that when multiple raw market names
+  // alias to the same canonical name (e.g. "Resultado" and "Resultado (Tempo
+  // Regulamentar)" both alias to "1X2"), only the FIRST occurrence is kept.
+  // In Betclic's proto response the live/in-play market appears before the
+  // suspended pre-match market, so first-wins gives us the live odds.
+  const seenCanonical = new Set<string>();
+
   for (const [marketName, selectionsMap] of markets.entries()) {
+    const canonicalMarket = DETAIL_MARKET_ALIASES[marketName] ?? marketName;
+
     const selections = filterSelectionsForMarket(
-      DETAIL_MARKET_ALIASES[marketName] ?? marketName,
+      canonicalMarket,
       Array.from(selectionsMap.entries()).map(([selection, value]) => ({
         selection,
         value,
@@ -583,10 +592,14 @@ function extractMarketsFromApiResponse(responseBody: Buffer, homeTeam: string, a
       continue;
     }
 
-    parsedMarkets.push({
-      market: DETAIL_MARKET_ALIASES[marketName] ?? marketName,
-      selections,
-    });
+    if (seenCanonical.has(canonicalMarket)) {
+      // A more-specific (live) market already claimed this canonical name —
+      // discard this duplicate (typically the suspended pre-match version).
+      continue;
+    }
+
+    seenCanonical.add(canonicalMarket);
+    parsedMarkets.push({ market: canonicalMarket, selections });
   }
 
   return parsedMarkets;
@@ -866,12 +879,15 @@ export class BetclicScraper implements IScraper {
   async scrapeEvents(): Promise<ScrapedEvent[]> {
     let browser;
     try {
+      // Do NOT use a persistent userDataDir — Edge/Chromium leaves a named-pipe
+      // lock on the profile directory when the process crashes or is force-killed
+      // (e.g. ts-node-dev server restart). A fresh temp profile per launch is
+      // lock-free and avoids the browser hanging indefinitely on startup.
       browser = await puppeteer.launch({
         executablePath:
           process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
         headless: true,
         args: BROWSER_ARGS,
-        userDataDir: path.join(process.cwd(), '.scraper-profiles', 'betclic-catalogue'),
       });
 
       const page = await browser.newPage();
@@ -991,12 +1007,16 @@ export class BetclicScraper implements IScraper {
   async startLiveWatch(
     onDispatch: (dispatch: BetclicLiveWatchDispatch) => Promise<void>,
   ): Promise<() => Promise<void>> {
+    // Do NOT use a persistent userDataDir for the live watcher.
+    // On Windows, a crashed or force-killed Chromium/Edge process leaves a named-pipe
+    // lock on the profile directory that prevents reuse until the zombie process exits.
+    // By omitting userDataDir, Puppeteer creates a fresh per-launch temp profile,
+    // which is always lock-free and gets cleaned up when the browser closes.
     const browser = await puppeteer.launch({
       executablePath:
         process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
       headless: true,
       args: BROWSER_ARGS,
-      userDataDir: path.join(process.cwd(), '.scraper-profiles', 'betclic-live'),
     });
 
     const page = await browser.newPage();
