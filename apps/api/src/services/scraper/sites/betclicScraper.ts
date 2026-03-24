@@ -57,23 +57,20 @@ const BROWSER_ARGS = [
 
 /**
  * Returns the browser args array, adding a proxy server arg when
- * SCRAPER_HTTP_PROXY is set (e.g. "http://user:pass@proxy-host:8080").
- * Hetzner datacenter IPs are commonly blocked by anti-bot systems — routing
- * through a residential proxy bypasses IP-level blocks without any other changes.
+ * SCRAPER_HTTP_PROXY is set (e.g. "http://user:pass@proxy-host:8080" or
+ * "socks5://user:pass@proxy-host:1080").
  *
- * For HTTP proxies: credentials stripped here, applied via page.authenticate().
- * For SOCKS5 proxies: credentials kept in the URL (Chromium handles them natively).
+ * Chromium's --proxy-server flag does NOT accept embedded credentials for
+ * either HTTP or SOCKS5 URLs — passing them causes ERR_NO_SUPPORTED_PROXIES.
+ * Credentials are always stripped here:
+ *   - HTTP proxy auth → applied separately via page.authenticate()
+ *   - SOCKS5 proxy auth → not supported by Puppeteer; proxy must be IP-whitelisted
  */
 function buildBrowserArgs(): string[] {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
   if (!proxy) return [...BROWSER_ARGS];
-  const isSocks = /^socks/i.test(proxy);
-  if (isSocks) {
-    // SOCKS5: pass full URL including credentials — Chromium supports this
-    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
-  }
-  // HTTP proxy: strip user:pass@ — Chromium rejects ERR_NO_SUPPORTED_PROXIES otherwise
-  const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
+  // Strip user:pass@ from any proxy URL scheme (http://, socks5://, etc.)
+  const proxyWithoutAuth = proxy.replace(/^([a-z0-9+.-]+:\/\/)[^@]+@/i, '$1');
   return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
 }
 

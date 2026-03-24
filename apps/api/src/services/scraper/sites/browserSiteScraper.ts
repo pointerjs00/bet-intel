@@ -28,14 +28,17 @@ const BROWSER_ARGS = [
   '--disable-gpu',
 ];
 
+/**
+ * Returns the browser args array, injecting --proxy-server when SCRAPER_HTTP_PROXY is set.
+ * Credentials are always stripped from the URL — Chromium rejects embedded credentials
+ * in --proxy-server for both HTTP and SOCKS5 (ERR_NO_SUPPORTED_PROXIES).
+ * HTTP proxy credentials are applied via page.authenticate(); SOCKS5 must be IP-whitelisted.
+ */
 function buildBrowserArgs(): string[] {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
   if (!proxy) return [...BROWSER_ARGS];
-  const isSocks = /^socks/i.test(proxy);
-  if (isSocks) {
-    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
-  }
-  const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
+  // Strip user:pass@ from any scheme (http://, socks5://, etc.)
+  const proxyWithoutAuth = proxy.replace(/^([a-z0-9+.-]+:\/\/)[^@]+@/i, '$1');
   return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
 }
 
