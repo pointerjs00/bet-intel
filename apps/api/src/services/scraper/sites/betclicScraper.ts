@@ -61,23 +61,26 @@ const BROWSER_ARGS = [
  * Hetzner datacenter IPs are commonly blocked by anti-bot systems — routing
  * through a residential proxy bypasses IP-level blocks without any other changes.
  *
- * Chromium's --proxy-server flag does NOT accept credentials in the URL.
- * Credentials are stripped here and applied via page.authenticate() instead.
+ * For HTTP proxies: credentials stripped here, applied via page.authenticate().
+ * For SOCKS5 proxies: credentials kept in the URL (Chromium handles them natively).
  */
 function buildBrowserArgs(): string[] {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
-  if (proxy) {
-    // Strip user:pass@ portion — Chromium rejects ERR_NO_SUPPORTED_PROXIES otherwise
-    const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
-    return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
+  if (!proxy) return [...BROWSER_ARGS];
+  const isSocks = /^socks/i.test(proxy);
+  if (isSocks) {
+    // SOCKS5: pass full URL including credentials — Chromium supports this
+    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
   }
-  return [...BROWSER_ARGS];
+  // HTTP proxy: strip user:pass@ — Chromium rejects ERR_NO_SUPPORTED_PROXIES otherwise
+  const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
+  return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
 }
 
-/** Extracts proxy credentials from SCRAPER_HTTP_PROXY for use with page.authenticate() */
+/** Extracts proxy credentials from SCRAPER_HTTP_PROXY for use with page.authenticate() (HTTP proxies only) */
 function getProxyCredentials(): { username: string; password: string } | null {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
-  if (!proxy) return null;
+  if (!proxy || /^socks/i.test(proxy)) return null;
   const match = proxy.match(/^https?:\/\/([^:@]+):([^@]+)@/);
   if (!match) return null;
   return { username: match[1], password: match[2] };

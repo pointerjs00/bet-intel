@@ -30,11 +30,13 @@ const BROWSER_ARGS = [
 
 function buildBrowserArgs(): string[] {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
-  if (proxy) {
-    const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
-    return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
+  if (!proxy) return [...BROWSER_ARGS];
+  const isSocks = /^socks/i.test(proxy);
+  if (isSocks) {
+    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
   }
-  return [...BROWSER_ARGS];
+  const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
+  return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
 }
 
 interface RawEventData {
@@ -112,7 +114,7 @@ export async function scrapeConfiguredFootballSite(
       'Accept-Language': config.acceptLanguage ?? 'pt-PT,pt;q=0.9,en;q=0.8',
     });
     await page.setViewport({ width: 1366, height: 768 });
-    // Proxy authentication
+    // Proxy authentication (HTTP proxies only — SOCKS5 handles creds in the URL)
     const proxyMatch = process.env.SCRAPER_HTTP_PROXY?.trim()?.match(/^https?:\/\/([^:@]+):([^@]+)@/);
     if (proxyMatch) {
       await page.authenticate({ username: proxyMatch[1], password: proxyMatch[2] });
