@@ -32,6 +32,11 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/src/prisma ./apps/api/prisma
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
+# With node-linker=hoisted, pnpm symlinks @betintel/shared → ../../packages/shared.
+# Docker BuildKit resolves that symlink at COPY time (before the shared build ran),
+# so node_modules/@betintel/shared may be empty. Override it with the real built output.
+COPY --from=builder /app/packages/shared/package.json ./node_modules/@betintel/shared/package.json
+COPY --from=builder /app/packages/shared/dist ./node_modules/@betintel/shared/dist
 
 WORKDIR /app/apps/api
 
