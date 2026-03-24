@@ -1097,12 +1097,15 @@ export class BetclicScraper implements IScraper {
         }
 
         try {
-          await page.waitForSelector(
-            'sports-events-list, sport-event-listitem, a.cardEvent, [class*="cardEvent"]',
+          // Wait for actual rendered cards, not just the Angular container shell.
+          // sports-events-list appears in the DOM before Angular populates it,
+          // so matching that element would cause extractEvents to fire too early.
+          await page.waitForFunction(
+            () => document.querySelectorAll('a.cardEvent, sport-event-listitem').length > 0,
             { timeout: 25_000 },
           );
         } catch {
-          logger.warn('Betclic live watcher: event list selector not found');
+          logger.warn('Betclic live watcher: no event cards rendered after 25 s');
           return;
         }
 
@@ -1394,10 +1397,34 @@ export class BetclicScraper implements IScraper {
       logger.debug('BetclicScraper: navigating to live section', { context, attempt });
 
       try {
+        // Angular SPA requires a session warm-up at the homepage (same pattern as
+        // navigateToFootballCatalogue). Without this, betclic.pt/live loads as a
+        // bare bootstrap shell and never hydrates — resulting in 0 events extracted.
+        // Skip the warm-up if we're already on a Betclic page (subsequent refreshes).
+        const currentUrl = page.url();
+        if (!currentUrl.includes('betclic.pt')) {
+          const homeResponse = await page.goto(BETCLIC_HOME_URL, {
+            timeout: BETCLIC_NAVIGATION_TIMEOUT_MS,
+            waitUntil: 'networkidle2',
+          });
+
+          await randomDelay(1200, 2200);
+          await this.dismissCookieConsent(page);
+          await this.waitForCookieOverlayToClear(page);
+
+          if (await this.isForbiddenPage(page, homeResponse)) {
+            logger.warn('BetclicScraper: live watcher homepage warm-up forbidden', { context, attempt });
+            await randomDelay(3000 * attempt, 4500 * attempt);
+            continue;
+          }
+
+          await randomDelay(600, 1200);
+        }
+
         const response = await page.goto(BETCLIC_LIVE_URL, {
           referer: BETCLIC_HOME_URL,
           timeout: BETCLIC_NAVIGATION_TIMEOUT_MS,
-          waitUntil: 'domcontentloaded',
+          waitUntil: 'networkidle2',
         });
 
         await randomDelay(1200, 2200);
@@ -1410,18 +1437,16 @@ export class BetclicScraper implements IScraper {
           continue;
         }
 
-        // Wait for the live event list to render (Angular SPA)
+        // Wait for actual event cards — not just the Angular container element
+        // (sports-events-list exists in the DOM before Angular renders its children).
         try {
           await page.waitForFunction(
-            () => Boolean(
-              document.querySelector(
-                'sports-events-list, sport-event-listitem, a.cardEvent, [class*="cardEvent"]',
-              ),
-            ),
+            () => document.querySelectorAll('a.cardEvent, sport-event-listitem').length > 0,
             { timeout: 20_000 },
           );
         } catch {
-          // Angular still warming up — caller's waitForSelector will retry
+          // No card appeared within the timeout; extractEvents will return 0 and
+          // the caller will log the empty result.
         }
 
         return true;
