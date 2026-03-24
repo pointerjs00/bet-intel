@@ -37,18 +37,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download API image
-        run: |
-          docker pull ghcr.io/${{ github.repository }}/betintel-api:latest
-          docker save ghcr.io/${{ github.repository }}/betintel-api:latest | gzip > "$RUNNER_TEMP/betintel-api.tar.gz"
-
       - name: Create deploy env file
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -83,7 +71,7 @@ jobs:
           LOG_LEVEL=${LOG_LEVEL:-info}
           EOF
 
-      - name: Upload Docker Compose file
+      - name: Upload config files to server
         env:
           HETZNER_HOST: ${{ secrets.HETZNER_HOST }}
           HETZNER_USER: ${{ secrets.HETZNER_USER }}
@@ -92,10 +80,9 @@ jobs:
           mkdir -p "$HOME/.ssh"
           printf '%s\n' "$HETZNER_SSH_KEY" > "$HOME/.ssh/hetzner_key"
           chmod 600 "$HOME/.ssh/hetzner_key"
-          ssh -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no "$HETZNER_USER@$HETZNER_HOST" 'mkdir -p ~/betintel/apps/api ~/betintel/images'
+          ssh -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no "$HETZNER_USER@$HETZNER_HOST" 'mkdir -p ~/betintel/apps/api'
           scp -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no apps/api/docker-compose.yml "$HETZNER_USER@$HETZNER_HOST:~/betintel/apps/api/docker-compose.yml"
           scp -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no "$RUNNER_TEMP/api.env" "$HETZNER_USER@$HETZNER_HOST:~/betintel/apps/api/.env"
-          scp -i "$HOME/.ssh/hetzner_key" -o StrictHostKeyChecking=no "$RUNNER_TEMP/betintel-api.tar.gz" "$HETZNER_USER@$HETZNER_HOST:~/betintel/images/betintel-api.tar.gz"
 
       - name: Deploy to Hetzner via SSH
         uses: appleboy/ssh-action@v1
@@ -103,15 +90,17 @@ jobs:
           host: ${{ secrets.HETZNER_HOST }}
           username: ${{ secrets.HETZNER_USER }}
           key: ${{ secrets.HETZNER_SSH_KEY }}
+          # The server pulls the image directly from GHCR — no SCP transfer needed.
+          # This avoids uploading a 1-2 GB tar.gz through the runner.
           script: |
-            export GITHUB_REPO=${{ github.repository }}
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/${{ github.repository }}/betintel-api:latest
+            docker network inspect app_network >/dev/null 2>&1 || docker network create app_network
             COMPOSE_FILE="$HOME/betintel/apps/api/docker-compose.yml"
             ENV_FILE="$HOME/betintel/apps/api/.env"
-            IMAGE_ARCHIVE="$HOME/betintel/images/betintel-api.tar.gz"
-            gunzip -c "$IMAGE_ARCHIVE" | docker load
-            docker network inspect app_network >/dev/null 2>&1 || docker network create app_network
             if command -v docker-compose >/dev/null 2>&1; then
               docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api
             else
               docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api
             fi
+            docker image prune -f
