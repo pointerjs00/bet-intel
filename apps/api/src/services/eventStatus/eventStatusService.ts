@@ -450,13 +450,20 @@ export function startEventStatusPolling(): void {
     logger.error('Initial event status sync failed', { error: err }),
   );
 
+  // Default: 1 hour = 72 req/day (3 req/cycle × 24 cycles) — within free tier (100/day).
+  // Set API_FOOTBALL_POLL_INTERVAL_MS to a lower value on a paid API-Football plan.
+  const pollIntervalMs = parseInt(
+    process.env.API_FOOTBALL_POLL_INTERVAL_MS ?? '3600000',
+    10,
+  );
+
   _pollInterval = setInterval(() => {
     syncEventStatuses().catch((err: unknown) =>
       logger.error('Event status sync failed', { error: err }),
     );
-  }, 30_000); // 30 seconds
+  }, pollIntervalMs);
 
-  logger.info('Event status polling started (30s interval, API-Football)');
+  logger.info(`Event status polling started (${pollIntervalMs / 60_000} min interval, API-Football)`);
 }
 
 /**

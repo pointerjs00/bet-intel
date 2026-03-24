@@ -5,13 +5,6 @@ import type { IScraper, ScrapedEvent } from './types';
 import { emitOddsUpdated } from '../../sockets/oddsSocket';
 import type { OddsUpdatedPayload } from '@betintel/shared';
 import { invalidateOddsCache } from '../odds/oddsService';
-import { BetanoScraper } from './sites/betanoScraper';
-import { Bet365Scraper } from './sites/bet365Scraper';
-import { BetclicScraper } from './sites/betclicScraper';
-import { EscOnlineScraper } from './sites/escOnlineScraper';
-import { MooshScraper } from './sites/mooshScraper';
-import { PlacardScraper } from './sites/placardScraper';
-import { SolverdeScraper } from './sites/solverdeScraper';
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
@@ -50,16 +43,11 @@ export function getScraper(slug: string): IScraper | undefined {
   return registry.get(slug);
 }
 
-/** Registers the built-in scraper set used by scheduled scrape jobs. */
-export function registerDefaultScrapers(): void {
-  registerScraper(new BetclicScraper());
-  // registerScraper(new PlacardScraper());   // disabled — selector failures, re-enable when fixed
-  // registerScraper(new BetanoScraper());    // disabled — selector failures, re-enable when fixed
-  // registerScraper(new Bet365Scraper());    // disabled — bot-detection, re-enable when fixed
-  // registerScraper(new EscOnlineScraper()); // disabled — selector failures, re-enable when fixed
-  // registerScraper(new MooshScraper());     // disabled — selector failures, re-enable when fixed
-  // registerScraper(new SolverdeScraper());  // disabled — selector failures, re-enable when fixed
-}
+/**
+ * No-op — Puppeteer scrapers removed. Odds are now fetched via The Odds API
+ * (see services/odds/oddsApiService.ts). Kept for backwards-compat import.
+ */
+export function registerDefaultScrapers(): void {}
 
 // ─── Runner ───────────────────────────────────────────────────────────────────
 
