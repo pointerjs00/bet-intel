@@ -19,6 +19,7 @@ import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 import puppeteerCore from 'puppeteer-core';
 import type { HTTPRequest, HTTPResponse, Page } from 'puppeteer-core';
+import * as proxyChain from 'proxy-chain';
 import { Sport } from '@betintel/shared';
 import { logger } from '../../../utils/logger';
 import type { IScraper, ScrapedEvent, ScrapedMarket } from '../types';
@@ -55,32 +56,30 @@ const BROWSER_ARGS = [
   '--window-size=1366,768',
 ];
 
+/** Per-process cache of the proxy-chain local proxy URL. */
+let _localProxyUrl: string | undefined;
+
 /**
- * Returns the browser args array, adding a proxy server arg when
- * SCRAPER_HTTP_PROXY is set (e.g. "http://user:pass@proxy-host:8080" or
- * "socks5://user:pass@proxy-host:1080").
- *
- * Chromium's --proxy-server flag does NOT accept embedded credentials for
- * either HTTP or SOCKS5 URLs — passing them causes ERR_NO_SUPPORTED_PROXIES.
- * Credentials are always stripped here:
- *   - HTTP proxy auth → applied separately via page.authenticate()
- *   - SOCKS5 proxy auth → not supported by Puppeteer; proxy must be IP-whitelisted
+ * Returns a local unauthenticated proxy URL (http://127.0.0.1:PORT) via proxy-chain.
+ * proxy-chain bridges the connection to SCRAPER_HTTP_PROXY with full credential support,
+ * so Chromium never needs to handle auth — no ERR_NO_SUPPORTED_PROXIES / ERR_TUNNEL_CONNECTION_FAILED.
+ * Supports both HTTP and SOCKS5 proxies with username:password.
+ * Created once per process and reused across all browser sessions.
  */
-function buildBrowserArgs(): string[] {
+async function getLocalProxyUrl(): Promise<string | undefined> {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
-  if (!proxy) return [...BROWSER_ARGS];
-  // Strip user:pass@ from any proxy URL scheme (http://, socks5://, etc.)
-  const proxyWithoutAuth = proxy.replace(/^([a-z0-9+.-]+:\/\/)[^@]+@/i, '$1');
-  return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
+  if (!proxy) return undefined;
+  if (!_localProxyUrl) {
+    _localProxyUrl = await proxyChain.anonymizeProxy(proxy);
+    logger.info('Proxy chain: local bridge started', { localUrl: _localProxyUrl });
+  }
+  return _localProxyUrl;
 }
 
-/** Extracts proxy credentials from SCRAPER_HTTP_PROXY for use with page.authenticate() (HTTP proxies only) */
-function getProxyCredentials(): { username: string; password: string } | null {
-  const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
-  if (!proxy || /^socks/i.test(proxy)) return null;
-  const match = proxy.match(/^https?:\/\/([^:@]+):([^@]+)@/);
-  if (!match) return null;
-  return { username: match[1], password: match[2] };
+/** Returns Chromium launch args, routing traffic through the local proxy-chain bridge if configured. */
+function buildBrowserArgs(localProxyUrl?: string): string[] {
+  if (!localProxyUrl) return [...BROWSER_ARGS];
+  return [...BROWSER_ARGS, `--proxy-server=${localProxyUrl}`];
 }
 
 // ─── Internal types (DOM-serialisable — used inside page.evaluate()) ──────────
@@ -898,11 +897,12 @@ export class BetclicScraper implements IScraper {
         'betclic-catalogue',
       );
       await releaseProfileLock(catalogueProfileDir);
+      const scrapeProxyUrl = await getLocalProxyUrl();
       browser = await puppeteer.launch({
         executablePath:
           process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
         headless: true,
-        args: buildBrowserArgs(),
+        args: buildBrowserArgs(scrapeProxyUrl),
         userDataDir: catalogueProfileDir,
       });
 
@@ -1033,11 +1033,12 @@ export class BetclicScraper implements IScraper {
       'betclic-live',
     );
     await releaseProfileLock(liveProfileDir);
+    const liveProxyUrl = await getLocalProxyUrl();
     const browser = await puppeteer.launch({
       executablePath:
         process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
       headless: true,
-      args: buildBrowserArgs(),
+      args: buildBrowserArgs(liveProxyUrl),
       userDataDir: liveProfileDir,
     });
 
@@ -1305,11 +1306,6 @@ export class BetclicScraper implements IScraper {
     });
     await page.setViewport({ width: 1366, height: 768 });
     await page.emulateTimezone(BETCLIC_TIME_ZONE).catch(() => undefined);
-    // Proxy authentication — required when SCRAPER_HTTP_PROXY includes credentials
-    const proxyCreds = getProxyCredentials();
-    if (proxyCreds) {
-      await page.authenticate(proxyCreds);
-    }
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'language', {
         configurable: true,

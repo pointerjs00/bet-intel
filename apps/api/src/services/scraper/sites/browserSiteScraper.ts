@@ -3,6 +3,7 @@ import * as path from 'path';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import puppeteerCore, { type HTTPRequest, type HTTPResponse, type Page } from 'puppeteer-core';
+import * as proxyChain from 'proxy-chain';
 import { Sport } from '@betintel/shared';
 import { logger } from '../../../utils/logger';
 import type { ScrapedEvent, ScrapedMarket } from '../types';
@@ -28,18 +29,24 @@ const BROWSER_ARGS = [
   '--disable-gpu',
 ];
 
-/**
- * Returns the browser args array, injecting --proxy-server when SCRAPER_HTTP_PROXY is set.
- * Credentials are always stripped from the URL — Chromium rejects embedded credentials
- * in --proxy-server for both HTTP and SOCKS5 (ERR_NO_SUPPORTED_PROXIES).
- * HTTP proxy credentials are applied via page.authenticate(); SOCKS5 must be IP-whitelisted.
- */
-function buildBrowserArgs(): string[] {
+/** Per-process cache of the proxy-chain local proxy URL (shared with betclicScraper pattern). */
+let _localProxyUrl: string | undefined;
+
+/** Returns a local unauthenticated proxy URL via proxy-chain, or undefined if no proxy is configured. */
+async function getLocalProxyUrl(): Promise<string | undefined> {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
-  if (!proxy) return [...BROWSER_ARGS];
-  // Strip user:pass@ from any scheme (http://, socks5://, etc.)
-  const proxyWithoutAuth = proxy.replace(/^([a-z0-9+.-]+:\/\/)[^@]+@/i, '$1');
-  return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
+  if (!proxy) return undefined;
+  if (!_localProxyUrl) {
+    _localProxyUrl = await proxyChain.anonymizeProxy(proxy);
+    logger.info('Proxy chain: local bridge started', { localUrl: _localProxyUrl });
+  }
+  return _localProxyUrl;
+}
+
+/** Returns Chromium launch args with optional proxy-chain local URL. */
+function buildBrowserArgs(localProxyUrl?: string): string[] {
+  if (!localProxyUrl) return [...BROWSER_ARGS];
+  return [...BROWSER_ARGS, `--proxy-server=${localProxyUrl}`];
 }
 
 interface RawEventData {
@@ -103,11 +110,12 @@ export async function scrapeConfiguredFootballSite(
   let browser;
 
   try {
+    const localProxyUrl = await getLocalProxyUrl();
     browser = await puppeteer.launch({
       executablePath:
         process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
       headless: true,
-      args: buildBrowserArgs(),
+      args: buildBrowserArgs(localProxyUrl),
     });
 
     const page = await browser.newPage();
@@ -117,11 +125,6 @@ export async function scrapeConfiguredFootballSite(
       'Accept-Language': config.acceptLanguage ?? 'pt-PT,pt;q=0.9,en;q=0.8',
     });
     await page.setViewport({ width: 1366, height: 768 });
-    // Proxy authentication (HTTP proxies only — SOCKS5 handles creds in the URL)
-    const proxyMatch = process.env.SCRAPER_HTTP_PROXY?.trim()?.match(/^https?:\/\/([^:@]+):([^@]+)@/);
-    if (proxyMatch) {
-      await page.authenticate({ username: proxyMatch[1], password: proxyMatch[2] });
-    }
 
     // Collect JSON API responses from the SPA for fallback event extraction
     const interceptedApiResponses: Array<{ url: string; body: unknown }> = [];
