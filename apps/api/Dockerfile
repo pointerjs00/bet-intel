@@ -16,7 +16,7 @@ RUN pnpm --filter @betintel/shared build
 RUN pnpm --filter api build
 
 FROM node:20-alpine AS runner
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
+RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont openssl
 
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
