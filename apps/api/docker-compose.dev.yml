@@ -1,0 +1,34 @@
+# Local development stack — PostgreSQL + Redis only.
+# The API itself runs directly on your host with `pnpm dev`.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   docker compose -f docker-compose.dev.yml down
+#
+# Both services bind to localhost so the API can reach them at
+# localhost:5432 and localhost:6379 when running outside Docker.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: betintel_user
+      POSTGRES_PASSWORD: fortunageracional21
+      POSTGRES_DB: betintel
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_dev_data:/data
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
