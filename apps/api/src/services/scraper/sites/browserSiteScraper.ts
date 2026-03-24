@@ -31,7 +31,8 @@ const BROWSER_ARGS = [
 function buildBrowserArgs(): string[] {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
   if (proxy) {
-    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
+    const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
+    return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
   }
   return [...BROWSER_ARGS];
 }
@@ -111,6 +112,11 @@ export async function scrapeConfiguredFootballSite(
       'Accept-Language': config.acceptLanguage ?? 'pt-PT,pt;q=0.9,en;q=0.8',
     });
     await page.setViewport({ width: 1366, height: 768 });
+    // Proxy authentication
+    const proxyMatch = process.env.SCRAPER_HTTP_PROXY?.trim()?.match(/^https?:\/\/([^:@]+):([^@]+)@/);
+    if (proxyMatch) {
+      await page.authenticate({ username: proxyMatch[1], password: proxyMatch[2] });
+    }
 
     // Collect JSON API responses from the SPA for fallback event extraction
     const interceptedApiResponses: Array<{ url: string; body: unknown }> = [];

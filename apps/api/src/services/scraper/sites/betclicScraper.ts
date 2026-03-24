@@ -60,13 +60,27 @@ const BROWSER_ARGS = [
  * SCRAPER_HTTP_PROXY is set (e.g. "http://user:pass@proxy-host:8080").
  * Hetzner datacenter IPs are commonly blocked by anti-bot systems — routing
  * through a residential proxy bypasses IP-level blocks without any other changes.
+ *
+ * Chromium's --proxy-server flag does NOT accept credentials in the URL.
+ * Credentials are stripped here and applied via page.authenticate() instead.
  */
 function buildBrowserArgs(): string[] {
   const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
   if (proxy) {
-    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
+    // Strip user:pass@ portion — Chromium rejects ERR_NO_SUPPORTED_PROXIES otherwise
+    const proxyWithoutAuth = proxy.replace(/^(https?:\/\/)[^@]+@/, '$1');
+    return [...BROWSER_ARGS, `--proxy-server=${proxyWithoutAuth}`];
   }
   return [...BROWSER_ARGS];
+}
+
+/** Extracts proxy credentials from SCRAPER_HTTP_PROXY for use with page.authenticate() */
+function getProxyCredentials(): { username: string; password: string } | null {
+  const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
+  if (!proxy) return null;
+  const match = proxy.match(/^https?:\/\/([^:@]+):([^@]+)@/);
+  if (!match) return null;
+  return { username: match[1], password: match[2] };
 }
 
 // ─── Internal types (DOM-serialisable — used inside page.evaluate()) ──────────
@@ -1291,6 +1305,11 @@ export class BetclicScraper implements IScraper {
     });
     await page.setViewport({ width: 1366, height: 768 });
     await page.emulateTimezone(BETCLIC_TIME_ZONE).catch(() => undefined);
+    // Proxy authentication — required when SCRAPER_HTTP_PROXY includes credentials
+    const proxyCreds = getProxyCredentials();
+    if (proxyCreds) {
+      await page.authenticate(proxyCreds);
+    }
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'language', {
         configurable: true,
