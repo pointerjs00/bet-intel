@@ -53,6 +53,7 @@ jobs:
           ALLOWED_ORIGINS: ${{ secrets.ALLOWED_ORIGINS }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
+          SCRAPER_HTTP_PROXY: ${{ secrets.SCRAPER_HTTP_PROXY }}
         run: |
           cat > "$RUNNER_TEMP/api.env" <<EOF
           DATABASE_URL=${DATABASE_URL}
@@ -68,6 +69,7 @@ jobs:
           APP_URL=${APP_URL}
           ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
           API_FOOTBALL_KEY=${API_FOOTBALL_KEY}
+          SCRAPER_HTTP_PROXY=${SCRAPER_HTTP_PROXY}
           PORT=3000
           NODE_ENV=production
           LOG_LEVEL=${LOG_LEVEL:-info}

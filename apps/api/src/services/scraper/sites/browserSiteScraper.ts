@@ -28,6 +28,14 @@ const BROWSER_ARGS = [
   '--disable-gpu',
 ];
 
+function buildBrowserArgs(): string[] {
+  const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
+  if (proxy) {
+    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
+  }
+  return [...BROWSER_ARGS];
+}
+
 interface RawEventData {
   externalId: string;
   league: string;
@@ -93,7 +101,7 @@ export async function scrapeConfiguredFootballSite(
       executablePath:
         process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
       headless: true,
-      args: BROWSER_ARGS,
+      args: buildBrowserArgs(),
     });
 
     const page = await browser.newPage();

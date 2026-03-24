@@ -55,6 +55,20 @@ const BROWSER_ARGS = [
   '--window-size=1366,768',
 ];
 
+/**
+ * Returns the browser args array, adding a proxy server arg when
+ * SCRAPER_HTTP_PROXY is set (e.g. "http://user:pass@proxy-host:8080").
+ * Hetzner datacenter IPs are commonly blocked by anti-bot systems — routing
+ * through a residential proxy bypasses IP-level blocks without any other changes.
+ */
+function buildBrowserArgs(): string[] {
+  const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
+  if (proxy) {
+    return [...BROWSER_ARGS, `--proxy-server=${proxy}`];
+  }
+  return [...BROWSER_ARGS];
+}
+
 // ─── Internal types (DOM-serialisable — used inside page.evaluate()) ──────────
 
 interface RawEventData {
@@ -874,7 +888,7 @@ export class BetclicScraper implements IScraper {
         executablePath:
           process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
         headless: true,
-        args: BROWSER_ARGS,
+        args: buildBrowserArgs(),
         userDataDir: catalogueProfileDir,
       });
 
@@ -1009,7 +1023,7 @@ export class BetclicScraper implements IScraper {
       executablePath:
         process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium-browser',
       headless: true,
-      args: BROWSER_ARGS,
+      args: buildBrowserArgs(),
       userDataDir: liveProfileDir,
     });
 
