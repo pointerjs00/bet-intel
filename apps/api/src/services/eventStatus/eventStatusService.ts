@@ -97,6 +97,18 @@ function mapApiStatus(short: string): EventStatus | null {
   }
 }
 
+function mapApiLiveClock(short: string, elapsed: number | null): string | null {
+  if (short === 'HT' || short === 'INT' || short === 'BT') {
+    return 'Int.';
+  }
+
+  if (typeof elapsed === 'number' && Number.isFinite(elapsed) && elapsed > 0) {
+    return `${elapsed}'`;
+  }
+
+  return null;
+}
+
 // ─── HTTP helper ──────────────────────────────────────────────────────────────
 
 function apiGet(path: string, apiKey: string): Promise<unknown> {
@@ -152,6 +164,34 @@ const NOISE_TOKENS = new Set([
   'de', 'del', 'la', 'las', 'los', 'el', 'do', 'da', 'dos', 'das', 'van',
 ]);
 
+const COUNTRY_NAME_ALIASES = new Map<string, string>([
+  ['chipre', 'cyprus'],
+  ['moldavia', 'moldova'],
+  ['eua', 'usa'],
+  ['estados unidos', 'usa'],
+  ['serra leoa', 'sierra leone'],
+  ['pais de gales', 'wales'],
+  ['país de gales', 'wales'],
+  ['inglaterra', 'england'],
+  ['escocia', 'scotland'],
+  ['escócia', 'scotland'],
+  ['irlanda do norte', 'northern ireland'],
+  ['coreia do sul', 'south korea'],
+  ['coreia do norte', 'north korea'],
+  ['arabia saudita', 'saudi arabia'],
+  ['arábia saudita', 'saudi arabia'],
+  ['africa do sul', 'south africa'],
+  ['áfrica do sul', 'south africa'],
+  ['nova zelandia', 'new zealand'],
+  ['nova zelândia', 'new zealand'],
+  ['republica checa', 'czech republic'],
+  ['república checa', 'czech republic'],
+]);
+
+function applyCountryAlias(name: string): string {
+  return COUNTRY_NAME_ALIASES.get(name) ?? name;
+}
+
 /**
  * Strips diacritics, punctuation, and noise tokens so that API-Football's
  * official club names can be compared against abbreviated scraped names.
@@ -159,11 +199,15 @@ const NOISE_TOKENS = new Set([
  *          "Instituto AC de Córdoba" → "instituto cordoba"
  */
 function normaliseNameFuzzy(name: string): string {
-  return name
+  const normalised = name
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '') // strip diacritics (é→e, ó→o, ü→u)
     .replace(/[^a-z0-9\s]/g, ' ')    // punctuation → space
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return applyCountryAlias(normalised)
     .split(/\s+/)
     .filter((w) => w.length > 1 && !NOISE_TOKENS.has(w))
     .join(' ')
@@ -179,6 +223,7 @@ async function findEventForFixture(fixture: ApiFootballFixture) {
       status: true,
       homeScore: true,
       awayScore: true,
+      liveClock: true,
     },
   });
 
@@ -208,6 +253,7 @@ async function findEventForFixture(fixture: ApiFootballFixture) {
       status: true,
       homeScore: true,
       awayScore: true,
+      liveClock: true,
     },
   });
 
@@ -238,6 +284,7 @@ async function findEventForFixture(fixture: ApiFootballFixture) {
       status: true,
       homeScore: true,
       awayScore: true,
+      liveClock: true,
     },
   });
 
@@ -289,6 +336,7 @@ export async function syncEventStatuses(): Promise<{ updated: number; errors: nu
     status: SharedEventStatus;
     homeScore: number | null;
     awayScore: number | null;
+    liveClock: string | null;
   }> = [];
 
   try {
@@ -330,13 +378,16 @@ export async function syncEventStatuses(): Promise<{ updated: number; errors: nu
 
       const homeScore = fixture.goals.home;
       const awayScore = fixture.goals.away;
+      const liveClock = mapApiLiveClock(fixture.fixture.status.short, fixture.fixture.status.elapsed);
 
       const statusChanged = dbEvent.status !== newStatus;
       const homeScoreChanged = homeScore !== null && homeScore !== dbEvent.homeScore;
       const awayScoreChanged = awayScore !== null && awayScore !== dbEvent.awayScore;
       const fixtureIdChanged = dbEvent.apiFootballFixtureId !== fixture.fixture.id;
+      const nextLiveClock = newStatus === EventStatus.LIVE ? liveClock : null;
+      const liveClockChanged = nextLiveClock !== (dbEvent.liveClock ?? null);
 
-      if (!statusChanged && !homeScoreChanged && !awayScoreChanged && !fixtureIdChanged) continue;
+      if (!statusChanged && !homeScoreChanged && !awayScoreChanged && !fixtureIdChanged && !liveClockChanged) continue;
 
       try {
         await prisma.sportEvent.update({
@@ -346,6 +397,7 @@ export async function syncEventStatuses(): Promise<{ updated: number; errors: nu
             status: newStatus,
             ...(homeScore !== null ? { homeScore } : {}),
             ...(awayScore !== null ? { awayScore } : {}),
+            liveClock: nextLiveClock,
           },
         });
 
@@ -356,6 +408,7 @@ export async function syncEventStatuses(): Promise<{ updated: number; errors: nu
           status: newStatus as unknown as SharedEventStatus,
           homeScore: homeScore ?? dbEvent.homeScore,
           awayScore: awayScore ?? dbEvent.awayScore,
+          liveClock: nextLiveClock,
         });
 
         logger.debug('Event status synced from API-Football', {
@@ -366,6 +419,7 @@ export async function syncEventStatuses(): Promise<{ updated: number; errors: nu
           newStatus,
           homeScore,
           awayScore,
+          liveClock: nextLiveClock,
         });
       } catch (err) {
         errors++;
@@ -424,7 +478,12 @@ function stopSafetyNetInterval(): void {
 }
 
 /**
- * Starts the 30-second polling loop.
+ * Starts an adaptive polling loop for API-Football.
+ * When live events exist in the DB, polls every 5 minutes (fast mode).
+ * When no live events exist, polls every 1 hour (idle mode).
+ * This keeps API usage within the free tier (~100 req/day) during typical
+ * usage while providing timely score updates during live matches.
+ *
  * Call once at app startup after the Socket.io server is initialised.
  * If API_FOOTBALL_KEY is not set, logs a warning and returns — no polling.
  * The time-based safety-net cleanup runs independently regardless.
@@ -450,20 +509,49 @@ export function startEventStatusPolling(): void {
     logger.error('Initial event status sync failed', { error: err }),
   );
 
-  // Default: 1 hour = 72 req/day (3 req/cycle × 24 cycles) — within free tier (100/day).
-  // Set API_FOOTBALL_POLL_INTERVAL_MS to a lower value on a paid API-Football plan.
-  const pollIntervalMs = parseInt(
+  const FAST_INTERVAL_MS = 5 * 60 * 1000;   // 5 min when live events exist
+  const IDLE_INTERVAL_MS = parseInt(
     process.env.API_FOOTBALL_POLL_INTERVAL_MS ?? '3600000',
     10,
   );
 
+  let currentIntervalMs = IDLE_INTERVAL_MS;
+
+  const poll = async () => {
+    try {
+      await syncEventStatuses();
+
+      // Check if any live events exist to determine next poll interval
+      const liveCount = await prisma.sportEvent.count({
+        where: { status: EventStatus.LIVE as unknown as import('@prisma/client').Prisma.EnumEventStatusFilter['equals'] },
+      });
+
+      const desiredInterval = liveCount > 0 ? FAST_INTERVAL_MS : IDLE_INTERVAL_MS;
+      if (desiredInterval !== currentIntervalMs) {
+        currentIntervalMs = desiredInterval;
+        // Reschedule with new interval
+        if (_pollInterval) {
+          clearInterval(_pollInterval);
+          _pollInterval = setInterval(() => {
+            poll().catch((err: unknown) =>
+              logger.error('Event status sync failed', { error: err }),
+            );
+          }, currentIntervalMs);
+        }
+        logger.info(`API-Football poll interval changed to ${currentIntervalMs / 60_000} min (${liveCount} live events)`);
+      }
+    } catch (err) {
+      logger.error('Event status sync failed', { error: err });
+    }
+  };
+
   _pollInterval = setInterval(() => {
-    syncEventStatuses().catch((err: unknown) =>
+    poll().catch((err: unknown) =>
       logger.error('Event status sync failed', { error: err }),
     );
-  }, pollIntervalMs);
+  }, currentIntervalMs);
 
-  logger.info(`Event status polling started (${pollIntervalMs / 60_000} min interval, API-Football)`);
+  logger.info(`Event status polling started (${currentIntervalMs / 60_000} min initial interval, API-Football)`);
 }
 
 /**

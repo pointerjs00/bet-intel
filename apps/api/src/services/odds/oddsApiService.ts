@@ -40,17 +40,19 @@ const DEFAULT_SPORTS = [
   'soccer_england_premier_league',
 ];
 
-/** Bookmaker keys to request. The Odds API returns only these sites' odds. */
-const DEFAULT_BOOKMAKERS = [
-  'betclic',
-  'bet365',
-  'unibet',
-  'bwin',
-  'williamhill',
-];
+/**
+ * Portugal-facing legal bookmakers only.
+ *
+ * The first Odds API migration used a generic EU set, which surfaced brands
+ * the product should not show. Keep this list intentionally narrow and expand
+ * it only when we have confirmed the operator is in-scope for BetIntel.
+ */
+const DEFAULT_BOOKMAKERS = ['betclic', 'betano', 'solverde'];
+const SUPPORTED_BOOKMAKERS = new Set(DEFAULT_BOOKMAKERS);
 
 /** Market keys to request in each API call. */
-const DEFAULT_MARKETS = ['h2h', 'totals', 'btts'];
+const DEFAULT_MARKETS = ['h2h', 'totals'];
+const SUPPORTED_MARKETS = new Set(['h2h', 'totals']);
 
 // ─── The Odds API v4 response types ─────────────────────────────────────────
 
@@ -191,6 +193,11 @@ interface FetchResult {
   requestsUsed: number | null;
 }
 
+interface OddsApiErrorBody {
+  message?: string;
+  error_code?: string;
+}
+
 function oddsApiGet(path: string): Promise<FetchResult> {
   return new Promise((resolve, reject) => {
     const req = https.request(
@@ -212,8 +219,23 @@ function oddsApiGet(path: string): Promise<FetchResult> {
         const chunks: Buffer[] = [];
         res.on('data', (c: Buffer) => chunks.push(c));
         res.on('end', () => {
+          const rawBody = Buffer.concat(chunks).toString('utf8');
+
           try {
-            const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as OddsApiEvent[];
+            const parsedBody = JSON.parse(rawBody) as OddsApiEvent[] | OddsApiErrorBody;
+
+            if ((res.statusCode ?? 500) < 200 || (res.statusCode ?? 500) >= 300) {
+              const errorBody = parsedBody as OddsApiErrorBody;
+              reject(new Error(`The Odds API: ${res.statusCode} ${errorBody.error_code ?? 'REQUEST_FAILED'}${errorBody.message ? ` - ${errorBody.message}` : ''}`));
+              return;
+            }
+
+            if (!Array.isArray(parsedBody)) {
+              reject(new Error('The Odds API: expected an array response but received a different payload'));
+              return;
+            }
+
+            const body = parsedBody as OddsApiEvent[];
             resolve({ body, requestsRemaining, requestsUsed });
           } catch (e) {
             reject(new Error(`The Odds API: JSON parse failed: ${String(e)}`));
@@ -249,9 +271,43 @@ export async function fetchAndPersistOdds(): Promise<number> {
   }
 
   const sports = (process.env.ODDS_API_SPORTS ?? DEFAULT_SPORTS.join(',')).split(',').map((s) => s.trim()).filter(Boolean);
-  const bookmakers = (process.env.ODDS_API_BOOKMAKERS ?? DEFAULT_BOOKMAKERS.join(',')).split(',').map((b) => b.trim()).filter(Boolean);
-  const markets = (process.env.ODDS_API_MARKETS ?? DEFAULT_MARKETS.join(',')).split(',').map((m) => m.trim()).filter(Boolean);
+  const requestedBookmakers = (process.env.ODDS_API_BOOKMAKERS ?? DEFAULT_BOOKMAKERS.join(','))
+    .split(',')
+    .map((b) => b.trim())
+    .filter(Boolean);
+  const unsupportedBookmakers = requestedBookmakers.filter((bookmaker) => !SUPPORTED_BOOKMAKERS.has(bookmaker));
+  const bookmakers = requestedBookmakers.filter((bookmaker) => SUPPORTED_BOOKMAKERS.has(bookmaker));
+  const requestedMarkets = (process.env.ODDS_API_MARKETS ?? DEFAULT_MARKETS.join(','))
+    .split(',')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  const unsupportedMarkets = requestedMarkets.filter((market) => !SUPPORTED_MARKETS.has(market));
+  const markets = requestedMarkets.filter((market) => SUPPORTED_MARKETS.has(market));
   const minRemaining = parseInt(process.env.ODDS_API_MIN_REQUESTS_REMAINING ?? '20', 10);
+
+  if (unsupportedBookmakers.length > 0) {
+    logger.warn('The Odds API: ignoring out-of-scope bookmakers', {
+      unsupportedBookmakers,
+      supportedBookmakers: Array.from(SUPPORTED_BOOKMAKERS),
+    });
+  }
+
+  if (bookmakers.length === 0) {
+    logger.warn('The Odds API: no supported bookmakers configured — skipping odds fetch');
+    return 0;
+  }
+
+  if (unsupportedMarkets.length > 0) {
+    logger.warn('The Odds API: ignoring unsupported markets', {
+      unsupportedMarkets,
+      supportedMarkets: Array.from(SUPPORTED_MARKETS),
+    });
+  }
+
+  if (markets.length === 0) {
+    logger.warn('The Odds API: no supported markets configured — skipping odds fetch');
+    return 0;
+  }
 
   let totalPersisted = 0;
 

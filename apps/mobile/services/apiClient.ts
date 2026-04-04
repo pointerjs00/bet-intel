@@ -55,6 +55,10 @@ apiClient.interceptors.response.use(
     const isRefreshRoute = url.includes('/auth/refresh');
     const shouldAttemptRefresh = status === 401 && !originalRequest?._retry && !isRefreshRoute;
 
+    if (__DEV__ && status === 404) {
+      console.warn(`[API] 404 Not Found: ${originalRequest?.method?.toUpperCase() ?? 'GET'} ${url}`);
+    }
+
     if (!shouldAttemptRefresh || !authStoreBridge) {
       return Promise.reject(error);
     }

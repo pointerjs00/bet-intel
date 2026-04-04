@@ -21,6 +21,7 @@ import { initScrapeJobs, closeScrapeJobs } from './jobs/scrapeJobs';
 import { initializeSocketServer } from './sockets';
 import { startEventStatusPolling, stopEventStatusPolling } from './services/eventStatus/eventStatusService';
 import { startBetclicLiveWatcher, stopBetclicLiveWatcher } from './services/scraper/betclicLiveWatcher';
+import { runAllScrapers, registerDefaultScrapers } from './services/scraper/scraperRegistry';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
 
@@ -118,6 +119,32 @@ async function waitForDatabase(maxAttempts = 60): Promise<void> {
   throw new Error(`Database did not become ready after ${maxAttempts} attempts`);
 }
 
+async function warmInitialOddsIfEmpty(): Promise<void> {
+  const activeOddsCount = await prisma.odd.count({
+    where: { isActive: true },
+  });
+
+  if (activeOddsCount > 0) {
+    logger.info('Skipping startup odds bootstrap because active odds already exist', {
+      activeOddsCount,
+    });
+    return;
+  }
+
+  logger.info('No active odds found at startup — running initial odds bootstrap');
+
+  try {
+    registerDefaultScrapers();
+    await runAllScrapers();
+    const refreshedOddsCount = await prisma.odd.count({ where: { isActive: true } });
+    logger.info('Initial scraper bootstrap completed', { activeOddsCount: refreshedOddsCount });
+  } catch (err) {
+    logger.warn('Initial odds bootstrap failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 async function start(): Promise<void> {
   // Wait for PostgreSQL to finish recovery before any queries run.
   await waitForDatabase();
@@ -147,6 +174,9 @@ async function start(): Promise<void> {
 
   // Start scraping job queue
   await initScrapeJobs();
+
+  // Fresh databases otherwise remain empty until the first 6-hour cron window.
+  void warmInitialOddsIfEmpty();
 
   // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {

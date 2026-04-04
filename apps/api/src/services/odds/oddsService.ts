@@ -24,6 +24,7 @@ export interface OddsFilterParams {
   sites?: string[];
   sport?: Sport;
   league?: string;
+  search?: string;
   dateFrom?: string;
   dateTo?: string;
   minOdds?: number;
@@ -58,6 +59,7 @@ export interface EventWithOdds {
   status: string;
   homeScore: number | null;
   awayScore: number | null;
+  liveClock: string | null;
   odds: OddRow[];
 }
 
@@ -81,6 +83,23 @@ export interface OddRow {
 const CACHE_TTL_SECONDS = 60;         // 60 s — matches scraper cycle; invalidated earlier by scraper
 const LIVE_CACHE_TTL_SECONDS = 20;    // 20 seconds for live events
 const CACHE_PREFIX = 'odds:';
+const CACHE_VERSION_KEY = 'odds:__version__';
+
+/** Monotonically increasing version counter — included in cache keys so that
+ *  incrementing it instantly makes all old keys unreachable (they'll expire via
+ *  TTL naturally). This is O(1) instead of the O(n) SCAN + DEL approach. */
+let _cacheVersion: number | null = null;
+
+async function getCacheVersion(): Promise<number> {
+  if (_cacheVersion !== null) return _cacheVersion;
+  try {
+    const raw = await redis.get(CACHE_VERSION_KEY);
+    _cacheVersion = raw ? parseInt(raw, 10) : 0;
+  } catch {
+    _cacheVersion = 0;
+  }
+  return _cacheVersion;
+}
 
 function cacheKey(namespace: string, params: unknown): string {
   const hash = crypto
@@ -88,7 +107,8 @@ function cacheKey(namespace: string, params: unknown): string {
     .update(JSON.stringify(params))
     .digest('hex')
     .slice(0, 16); // 16 hex chars is plenty for a namespace-scoped key
-  return `${CACHE_PREFIX}${namespace}:${hash}`;
+  const v = _cacheVersion ?? 0;
+  return `${CACHE_PREFIX}v${v}:${namespace}:${hash}`;
 }
 
 async function withCache<T>(
@@ -96,6 +116,9 @@ async function withCache<T>(
   ttl: number,
   fn: () => Promise<T>,
 ): Promise<T> {
+  // Ensure version is loaded at least once
+  if (_cacheVersion === null) await getCacheVersion();
+
   try {
     const cached = await redis.get(key);
     if (cached) {
@@ -117,19 +140,15 @@ async function withCache<T>(
   return result;
 }
 
+/** Invalidates all odds cache entries by bumping the version counter.
+ *  Old keys naturally expire via TTL — no SCAN/DEL needed. O(1) operation. */
 export async function invalidateOddsCache(): Promise<void> {
   try {
-    let cursor = '0';
-
-    do {
-      const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', `${CACHE_PREFIX}*`, 'COUNT', '100');
-      cursor = nextCursor;
-
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
-    } while (cursor !== '0');
+    const newVersion = await redis.incr(CACHE_VERSION_KEY);
+    _cacheVersion = newVersion;
   } catch (err) {
+    // Fallback: just bump in-memory version so this process uses new keys
+    _cacheVersion = (_cacheVersion ?? 0) + 1;
     logger.warn('Redis odds cache invalidation failed', {
       error: (err as Error).message,
     });
@@ -149,8 +168,12 @@ const EVENT_WITH_ODDS_SELECT = {
   status: true,
   homeScore: true,
   awayScore: true,
+  liveClock: true,
   odds: {
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      site: { isActive: true },
+    },
     select: {
       id: true,
       market: true,
@@ -176,6 +199,7 @@ function buildEventWhere(params: OddsFilterParams): Prisma.SportEventWhereInput 
   const where: Prisma.SportEventWhereInput = {};
   const oddsWhere: Prisma.OddWhereInput = {
     isActive: true,
+    site: { isActive: true },
   };
 
   if (params.sport) {
@@ -184,7 +208,17 @@ function buildEventWhere(params: OddsFilterParams): Prisma.SportEventWhereInput 
   }
 
   if (params.league) {
-    where.league = { contains: params.league, mode: 'insensitive' };
+    where.league = { equals: params.league, mode: 'insensitive' };
+  }
+
+  if (params.search) {
+    const term = params.search.trim();
+    if (term.length > 0) {
+      where.OR = [
+        { homeTeam: { contains: term, mode: 'insensitive' } },
+        { awayTeam: { contains: term, mode: 'insensitive' } },
+      ];
+    }
   }
 
   if (params.status) {
@@ -252,21 +286,182 @@ function sanitiseLeagueLabel(league: string, homeTeam: string, awayTeam: string)
     normalised.length > 120
     || /\bempate\b/i.test(normalised)
     || /\d+[.,]\d+/.test(normalised)
-    || normalised.toLowerCase().includes(homeTeam.toLowerCase())
-    || normalised.toLowerCase().includes(awayTeam.toLowerCase());
+    || (homeTeam.length > 0 && normalised.toLowerCase().includes(homeTeam.toLowerCase()))
+    || (awayTeam.length > 0 && normalised.toLowerCase().includes(awayTeam.toLowerCase()));
 
   if (suspicious) return 'Futebol';
 
-  // Strip trailing round/group details:
+  // Strip trailing round/group details and bullet-separated phase suffixes:
   //   "Áustria - Bundesliga - Grupo Relegation Round, Jornada 24" → "Áustria - Bundesliga"
   //   "Liga Portugal - Jornada 30"  → "Liga Portugal"
+  //   "Dinamarca - 1.ª Divisão • Grupo Promotion Round" → "Dinamarca - 1.ª Divisão"
   normalised = normalised
+    .replace(/\s*[•·]\s*.*/i, '')  // strip bullet-separated suffixes (Kambi group/phase)
     .replace(/\s*[-–]\s*(?:Grupo|Group|Round|Ronda|Jornada|Giornata|Matchday|Spieltag|Journée|Fase|Phase|Playoff|Play-off|Relegation|Qualification|Qualificação)\b.*/i, '')
     .replace(/\s*,\s*(?:Jornada|Round|Matchday|Spieltag|Giornata|Journée)\b.*/i, '')
     .replace(/\s+\d+['+]*$/, '')
     .trim();
 
-  return normalised || 'Futebol';
+  return normaliseLeagueToCanonical(normalised) || 'Futebol';
+}
+
+/**
+ * Maps well-known league name variants to a single canonical display name.
+ * Handles differences between Betano, Kambi (Placard/Solverde), and Betclic scrapers.
+ */
+function normaliseLeagueToCanonical(league: string): string {
+  const l = league.toLowerCase();
+
+  // ── Portugal ──────────────────────────────────────────────────────
+  if (
+    (/\bprimeira\s*liga\b/.test(l) || /\bliga\s*portugal\b/.test(l) || l === 'liga nos' || l === 'liga portuguesa') &&
+    !/\bsegunda\b/.test(l) && !/\b2[.°º]?\b/.test(l) && !/\bii\b/.test(l)
+  ) return 'Portugal - Primeira Liga';
+
+  if (
+    /\bsegunda\s*liga\b/.test(l) ||
+    (/\bliga\s*portugal\b/.test(l) && (/\b2[.°º]?\b/.test(l) || /\bsegunda\b/.test(l)))
+  ) return 'Portugal - Segunda Liga';
+
+  // ── UEFA ──────────────────────────────────────────────────────────
+  if (/champions\s*league/.test(l) || /liga\s*dos\s*campe/.test(l))
+    return 'UEFA Champions League';
+
+  if (/conference\s*league/.test(l) || /liga\s*confer/.test(l))
+    return 'UEFA Conference League';
+
+  if (/\beuropa\s*league\b/.test(l) || (l.includes('liga europa') && !l.includes('conference') && !l.includes('champions')))
+    return 'UEFA Europa League';
+
+  if (/nations\s*league/.test(l) || /liga\s*das\s*na/.test(l))
+    return 'UEFA Nations League';
+
+  // ── Spain ─────────────────────────────────────────────────────────
+  if (/la\s*liga\s*2/.test(l) || /segunda\s*divis/.test(l))
+    return 'Espanha - La Liga 2';
+
+  // Primera Federación (3rd tier, formerly "Primera División RFEF") — must come before La Liga
+  // Require Spanish context for the abbreviation form ("primera f.") to avoid
+  // matching Mexican "Primera División" leagues.
+  if (
+    /primera\s*feder|rfef/.test(l) ||
+    (/\bprimera\s*f\.?\b/.test(l) && (l.includes('espanha') || l.includes('espa\u00f1a')))
+  )
+    return 'Espanha - Primera Federación';
+
+  // La Liga: explicit "la liga", or "primera división" only if no RFEF/Federación suffix
+  if ((/\bla\s*liga\b/.test(l) || (/primera\s*divis/.test(l) && !/rfef|feder/.test(l))) && !/la\s*liga\s*2/.test(l))
+    return 'Espanha - La Liga';
+
+  // ── England ───────────────────────────────────────────────────────
+  // Require explicit English context. Bare "Premier League" stays unmapped so
+  // that chooseBetterLeague can pick the correct country from another scraper
+  // (e.g. Kambi sends "Bahrain - Premier League" which would override later).
+  if (
+    /\bpremier\s*league\b/.test(l) &&
+    !/premier\s*league\s*2/.test(l) &&
+    (l.includes('england') || l.includes('inglat') || l.includes('reino unido'))
+  )
+    return 'Inglaterra - Premier League';
+
+  if (/\bchampionship\b/.test(l) && (l.includes('england') || l.includes('inglat') || !l.includes(' - ')))
+    return 'Inglaterra - Championship';
+
+  // ── Germany ───────────────────────────────────────────────────────
+  if (/3\.?\s*liga/.test(l) && (/alemanha|germany/.test(l) || !l.includes(' - ')))
+    return 'Alemanha - 3. Liga';
+
+  if (/2\.?\s*bundesliga|bundesliga\s*2/.test(l))
+    return 'Alemanha - 2. Bundesliga';
+
+  if (/\bbundesliga\b/.test(l) && !l.includes('áustria') && !l.includes('austria') && !l.includes('suíça') && !l.includes('schweiz'))
+    return 'Alemanha - Bundesliga';
+
+  // ── France ────────────────────────────────────────────────────────
+  if (/\bligue\s*1\b/.test(l)) return 'França - Ligue 1';
+  if (/\bligue\s*2\b/.test(l)) return 'França - Ligue 2';
+
+  // ── Italy ─────────────────────────────────────────────────────────
+  // Require Italian context or no country prefix — exclude Ecuador "Liga Pro Serie A",
+  // Brazilian "Série A", and women's "Serie A - Feminino".
+  if (
+    /\bs[eé]rie\s*a\b/.test(l) &&
+    !l.includes('brasil') && !l.includes('brazil') &&
+    !l.includes('equador') && !l.includes('ecuador') &&
+    !l.includes('liga pro') &&
+    !/feminin|women|\(f\)/.test(l) &&
+    (l.includes('itália') || l.includes('italia') || !l.includes(' - '))
+  )
+    return 'Itália - Serie A';
+
+  if (
+    /\bs[eé]rie\s*b\b/.test(l) &&
+    !l.includes('brasil') && !l.includes('brazil') &&
+    !l.includes('equador') && !l.includes('ecuador') &&
+    !l.includes('liga pro') &&
+    (l.includes('itália') || l.includes('italia') || !l.includes(' - '))
+  )
+    return 'Itália - Serie B';
+
+  // ── Netherlands ───────────────────────────────────────────────────
+  if (/\beredivisie\b/.test(l)) return 'Holanda - Eredivisie';
+
+  // ── Brazil ────────────────────────────────────────────────────────
+  if (/campeonato\s*brasileiro/.test(l)) return 'Brasil - Série A';
+
+  // ── Wales ─────────────────────────────────────────────────────────
+  if (/pa[ií]s\s*de\s*gales/.test(l) && (/\bpremier\b/.test(l) || /\bcymru\b/.test(l)))
+    return 'País de Gales - Cymru Premier';
+
+  // ── Croatia ───────────────────────────────────────────────────────
+  if (/cro[aá]cia/.test(l) && (/\bhnl\b/.test(l) || /\b1\.\s*nl\b/.test(l)))
+    return 'Croácia - HNL';
+
+  // ── Serbia ────────────────────────────────────────────────────────
+  if (/s[eé]rvia/.test(l) && /super\s*liga/.test(l))
+    return 'Sérvia - SuperLiga';
+
+  // ── Bulgaria ──────────────────────────────────────────────────────
+  if (/bulg[aá]ria/.test(l) && /parva\s*liga|liga\s*parva/.test(l))
+    return 'Bulgária - Parva Liga';
+
+  // ── Bosnia ────────────────────────────────────────────────────────
+  if (/b[oó]snia/.test(l) && /premij?er\s*liga/.test(l))
+    return 'Bósnia-Herzegovina - Premijer Liga';
+
+  // ── Saudi Arabia ──────────────────────────────────────────────────
+  if (/ar[aá]bia\s*saudita/.test(l) && (/pro\s*league/.test(l) || /liga\s*profissional/.test(l)))
+    return 'Arábia Saudita - Liga Profissional';
+
+  // ── Georgia ───────────────────────────────────────────────────────
+  if (/ge[oó]rgia/.test(l) && /erovnuli/.test(l))
+    return 'Geórgia - Erovnuli Liga';
+
+  // ── Switzerland ───────────────────────────────────────────────────
+  if (/su[ií][çc]a/.test(l) && (/challenge\s*league/.test(l) || /liga\s*challenge/.test(l)))
+    return 'Suíça - Challenge League';
+
+  // ── Qatar ─────────────────────────────────────────────────────────
+  if (/catar/.test(l) && (/stars?\s*league/.test(l) || /liga\s*das\s*estrelas/.test(l)))
+    return 'Catar - Stars League';
+
+  // ── Belgium ───────────────────────────────────────────────────────
+  if (/b[eé]lgica/.test(l) && (/1a?\s*pro\s*league/.test(l) || /primeira\s*divis[ãa]o\s*a\b/.test(l)))
+    return 'Bélgica - Primeira Divisão A';
+
+  // ── Denmark ───────────────────────────────────────────────────────
+  if (/dinamarca/.test(l) && /1[.ªº]?\s*divis/.test(l))
+    return 'Dinamarca - 1ª Divisão';
+
+  // ── Country spelling normalisation (PT-BR → PT-PT) ────────────────
+  if (/rom[êe]nia/.test(l) && !l.startsWith('roménia'))
+    return league.replace(/Rom[êe]nia/, 'Roménia');
+  if (/eslov[êe]nia/.test(l) && !l.startsWith('eslovénia'))
+    return league.replace(/Eslov[êe]nia/, 'Eslovénia');
+  if (/maced[ôo]nia/.test(l) && l.includes('ô'))
+    return league.replace(/Macedônia/, 'Macedónia');
+
+  return league;
 }
 
 // ─── Service functions ────────────────────────────────────────────────────────
@@ -418,18 +613,34 @@ export async function getLeagues(sport?: Sport): Promise<{ sport: string; league
  * by elapsed time, in case the sports-data service missed them (e.g. unknown
  * event IDs, API rate limits, network issues).
  *
- * Rules:
- *  • LIVE     → FINISHED  when `eventDate + 3h <= now`
- *  • UPCOMING → FINISHED  when `eventDate + 2h <= now`  (never seen as live —
- *                          either cancelled or not covered by the status API;
- *                          2 h is enough for any sport including extra time)
+ * Rules are sport-aware to account for different maximum match durations:
+ *  • FOOTBALL  — LIVE→FINISHED after 3 h, UPCOMING→FINISHED after 2 h
+ *                (90 min play + halftime + max 30 min extra time ≈ 2h 20m)
+ *  • BASKETBALL — LIVE→FINISHED after 5 h, UPCOMING→FINISHED after 5 h
+ *                (NBA: 48 min play + timeouts + breaks ≈ 2.5–3h real time;
+ *                 can exceed 3 h with overtime; use 5 h as generous safety net)
+ *  • TENNIS    — LIVE→FINISHED after 6 h, UPCOMING→FINISHED after 6 h
+ *                (Grand Slams can last 5+ hours)
+ *  • OTHER     — LIVE→FINISHED after 5 h, UPCOMING→FINISHED after 5 h
  */
 export async function updateEventStatuses(): Promise<{ toLive: number; toFinished: number }> {
   const now = new Date();
-  const liveFinishCutoff     = new Date(now.getTime() - 3 * 60 * 60 * 1000); // 3 h safety net
-  const upcomingFinishCutoff = new Date(now.getTime() - 2 * 60 * 60 * 1000); // 2 h
-  const recentOddsCutoff     = new Date(now.getTime() - 10 * 60 * 1000);      // 10 min
-  const futureKickoffGuard   = new Date(now.getTime() + 5 * 60 * 1000);       // 5 min ahead
+  const recentOddsCutoff   = new Date(now.getTime() - 10 * 60 * 1000); // 10 min
+  const futureKickoffGuard = new Date(now.getTime() + 5 * 60 * 1000);  // 5 min ahead
+
+  // Sport-specific cutoffs (in hours): [liveFinishH, upcomingFinishH]
+  const SPORT_CUTOFFS: Record<string, [number, number]> = {
+    FOOTBALL:        [3, 2],
+    BASKETBALL:      [5, 5],
+    TENNIS:          [6, 6],
+    HANDBALL:        [3, 2],
+    VOLLEYBALL:      [4, 4],
+    HOCKEY:          [4, 4],
+    RUGBY:           [3, 2],
+    AMERICAN_FOOTBALL: [5, 5],
+    BASEBALL:        [6, 6],
+    OTHER:           [5, 5],
+  };
 
   // Safety valve: LIVE events whose kick-off is still ≥ 5 minutes in the future
   // should never be live — demote them back to UPCOMING immediately.
@@ -440,48 +651,75 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
       status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
       eventDate: { gt: futureKickoffGuard },
     },
-    data: { status: 'UPCOMING' as never },
+    data: {
+      status: 'UPCOMING' as never,
+      liveClock: null,
+    },
   });
 
-  // LIVE events whose kick-off was 3+ hours ago → mark FINISHED (safety net only)
-  const liveExpiredResult = await prisma.sportEvent.updateMany({
-    where: {
-      status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
-      eventDate: { lte: liveFinishCutoff },
-    },
-    data: { status: 'FINISHED' as never },
-  });
+  // Apply sport-specific expired-LIVE cleanup
+  let liveExpiredCount = 0;
+  for (const [sport, [liveH]] of Object.entries(SPORT_CUTOFFS)) {
+    const cutoff = new Date(now.getTime() - liveH * 60 * 60 * 1000);
+    const r = await prisma.sportEvent.updateMany({
+      where: {
+        sport: sport as never,
+        status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
+        eventDate: { lte: cutoff },
+      },
+      data: { status: 'FINISHED' as never, liveClock: null },
+    });
+    liveExpiredCount += r.count;
+  }
+  const liveExpiredResult = { count: liveExpiredCount };
 
   // LIVE events with NO active odds → mark FINISHED immediately.
   // The scraper registry deactivates odds for LIVE events it no longer sees
   // (scraperRegistry.ts global cleanup). Once all odds are deactivated the
   // event was a ghost / has wrong data and should not stay LIVE indefinitely.
+  // Guard: only apply this to FOOTBALL (API-Football covers it authoritatively).
+  // For non-football sports (basketball, tennis, etc.) the scrapers are the
+  // only live-data source — a temporary scraping failure (e.g. 403 WAF block)
+  // would incorrectly kill active live events. Instead, rely on the time-based
+  // cutoffs above which are generous enough for each sport.
   const liveNoOddsResult = await prisma.sportEvent.updateMany({
     where: {
+      sport: 'FOOTBALL' as never,
       status: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
       odds: { none: { isActive: true } },
     },
-    data: { status: 'FINISHED' as never },
-  });
-
-  // UPCOMING events whose kick-off was 2+ hours ago → mark FINISHED
-  // (Never picked up by the status API — cancelled or outside coverage)
-  const upcomingExpiredResult = await prisma.sportEvent.updateMany({
-    where: {
-      status: 'UPCOMING' as unknown as Prisma.EnumEventStatusFilter['equals'],
-      eventDate: { lte: upcomingFinishCutoff },
+    data: {
+      status: 'FINISHED' as never,
+      liveClock: null,
     },
-    data: { status: 'FINISHED' as never },
   });
 
-  // UPCOMING → LIVE safety net: kick-off has passed but within the 2-hour window,
-  // AND the event has at least one active odd updated within the last 10 minutes.
+  // Apply sport-specific expired-UPCOMING cleanup
+  let upcomingExpiredCount = 0;
+  for (const [sport, [, upcomingH]] of Object.entries(SPORT_CUTOFFS)) {
+    const cutoff = new Date(now.getTime() - upcomingH * 60 * 60 * 1000);
+    const r = await prisma.sportEvent.updateMany({
+      where: {
+        sport: sport as never,
+        status: 'UPCOMING' as unknown as Prisma.EnumEventStatusFilter['equals'],
+        eventDate: { lte: cutoff },
+      },
+      data: { status: 'FINISHED' as never, liveClock: null },
+    });
+    upcomingExpiredCount += r.count;
+  }
+  const upcomingExpiredResult = { count: upcomingExpiredCount };
+
+  // UPCOMING → LIVE safety net: kick-off has passed but within the sport-specific
+  // window, AND the event has at least one active odd updated within the last 10 minutes.
   // The odds recency guard prevents events with stale or wrong kick-off dates
   // from being ghost-promoted to LIVE when no scraper is actively seeing them.
+  // Use the most generous upcoming cutoff (6 h) to cover all sports.
+  const upcomingFinishCutoffMax = new Date(now.getTime() - 6 * 60 * 60 * 1000);
   const livePromotionCandidates = await prisma.sportEvent.findMany({
     where: {
       status: 'UPCOMING' as unknown as Prisma.EnumEventStatusFilter['equals'],
-      eventDate: { lte: now, gte: upcomingFinishCutoff },
+      eventDate: { lte: now, gte: upcomingFinishCutoffMax },
       odds: {
         some: {
           isActive: true,
@@ -500,6 +738,16 @@ export async function updateEventStatuses(): Promise<{ toLive: number; toFinishe
     });
     toLive = promotionResult.count;
   }
+
+  await prisma.sportEvent.updateMany({
+    where: {
+      status: {
+        not: 'LIVE' as unknown as Prisma.EnumEventStatusFilter['equals'],
+      },
+      liveClock: { not: null },
+    },
+    data: { liveClock: null },
+  });
 
   const toFinished = liveExpiredResult.count + liveNoOddsResult.count + upcomingExpiredResult.count;
 

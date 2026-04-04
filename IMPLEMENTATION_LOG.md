@@ -345,6 +345,46 @@ Each step captures:
 - The mobile TypeScript run surfaced missing Victory Native generic constraints in the previously added stats chart components; those chart typings were corrected during this step so the entire mobile workspace now compiles cleanly.
 - Workspace editor diagnostics were clean after the backend and mobile social changes.
 
+## Step 15 - Account linking UI
+
+### Features
+- Added the mobile account service layer in apps/mobile/services/accountService.ts for:
+  - linking Google to the authenticated account
+  - unlinking Google from hybrid accounts
+  - setting a password for Google-only accounts
+  - changing password for email and hybrid accounts
+- Extended apps/mobile/services/auth/googleAuth.ts with a reusable Firebase ID token helper so Google linking and Google sign-in share the same native auth path.
+- Extended the auth store in apps/mobile/stores/authStore.ts with an updateUser action so account-method changes update the in-memory session immediately.
+- Reworked the Conta section in apps/mobile/app/(tabs)/profile.tsx to expose:
+  - current authentication method summary
+  - Ligar conta Google action for email-only accounts
+  - Desligar Google action for hybrid accounts
+  - password setup flow for Google-only accounts
+  - password change flow for email and hybrid accounts
+  - immediate logout after password-change success, matching the backend session invalidation behavior
+
+### To-dos
+- Add account email change and resend-verification UX if the product wants the remaining account-management endpoints exposed from the same screen.
+- Consider replacing the inline password form with a dedicated secure modal or screen if the profile page becomes too dense.
+
+### Bugs / issues found
+- Mobile TypeScript initially failed because the shared API envelope marks data as optional; fixed by validating account-service payloads before reading nested user fields.
+- Validation passed with pnpm --filter mobile exec tsc --noEmit.
+
+## Post-step fix - Odds feed bootstrap and market compatibility
+
+### Features
+- Added a startup odds bootstrap in apps/api/src/index.ts so a fresh local database is populated immediately instead of waiting for the first 6-hour Bull cron window.
+- Hardened apps/api/src/services/odds/oddsApiService.ts to:
+  - ignore unsupported market keys from configuration
+  - stop requesting `btts` by default on the current The Odds API endpoint
+  - fail cleanly on non-2xx upstream responses instead of treating error payloads as event arrays
+
+### Bugs / issues found
+- The mobile home screen showed no matches because `/api/odds` was returning zero rows from an empty database.
+- The root cause of the empty database was that The Odds API returned `422 INVALID_MARKET` for `btts`, and the importer then crashed with `TypeError: events is not iterable`.
+- After the fix, a direct importer run populated 28 events locally and `/api/odds?limit=5` returned event data again.
+
 ## Step 11 - Socket.io realtime features
 
 ### Features
@@ -432,3 +472,34 @@ Each step captures:
 ### Bugs / issues found
 - API validation passed with pnpm --filter api build after adding the new scraper files and registration changes.
 - This step did not run live network scrape sessions against the betting sites, so runtime selector accuracy still needs real-site verification.
+
+## Step 12 Follow-up - Placard scraper recovery
+
+### Features
+- Fixed the Placard scraper entrypoint after `https://www.placard.pt/apostas/futebol` started rendering a sportsbook 404 shell instead of match cards.
+- Repointed Placard scraping to `https://www.placard.pt/apostas`, which still exposes live sportsbook cards.
+- Added Placard-specific DOM selectors for:
+  - match cards
+  - participant names
+  - league headers
+  - market titles
+  - selection labels and prices
+- Extended the shared browser scraper so DOM extraction can persist non-1X2 markets instead of assuming every card has home/draw/away pricing.
+- Added Portuguese relative-date parsing for homepage card timestamps such as `Hoje, 17:45` and `Amanhã`.
+- Added text-pattern filtering so the Placard homepage scrape is restricted to football cards.
+
+### Validation
+- API TypeScript validation passed with `tsc --noEmit --project apps/api/tsconfig.json`.
+- Direct Placard runtime validation on Windows produced 4 football events with parsed markets and odds.
+- End-to-end persistence and feed validation confirmed:
+  - 4 Placard events scraped
+  - 4 Placard events persisted
+  - 9 active Placard odds in the database
+  - Placard-backed football events returned by the odds feed
+
+### To-dos
+- Solverde still needs the same level of runtime recovery work; its current saved HTML looks like a bootstrap shell rather than sportsbook content.
+- Placard is currently scraping football cards from the sportsbook homepage, so broader football coverage should move to a stable Placard event API if one is identified.
+
+### Bugs / issues found
+- The primary failure was a route regression, not just selector drift: the previous Placard futebol URL now resolves to a sportsbook 404 state.

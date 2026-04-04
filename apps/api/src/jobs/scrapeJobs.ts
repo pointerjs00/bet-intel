@@ -1,22 +1,28 @@
 /**
- * Odds job queue — powered by Bull + Redis.
+ * Scraping job queue — powered by Bull + Redis.
  *
- * Replaces the old Puppeteer scraper jobs with The Odds API polling.
- *
- * Free-tier schedule (The Odds API: 500 req/month ≈ 16/day):
- *  - odds-poll: every 6 hours = 4 calls/day × 4 sports = 16 req/day ✓
- *
- * Scale up: set ODDS_POLL_INTERVAL_MINUTES env var to a lower value and
- * upgrade to a paid Odds API plan — no code changes needed.
+ * PT-only bookmaker scrapers:
+ *  - Live events: every 60 seconds
+ *  - Upcoming events (24 h): every 5 minutes
+ *  - Upcoming events (7 d): every 30 minutes
+ *  - New events discovery: every 2 hours
  *
  * Call initScrapeJobs() once during app startup (see src/index.ts).
  */
 
 import Bull from 'bull';
 import { logger } from '../utils/logger';
+import {
+  registerDefaultScrapers,
+  runAllScrapers,
+  runScraper,
+} from '../services/scraper/scraperRegistry';
 import { updateEventStatuses } from '../services/odds/oddsService';
-import { fetchAndPersistOdds } from '../services/odds/oddsApiService';
 import type { ScrapeJobData } from '../services/scraper/types';
+
+function registerAllScrapers(): void {
+  registerDefaultScrapers();
+}
 
 // ─── Queue setup ──────────────────────────────────────────────────────────────
 
@@ -52,7 +58,7 @@ function createScrapeQueue(): Bull.Queue<ScrapeJobData> {
 // ─── Job processor ────────────────────────────────────────────────────────────
 
 async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
-  const { jobType } = job.data;
+  const { jobType, siteSlug } = job.data;
 
   logger.info('Odds poll job started', { jobType });
 
@@ -67,12 +73,18 @@ async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
   }
 
   try {
-    const count = await fetchAndPersistOdds();
-    logger.info('Odds poll job completed', { jobType, eventsUpserted: count });
+    if (siteSlug) {
+      const count = await runScraper(siteSlug);
+      logger.info('Scrape job completed', { jobType, siteSlug, eventsUpserted: count });
+    } else {
+      await runAllScrapers();
+      logger.info('Scrape job completed', { jobType, siteSlug: 'all' });
+    }
   } catch (err) {
     // Re-throw so Bull marks the job as failed and applies retry back-off
-    logger.error('Odds poll job failed', {
+    logger.error('Scrape job failed', {
       jobType,
+      siteSlug: siteSlug ?? 'all',
       error: err instanceof Error ? err.message : String(err),
     });
     throw err;
@@ -94,29 +106,44 @@ async function scheduleJobs(queue: Bull.Queue<ScrapeJobData>): Promise<void> {
     await queue.removeRepeatableByKey(job.key);
   }
 
-  // Determine poll interval from env — default 6 h (free tier: 4/day × 4 sports = 16 req/day).
-  // Set ODDS_POLL_INTERVAL_MINUTES to a lower value when on a paid Odds API plan.
-  const intervalMinutes = parseInt(
-    process.env.ODDS_POLL_INTERVAL_MINUTES ?? '360',
-    10,
-  );
-  const cronExpr =
-    intervalMinutes >= 60
-      ? `0 */${Math.max(1, Math.floor(intervalMinutes / 60))} * * *`
-      : `*/${intervalMinutes} * * * *`;
-
-  // Primary odds poll — all sports and bookmakers in one pass
+  // Live events — every 60 seconds
   await queue.add(
     { jobType: 'live' },
     {
-      repeat: { cron: cronExpr },
-      jobId: 'odds-poll',
+      repeat: { every: 60_000 },
+      jobId: 'scrape-live',
     },
   );
 
-  logger.info('Odds poll job scheduled', {
-    intervalMinutes,
-    cron: cronExpr,
+  // Upcoming events (next 24 h) — every 5 minutes
+  await queue.add(
+    { jobType: 'upcoming-24h' },
+    {
+      repeat: { cron: '*/5 * * * *' },
+      jobId: 'scrape-upcoming-24h',
+    },
+  );
+
+  // Upcoming events (next 7 d) — every 30 minutes
+  await queue.add(
+    { jobType: 'upcoming-7d' },
+    {
+      repeat: { cron: '*/30 * * * *' },
+      jobId: 'scrape-upcoming-7d',
+    },
+  );
+
+  // New events discovery — every 2 hours
+  await queue.add(
+    { jobType: 'discovery' },
+    {
+      repeat: { cron: '0 */2 * * *' },
+      jobId: 'scrape-discovery',
+    },
+  );
+
+  logger.info('Scrape jobs scheduled', {
+    jobs: ['live (60s)', 'upcoming-24h (5min)', 'upcoming-7d (30min)', 'discovery (2h)'],
   });
 }
 
@@ -148,11 +175,15 @@ let _queue: Bull.Queue<ScrapeJobData> | null = null;
  * Returns the queue instance for graceful shutdown.
  */
 export async function initScrapeJobs(): Promise<Bull.Queue<ScrapeJobData>> {
+  registerAllScrapers();
+
   const queue = createScrapeQueue();
   attachListeners(queue);
 
-  // Register processor (concurrency=1 — one scrape session at a time)
-  queue.process(1, processJob);
+  // Concurrency=2 allows a second job to start while the previous one is still
+  // persisting results. Combined with parallel scrapers inside each job, this
+  // prevents queue back-pressure from elongating the effective refresh interval.
+  queue.process(2, processJob);
 
   await scheduleJobs(queue);
 

@@ -31,6 +31,7 @@ export interface OddsEvent {
   status: string;
   homeScore: number | null;
   awayScore: number | null;
+  liveClock: string | null;
   odds: OddsRow[];
 }
 
@@ -61,6 +62,7 @@ export interface OddsFeedFilters {
   selectedSports: Sport[];
   selectedMarkets: string[];
   selectedLeague?: string | null;
+  teamSearch?: string;
   minOdds: number;
   maxOdds: number;
   dateRange: FilterDateRange | null;
@@ -73,6 +75,7 @@ function buildOddsParams(filters: OddsFeedFilters) {
     sites: filters.selectedSites.length > 0 ? filters.selectedSites.join(',') : undefined,
     sport: filters.selectedSports[0],
     league: filters.selectedLeague ?? undefined,
+    search: filters.teamSearch?.trim() || undefined,
     market: filters.selectedMarkets[0],
     minOdds: filters.minOdds,
     maxOdds: filters.maxOdds,
@@ -102,6 +105,7 @@ export function useOddsFeed(filters: OddsFeedFilters) {
       };
     },
     placeholderData: (previousData) => previousData,
+    staleTime: 20_000,
     refetchInterval: 30_000,
   });
 }
@@ -113,6 +117,7 @@ export function useLiveEvents() {
       const response = await apiClient.get<QueryEnvelope<OddsEvent[]>>('/odds/live');
       return response.data.data;
     },
+    staleTime: 15_000,
     refetchInterval: 30000,
   });
 }
@@ -125,6 +130,7 @@ export function useEventOdds(eventId: string) {
       return response.data.data;
     },
     enabled: Boolean(eventId),
+    staleTime: 10_000,
     refetchInterval: 15_000,
   });
 }

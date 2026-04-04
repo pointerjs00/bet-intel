@@ -48,7 +48,6 @@ export function LiveBadge() {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    alignSelf: 'flex-start',
     borderRadius: 999,
     flexDirection: 'row',
     gap: 6,

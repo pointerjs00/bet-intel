@@ -7,30 +7,28 @@ import {
   getSportsHandler,
   getLeaguesHandler,
 } from '../controllers/oddsController';
-import { defaultLimiter } from '../middleware/rateLimiter';
 
 const router: Router = Router();
 
-// All odds routes are public (no authentication required) — rate limited by the global defaultLimiter
-// which is already applied at the app level, but we add it here explicitly for clarity and
-// to allow easy per-route tightening later.
+// All odds routes are public (no authentication required).
+// Rate limiting is applied globally in index.ts via app.use(defaultLimiter).
 
 /** GET /api/odds — paginated feed with full filter support */
-router.get('/', defaultLimiter, getOddsFeedHandler);
+router.get('/', getOddsFeedHandler);
 
 /** GET /api/odds/live — live events */
-router.get('/live', defaultLimiter, getLiveEventsHandler);
+router.get('/live', getLiveEventsHandler);
 
 /** GET /api/odds/sites — active betting sites */
-router.get('/sites', defaultLimiter, getSitesHandler);
+router.get('/sites', getSitesHandler);
 
 /** GET /api/odds/sports — available sports */
-router.get('/sports', defaultLimiter, getSportsHandler);
+router.get('/sports', getSportsHandler);
 
 /** GET /api/odds/leagues — leagues (?sport=FOOTBALL optional) */
-router.get('/leagues', defaultLimiter, getLeaguesHandler);
+router.get('/leagues', getLeaguesHandler);
 
 /** GET /api/odds/events/:eventId — single event with cross-site odds */
-router.get('/events/:eventId', defaultLimiter, getEventHandler);
+router.get('/events/:eventId', getEventHandler);
 
 export { router as oddsRouter };

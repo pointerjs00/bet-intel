@@ -4,6 +4,13 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { AuthProvider } from '@betintel/shared';
+import {
+  useChangePasswordMutation,
+  useLinkGoogleAccountMutation,
+  useSetPasswordMutation,
+  useUnlinkGoogleAccountMutation,
+} from '../../services/accountService';
 import { NotificationItem } from '../../components/social/NotificationItem';
 import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
@@ -50,6 +57,10 @@ export default function ProfileScreen() {
   const updateProfileMutation = useUpdateProfileMutation();
   const markNotificationReadMutation = useMarkNotificationReadMutation(1, 3);
   const markAllNotificationsReadMutation = useMarkAllNotificationsReadMutation(1, 3);
+  const linkGoogleAccountMutation = useLinkGoogleAccountMutation();
+  const unlinkGoogleAccountMutation = useUnlinkGoogleAccountMutation();
+  const setPasswordMutation = useSetPasswordMutation();
+  const changePasswordMutation = useChangePasswordMutation();
 
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
@@ -57,6 +68,9 @@ export default function ProfileScreen() {
   const [currency, setCurrency] = useState('EUR');
   const [preferredSites, setPreferredSites] = useState<string[]>([]);
   const [themePreference, setLocalThemePreference] = useState<ThemePreference>(storedThemePreference);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
     if (!profileQuery.data) {
@@ -66,21 +80,84 @@ export default function ProfileScreen() {
     setDisplayName(profileQuery.data.displayName ?? '');
     setBio(profileQuery.data.bio ?? '');
     setAvatarUrl(profileQuery.data.avatarUrl ?? '');
-    setCurrency(profileQuery.data.currency);
-    setPreferredSites(profileQuery.data.preferredSites);
+    setCurrency(profileQuery.data.currency ?? 'EUR');
+    setPreferredSites(profileQuery.data.preferredSites ?? []);
     const nextThemePreference = mapThemeFromApi(profileQuery.data.theme);
     setLocalThemePreference(nextThemePreference);
     setThemePreference(nextThemePreference);
   }, [profileQuery.data, setThemePreference]);
 
+  const notificationItems = notificationsQuery.data?.items ?? [];
   const unreadCount = notificationsQuery.data?.meta.unreadCount ?? 0;
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
+  const authProvider = profileQuery.data?.authProvider ?? useAuthStore((state) => state.user?.authProvider) ?? AuthProvider.EMAIL;
+  const isGoogleLinked = authProvider === AuthProvider.GOOGLE || authProvider === AuthProvider.HYBRID;
+  const isGoogleOnly = authProvider === AuthProvider.GOOGLE;
+  const canUnlinkGoogle = authProvider === AuthProvider.HYBRID;
   const authLabel = useMemo(() => {
     const provider = profileQuery.data?.authProvider;
     if (provider === 'GOOGLE') return 'Google';
     if (provider === 'HYBRID') return 'Email + Google';
     return 'Email';
   }, [profileQuery.data?.authProvider]);
+  const passwordConfirmationError =
+    confirmPassword.length > 0 && confirmPassword !== newPassword
+      ? 'As passwords não coincidem'
+      : undefined;
+
+  function resetPasswordFields() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  }
+
+  async function handleLinkGoogleAccount() {
+    try {
+      await linkGoogleAccountMutation.mutateAsync();
+      showToast('Conta Google ligada com sucesso.', 'success');
+    } catch (error) {
+      showToast(getApiErrorMessage(error), 'error');
+    }
+  }
+
+  async function handleUnlinkGoogleAccount() {
+    try {
+      await unlinkGoogleAccountMutation.mutateAsync();
+      showToast('Conta Google desligada.', 'success');
+    } catch (error) {
+      showToast(getApiErrorMessage(error), 'error');
+    }
+  }
+
+  async function handlePasswordSubmit() {
+    if (newPassword !== confirmPassword) {
+      showToast('As passwords não coincidem.', 'error');
+      return;
+    }
+
+    try {
+      if (isGoogleOnly) {
+        await setPasswordMutation.mutateAsync({
+          newPassword,
+          confirmPassword,
+        });
+        resetPasswordFields();
+        showToast('Password definida. A conta agora suporta email e Google.', 'success');
+        return;
+      }
+
+      await changePasswordMutation.mutateAsync({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+      resetPasswordFields();
+      showToast('Password alterada. Entra novamente.', 'success');
+      await logout();
+    } catch (error) {
+      showToast(getApiErrorMessage(error), 'error');
+    }
+  }
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}> 
@@ -218,8 +295,8 @@ export default function ProfileScreen() {
                   />
                 </View>
 
-                {notificationsQuery.data?.items.length ? (
-                  notificationsQuery.data.items.map((notification) => (
+                {notificationItems.length > 0 ? (
+                  notificationItems.map((notification) => (
                     <NotificationItem
                       key={notification.id}
                       notification={notification}
@@ -245,7 +322,68 @@ export default function ProfileScreen() {
             <Animated.View entering={FadeInDown.delay(600).duration(400).springify()}>
               <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Conta</Text>
-                <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>As ações de password e email já existem na API e podem ser ligadas a um fluxo dedicado quando quiseres fechar essa UX.</Text>
+                <View style={styles.accountSection}>
+                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Método atual: {authLabel}</Text>
+                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Email {profileQuery.data.isEmailVerified ? 'verificado' : 'por verificar'}.</Text>
+                </View>
+
+                <View style={styles.accountSection}>
+                  <Text style={[styles.accountHeading, { color: colors.textPrimary }]}>Google</Text>
+                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Liga a tua conta Google para entrares sem password ou desliga-a se já tens password ativa.</Text>
+                  {isGoogleLinked ? (
+                    <View style={styles.accountActionsRow}>
+                      <Button disabled title="Google ligado" variant="secondary" />
+                      <Button
+                        disabled={!canUnlinkGoogle}
+                        loading={unlinkGoogleAccountMutation.isPending}
+                        onPress={handleUnlinkGoogleAccount}
+                        title={canUnlinkGoogle ? 'Desligar Google' : 'Define password primeiro'}
+                        variant="ghost"
+                      />
+                    </View>
+                  ) : (
+                    <Button
+                      loading={linkGoogleAccountMutation.isPending}
+                      onPress={handleLinkGoogleAccount}
+                      title="Ligar conta Google"
+                      variant="secondary"
+                    />
+                  )}
+                </View>
+
+                <View style={styles.accountSection}>
+                  <Text style={[styles.accountHeading, { color: colors.textPrimary }]}>
+                    {isGoogleOnly ? 'Definir password' : 'Alterar password'}
+                  </Text>
+                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>A password precisa de 8+ caracteres, maiúscula, número e símbolo.</Text>
+                  {!isGoogleOnly ? (
+                    <Input
+                      label="Password atual"
+                      onChangeText={setCurrentPassword}
+                      secureTextEntry
+                      value={currentPassword}
+                    />
+                  ) : null}
+                  <Input
+                    label="Nova password"
+                    onChangeText={setNewPassword}
+                    secureTextEntry
+                    value={newPassword}
+                  />
+                  <Input
+                    error={passwordConfirmationError}
+                    label="Confirmar password"
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                    value={confirmPassword}
+                  />
+                  <Button
+                    loading={setPasswordMutation.isPending || changePasswordMutation.isPending}
+                    onPress={handlePasswordSubmit}
+                    title={isGoogleOnly ? 'Guardar password' : 'Alterar password'}
+                  />
+                </View>
+
                 <Button
                   onPress={async () => {
                     await logout();
@@ -325,4 +463,7 @@ const styles = StyleSheet.create({
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   notificationsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   notificationsTitleWrap: { gap: 2, flex: 1, paddingRight: 12 },
+  accountSection: { gap: 10 },
+  accountHeading: { fontSize: 15, fontWeight: '800' },
+  accountActionsRow: { flexDirection: 'row', gap: 10 },
 });

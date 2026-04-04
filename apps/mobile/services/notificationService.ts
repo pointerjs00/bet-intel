@@ -50,7 +50,15 @@ export async function syncDevicePushToken(): Promise<string | null> {
     await apiClient.patch('/users/me', { expoPushToken: nextToken });
     cachedExpoPushToken = nextToken;
     return nextToken;
-  })().finally(() => {
+  })().catch((err: unknown) => {
+    // Best-effort registration — never propagate to callers.
+    // A failure here just means the server won't be able to push to this device
+    // until the next successful sync (e.g. next login).
+    if (__DEV__) {
+      console.warn('[BetIntel] Push token sync failed:', err);
+    }
+    return null;
+  }).finally(() => {
     registrationPromise = null;
   });
 

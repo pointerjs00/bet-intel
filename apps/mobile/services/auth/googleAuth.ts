@@ -14,7 +14,7 @@ export interface GoogleAuthResult {
   tempToken?: string;
 }
 
-export async function signInWithGoogle(): Promise<GoogleAuthResult> {
+async function requestGoogleFirebaseIdToken(): Promise<string> {
   await GoogleSignin.hasPlayServices();
   const signInResult = await GoogleSignin.signIn();
   if (signInResult.type !== 'success') {
@@ -24,8 +24,16 @@ export async function signInWithGoogle(): Promise<GoogleAuthResult> {
   const { idToken } = await GoogleSignin.getTokens();
   const googleCredential = auth.GoogleAuthProvider.credential(idToken);
   const userCredential = await auth().signInWithCredential(googleCredential);
-  const firebaseIdToken = await userCredential.user.getIdToken();
+  return userCredential.user.getIdToken();
+}
 
+/** Opens the Google sign-in flow and returns a Firebase ID token verified by the API. */
+export async function getGoogleFirebaseIdToken(): Promise<string> {
+  return requestGoogleFirebaseIdToken();
+}
+
+export async function signInWithGoogle(): Promise<GoogleAuthResult> {
+  const firebaseIdToken = await requestGoogleFirebaseIdToken();
   const response = await apiClient.post('/auth/google', { firebaseIdToken });
   return response.data.data as GoogleAuthResult;
 }

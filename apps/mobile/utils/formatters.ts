@@ -66,3 +66,24 @@ export function formatLongDate(value: string): string {
     timeZone: 'Europe/Lisbon',
   });
 }
+
+/** Resolves the best available live minute, falling back to elapsed time from kick-off. */
+export function formatLiveClock(value: string | null | undefined, eventDate: string | Date): string | null {
+  const trimmed = value?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+
+  const kickOff = eventDate instanceof Date ? eventDate : new Date(eventDate);
+  const kickOffMs = kickOff.getTime();
+  if (!Number.isFinite(kickOffMs)) {
+    return null;
+  }
+
+  const elapsedMinutes = Math.floor((Date.now() - kickOffMs) / 60000);
+  if (elapsedMinutes < 0 || elapsedMinutes > 150) {
+    return null;
+  }
+
+  return `${Math.max(1, elapsedMinutes)}'`;
+}

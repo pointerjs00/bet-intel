@@ -41,6 +41,8 @@ export function OddsCell({
   const direction = useSharedValue(0);
   const resolvedSelection = oddSelection ?? selection;
   const baseBackground = highlight ? 'rgba(201, 162, 39, 0.14)' : colors.surface;
+  const parsedDisplayValue = Number(displayValue);
+  const formattedValue = Number.isFinite(parsedDisplayValue) ? parsedDisplayValue.toFixed(2) : '–';
 
   useEffect(() => {
     setDisplayValue(value);
@@ -101,14 +103,15 @@ export function OddsCell({
       onPress={onPress}
       style={[
         styles.cell,
-        animatedStyle,
         {
+          backgroundColor: baseBackground,
           borderColor: highlight ? colors.gold : colors.border,
         },
+        animatedStyle,
       ]}
     >
       <Text style={[styles.selection, { color: colors.textSecondary }]}>{selection}</Text>
-      <Text style={[styles.value, { color: colors.textPrimary }]}>{formatOdds(displayValue)}</Text>
+      <Text style={[styles.value, { color: colors.textPrimary }]}>{formattedValue}</Text>
     </AnimatedPressable>
   );
 
@@ -123,11 +126,6 @@ export function OddsCell({
     direction.value = current > prior ? 1 : -1;
     flash.value = withSequence(withTiming(1, { duration: 220 }), withTiming(0, { duration: 520 }));
   }
-}
-
-function formatOdds(value: string) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed.toFixed(2) : value;
 }
 
 const styles = StyleSheet.create({

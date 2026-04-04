@@ -13,6 +13,7 @@ interface FilterStateValues {
   selectedSports: Sport[];
   selectedMarkets: string[];
   selectedLeague: string | null;
+  teamSearch: string;
   minOdds: number;
   maxOdds: number;
   dateRange: FilterDateRange | null;
@@ -26,15 +27,17 @@ interface FilterStore extends FilterStateValues {
   toggleSport: (sport: Sport) => void;
   toggleMarket: (market: string) => void;
   setLeague: (league: string | null) => void;
+  setTeamSearch: (search: string) => void;
   setDateRange: (range: FilterDateRange | null) => void;
   reset: () => void;
 }
 
-const DEFAULT_STATE: Omit<FilterStore, 'setFilter' | 'toggleSite' | 'toggleSport' | 'toggleMarket' | 'setLeague' | 'setDateRange' | 'reset'> = {
+const DEFAULT_STATE: Omit<FilterStore, 'setFilter' | 'toggleSite' | 'toggleSport' | 'toggleMarket' | 'setLeague' | 'setTeamSearch' | 'setDateRange' | 'reset'> = {
   selectedSites: [],
   selectedSports: [],
   selectedMarkets: [],
   selectedLeague: null,
+  teamSearch: '',
   minOdds: 1.01,
   maxOdds: 20,
   dateRange: null,
@@ -48,6 +51,7 @@ function computeActiveFilterCount(state: FilterStateValues): number {
   if (state.selectedSports.length > 0) count += 1;
   if (state.selectedMarkets.length > 0) count += 1;
   if (state.selectedLeague) count += 1;
+  if (state.teamSearch.trim().length > 0) count += 1;
   if (state.minOdds > 1.01 || state.maxOdds < 20) count += 1;
   if (state.dateRange) count += 1;
   if (state.sortBy !== 'best-odds') count += 1;
@@ -99,6 +103,8 @@ export const useFilterStore = create<FilterStore>()(
         }),
       setLeague: (league) =>
         set((state) => withComputed({ ...state, selectedLeague: league })),
+      setTeamSearch: (search) =>
+        set((state) => withComputed({ ...state, teamSearch: search })),
       setDateRange: (dateRange) =>
         set((state) => withComputed({ ...state, dateRange })),
       reset: () => set(withComputed(DEFAULT_STATE)),

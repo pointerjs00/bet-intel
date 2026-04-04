@@ -150,6 +150,7 @@ export interface SportEvent {
   status: EventStatus;
   homeScore: number | null;
   awayScore: number | null;
+  liveClock?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -253,6 +254,7 @@ export interface CompactSportEvent {
   status: EventStatus;
   homeScore: number | null;
   awayScore: number | null;
+  liveClock?: string | null;
 }
 
 export interface BoletinItemDetail extends BoletinItem {
@@ -374,6 +376,10 @@ export interface ScrapedEvent {
   awayTeam: string;
   eventDate: Date;
   markets: ScrapedMarket[];
+  isLive?: boolean;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  liveClock?: string | null;
 }
 
 // ─── API response wrapper ─────────────────────────────────────────────────────
@@ -443,6 +449,7 @@ export interface EventStatusChangePayload {
   status: EventStatus;
   homeScore: number | null;
   awayScore: number | null;
+  liveClock: string | null;
 }
 
 export interface BoletinResultPayload {

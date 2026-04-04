@@ -17,6 +17,7 @@ import { LiveBadge } from '../../components/odds/LiveBadge';
 import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
 import { useRouter } from 'expo-router';
 import { useToast } from '../../components/ui/Toast';
+import { formatLiveClock } from '../../utils/formatters';
 
 interface MarketRow {
   site: OddsRow['site'];
@@ -92,6 +93,8 @@ export default function EventDetailScreen() {
     );
   }
 
+  const resolvedLiveClock = event.status === 'LIVE' ? formatLiveClock(event.liveClock, event.eventDate) : null;
+
   const sportEmoji = getSportEmoji(event.sport);
 
   return (
@@ -140,6 +143,11 @@ export default function EventDetailScreen() {
                     <Text style={[styles.heroScore, { color: colors.textPrimary }]}>
                       {event.awayScore != null ? event.awayScore : '–'}
                     </Text>
+                    {event.status === 'LIVE' ? (
+                      <Text style={[styles.liveClockText, { color: colors.primary }]}>
+                        {resolvedLiveClock ?? 'Ao vivo'}
+                      </Text>
+                    ) : null}
                   </View>
 
                   <View style={styles.heroTeam}>
@@ -394,6 +402,11 @@ const styles = StyleSheet.create({
   heroDate: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  liveClockText: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 8,
   },
 
   /* Market section */

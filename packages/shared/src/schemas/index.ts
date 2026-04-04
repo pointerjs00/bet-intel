@@ -201,6 +201,8 @@ export const filterSchema = z.object({
     .transform((val) => val?.split(',').filter(Boolean) ?? []),
   sport: z.nativeEnum(Sport).optional(),
   league: z.string().optional(),
+  /** Free-text search across homeTeam and awayTeam (case-insensitive contains) */
+  search: z.string().max(100).optional(),
   dateFrom: z.string().datetime({ message: 'Data inválida' }).optional(),
   dateTo: z.string().datetime({ message: 'Data inválida' }).optional(),
   minOdds: z.coerce.number().min(1.01).max(1000).optional(),

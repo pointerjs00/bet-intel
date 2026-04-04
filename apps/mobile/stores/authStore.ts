@@ -27,6 +27,8 @@ interface AuthStore {
     accessToken: string;
     refreshToken: string;
   }) => Promise<void>;
+  /** Updates the in-memory user after account linking/unlinking/set-password. */
+  updateUser: (user: PublicUser) => void;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -154,6 +156,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: true,
       isHydrating: false,
     });
+  },
+
+  updateUser(user) {
+    set({ user });
   },
 }));
 

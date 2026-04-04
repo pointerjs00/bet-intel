@@ -2,10 +2,15 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 RUN corepack enable
+# OpenSSL is needed for Prisma to detect the correct engine binary
+RUN apk add --no-cache openssl
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/shared/package.json packages/shared/package.json
+
+# Copy Prisma schema before install so the postinstall `prisma generate` can find it
+COPY apps/api/src/prisma apps/api/src/prisma
 
 RUN pnpm install --frozen-lockfile
 

@@ -8,11 +8,13 @@ import { SiteLogoChip } from './SiteLogoChip';
 import { LiveBadge } from './LiveBadge';
 import { addSocketListener, subscribeToEvent, unsubscribeFromEvent } from '../../services/socketService';
 import type { EventStatusChangePayload } from '@betintel/shared';
+import { formatLiveClock } from '../../utils/formatters';
 
 interface OddsCardProps {
   event: OddsEvent;
   onPress?: () => void;
   onAddPress?: () => void;
+  onOddPress?: (odd: OddsRow, selection: '1' | 'X' | '2') => void;
 }
 
 interface SiteMarketRow {
@@ -20,19 +22,26 @@ interface SiteMarketRow {
   selections: Partial<Record<'1' | 'X' | '2', OddsRow>>;
 }
 
-export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
+function hasRenderableOddValue(value: string | null | undefined): boolean {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 1.01;
+}
+
+export function OddsCard({ event, onPress, onAddPress, onOddPress }: OddsCardProps) {
   const { colors, tokens } = useTheme();
 
   // Real-time score + status tracking via WebSocket
   const [liveStatus, setLiveStatus] = useState(event.status);
   const [liveHomeScore, setLiveHomeScore] = useState(event.homeScore);
   const [liveAwayScore, setLiveAwayScore] = useState(event.awayScore);
+  const [liveClock, setLiveClock] = useState(event.liveClock);
 
   useEffect(() => {
     setLiveStatus(event.status);
     setLiveHomeScore(event.homeScore);
     setLiveAwayScore(event.awayScore);
-  }, [event.status, event.homeScore, event.awayScore]);
+    setLiveClock(event.liveClock);
+  }, [event.status, event.homeScore, event.awayScore, event.liveClock]);
 
   useEffect(() => {
     subscribeToEvent(event.id);
@@ -42,6 +51,7 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
       setLiveStatus(payload.status);
       if (payload.homeScore != null) setLiveHomeScore(payload.homeScore);
       if (payload.awayScore != null) setLiveAwayScore(payload.awayScore);
+      setLiveClock(payload.status === 'LIVE' ? payload.liveClock : null);
     });
 
     return () => {
@@ -51,25 +61,48 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
   }, [event.id]);
 
   const isLive = liveStatus === 'LIVE';
+  const resolvedLiveClock = isLive ? formatLiveClock(liveClock, event.eventDate) : null;
+  const liveSummary = [
+    liveHomeScore != null && liveAwayScore != null ? `${liveHomeScore} – ${liveAwayScore}` : null,
+    resolvedLiveClock,
+  ].filter(Boolean).join(' · ');
 
   const marketRows = useMemo(() => {
     const rows = new Map<string, SiteMarketRow>();
 
-    event.odds
-      .filter((odd) => odd.market === '1X2')
-      .forEach((odd) => {
-        const key = odd.site.id;
-        const row = rows.get(key) ?? {
-          site: odd.site,
-          selections: {},
-        };
+    // Group odds by site → market → selections to find 1X2-like markets.
+    // Different bookmakers use different market names for the standard match result
+    // (e.g. "1X2", "Resultado do Jogo", "MR12"). Accept any market that carries
+    // the standard 1/X/2 selections.
+    const siteMarkets = new Map<string, Map<string, OddsRow[]>>();
+    for (const odd of event.odds) {
+      if (odd.selection !== '1' && odd.selection !== 'X' && odd.selection !== '2') continue;
+      if (!hasRenderableOddValue(odd.value)) continue;
+      let marketMap = siteMarkets.get(odd.site.id);
+      if (!marketMap) { marketMap = new Map(); siteMarkets.set(odd.site.id, marketMap); }
+      let arr = marketMap.get(odd.market);
+      if (!arr) { arr = []; marketMap.set(odd.market, arr); }
+      arr.push(odd);
+    }
 
+    siteMarkets.forEach((marketMap) => {
+      // Prefer the market explicitly named '1X2'; otherwise take the first market
+      // that provides at least 2 of the 3 selections.
+      let best: OddsRow[] | undefined;
+      for (const [mName, odds] of marketMap) {
+        if (mName === '1X2') { best = odds; break; }
+        if (!best || odds.length > (best?.length ?? 0)) best = odds;
+      }
+      if (!best || best.length < 2) return;
+
+      const row: SiteMarketRow = { site: best[0]!.site, selections: {} };
+      for (const odd of best) {
         if (odd.selection === '1' || odd.selection === 'X' || odd.selection === '2') {
           row.selections[odd.selection] = odd;
         }
-
-        rows.set(key, row);
-      });
+      }
+      rows.set(best[0]!.site.id, row);
+    });
 
     return Array.from(rows.values());
   }, [event.odds]);
@@ -101,22 +134,22 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
         },
       ]}
     >
-      {/* Top row: sport + league tag, live badge, add button */}
+      {/* Top row: sport + league tag | [live badge] + button */}
       <View style={styles.topRow}>
-        <View style={styles.topLeft}>
-          <View style={[styles.sportTag, { backgroundColor: colors.surfaceRaised }]}>
-            <Text style={styles.sportEmoji}>{sportEmoji}</Text>
-            <Text style={[styles.league, { color: colors.textSecondary }]}>{event.league}</Text>
-          </View>
-          {isLive ? <LiveBadge /> : null}
+        <View style={[styles.sportTag, { backgroundColor: colors.surfaceRaised }]}>
+          <Text style={styles.sportEmoji}>{sportEmoji}</Text>
+          <Text numberOfLines={1} style={[styles.league, { color: colors.textSecondary }]}>{event.league}</Text>
         </View>
-        <Pressable
-          hitSlop={10}
-          onPress={onAddPress}
-          style={[styles.addButton, { backgroundColor: colors.primary }]}
-        >
-          <MaterialCommunityIcons color="#FFFFFF" name="plus" size={18} />
-        </Pressable>
+        <View style={styles.topRight}>
+          {isLive ? <LiveBadge /> : null}
+          <Pressable
+            hitSlop={10}
+            onPress={onAddPress}
+            style={[styles.addButton, { backgroundColor: colors.primary }]}
+          >
+            <MaterialCommunityIcons color="#FFFFFF" name="plus" size={18} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Match title + score or date */}
@@ -126,9 +159,7 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
         </Text>
         {isLive ? (
           <Text style={[styles.liveScore, { color: colors.primary }]}>
-            {liveHomeScore != null && liveAwayScore != null
-              ? `${liveHomeScore} – ${liveAwayScore}`
-              : 'Ao vivo'}
+            {liveSummary || 'Ao vivo'}
           </Text>
         ) : (
           <Text style={[styles.date, { color: colors.textMuted }]}>{formatEventDate(event.eventDate)}</Text>
@@ -137,35 +168,36 @@ export function OddsCard({ event, onPress, onAddPress }: OddsCardProps) {
 
       {/* Odds rows — one per site, no header */}
       <View style={styles.oddsSection}>
-        {marketRows.map((row) => (
-          <View key={row.site.id} style={styles.siteRow}>
-            <SiteLogoChip compact logoUrl={row.site.logoUrl} name={row.site.name} slug={row.site.slug} />
-            <View style={styles.oddsGroup}>
-              {(['1', 'X', '2'] as const).map((selection) => {
-                const odd = row.selections[selection];
-                return odd ? (
-                  <OddsCell
-                    eventId={event.id}
-                    key={`${row.site.id}-${selection}`}
-                    highlight={Number(odd.value) === bestBySelection[selection] && bestBySelection[selection] > 0}
-                    market={odd.market}
-                    oddSelection={odd.selection}
-                    selection={selection}
-                    siteId={odd.site.id}
-                    value={odd.value}
-                  />
-                ) : (
-                  <View
-                    key={`${row.site.id}-${selection}`}
-                    style={[styles.emptyCell, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-                  >
-                    <Text style={[styles.emptyCellText, { color: colors.textMuted }]}>–</Text>
-                  </View>
-                );
-              })}
+        {marketRows.map((row) => {
+          // Basketball/tennis have no draw — render only 1 and 2 columns
+          const isTwoWay = event.sport === 'BASKETBALL' || event.sport === 'TENNIS';
+          const selections = isTwoWay ? (['1', '2'] as const) : (['1', 'X', '2'] as const);
+          return (
+            <View key={row.site.id} style={styles.siteRow}>
+              <SiteLogoChip logoUrl={row.site.logoUrl} name={row.site.name} slug={row.site.slug} />
+              <View style={styles.oddsGroup}>
+                {selections.map((selection) => {
+                  const odd = row.selections[selection];
+                  return odd && hasRenderableOddValue(odd.value) ? (
+                    <OddsCell
+                      eventId={event.id}
+                      key={`${row.site.id}-${selection}`}
+                      highlight={Number(odd.value) === bestBySelection[selection] && bestBySelection[selection] > 0}
+                      market={odd.market}
+                      oddSelection={odd.selection}
+                      onPress={onOddPress ? () => onOddPress(odd, selection) : undefined}
+                      selection={selection}
+                      siteId={odd.site.id}
+                      value={odd.value}
+                    />
+                  ) : (
+                    <View key={`${row.site.id}-${selection}`} style={styles.emptyCell} />
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </Pressable>
   );
@@ -209,18 +241,20 @@ const styles = StyleSheet.create({
   topRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    gap: 8,
     justifyContent: 'space-between',
   },
-  topLeft: {
+  topRight: {
     alignItems: 'center',
     flexDirection: 'row',
-    flex: 1,
+    flexShrink: 0,
     gap: 8,
   },
   sportTag: {
     alignItems: 'center',
     borderRadius: 999,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -270,15 +304,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   emptyCell: {
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    justifyContent: 'center',
     minHeight: 52,
     minWidth: 60,
-  },
-  emptyCellText: {
-    fontSize: 18,
-    fontWeight: '700',
   },
 });

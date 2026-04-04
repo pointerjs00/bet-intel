@@ -39,6 +39,12 @@ export interface ScrapedEvent {
   markets: ScrapedMarket[];
   /** Whether the betting site reports this event as currently live / in-play. */
   isLive?: boolean;
+  /** Live score for the home team, if reported by the scraper. */
+  homeScore?: number | null;
+  /** Live score for the away team, if reported by the scraper. */
+  awayScore?: number | null;
+  /** Display-ready live clock, e.g. "61'" or "Int.". */
+  liveClock?: string | null;
 }
 
 // ─── Scraper contract ─────────────────────────────────────────────────────────

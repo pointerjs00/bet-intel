@@ -266,7 +266,7 @@ function NotificationLifecycleManager() {
     // FINISHED events are removed from list views immediately so they stop
     // showing as live in the feed.
     const onStatusChange = (payload: {
-      eventId: string; status: string; homeScore: number | null; awayScore: number | null;
+      eventId: string; status: string; homeScore: number | null; awayScore: number | null; liveClock: string | null;
     }) => {
       const isTerminal = payload.status === 'FINISHED' || payload.status === 'CANCELLED';
       const patchStatus = (event: OddsEvent): OddsEvent => {
@@ -276,6 +276,7 @@ function NotificationLifecycleManager() {
           status: payload.status,
           homeScore: payload.homeScore ?? event.homeScore,
           awayScore: payload.awayScore ?? event.awayScore,
+          liveClock: payload.status === 'LIVE' ? payload.liveClock : null,
         };
       };
 
