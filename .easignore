@@ -15,3 +15,8 @@ apps/mobile/ios/
 Thumbs.db
 *.log
 logs/
+apps/api/.scraper-profiles/
+apps/api/debug-screenshots/
+apps/api/dupes*.txt
+apps/api/check-leagues.ts
+fixture-status-only.js

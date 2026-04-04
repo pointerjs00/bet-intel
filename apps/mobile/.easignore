@@ -6,3 +6,8 @@ ios/
 /dist/
 build/
 *.log
+
+# API directory — only the mobile app is needed for EAS builds
+../api/
+../../packages/
+../../.github/
