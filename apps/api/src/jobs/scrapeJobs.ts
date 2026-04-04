@@ -2,16 +2,15 @@
  * Odds polling job queue — powered by Bull + Redis.
  *
  * Zero-Puppeteer architecture:
- *  - The Odds API: primary source for Betclic, Betano, Solverde odds (HTTP REST)
- *  - Kambi CDN:    primary source for Placard odds + Solverde supplement (HTTP)
- *  - API-Football: match status + live scores (already handled by eventStatusService)
+ *  - Live (every 60s):      Kambi CDN for Placard/Solverde + Betano direct REST API
+ *  - Upcoming (every 15m):  Kambi CDN full catalogues for Placard + Solverde
+ *  - Pre-match (every 6h):  The Odds API for Betclic, Betano, Solverde (free tier)
+ *  - Status (every 60s):    API-Football match status transitions (on every job)
  *
  * No headless browsers, no residential proxies, runs comfortably on 4 GB RAM.
  *
- * Schedule (free tier — 500 req/month):
- *  - The Odds API:  every 6 hours (4 sports × 4 polls/day = 480 req/month)
- *  - Kambi CDN:     every 15 minutes (free, unlimited)
- *  - Event status:  every 60 seconds (via updateEventStatuses)
+ * Free tier budget: 500 req/month (The Odds API).
+ * Set ODDS_POLL_INTERVAL_MINUTES env to change The Odds API frequency.
  *
  * Call initScrapeJobs() once during app startup (see src/index.ts).
  */
@@ -21,7 +20,8 @@ import { logger } from '../utils/logger';
 import { persistScrapedEventsForSite } from '../services/scraper/scraperRegistry';
 import { updateEventStatuses } from '../services/odds/oddsService';
 import { fetchAndPersistOdds } from '../services/odds/oddsApiService';
-import { fetchKambiPrefetchEvents } from '../services/scraper/sites/browserSiteScraper';
+import { fetchKambiPrefetchEvents, fetchBetanoSportsApi } from '../services/scraper/sites/browserSiteScraper';
+import { Sport } from '@betintel/shared';
 import type { ScrapeJobData } from '../services/scraper/types';
 
 // ─── Queue setup ──────────────────────────────────────────────────────────────
@@ -67,13 +67,13 @@ const KAMBI_CDN = {
 };
 
 /**
- * Fetches Placard + Solverde odds via their Kambi CDN pre-fetch endpoints.
- * Pure HTTP — no Puppeteer, no proxy needed.
+ * Fetches Kambi CDN endpoints for the given sites.
+ * Pass a subset of KAMBI_CDN keys to avoid fetching all sports when not needed.
  */
-async function fetchKambiCdnOdds(): Promise<void> {
-  for (const [site, urls] of Object.entries(KAMBI_CDN)) {
+async function fetchKambiCdnOdds(sites: (keyof typeof KAMBI_CDN)[] = ['placard', 'solverde']): Promise<void> {
+  for (const site of sites) {
     const allEvents = [];
-    for (const [sport, url] of Object.entries(urls)) {
+    for (const [sport, url] of Object.entries(KAMBI_CDN[site])) {
       try {
         const events = await fetchKambiPrefetchEvents(`${site}:${sport}:cdn`, url);
         allEvents.push(...events);
@@ -101,6 +101,60 @@ async function fetchKambiCdnOdds(): Promise<void> {
   }
 }
 
+// ─── Betano live API (pure HTTP, no browser) ─────────────────────────────────
+
+/**
+ * Betano live-event REST API endpoints (Kaizen Gaming / SAGE platform).
+ * These are the internal JSON APIs Betano's own frontend calls.
+ * Tried in order — stops at first success per sport.
+ */
+const BETANO_LIVE_URLS = {
+  football:   [
+    'https://www.betano.pt/api/sports/live/events/?sport=SOCCER',
+    'https://www.betano.pt/api/sports/live/events/?sport=FOOTBALL',
+    'https://www.betano.pt/api/sports/live/?sport=SOCCER',
+  ],
+  basketball: [
+    'https://www.betano.pt/api/sports/live/events/?sport=BASKETBALL',
+    'https://www.betano.pt/api/sports/live/?sport=BASKETBALL',
+  ],
+  tennis: [
+    'https://www.betano.pt/api/sports/live/events/?sport=TENNIS',
+    'https://www.betano.pt/api/sports/live/?sport=TENNIS',
+  ],
+} as const;
+
+/**
+ * Fetches Betano live odds via their internal REST API (no Puppeteer, no proxy).
+ * Returns the number of events persisted; silently returns 0 if all URLs fail
+ * (Betano WAF blocking is non-fatal — pre-match data already cached from The Odds API).
+ */
+async function fetchBetanoLiveOdds(): Promise<number> {
+  const allEvents = [];
+
+  for (const [sportKey, urls] of Object.entries(BETANO_LIVE_URLS)) {
+    const sport = sportKey === 'football' ? Sport.FOOTBALL
+      : sportKey === 'basketball' ? Sport.BASKETBALL
+      : Sport.TENNIS;
+
+    const events = await fetchBetanoSportsApi(`Betano:live:${sportKey}`, urls as readonly string[], sport);
+    allEvents.push(...events);
+  }
+
+  if (allEvents.length === 0) return 0;
+
+  try {
+    const persisted = await persistScrapedEventsForSite('betano', 'Betano', allEvents);
+    logger.info('Betano live API: persisted events', { events: persisted });
+    return persisted;
+  } catch (err) {
+    logger.error('Betano live API: persist failed', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return 0;
+  }
+}
+
 // ─── Job processor ────────────────────────────────────────────────────────────
 
 async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
@@ -119,19 +173,38 @@ async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
   }
 
   try {
-    if (jobType === 'odds-api') {
-      // The Odds API — Betclic, Betano, Solverde (h2h + totals)
+    if (jobType === 'live') {
+      // Live events — every 60 seconds:
+      // Kambi CDN includes live events and refreshes in real-time for Placard/Solverde.
+      // Betano's live REST API returns only currently live events (lightweight).
+      await Promise.allSettled([
+        fetchKambiCdnOdds(['placard', 'solverde']),
+        fetchBetanoLiveOdds(),
+      ]);
+      logger.info('Live poll completed');
+
+    } else if (jobType === 'kambi-cdn') {
+      // Kambi CDN full upcoming catalogues — every 15 minutes
+      await fetchKambiCdnOdds(['placard', 'solverde']);
+      logger.info('Kambi CDN upcoming poll completed');
+
+    } else if (jobType === 'odds-api') {
+      // The Odds API — pre-match odds for all bookmakers including Betclic
       const count = await fetchAndPersistOdds();
       logger.info('The Odds API poll completed', { eventsUpserted: count });
-    } else if (jobType === 'kambi-cdn') {
-      // Kambi CDN — Placard + Solverde supplement (pure HTTP)
-      await fetchKambiCdnOdds();
-      logger.info('Kambi CDN poll completed');
+
+    } else if (jobType === 'status-check') {
+      // Status-only check — event status already updated above, nothing else to do
+      logger.info('Status check completed');
+
     } else {
-      // Legacy job type — run both
-      const count = await fetchAndPersistOdds();
-      await fetchKambiCdnOdds();
-      logger.info('Combined poll completed', { oddsApiEvents: count });
+      // Legacy / fallback — run everything
+      const [,, count] = await Promise.allSettled([
+        fetchKambiCdnOdds(['placard', 'solverde']),
+        fetchBetanoLiveOdds(),
+        fetchAndPersistOdds(),
+      ]);
+      logger.info('Combined poll completed');
     }
   } catch (err) {
     logger.error('Poll job failed', {
@@ -157,10 +230,31 @@ async function scheduleJobs(queue: Bull.Queue<ScrapeJobData>): Promise<void> {
     await queue.removeRepeatableByKey(job.key);
   }
 
-  // The Odds API poll — every 6 hours (free tier: 480 req/month budget of 500)
-  // Upgrade to a paid plan and lower this to every 30 min for better coverage.
-  const oddsApiIntervalMinutes = parseInt(process.env.ODDS_POLL_INTERVAL_MINUTES ?? '360', 10);
+  // Live events — every 60 seconds.
+  // Polls Kambi CDN (Placard/Solverde) + Betano live REST API.
+  // Live odds can move every few minutes; 60s is a good balance.
+  await queue.add(
+    { jobType: 'live' },
+    {
+      repeat: { every: 60_000 },
+      jobId: 'poll-live',
+    },
+  );
 
+  // Kambi CDN upcoming catalogue — every 15 minutes.
+  // Picks up new events for Placard and Solverde before they go live.
+  await queue.add(
+    { jobType: 'kambi-cdn' },
+    {
+      repeat: { every: 15 * 60 * 1000 },
+      jobId: 'poll-kambi-cdn-upcoming',
+    },
+  );
+
+  // The Odds API poll — covers Betclic + supplements Betano/Solverde.
+  // Free tier: 500 req/month — default 6h = 480 req/month across 4 sports.
+  // Lower ODDS_POLL_INTERVAL_MINUTES on a paid plan for more frequent updates.
+  const oddsApiIntervalMinutes = parseInt(process.env.ODDS_POLL_INTERVAL_MINUTES ?? '360', 10);
   await queue.add(
     { jobType: 'odds-api' },
     {
@@ -169,29 +263,11 @@ async function scheduleJobs(queue: Bull.Queue<ScrapeJobData>): Promise<void> {
     },
   );
 
-  // Kambi CDN poll (Placard + Solverde) — every 15 minutes (free, unlimited)
-  await queue.add(
-    { jobType: 'kambi-cdn' },
-    {
-      repeat: { every: 15 * 60 * 1000 },
-      jobId: 'poll-kambi-cdn',
-    },
-  );
-
-  // Event status check — every 60 seconds (API-Football via updateEventStatuses)
-  await queue.add(
-    { jobType: 'status-check' },
-    {
-      repeat: { every: 60_000 },
-      jobId: 'event-status-check',
-    },
-  );
-
   logger.info('Odds poll jobs scheduled', {
     jobs: [
-      `odds-api (every ${oddsApiIntervalMinutes}min)`,
-      'kambi-cdn (every 15min)',
-      'status-check (every 60s)',
+      'live (every 60s) — Kambi CDN + Betano live API',
+      'kambi-cdn-upcoming (every 15min) — Placard + Solverde catalogues',
+      `odds-api (every ${oddsApiIntervalMinutes}min) — The Odds API (Betclic + all pre-match)`,
     ],
   });
 }
