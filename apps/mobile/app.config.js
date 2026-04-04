@@ -1,6 +1,5 @@
-import fs from 'fs';
-import path from 'path';
-import type { ExpoConfig, ConfigContext } from 'expo/config';
+const fs = require('fs');
+const path = require('path');
 
 /**
  * Write Firebase config files from EAS secrets if they don't exist on disk.
@@ -10,7 +9,7 @@ import type { ExpoConfig, ConfigContext } from 'expo/config';
  *   GOOGLE_SERVICES_JSON       → google-services.json   (Android)
  *   GOOGLE_SERVICES_INFO_PLIST → GoogleService-Info.plist (iOS)
  */
-function ensureFirebaseFiles(): void {
+function ensureFirebaseFiles() {
   const dir = __dirname;
 
   const gsJsonPath = path.join(dir, 'google-services.json');
@@ -28,7 +27,7 @@ function ensureFirebaseFiles(): void {
 
 ensureFirebaseFiles();
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
+module.exports = ({ config }) => ({
   ...config,
   name: 'BetIntel',
   slug: 'betintel',
