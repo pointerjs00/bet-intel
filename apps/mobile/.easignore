@@ -9,5 +9,5 @@ build/
 
 # API directory — only the mobile app is needed for EAS builds
 ../api/
-../../packages/
 ../../.github/
+# Note: ../../packages/ must stay included — pnpm needs packages/shared to resolve workspace:* deps

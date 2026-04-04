@@ -35,3 +35,6 @@ logs/
 debug-screenshots/
 apps/api/debug-screenshots/
 .scraper-profiles/
+# Prevent npm from accidentally creating a lock file (project uses pnpm)
+package-lock.json
+build-archive-test.tar.gz
