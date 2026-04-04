@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@9.0.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "build:shared": "pnpm --filter @betintel/shared build",
     "dev:api": "pnpm --filter api dev",
