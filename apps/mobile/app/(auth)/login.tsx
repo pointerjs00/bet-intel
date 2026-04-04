@@ -195,6 +195,9 @@ function getErrorMessage(error: unknown): string {
   ) {
     return String(error.response.data.error);
   }
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
   return 'Não foi possível concluir a operação.';
 }
 
