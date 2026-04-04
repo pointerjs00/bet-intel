@@ -4,6 +4,7 @@ import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import puppeteerCore, { type HTTPRequest, type HTTPResponse, type Page } from 'puppeteer-core';
 import * as proxyChain from 'proxy-chain';
+import { ProxyAgent as UndiciProxyAgent } from 'undici';
 import { Sport } from '@betintel/shared';
 import { logger } from '../../../utils/logger';
 import type { ScrapedEvent, ScrapedMarket } from '../types';
@@ -41,6 +42,19 @@ async function getLocalProxyUrl(): Promise<string | undefined> {
     logger.info('Proxy chain: local bridge started', { localUrl: _localProxyUrl });
   }
   return _localProxyUrl;
+}
+
+/** Per-process undici ProxyAgent for routing Node fetch() through the configured proxy. */
+let _undiciProxyAgent: UndiciProxyAgent | undefined;
+
+/** Returns an undici ProxyAgent dispatcher if SCRAPER_HTTP_PROXY is set, or undefined. */
+function getProxyDispatcher(): UndiciProxyAgent | undefined {
+  const proxy = process.env.SCRAPER_HTTP_PROXY?.trim();
+  if (!proxy) return undefined;
+  if (!_undiciProxyAgent) {
+    _undiciProxyAgent = new UndiciProxyAgent(proxy);
+  }
+  return _undiciProxyAgent;
 }
 
 /** Returns Chromium launch args with optional proxy-chain local URL. */
@@ -298,10 +312,17 @@ export async function fetchBetanoSportsApi(
     'Cache-Control': 'no-cache',
   };
 
+  // Route direct API fetch through the configured proxy so Betano doesn't
+  // see the datacenter IP — the same proxy used by Puppeteer browsers.
+  const dispatcher = getProxyDispatcher();
+
   for (const url of urls) {
     try {
-      logger.debug(`${siteLabel}: direct API fetch → ${url}`);
-      const resp = await fetch(url, { headers: baseHeaders });
+      logger.debug(`${siteLabel}: direct API fetch → ${url}${dispatcher ? ' (via proxy)' : ''}`);
+      const resp = await fetch(url, {
+        headers: baseHeaders,
+        ...(dispatcher ? { dispatcher } as Record<string, unknown> : {}),
+      });
       if (!resp.ok) {
         logger.debug(`${siteLabel}: direct API returned ${resp.status} for ${url} (WAF block expected, will fall back to Puppeteer)`);
         continue;

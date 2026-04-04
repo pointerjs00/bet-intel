@@ -115,20 +115,20 @@ async function scheduleJobs(queue: Bull.Queue<ScrapeJobData>): Promise<void> {
     },
   );
 
-  // Upcoming events (next 24 h) — every 5 minutes
+  // Upcoming events (next 24 h) — every 5 minutes (offset by 2 min to avoid overlap with live)
   await queue.add(
     { jobType: 'upcoming-24h' },
     {
-      repeat: { cron: '*/5 * * * *' },
+      repeat: { cron: '2/5 * * * *' },
       jobId: 'scrape-upcoming-24h',
     },
   );
 
-  // Upcoming events (next 7 d) — every 30 minutes
+  // Upcoming events (next 7 d) — every 30 minutes (offset by 15 min)
   await queue.add(
     { jobType: 'upcoming-7d' },
     {
-      repeat: { cron: '*/30 * * * *' },
+      repeat: { cron: '15,45 * * * *' },
       jobId: 'scrape-upcoming-7d',
     },
   );
@@ -180,10 +180,9 @@ export async function initScrapeJobs(): Promise<Bull.Queue<ScrapeJobData>> {
   const queue = createScrapeQueue();
   attachListeners(queue);
 
-  // Concurrency=2 allows a second job to start while the previous one is still
-  // persisting results. Combined with parallel scrapers inside each job, this
-  // prevents queue back-pressure from elongating the effective refresh interval.
-  queue.process(2, processJob);
+  // Concurrency=1 prevents multiple scrape jobs from running simultaneously,
+  // which could exhaust the 4 GB VPS RAM with too many Puppeteer browsers.
+  queue.process(1, processJob);
 
   await scheduleJobs(queue);
 
