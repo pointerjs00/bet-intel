@@ -13,6 +13,7 @@
 
 import { execSync } from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { addExtra } from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
@@ -898,17 +899,11 @@ export class BetclicScraper implements IScraper {
     // Declared outside the outer try so live events survive even if the
     // catalogue pass crashes the browser (OOM / frame-detach).
     let liveEvents: ScrapedEvent[] = [];
+    // Use a fresh temp dir per invocation so concurrent scrape jobs (live +
+    // upcoming-24h both fire at startup) never share the same Chromium profile
+    // and hit the SingletonLock conflict.
+    const catalogueProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'betclic-catalogue-'));
     try {
-      // Use a persistent userDataDir so cookies/session survive across launches.
-      // releaseProfileLock() kills any zombie browser holding the named-pipe lock
-      // (Windows) or removes the SingletonLock symlink (Linux) before we launch,
-      // preventing the "Failed to launch the browser process" hang on restarts.
-      const catalogueProfileDir = path.join(
-        process.cwd(),
-        '.scraper-profiles',
-        'betclic-catalogue',
-      );
-      await releaseProfileLock(catalogueProfileDir);
       const scrapeProxyUrl = await getLocalProxyUrl();
       browser = await puppeteer.launch({
         executablePath:
@@ -1317,6 +1312,7 @@ export class BetclicScraper implements IScraper {
       }
 
       await browser.close();
+      fs.rmSync(catalogueProfileDir, { recursive: true, force: true });
       return merged;
     } catch (err) {
       let errorMsg: string;
@@ -1334,6 +1330,7 @@ export class BetclicScraper implements IScraper {
       if (browser) {
         await browser.close().catch(() => undefined);
       }
+      fs.rmSync(catalogueProfileDir, { recursive: true, force: true });
       // Return whatever live events were captured before the crash
       return liveEvents;
     }
