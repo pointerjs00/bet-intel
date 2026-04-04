@@ -12,7 +12,7 @@ COPY packages/shared/package.json packages/shared/package.json
 # Copy Prisma schema before install so the postinstall `prisma generate` can find it
 COPY apps/api/src/prisma apps/api/src/prisma
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 COPY apps/api ./apps/api
 COPY packages/shared ./packages/shared
