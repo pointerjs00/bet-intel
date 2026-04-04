@@ -114,6 +114,22 @@ const BASE_CONFIG = {
     '[data-testid="cookie-accept"]',
     'button[class*="cookie"]',
   ],
+  /** Betano shows a "Splash Screen" age-gate/entry page when it detects a headless
+   *  browser. These selectors attempt to dismiss it before looking for event cards. */
+  preDismissSelectors: [
+    '[data-testid="splash-screen-cta"]',
+    '[data-testid="age-gate-confirm"]',
+    '[data-testid="age-verification-confirm"]',
+    '.splash-overlay__cta',
+    '.splash-screen__button',
+    '.js-over18',
+    '.age-gate__confirm',
+    '.entry-gate__cta',
+    '[class*="SplashScreen"] button',
+    '[class*="splash"] button',
+    '[class*="age-gate"] button',
+  ],
+  preWaitMs: 1500,
   // Betano is a Kaizen Gaming SPA that loads events via internal API calls
   apiInterceptPatterns: [
     'api/sport',

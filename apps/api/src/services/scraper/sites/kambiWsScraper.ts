@@ -713,7 +713,19 @@ export async function scrapeKambiViaWebSocket(config: KambiWsConfig): Promise<Sc
                 const existing = allEvents.get(evId)!;
                 if (cdnState) existing.state = cdnState;
                 if (cdnScore) existing.score = cdnScore;
-                if (cdnDetails) existing.details = cdnDetails;
+                if (cdnDetails) {
+                  // Merge CDN details into the WS event's details. CDN may omit
+                  // timeInformation on some pre-fetch variants — preserve the WS
+                  // snapshot value so the live clock is never regressed to null.
+                  const wsTimeInfo = (existing.details as Record<string, unknown> | undefined)?.timeInformation;
+                  existing.details = {
+                    ...(existing.details as Record<string, unknown> ?? {}),
+                    ...cdnDetails,
+                    ...(cdnDetails.timeInformation == null && wsTimeInfo != null
+                      ? { timeInformation: wsTimeInfo }
+                      : {}),
+                  };
+                }
                 cdnLiveUpdates++;
               }
               // Fall through to the market-lines section below for this event
