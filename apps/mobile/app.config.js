@@ -2,26 +2,47 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * Write Firebase config files from EAS secrets if they don't exist on disk.
- * This runs during the EAS "Read app config" phase — before the native build.
- * Locally the files are already present (in .gitignore); on EAS they're absent
- * and must be reconstructed from base64-encoded secrets:
- *   GOOGLE_SERVICES_JSON       → google-services.json   (Android)
- *   GOOGLE_SERVICES_INFO_PLIST → GoogleService-Info.plist (iOS)
+ * Write Firebase config files from EAS secrets before the native build.
+ * This runs during the EAS "Read app config" phase.
+ *
+ * In bare workflow the android/ folder is committed to git, so Gradle reads
+ * android/app/google-services.json directly — not the root google-services.json.
+ * The EAS secret always contains the authoritative file (with the correct
+ * SHA-1 fingerprints for the EAS signing keystore), so we overwrite BOTH
+ * paths whenever the secret is present.
+ *
+ *   GOOGLE_SERVICES_JSON       → google-services.json + android/app/google-services.json
+ *   GOOGLE_SERVICES_INFO_PLIST → GoogleService-Info.plist (+ ios/ if present)
  */
 function ensureFirebaseFiles() {
   const dir = __dirname;
 
-  const gsJsonPath = path.join(dir, 'google-services.json');
-  if (!fs.existsSync(gsJsonPath) && process.env.GOOGLE_SERVICES_JSON) {
+  if (process.env.GOOGLE_SERVICES_JSON) {
     const content = Buffer.from(process.env.GOOGLE_SERVICES_JSON, 'base64').toString('utf-8');
-    fs.writeFileSync(gsJsonPath, content, 'utf-8');
+    // Root path (used by expo prebuild / local dev)
+    fs.writeFileSync(path.join(dir, 'google-services.json'), content, 'utf-8');
+    // Bare-workflow path — read directly by Gradle; must be overwritten from the secret
+    // because the committed android/app/google-services.json predates EAS keystore SHA-1 changes.
+    const androidGsPath = path.join(dir, 'android', 'app', 'google-services.json');
+    if (fs.existsSync(path.join(dir, 'android', 'app'))) {
+      fs.writeFileSync(androidGsPath, content, 'utf-8');
+    }
+  } else {
+    // Local dev: write root file only if it is missing
+    const gsJsonPath = path.join(dir, 'google-services.json');
+    if (!fs.existsSync(gsJsonPath)) {
+      console.warn('app.config.js: GOOGLE_SERVICES_JSON env var not set and google-services.json missing.');
+    }
   }
 
-  const plistPath = path.join(dir, 'GoogleService-Info.plist');
-  if (!fs.existsSync(plistPath) && process.env.GOOGLE_SERVICES_INFO_PLIST) {
+  if (process.env.GOOGLE_SERVICES_INFO_PLIST) {
     const content = Buffer.from(process.env.GOOGLE_SERVICES_INFO_PLIST, 'base64').toString('utf-8');
-    fs.writeFileSync(plistPath, content, 'utf-8');
+    fs.writeFileSync(path.join(dir, 'GoogleService-Info.plist'), content, 'utf-8');
+  } else {
+    const plistPath = path.join(dir, 'GoogleService-Info.plist');
+    if (!fs.existsSync(plistPath)) {
+      console.warn('app.config.js: GOOGLE_SERVICES_INFO_PLIST env var not set and GoogleService-Info.plist missing.');
+    }
   }
 }
 

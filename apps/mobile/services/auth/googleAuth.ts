@@ -22,6 +22,9 @@ async function requestGoogleFirebaseIdToken(): Promise<string> {
   }
 
   const { idToken } = await GoogleSignin.getTokens();
+  if (!idToken) {
+    throw new Error('Google Sign-In: idToken em falta. Verifique a configuração do webClientId.');
+  }
   const googleCredential = auth.GoogleAuthProvider.credential(idToken);
   const userCredential = await auth().signInWithCredential(googleCredential);
   return userCredential.user.getIdToken();
