@@ -108,6 +108,14 @@ module.exports = ({ config }) => ({
           'com.googleusercontent.apps.235418572919-i7ivkgcqcaim1vk7g6nm8iboner0r17i',
       },
     ],
+    [
+      'expo-build-properties',
+      {
+        android: {
+          usesCleartextTraffic: true,
+        },
+      },
+    ],
   ],
   extra: {
     eas: {
@@ -116,6 +124,7 @@ module.exports = ({ config }) => ({
     router: {
       origin: false,
     },
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://bet.stream-intel.online:3000/api',
   },
   experiments: {
     typedRoutes: true,
