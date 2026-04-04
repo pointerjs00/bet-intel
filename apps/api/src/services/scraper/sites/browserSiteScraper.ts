@@ -324,7 +324,7 @@ export async function fetchBetanoSportsApi(
         ...(dispatcher ? { dispatcher } as Record<string, unknown> : {}),
       });
       if (!resp.ok) {
-        logger.debug(`${siteLabel}: direct API returned ${resp.status} for ${url} (WAF block expected, will fall back to Puppeteer)`);
+        logger.debug(`${siteLabel}: direct API returned ${resp.status} for ${url} (WAF block — skipping)`);
         continue;
       }
       const body: unknown = await resp.json();
@@ -344,7 +344,7 @@ export async function fetchBetanoSportsApi(
     }
   }
 
-  logger.warn(`${siteLabel}: all direct API URLs exhausted, falling back to Puppeteer`);
+  logger.warn(`${siteLabel}: all direct API URLs exhausted — returning empty (WAF block on server IP)`);
   return [];
 }
 
