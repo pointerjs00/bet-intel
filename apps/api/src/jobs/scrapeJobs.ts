@@ -1,45 +1,43 @@
 /**
- * Scraping job queue — powered by Bull + Redis.
+ * Odds polling job queue — powered by Bull + Redis.
  *
- * PT-only bookmaker scrapers:
- *  - Live events: every 60 seconds
- *  - Upcoming events (24 h): every 5 minutes
- *  - Upcoming events (7 d): every 30 minutes
- *  - New events discovery: every 2 hours
+ * Zero-Puppeteer architecture:
+ *  - The Odds API: primary source for Betclic, Betano, Solverde odds (HTTP REST)
+ *  - Kambi CDN:    primary source for Placard odds + Solverde supplement (HTTP)
+ *  - API-Football: match status + live scores (already handled by eventStatusService)
+ *
+ * No headless browsers, no residential proxies, runs comfortably on 4 GB RAM.
+ *
+ * Schedule (free tier — 500 req/month):
+ *  - The Odds API:  every 6 hours (4 sports × 4 polls/day = 480 req/month)
+ *  - Kambi CDN:     every 15 minutes (free, unlimited)
+ *  - Event status:  every 60 seconds (via updateEventStatuses)
  *
  * Call initScrapeJobs() once during app startup (see src/index.ts).
  */
 
 import Bull from 'bull';
 import { logger } from '../utils/logger';
-import {
-  registerDefaultScrapers,
-  runAllScrapers,
-  runScraper,
-} from '../services/scraper/scraperRegistry';
+import { persistScrapedEventsForSite } from '../services/scraper/scraperRegistry';
 import { updateEventStatuses } from '../services/odds/oddsService';
+import { fetchAndPersistOdds } from '../services/odds/oddsApiService';
+import { fetchKambiPrefetchEvents } from '../services/scraper/sites/browserSiteScraper';
 import type { ScrapeJobData } from '../services/scraper/types';
-
-function registerAllScrapers(): void {
-  registerDefaultScrapers();
-}
 
 // ─── Queue setup ──────────────────────────────────────────────────────────────
 
 const REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
 
 /**
- * Single Bull queue for all scrape jobs.
- * Concurrency is kept at 1 to avoid hammering sites simultaneously.
+ * Single Bull queue for all odds poll jobs.
+ * HTTP-only — no Puppeteer, no proxy needed.
  */
 function createScrapeQueue(): Bull.Queue<ScrapeJobData> {
   const queue = new Bull<ScrapeJobData>('scraping', REDIS_URL, {
     settings: {
-      // Scrapers can take 15-30 min (200+ events × API enrichment calls).
-      // Extend the lock so Bull doesn't mark long-running jobs as stalled.
-      lockDuration: 1_800_000,    // 30 minutes
-      stalledInterval: 60_000,    // check for stalls every 60 s (default 30 s)
-      maxStalledCount: 0,         // never auto-retry on stall — let the job finish
+      lockDuration: 300_000,      // 5 minutes (HTTP-only jobs are fast)
+      stalledInterval: 60_000,
+      maxStalledCount: 0,
     },
     defaultJobOptions: {
       removeOnComplete: 50,  // keep only last 50 completed jobs in Redis
@@ -55,10 +53,58 @@ function createScrapeQueue(): Bull.Queue<ScrapeJobData> {
   return queue;
 }
 
+// ─── Kambi CDN URLs (pure HTTP, no browser) ─────────────────────────────────
+
+const KAMBI_CDN = {
+  placard: {
+    soccer:     'https://sportswidget-cdn.placard.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP',
+    basketball: 'https://sportswidget-cdn.placard.pt/pre-fetch?locale=pt_PT&page=basketball&type=DESKTOP',
+  },
+  solverde: {
+    soccer:     'https://sportswidget-cdn.solverde.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP',
+    basketball: 'https://sportswidget-cdn.solverde.pt/pre-fetch?locale=pt_PT&page=basketball&type=DESKTOP',
+  },
+};
+
+/**
+ * Fetches Placard + Solverde odds via their Kambi CDN pre-fetch endpoints.
+ * Pure HTTP — no Puppeteer, no proxy needed.
+ */
+async function fetchKambiCdnOdds(): Promise<void> {
+  for (const [site, urls] of Object.entries(KAMBI_CDN)) {
+    const allEvents = [];
+    for (const [sport, url] of Object.entries(urls)) {
+      try {
+        const events = await fetchKambiPrefetchEvents(`${site}:${sport}:cdn`, url);
+        allEvents.push(...events);
+      } catch (err) {
+        logger.warn(`Kambi CDN fetch failed`, {
+          site,
+          sport,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    if (allEvents.length > 0) {
+      const siteName = site === 'placard' ? 'Placard' : 'Solverde';
+      try {
+        const persisted = await persistScrapedEventsForSite(site, siteName, allEvents);
+        logger.info(`Kambi CDN: persisted events`, { site, events: persisted });
+      } catch (err) {
+        logger.error(`Kambi CDN: persist failed`, {
+          site,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+}
+
 // ─── Job processor ────────────────────────────────────────────────────────────
 
 async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
-  const { jobType, siteSlug } = job.data;
+  const { jobType } = job.data;
 
   logger.info('Odds poll job started', { jobType });
 
@@ -73,18 +119,23 @@ async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
   }
 
   try {
-    if (siteSlug) {
-      const count = await runScraper(siteSlug);
-      logger.info('Scrape job completed', { jobType, siteSlug, eventsUpserted: count });
+    if (jobType === 'odds-api') {
+      // The Odds API — Betclic, Betano, Solverde (h2h + totals)
+      const count = await fetchAndPersistOdds();
+      logger.info('The Odds API poll completed', { eventsUpserted: count });
+    } else if (jobType === 'kambi-cdn') {
+      // Kambi CDN — Placard + Solverde supplement (pure HTTP)
+      await fetchKambiCdnOdds();
+      logger.info('Kambi CDN poll completed');
     } else {
-      await runAllScrapers();
-      logger.info('Scrape job completed', { jobType, siteSlug: 'all' });
+      // Legacy job type — run both
+      const count = await fetchAndPersistOdds();
+      await fetchKambiCdnOdds();
+      logger.info('Combined poll completed', { oddsApiEvents: count });
     }
   } catch (err) {
-    // Re-throw so Bull marks the job as failed and applies retry back-off
-    logger.error('Scrape job failed', {
+    logger.error('Poll job failed', {
       jobType,
-      siteSlug: siteSlug ?? 'all',
       error: err instanceof Error ? err.message : String(err),
     });
     throw err;
@@ -94,56 +145,54 @@ async function processJob(job: Bull.Job<ScrapeJobData>): Promise<void> {
 // ─── Repeating job registration ───────────────────────────────────────────────
 
 /**
- * Adds the four repeating jobs to the queue.
+ * Adds the repeating jobs to the queue.
  * Existing repeatable jobs are cleared first so interval changes take effect
  * immediately without leaving stale Bull repeat records in Redis.
  */
 async function scheduleJobs(queue: Bull.Queue<ScrapeJobData>): Promise<void> {
   // Remove all existing repeatable jobs — avoids duplicate executions when
-  // the repeat interval changes between deployments (e.g. 60s → 30s).
+  // the repeat interval changes between deployments.
   const existing = await queue.getRepeatableJobs();
   for (const job of existing) {
     await queue.removeRepeatableByKey(job.key);
   }
 
-  // Live events — every 60 seconds
+  // The Odds API poll — every 6 hours (free tier: 480 req/month budget of 500)
+  // Upgrade to a paid plan and lower this to every 30 min for better coverage.
+  const oddsApiIntervalMinutes = parseInt(process.env.ODDS_POLL_INTERVAL_MINUTES ?? '360', 10);
+
   await queue.add(
-    { jobType: 'live' },
+    { jobType: 'odds-api' },
+    {
+      repeat: { every: oddsApiIntervalMinutes * 60 * 1000 },
+      jobId: 'poll-odds-api',
+    },
+  );
+
+  // Kambi CDN poll (Placard + Solverde) — every 15 minutes (free, unlimited)
+  await queue.add(
+    { jobType: 'kambi-cdn' },
+    {
+      repeat: { every: 15 * 60 * 1000 },
+      jobId: 'poll-kambi-cdn',
+    },
+  );
+
+  // Event status check — every 60 seconds (API-Football via updateEventStatuses)
+  await queue.add(
+    { jobType: 'status-check' },
     {
       repeat: { every: 60_000 },
-      jobId: 'scrape-live',
+      jobId: 'event-status-check',
     },
   );
 
-  // Upcoming events (next 24 h) — every 5 minutes (offset by 2 min to avoid overlap with live)
-  await queue.add(
-    { jobType: 'upcoming-24h' },
-    {
-      repeat: { cron: '2/5 * * * *' },
-      jobId: 'scrape-upcoming-24h',
-    },
-  );
-
-  // Upcoming events (next 7 d) — every 30 minutes (offset by 15 min)
-  await queue.add(
-    { jobType: 'upcoming-7d' },
-    {
-      repeat: { cron: '15,45 * * * *' },
-      jobId: 'scrape-upcoming-7d',
-    },
-  );
-
-  // New events discovery — every 2 hours
-  await queue.add(
-    { jobType: 'discovery' },
-    {
-      repeat: { cron: '0 */2 * * *' },
-      jobId: 'scrape-discovery',
-    },
-  );
-
-  logger.info('Scrape jobs scheduled', {
-    jobs: ['live (60s)', 'upcoming-24h (5min)', 'upcoming-7d (30min)', 'discovery (2h)'],
+  logger.info('Odds poll jobs scheduled', {
+    jobs: [
+      `odds-api (every ${oddsApiIntervalMinutes}min)`,
+      'kambi-cdn (every 15min)',
+      'status-check (every 60s)',
+    ],
   });
 }
 
@@ -171,23 +220,20 @@ function attachListeners(queue: Bull.Queue<ScrapeJobData>): void {
 let _queue: Bull.Queue<ScrapeJobData> | null = null;
 
 /**
- * Initialises the scrape job queue. Should be called once at app startup.
+ * Initialises the odds poll job queue. Should be called once at app startup.
  * Returns the queue instance for graceful shutdown.
  */
 export async function initScrapeJobs(): Promise<Bull.Queue<ScrapeJobData>> {
-  registerAllScrapers();
-
   const queue = createScrapeQueue();
   attachListeners(queue);
 
-  // Concurrency=1 prevents multiple scrape jobs from running simultaneously,
-  // which could exhaust the 4 GB VPS RAM with too many Puppeteer browsers.
+  // Concurrency=1 — lightweight HTTP-only jobs, keeps resource usage predictable.
   queue.process(1, processJob);
 
   await scheduleJobs(queue);
 
   _queue = queue;
-  logger.info('Scrape job queue initialised');
+  logger.info('Odds poll job queue initialised (API-only mode — no Puppeteer)');
   return queue;
 }
 

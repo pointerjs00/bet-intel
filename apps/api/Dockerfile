@@ -21,11 +21,10 @@ RUN pnpm --filter @betintel/shared build
 RUN pnpm --filter api build
 
 FROM node:20-alpine AS runner
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont openssl
+# Chromium removed — scraping uses HTTP APIs only (The Odds API + Kambi CDN)
+RUN apk add --no-cache ca-certificates openssl
 
 ENV NODE_ENV=production
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 

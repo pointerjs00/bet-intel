@@ -70,6 +70,6 @@ export interface IScraper {
 
 /** Payload for a targeted scrape job that targets one site. */
 export interface ScrapeJobData {
-  siteSlug?: string; // omit to run all scrapers
-  jobType: 'live' | 'upcoming-24h' | 'upcoming-7d' | 'discovery';
+  siteSlug?: string;
+  jobType: 'live' | 'upcoming-24h' | 'upcoming-7d' | 'discovery' | 'odds-api' | 'kambi-cdn' | 'status-check';
 }

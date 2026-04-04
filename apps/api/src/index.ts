@@ -21,7 +21,9 @@ import { initScrapeJobs, closeScrapeJobs } from './jobs/scrapeJobs';
 import { initializeSocketServer } from './sockets';
 import { startEventStatusPolling, stopEventStatusPolling } from './services/eventStatus/eventStatusService';
 import { startBetclicLiveWatcher, stopBetclicLiveWatcher } from './services/scraper/betclicLiveWatcher';
-import { runAllScrapers, registerDefaultScrapers } from './services/scraper/scraperRegistry';
+import { fetchAndPersistOdds } from './services/odds/oddsApiService';
+import { fetchKambiPrefetchEvents } from './services/scraper/sites/browserSiteScraper';
+import { persistScrapedEventsForSite } from './services/scraper/scraperRegistry';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
 
@@ -131,13 +133,29 @@ async function warmInitialOddsIfEmpty(): Promise<void> {
     return;
   }
 
-  logger.info('No active odds found at startup — running initial odds bootstrap');
+  logger.info('No active odds found at startup — running initial odds bootstrap (API-only)');
 
   try {
-    registerDefaultScrapers();
-    await runAllScrapers();
+    // The Odds API — Betclic, Betano, Solverde
+    const oddsApiCount = await fetchAndPersistOdds();
+    logger.info('Initial The Odds API bootstrap done', { events: oddsApiCount });
+
+    // Kambi CDN — Placard + Solverde supplement
+    const kambiUrls = {
+      placard: 'https://sportswidget-cdn.placard.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP',
+      solverde: 'https://sportswidget-cdn.solverde.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP',
+    };
+    for (const [site, url] of Object.entries(kambiUrls)) {
+      const events = await fetchKambiPrefetchEvents(`${site}:bootstrap`, url);
+      if (events.length > 0) {
+        const siteName = site === 'placard' ? 'Placard' : 'Solverde';
+        await persistScrapedEventsForSite(site, siteName, events);
+        logger.info(`Initial Kambi CDN bootstrap done`, { site, events: events.length });
+      }
+    }
+
     const refreshedOddsCount = await prisma.odd.count({ where: { isActive: true } });
-    logger.info('Initial scraper bootstrap completed', { activeOddsCount: refreshedOddsCount });
+    logger.info('Initial odds bootstrap completed', { activeOddsCount: refreshedOddsCount });
   } catch (err) {
     logger.warn('Initial odds bootstrap failed', {
       error: err instanceof Error ? err.message : String(err),
