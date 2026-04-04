@@ -139,6 +139,16 @@ interface BrowserSiteScraperConfig {
    * Paths are relative to the supplement page origin (e.g. '/api/sports/live/events/').
    */
   supplementInBrowserApiUrls?: readonly string[];
+  /**
+   * Key-value pairs to inject into `localStorage` via `page.evaluateOnNewDocument`
+   * before the page's own JS runs. Used to pre-accept age gates / splash screens
+   * that store their "accepted" state in localStorage.
+   */
+  preNavigationLocalStorage?: Readonly<Record<string, string>>;
+  /**
+   * Key-value pairs to inject into `sessionStorage` via `page.evaluateOnNewDocument`.
+   */
+  preNavigationSessionStorage?: Readonly<Record<string, string>>;
 }
 
 function randomUA(): string {
@@ -343,6 +353,26 @@ export async function scrapeConfiguredFootballSite(
     });
     await page.setViewport({ width: 1366, height: 768 });
 
+    // Pre-set localStorage / sessionStorage before the page's own JS loads so
+    // that age-gate / splash-screen SPAs see the "already accepted" flag and
+    // skip showing the overlay.
+    if (config.preNavigationLocalStorage || config.preNavigationSessionStorage) {
+      const ls = config.preNavigationLocalStorage ?? {};
+      const ss = config.preNavigationSessionStorage ?? {};
+      await page.evaluateOnNewDocument(
+        (lsItems: Record<string, string>, ssItems: Record<string, string>) => {
+          for (const [k, v] of Object.entries(lsItems)) {
+            try { localStorage.setItem(k, v); } catch { /* sandboxed origin — ignore */ }
+          }
+          for (const [k, v] of Object.entries(ssItems)) {
+            try { sessionStorage.setItem(k, v); } catch { /* sandboxed origin — ignore */ }
+          }
+        },
+        ls as Record<string, string>,
+        ss as Record<string, string>,
+      );
+    }
+
     // Collect JSON API responses from the SPA for fallback event extraction
     const interceptedApiResponses: Array<{ url: string; body: unknown }> = [];
 
@@ -422,6 +452,11 @@ export async function scrapeConfiguredFootballSite(
             try {
               logger.debug(`${config.siteLabel}: supplemental navigation → ${suppUrl}`);
               await page.goto(suppUrl, { waitUntil: 'networkidle2', timeout: 30_000 });
+              // The splash / age-gate can reappear on each new navigation — dismiss it again.
+              if (config.preDismissSelectors?.length) {
+                await dismissSplashOrAgeGate(page, config);
+                await randomDelay(500, 1000);
+              }
               await randomDelay(3000, 5000);
               const suppState = await page.evaluate(() => {
                 const w = window as unknown as Record<string, unknown>;
@@ -795,10 +830,13 @@ async function dismissCookieConsent(page: Page, config: BrowserSiteScraperConfig
 }
 
 async function dismissSplashOrAgeGate(page: Page, config: BrowserSiteScraperConfig): Promise<void> {
+  // First pass: try each selector, waiting briefly for the element to appear
   for (const selector of config.preDismissSelectors ?? []) {
     try {
-      const el = await page.$(selector);
+      // Wait up to 2 s for the element — splash overlays may render after networkidle
+      const el = await page.waitForSelector(selector, { timeout: 2000, visible: true }).catch(() => null);
       if (el) {
+        await el.scrollIntoView();
         await el.click();
         logger.debug(`${config.siteLabel}: clicked entry gate / splash dismiss: ${selector}`);
         return;
@@ -807,7 +845,32 @@ async function dismissSplashOrAgeGate(page: Page, config: BrowserSiteScraperConf
       // Try next selector
     }
   }
-  // Fallback: click anywhere on the body to dismiss a fullscreen overlay
+
+  // Second pass: text-based fallback — find any visible button whose label matches
+  // common Portuguese age-gate / welcome-screen phrases.
+  try {
+    const clicked = await page.$$eval(
+      'button, a[role="button"], [role="button"], [class*="cta"], [class*="confirm"]',
+      (elements: Element[]) => {
+        const pattern = /tenho\s*\+?\s*18|sou maior|aceitar|confirmar|entrar|continuar|over\s*18|enter\s*site|i['']?m\s*18/i;
+        for (const el of elements) {
+          const text = (el.textContent ?? '').trim();
+          const htmlEl = el as HTMLElement;
+          if (pattern.test(text) && htmlEl.offsetParent !== null) {
+            htmlEl.click();
+            return text;
+          }
+        }
+        return null;
+      },
+    );
+    if (clicked) {
+      logger.debug(`${config.siteLabel}: dismissed age-gate via text-based button ("${clicked}")`);
+      return;
+    }
+  } catch { /* ignore */ }
+
+  // Last resort: click anywhere on the body to dismiss a fullscreen overlay
   try {
     await page.click('body');
     logger.debug(`${config.siteLabel}: clicked body as splash fallback`);

@@ -130,6 +130,37 @@ const BASE_CONFIG = {
     '[class*="age-gate"] button',
   ],
   preWaitMs: 1500,
+  /**
+   * Pre-set localStorage keys that Betano (Kaizen Gaming SPA) checks to decide
+   * whether to show the age-gate / splash-screen overlay. Keys are injected via
+   * page.evaluateOnNewDocument so they are visible before the page JS runs.
+   * These cover the most common patterns used across Kaizen Gaming brands.
+   */
+  preNavigationLocalStorage: {
+    'age-gate-accepted':           'true',
+    'ageGateAccepted':             'true',
+    'ageVerified':                 'true',
+    'over18':                      'true',
+    'over18Confirmed':             'true',
+    'SPLASH_DISMISSED':            '1',
+    'splash_dismissed':            '1',
+    'splash-screen-viewed':        '1',
+    'splashScreenViewed':          '1',
+    'welcomeLayerShown':           '1',
+    'welcomeLayerViewed':          '1',
+    'entry-gate-accepted':         'true',
+    'entryGateAccepted':           'true',
+    'betano_age_verified':         'true',
+    'age-verification-accepted':   'true',
+    'ageVerificationAccepted':     'true',
+    'cookie_consent':              'accepted',
+    'gdpr_consent':                '1',
+  },
+  preNavigationSessionStorage: {
+    'age-gate-viewed':        '1',
+    'splash-screen-accepted': '1',
+    'over18Accepted':         'true',
+  },
   // Betano is a Kaizen Gaming SPA that loads events via internal API calls
   apiInterceptPatterns: [
     'api/sport',
