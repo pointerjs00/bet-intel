@@ -46,4 +46,6 @@ WORKDIR /app/apps/api
 
 EXPOSE 3000
 
-CMD ["node", "dist/index.js"]
+# Run pending DB migrations then start the server.
+# `migrate deploy` is idempotent — safe to run on every container restart.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=./prisma/schema.prisma && node dist/index.js"]

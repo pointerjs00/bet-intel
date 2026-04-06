@@ -105,6 +105,12 @@ jobs:
             docker network inspect app_network >/dev/null 2>&1 || docker network create app_network
             COMPOSE_FILE="$HOME/betintel/apps/api/docker-compose.yml"
             ENV_FILE="$HOME/betintel/apps/api/.env"
+            # Run pending Prisma migrations before starting the API
+            docker run --rm \
+              --env-file "$ENV_FILE" \
+              --network app_network \
+              ghcr.io/${{ github.repository }}/betintel-api:latest \
+              sh -c "cd /app/apps/api && npx prisma migrate deploy --schema=./prisma/schema.prisma"
             if command -v docker-compose >/dev/null 2>&1; then
               docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api
             else
