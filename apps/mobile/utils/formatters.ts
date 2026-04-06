@@ -57,6 +57,33 @@ export function formatShortDateTime(value: string): string {
   });
 }
 
+/** Formats an ISO date string as DD/MM/YYYY (always slashes, UTC date part). Returns '' if invalid. */
+export function formatDateToDDMMYYYY(value: string | null | undefined): string {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  // Use UTC components to match how dates are stored (noon UTC) — avoids timezone date shifts.
+  // Always uses '/' separator for compatibility with parseDDMMYYYYToISO across all platforms.
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+/**
+ * Parses a DD/MM/YYYY string into an ISO 8601 string (noon UTC), or null if invalid.
+ * Used to convert user-entered bet dates to ISO before sending to the API.
+ */
+export function parseDDMMYYYYToISO(input: string): string | null {
+  const parts = input.split('/');
+  if (parts.length !== 3) return null;
+  const [d, m, y] = parts.map(Number);
+  if (!d || !m || !y || y < 2000 || y > 2100) return null;
+  if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+  const date = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 /** Formats a date string using a full pt-PT date. */
 export function formatLongDate(value: string): string {
   return new Date(value).toLocaleDateString('pt-PT', {

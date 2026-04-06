@@ -12,6 +12,8 @@ interface BottomSheetProps {
   onChange?: (index: number) => void;
   onClose?: () => void;
   enablePanDownToClose?: boolean;
+  /** Pixels from the bottom of the screen to exclude (e.g. tab bar height). */
+  bottomInset?: number;
 }
 
 export const BottomSheet = forwardRef<GorhomBottomSheet, BottomSheetProps>(
@@ -22,6 +24,7 @@ export const BottomSheet = forwardRef<GorhomBottomSheet, BottomSheetProps>(
       onChange,
       onClose,
       enablePanDownToClose = true,
+      bottomInset = 0,
     },
     ref,
   ) {
@@ -52,6 +55,7 @@ export const BottomSheet = forwardRef<GorhomBottomSheet, BottomSheetProps>(
         enablePanDownToClose={enablePanDownToClose}
         onChange={onChange}
         onClose={onClose}
+        bottomInset={bottomInset}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={[
           styles.handle,

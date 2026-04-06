@@ -1,17 +1,22 @@
 import { Request, Response } from 'express';
 import {
+  createBoletinItemSchema,
   createBoletinSchema,
   shareBoletinSchema,
+  updateBoletinItemsSchema,
   updateBoletinSchema,
 } from '@betintel/shared';
 import {
+  addBoletinItem,
   createBoletin,
   deleteBoletin,
+  deleteBoletinItem,
   getBoletinDetail,
   listSharedBoletins,
   listUserBoletins,
   shareBoletin,
   updateBoletin,
+  updateBoletinItems,
 } from '../services/boletins/boletinService';
 import { logger } from '../utils/logger';
 
@@ -129,6 +134,74 @@ export async function deleteBoletinHandler(req: Request, res: Response): Promise
   try {
     await deleteBoletin(requireUserId(req), id);
     res.status(204).send();
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles PATCH /api/betintel/:id/items — update individual item results (won/lost). */
+export async function updateBoletinItemsHandler(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  if (!id) {
+    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    return;
+  }
+
+  const parsed = updateBoletinItemsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({
+      success: false,
+      error: 'Dados de atualização inválidos',
+      details: parsed.error.flatten().fieldErrors,
+    });
+    return;
+  }
+
+  try {
+    const boletin = await updateBoletinItems(requireUserId(req), id, parsed.data);
+    ok(res, boletin);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles POST /api/betintel/:id/items — add a selection to an existing boletin. */
+export async function addBoletinItemHandler(req: Request, res: Response): Promise<void> {
+  const { id } = req.params;
+  if (!id) {
+    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    return;
+  }
+
+  const parsed = createBoletinItemSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({
+      success: false,
+      error: 'Dados da seleção inválidos',
+      details: parsed.error.flatten().fieldErrors,
+    });
+    return;
+  }
+
+  try {
+    const boletin = await addBoletinItem(requireUserId(req), id, parsed.data);
+    ok(res, boletin);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles DELETE /api/betintel/:id/items/:itemId — remove a selection from an existing boletin. */
+export async function deleteBoletinItemHandler(req: Request, res: Response): Promise<void> {
+  const { id, itemId } = req.params;
+  if (!id || !itemId) {
+    res.status(400).json({ success: false, error: 'IDs em falta' });
+    return;
+  }
+
+  try {
+    const boletin = await deleteBoletinItem(requireUserId(req), id, itemId);
+    ok(res, boletin);
   } catch (err) {
     fail(res, err);
   }

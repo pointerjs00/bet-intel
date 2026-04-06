@@ -30,15 +30,7 @@ export async function getFriendFeed(userId: string): Promise<FriendFeedItem[]> {
     include: {
       user: { select: SOCIAL_USER_SELECT },
       items: {
-        include: {
-          event: {
-            select: {
-              homeTeam: true,
-              awayTeam: true,
-            },
-          },
-        },
-        orderBy: { id: 'asc' },
+        orderBy: { id: 'asc' as const },
       },
     },
     orderBy: { createdAt: 'desc' },
@@ -55,7 +47,7 @@ export async function getFriendFeed(userId: string): Promise<FriendFeedItem[]> {
       lastLoginAt: boletin.user.lastLoginAt?.toISOString() ?? null,
     };
 
-    const previewEvents = boletin.items.slice(0, 3).map((item) => `${item.event.homeTeam} vs ${item.event.awayTeam}`);
+    const previewEvents = boletin.items.slice(0, 3).map((item) => `${item.homeTeam} vs ${item.awayTeam}`);
     const previewBoletin: PublicBoletinPreview = {
       id: boletin.id,
       name: boletin.name,

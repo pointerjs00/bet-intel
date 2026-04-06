@@ -1,10 +1,11 @@
 import { BoletinStatus, ItemResult, Prisma, Sport } from '@prisma/client';
 import type {
   PersonalStats,
+  StatsByCompetitionRow,
   StatsByMarketRow,
   StatsByOddsRangeRow,
-  StatsBySiteRow,
   StatsBySportRow,
+  StatsByTeamRow,
   StatsBreakdownRow,
   StatsPeriod,
   StatsSummary,
@@ -15,25 +16,7 @@ import { prisma } from '../../prisma';
 
 const STATS_BOLETIN_INCLUDE = {
   items: {
-    include: {
-      event: {
-        select: {
-          id: true,
-          sport: true,
-          homeTeam: true,
-          awayTeam: true,
-        },
-      },
-      site: {
-        select: {
-          id: true,
-          slug: true,
-          name: true,
-          logoUrl: true,
-        },
-      },
-    },
-    orderBy: { id: 'asc' },
+    orderBy: { id: 'asc' as const },
   },
 } as const;
 
@@ -80,10 +63,16 @@ export async function getStatsBySport(userId: string, period: StatsPeriod): Prom
   return stats.bySport;
 }
 
-/** Returns the betting-site breakdown rows for the authenticated user. */
-export async function getStatsBySite(userId: string, period: StatsPeriod): Promise<StatsBySiteRow[]> {
+/** Returns the team breakdown rows for the authenticated user. */
+export async function getStatsByTeam(userId: string, period: StatsPeriod): Promise<StatsByTeamRow[]> {
   const stats = await getPersonalStats(userId, period);
-  return stats.bySite;
+  return stats.byTeam;
+}
+
+/** Returns the competition breakdown rows for the authenticated user. */
+export async function getStatsByCompetition(userId: string, period: StatsPeriod): Promise<StatsByCompetitionRow[]> {
+  const stats = await getPersonalStats(userId, period);
+  return stats.byCompetition;
 }
 
 /** Returns the market breakdown rows for the authenticated user. */
@@ -127,7 +116,8 @@ async function getBoletinsForPeriod(userId: string, period: StatsPeriod): Promis
 function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod): PersonalStats {
   const summary = buildSummary(boletins, period);
   const bySportMap = new Map<string, StatsBySportRow>();
-  const bySiteMap = new Map<string, StatsBySiteRow>();
+  const byTeamMap = new Map<string, StatsByTeamRow>();
+  const byCompetitionMap = new Map<string, StatsByCompetitionRow>();
   const byMarketMap = new Map<string, StatsByMarketRow>();
   const byOddsRangeMap = new Map<string, StatsByOddsRangeRow>(
     ODDS_RANGE_DEFINITIONS.map((definition) => [
@@ -161,18 +151,25 @@ function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod): 
     const returnShare = effectiveReturn / itemCount;
 
     for (const item of boletin.items) {
-      const sportKey = item.event.sport;
-      const siteKey = item.site.id;
+      const sportKey = item.sport;
       const marketKey = item.market;
       const oddsRange = getOddsRange(decimalToNumber(item.oddValue));
 
-      const sportRow = getOrCreateSportRow(bySportMap, sportKey);
-      const siteRow = getOrCreateSiteRow(bySiteMap, item.site.id, item.site.slug, item.site.name, item.site.logoUrl);
+      const sportRow = getOrCreateSportRow(bySportMap, sportKey as Sport);
       const marketRow = getOrCreateMarketRow(byMarketMap, marketKey);
       const oddsRangeRow = byOddsRangeMap.get(oddsRange.key);
 
+      // Team breakdown — count both home and away teams
+      const homeRow = getOrCreateTeamRow(byTeamMap, item.homeTeam);
+      const awayRow = getOrCreateTeamRow(byTeamMap, item.awayTeam);
+
+      // Competition breakdown
+      const compRow = getOrCreateCompetitionRow(byCompetitionMap, item.competition);
+
       applyBreakdownContribution(sportRow, item.result, stakeShare, returnShare);
-      applyBreakdownContribution(siteRow, item.result, stakeShare, returnShare);
+      applyBreakdownContribution(homeRow, item.result, stakeShare, returnShare);
+      applyBreakdownContribution(awayRow, item.result, stakeShare, returnShare);
+      applyBreakdownContribution(compRow, item.result, stakeShare, returnShare);
       applyBreakdownContribution(marketRow, item.result, stakeShare, returnShare);
       if (oddsRangeRow) {
         applyBreakdownContribution(oddsRangeRow, item.result, stakeShare, returnShare);
@@ -186,7 +183,8 @@ function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod): 
   return {
     summary,
     bySport: finalizeRows(Array.from(bySportMap.values())),
-    bySite: finalizeRows(Array.from(bySiteMap.values())),
+    byTeam: finalizeRows(Array.from(byTeamMap.values())),
+    byCompetition: finalizeRows(Array.from(byCompetitionMap.values())),
     byMarket: finalizeRows(Array.from(byMarketMap.values())),
     byOddsRange: finalizeRows(Array.from(byOddsRangeMap.values())),
     timeline,
@@ -206,11 +204,16 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
   let settledStake = 0;
   let totalReturned = 0;
   let totalOdds = 0;
+  let wonOddsSum = 0;
+  let wonOddsCount = 0;
+  let lostOddsSum = 0;
+  let lostOddsCount = 0;
 
   for (const boletin of boletins) {
     const stake = decimalToNumber(boletin.stake);
+    const odds = decimalToNumber(boletin.totalOdds);
     totalStaked += stake;
-    totalOdds += decimalToNumber(boletin.totalOdds);
+    totalOdds += odds;
 
     switch (boletin.status) {
       case BoletinStatus.WON:
@@ -218,12 +221,16 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
         wonBoletins += 1;
         settledStake += stake;
         totalReturned += getEffectiveReturn(boletin);
+        wonOddsSum += odds;
+        wonOddsCount += 1;
         break;
       case BoletinStatus.LOST:
         settledBoletins += 1;
         lostBoletins += 1;
         settledStake += stake;
         totalReturned += getEffectiveReturn(boletin);
+        lostOddsSum += odds;
+        lostOddsCount += 1;
         break;
       case BoletinStatus.VOID:
         settledBoletins += 1;
@@ -236,6 +243,8 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
         partialBoletins += 1;
         settledStake += stake;
         totalReturned += getEffectiveReturn(boletin);
+        wonOddsSum += odds;
+        wonOddsCount += 1;
         break;
       case BoletinStatus.PENDING:
       default:
@@ -263,6 +272,8 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
     roi: settledStake > 0 ? round((profitLoss / settledStake) * 100) : 0,
     winRate: decisiveBoletins > 0 ? round(((wonBoletins + partialBoletins) / decisiveBoletins) * 100) : 0,
     averageOdds: boletins.length > 0 ? round(totalOdds / boletins.length, 2) : 0,
+    averageWonOdds: wonOddsCount > 0 ? round(wonOddsSum / wonOddsCount, 2) : 0,
+    averageLostOdds: lostOddsCount > 0 ? round(lostOddsSum / lostOddsCount, 2) : 0,
     averageStake: boletins.length > 0 ? round(totalStaked / boletins.length) : 0,
     averageReturn: settledBoletins > 0 ? round(totalReturned / settledBoletins) : 0,
   };
@@ -330,8 +341,8 @@ function buildTopBoletins(boletins: StatsBoletinRecord[], mode: 'best' | 'worst'
     profitLoss: round(getBoletinProfitLoss(boletin)),
     items: boletin.items.slice(0, 3).map((item) => ({
       id: item.id,
-      homeTeam: item.event.homeTeam,
-      awayTeam: item.event.awayTeam,
+      homeTeam: item.homeTeam,
+      awayTeam: item.awayTeam,
       market: item.market,
       selection: item.selection,
     })),
@@ -364,24 +375,16 @@ function getOrCreateSportRow(map: Map<string, StatsBySportRow>, sport: Sport): S
   return created;
 }
 
-function getOrCreateSiteRow(
-  map: Map<string, StatsBySiteRow>,
-  siteId: string,
-  slug: string,
-  name: string,
-  logoUrl: string | null,
-): StatsBySiteRow {
-  const existing = map.get(siteId);
+function getOrCreateTeamRow(map: Map<string, StatsByTeamRow>, team: string): StatsByTeamRow {
+  const existing = map.get(team);
   if (existing) {
     return existing;
   }
 
-  const created: StatsBySiteRow = {
-    siteId,
-    slug,
-    logoUrl,
-    key: siteId,
-    label: name,
+  const created: StatsByTeamRow = {
+    team,
+    key: team,
+    label: team,
     totalBets: 0,
     won: 0,
     lost: 0,
@@ -394,7 +397,33 @@ function getOrCreateSiteRow(
     roi: 0,
     winRate: 0,
   };
-  map.set(siteId, created);
+  map.set(team, created);
+  return created;
+}
+
+function getOrCreateCompetitionRow(map: Map<string, StatsByCompetitionRow>, competition: string): StatsByCompetitionRow {
+  const existing = map.get(competition);
+  if (existing) {
+    return existing;
+  }
+
+  const created: StatsByCompetitionRow = {
+    competition,
+    key: competition,
+    label: competition,
+    totalBets: 0,
+    won: 0,
+    lost: 0,
+    void: 0,
+    pending: 0,
+    settledStake: 0,
+    totalStaked: 0,
+    totalReturned: 0,
+    profitLoss: 0,
+    roi: 0,
+    winRate: 0,
+  };
+  map.set(competition, created);
   return created;
 }
 

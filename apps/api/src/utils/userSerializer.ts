@@ -15,7 +15,6 @@ export const USER_SELECT = {
   displayName: true,
   avatarUrl: true,
   bio: true,
-  preferredSites: true,
   theme: true,
   currency: true,
   lastLoginAt: true,
@@ -34,7 +33,6 @@ export interface UserRow {
   displayName: string | null;
   avatarUrl: string | null;
   bio: string | null;
-  preferredSites: string[];
   theme: string;
   currency: string;
   lastLoginAt: Date | null;
@@ -58,7 +56,6 @@ export function toPublicUser(user: UserRow): PublicUser {
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     bio: user.bio,
-    preferredSites: user.preferredSites,
     theme: user.theme as unknown as Theme,
     currency: user.currency,
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,

@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
   PersonalStats,
+  StatsByCompetitionRow,
   StatsByMarketRow,
   StatsByOddsRangeRow,
-  StatsBySiteRow,
   StatsBySportRow,
+  StatsByTeamRow,
   StatsPeriod,
   StatsSummary,
   StatsTimelinePoint,
@@ -21,7 +22,8 @@ export const statsQueryKeys = {
   me: (period: StatsPeriod) => ['stats', 'me', period] as const,
   summary: (period: StatsPeriod) => ['stats', 'summary', period] as const,
   bySport: (period: StatsPeriod) => ['stats', 'by-sport', period] as const,
-  bySite: (period: StatsPeriod) => ['stats', 'by-site', period] as const,
+  byTeam: (period: StatsPeriod) => ['stats', 'by-team', period] as const,
+  byCompetition: (period: StatsPeriod) => ['stats', 'by-competition', period] as const,
   byMarket: (period: StatsPeriod) => ['stats', 'by-market', period] as const,
   byOddsRange: (period: StatsPeriod) => ['stats', 'by-odds-range', period] as const,
   timeline: (period: StatsPeriod) => ['stats', 'timeline', period] as const,
@@ -66,12 +68,25 @@ export function useStatsBySport(period: StatsPeriod) {
   });
 }
 
-/** Returns the betting-site breakdown rows for a given period. */
-export function useStatsBySite(period: StatsPeriod) {
+/** Returns the team breakdown rows for a given period. */
+export function useStatsByTeam(period: StatsPeriod) {
   return useQuery({
-    queryKey: statsQueryKeys.bySite(period),
+    queryKey: statsQueryKeys.byTeam(period),
     queryFn: async () => {
-      const response = await apiClient.get<ApiEnvelope<StatsBySiteRow[]>>('/stats/me/by-site', {
+      const response = await apiClient.get<ApiEnvelope<StatsByTeamRow[]>>('/stats/me/by-team', {
+        params: { period },
+      });
+      return response.data.data;
+    },
+  });
+}
+
+/** Returns the competition breakdown rows for a given period. */
+export function useStatsByCompetition(period: StatsPeriod) {
+  return useQuery({
+    queryKey: statsQueryKeys.byCompetition(period),
+    queryFn: async () => {
+      const response = await apiClient.get<ApiEnvelope<StatsByCompetitionRow[]>>('/stats/me/by-competition', {
         params: { period },
       });
       return response.data.data;

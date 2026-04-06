@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Input } from '../ui/Input';
 import { useTheme } from '../../theme/useTheme';
@@ -15,22 +15,35 @@ const QUICK_STAKES = [5, 10, 20, 50];
 export function StakeInput({ value, onChange }: StakeInputProps) {
   const { colors } = useTheme();
 
-  const displayValue = useMemo(() => {
-    if (value <= 0) {
-      return '';
-    }
+  // Raw text state so typing "10," or "10." doesn't immediately strip the
+  // trailing separator when the controlled value roundtrips through Number.
+  const [rawText, setRawText] = useState(() => (value > 0 ? String(value).replace('.', ',') : ''));
+  const lastExternalValue = useRef(value);
 
-    return String(value).replace('.', ',');
-  }, [value]);
+  // Sync rawText when the value prop changes EXTERNALLY (e.g. quick-stake buttons)
+  // but NOT when it changes because the user is typing (detected by comparing parsed value).
+  useEffect(() => {
+    if (value !== lastExternalValue.current && Math.abs(parseStake(rawText) - value) > 0.001) {
+      lastExternalValue.current = value;
+      setRawText(value > 0 ? String(value).replace('.', ',') : '');
+    } else {
+      lastExternalValue.current = value;
+    }
+  }, [value, rawText]);
+
+  const handleChangeText = (text: string) => {
+    setRawText(text);
+    onChange(parseStake(text));
+  };
 
   return (
     <View style={styles.container}>
       <Input
         keyboardType="decimal-pad"
         label="Valor da aposta"
-        onChangeText={(text) => onChange(parseStake(text))}
+        onChangeText={handleChangeText}
         placeholder="0,00"
-        value={displayValue}
+        value={rawText}
       />
 
       <Text style={[styles.preview, { color: colors.textSecondary }]}>Atual: {formatCurrency(value)}</Text>

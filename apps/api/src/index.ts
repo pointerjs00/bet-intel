@@ -11,19 +11,15 @@ import { redis } from './utils/redis';
 import { prisma } from './prisma';
 import { authRouter } from './routes/authRoutes';
 import { boletinCollectionRouter, betintelRouter } from './routes/boletinRoutes';
-import { oddsRouter } from './routes/oddsRoutes';
+import { referenceRouter } from './routes/referenceRoutes';
 import { statsRouter } from './routes/statsRoutes';
 import { usersRouter } from './routes/usersRoutes';
 import { friendsRouter } from './routes/friendsRoutes';
 import { notificationsRouter } from './routes/notificationsRoutes';
 import { defaultLimiter } from './middleware/rateLimiter';
-import { initScrapeJobs, closeScrapeJobs } from './jobs/scrapeJobs';
 import { initializeSocketServer } from './sockets';
-import { startEventStatusPolling, stopEventStatusPolling } from './services/eventStatus/eventStatusService';
-import { startBetclicLiveWatcher, stopBetclicLiveWatcher } from './services/scraper/betclicLiveWatcher';
-import { fetchAndPersistOdds } from './services/odds/oddsApiService';
-import { fetchKambiPrefetchEvents } from './services/scraper/sites/browserSiteScraper';
-import { persistScrapedEventsForSite } from './services/scraper/scraperRegistry';
+import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
+import { seed as seedReferenceData } from './prisma/seed';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
 
@@ -65,7 +61,7 @@ app.get('/health', (_req: Request, res: Response) => {
 });
 
 app.use('/api/auth', authRouter);
-app.use('/api/odds', oddsRouter);
+app.use('/api/reference', referenceRouter);
 app.use('/api/boletins', boletinCollectionRouter);
 app.use('/api/betintel', betintelRouter);
 app.use('/api/stats', statsRouter);
@@ -121,48 +117,6 @@ async function waitForDatabase(maxAttempts = 60): Promise<void> {
   throw new Error(`Database did not become ready after ${maxAttempts} attempts`);
 }
 
-async function warmInitialOddsIfEmpty(): Promise<void> {
-  const activeOddsCount = await prisma.odd.count({
-    where: { isActive: true },
-  });
-
-  if (activeOddsCount > 0) {
-    logger.info('Skipping startup odds bootstrap because active odds already exist', {
-      activeOddsCount,
-    });
-    return;
-  }
-
-  logger.info('No active odds found at startup — running initial odds bootstrap (API-only)');
-
-  try {
-    // The Odds API — Betclic, Betano, Solverde
-    const oddsApiCount = await fetchAndPersistOdds();
-    logger.info('Initial The Odds API bootstrap done', { events: oddsApiCount });
-
-    // Kambi CDN — Placard + Solverde supplement
-    const kambiUrls = {
-      placard: 'https://sportswidget-cdn.placard.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP',
-      solverde: 'https://sportswidget-cdn.solverde.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP',
-    };
-    for (const [site, url] of Object.entries(kambiUrls)) {
-      const events = await fetchKambiPrefetchEvents(`${site}:bootstrap`, url);
-      if (events.length > 0) {
-        const siteName = site === 'placard' ? 'Placard' : 'Solverde';
-        await persistScrapedEventsForSite(site, siteName, events);
-        logger.info(`Initial Kambi CDN bootstrap done`, { site, events: events.length });
-      }
-    }
-
-    const refreshedOddsCount = await prisma.odd.count({ where: { isActive: true } });
-    logger.info('Initial odds bootstrap completed', { activeOddsCount: refreshedOddsCount });
-  } catch (err) {
-    logger.warn('Initial odds bootstrap failed', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
-
 async function start(): Promise<void> {
   // Wait for PostgreSQL to finish recovery before any queries run.
   await waitForDatabase();
@@ -172,36 +126,27 @@ async function start(): Promise<void> {
     // Already connected or will retry on first command — non-fatal at startup
   });
 
+  // Keep reference data in sync with the code-defined catalogue on every startup.
+  await seedReferenceData();
+
+  try {
+    await ensureFreshATPRankings();
+  } catch (err) {
+    logger.warn('ATP rankings refresh skipped during startup', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  await scheduleATPRankingsJob();
+
   const server = app.listen(PORT, () => {
     logger.info(`BetIntel API listening on port ${PORT}`, { env: process.env.NODE_ENV });
   });
 
   initializeSocketServer(server);
 
-  // Start authoritative match status polling (API-Football)
-  // Must be started after Socket.io is initialised so it can emit status changes.
-  startEventStatusPolling();
-
-  // Start the long-lived Betclic live watcher for incremental odds persistence.
-  // Non-fatal: a missing/broken browser should not prevent the API from starting.
-  await startBetclicLiveWatcher().catch((err: unknown) => {
-    logger.warn('Betclic live watcher failed to start — live odds will rely on Bull queue scraping only', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
-
-  // Start scraping job queue
-  await initScrapeJobs();
-
-  // Fresh databases otherwise remain empty until the first 6-hour cron window.
-  void warmInitialOddsIfEmpty();
-
-  // Graceful shutdown
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`Received ${signal} — shutting down gracefully`);
-    stopEventStatusPolling();
-    await stopBetclicLiveWatcher();
-    await closeScrapeJobs();
     server.close(async () => {
       await prisma.$disconnect();
       await redis.quit();

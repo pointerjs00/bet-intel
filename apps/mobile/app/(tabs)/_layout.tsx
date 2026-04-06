@@ -101,18 +101,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Início',
+          title: 'Apostas',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons color={color} name={focused ? 'flash' : 'flash-outline'} size={22} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="slips"
-        options={{
-          title: 'Boletins',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons color={color} name={focused ? 'reader' : 'reader-outline'} size={22} />
+            <Ionicons color={color} name={focused ? 'receipt' : 'receipt-outline'} size={22} />
           ),
         }}
       />

@@ -75,7 +75,6 @@ export async function updateCurrentUserProfile(
       bio: input.bio,
       avatarUrl: input.avatarUrl,
       expoPushToken: input.expoPushToken,
-      preferredSites: input.preferredSites,
       currency: input.currency,
       theme: input.theme,
     },

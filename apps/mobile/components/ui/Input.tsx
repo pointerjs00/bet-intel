@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -47,6 +47,14 @@ export function Input({
 
   // Floating label animation: 0 = resting (inside), 1 = floating (above)
   const labelProgress = useSharedValue(value ? 1 : 0);
+
+  // When a value is injected asynchronously (e.g. profile data loads after mount),
+  // animate the label upward so it doesn't overlap the text.
+  useEffect(() => {
+    if (value && labelProgress.value !== 1) {
+      labelProgress.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
+    }
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const labelAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -122,6 +130,8 @@ export function Input({
               style,
             ]}
             {...props}
+            // Only show placeholder once the label has floated up
+            placeholder={label && !isFocused && !value ? '' : props.placeholder}
           />
         </View>
 

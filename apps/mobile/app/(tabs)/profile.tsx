@@ -20,7 +20,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
-import { useBettingSites } from '../../services/oddsService';
+
 import {
   getApiErrorMessage,
   useMarkAllNotificationsReadMutation,
@@ -45,13 +45,14 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
+  const storedAuthProvider = useAuthStore((state) => state.user?.authProvider);
   const logout = useAuthStore((state) => state.logout);
   const storedThemePreference = useThemeStore((state) => state.preference);
   const setThemePreference = useThemeStore((state) => state.setPreference);
 
   const profileQuery = useMeProfile();
   const statsSummaryQuery = useStatsSummary('month');
-  const bettingSitesQuery = useBettingSites();
+
   const notificationsQuery = useNotifications(1, 3);
 
   const updateProfileMutation = useUpdateProfileMutation();
@@ -66,7 +67,7 @@ export default function ProfileScreen() {
   const [bio, setBio] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [currency, setCurrency] = useState('EUR');
-  const [preferredSites, setPreferredSites] = useState<string[]>([]);
+
   const [themePreference, setLocalThemePreference] = useState<ThemePreference>(storedThemePreference);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -81,7 +82,7 @@ export default function ProfileScreen() {
     setBio(profileQuery.data.bio ?? '');
     setAvatarUrl(profileQuery.data.avatarUrl ?? '');
     setCurrency(profileQuery.data.currency ?? 'EUR');
-    setPreferredSites(profileQuery.data.preferredSites ?? []);
+
     const nextThemePreference = mapThemeFromApi(profileQuery.data.theme);
     setLocalThemePreference(nextThemePreference);
     setThemePreference(nextThemePreference);
@@ -90,7 +91,7 @@ export default function ProfileScreen() {
   const notificationItems = notificationsQuery.data?.items ?? [];
   const unreadCount = notificationsQuery.data?.meta.unreadCount ?? 0;
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-  const authProvider = profileQuery.data?.authProvider ?? useAuthStore((state) => state.user?.authProvider) ?? AuthProvider.EMAIL;
+  const authProvider = profileQuery.data?.authProvider ?? storedAuthProvider ?? AuthProvider.EMAIL;
   const isGoogleLinked = authProvider === AuthProvider.GOOGLE || authProvider === AuthProvider.HYBRID;
   const isGoogleOnly = authProvider === AuthProvider.GOOGLE;
   const canUnlinkGoogle = authProvider === AuthProvider.HYBRID;
@@ -231,25 +232,7 @@ export default function ProfileScreen() {
                   </View>
                 </View>
 
-                <View style={styles.preferenceGroup}>
-                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Casas favoritas</Text>
-                  <View style={styles.chipWrap}>
-                    {(bettingSitesQuery.data ?? []).map((site) => (
-                      <Chip
-                        key={site.id}
-                        label={site.name}
-                        selected={preferredSites.includes(site.slug)}
-                        onPress={() => {
-                          setPreferredSites((current) =>
-                            current.includes(site.slug)
-                              ? current.filter((slug) => slug !== site.slug)
-                              : [...current, site.slug],
-                          );
-                        }}
-                      />
-                    ))}
-                  </View>
-                </View>
+
 
                 <Button
                   loading={updateProfileMutation.isPending}
@@ -260,7 +243,6 @@ export default function ProfileScreen() {
                         bio: bio.trim() || undefined,
                         avatarUrl: avatarUrl.trim() || undefined,
                         currency: currency.trim().toUpperCase() || undefined,
-                        preferredSites,
                         theme: mapThemeToApi(themePreference),
                       });
                       showToast('Perfil atualizado.', 'success');

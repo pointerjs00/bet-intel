@@ -37,20 +37,13 @@ enum Sport {
   OTHER
 }
 
-enum EventStatus {
-  UPCOMING
-  LIVE
-  FINISHED
-  CANCELLED
-  POSTPONED
-}
-
 enum BoletinStatus {
-  PENDING // awaiting results
+  PENDING  // awaiting results
   WON
   LOST
-  VOID    // cancelled/void events
-  PARTIAL // some events void
+  VOID     // cancelled/void events
+  PARTIAL  // some events void
+  CASHOUT  // user cashed out early
 }
 
 enum ItemResult {
@@ -70,8 +63,7 @@ enum NotificationType {
   FRIEND_REQUEST
   FRIEND_ACCEPTED
   BOLETIN_SHARED
-  EVENT_RESULT
-  ODDS_CHANGE
+  BOLETIN_RESULT
   SYSTEM
 }
 
@@ -93,7 +85,6 @@ model User {
   avatarUrl           String?
   bio                 String?
   expoPushToken       String?
-  preferredSites      String[]     // betting site slugs
   theme               Theme        @default(SYSTEM)
   currency            String       @default("EUR")
   lastLoginAt         DateTime?
@@ -124,60 +115,49 @@ model RefreshToken {
   @@index([userId])
 }
 
-model BettingSite {
-  id          String    @id @default(cuid())
-  slug        String    @unique // e.g. "betclic", "bet365", "placard"
-  name        String
-  logoUrl     String?
-  baseUrl     String
-  isActive    Boolean   @default(true)
-  lastScraped DateTime?
-  createdAt   DateTime  @default(now())
+// ─── Reference Data ───────────────────────────────────────────────────────────
 
-  odds         Odd[]
-  boletinItems BoletinItem[]
+model Competition {
+  id        String   @id @default(cuid())
+  name      String
+  country   String
+  sport     Sport    @default(FOOTBALL)
+  tier      Int      @default(1)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  teams     TeamCompetition[]
+
+  @@unique([name, country, sport])
 }
 
-model SportEvent {
-  id         String      @id @default(cuid())
-  externalId String?     // ID from betting site
-  apiFootballFixtureId Int? @unique
-  sport      Sport
-  league     String
-  homeTeam   String
-  awayTeam   String
-  eventDate  DateTime
-  status     EventStatus @default(UPCOMING)
-  homeScore  Int?
-  awayScore  Int?
-    liveClock  String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  sport     Sport    @default(FOOTBALL)
+  country   String?
+  createdAt DateTime @default(now())
 
-  odds         Odd[]
-  boletinItems BoletinItem[]
+  competitions TeamCompetition[]
 
-  @@index([status, eventDate])
-  @@index([sport, league])
-  @@index([sport, eventDate, status])
+  @@unique([name, sport])
 }
 
-model Odd {
-  id        String      @id @default(cuid())
-  siteId    String
-  site      BettingSite @relation(fields: [siteId], references: [id])
-  eventId   String
-  event     SportEvent  @relation(fields: [eventId], references: [id])
-  market    String      // e.g. "1X2", "Over/Under 2.5", "BTTS"
-  selection String      // e.g. "1", "X", "2", "Over", "Under"
-  value     Decimal     @db.Decimal(10, 2)
-  isActive  Boolean     @default(true)
-  scrapedAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+model TeamCompetition {
+  teamId        String
+  competitionId String
+  team          Team        @relation(fields: [teamId], references: [id])
+  competition   Competition @relation(fields: [competitionId], references: [id])
 
-  @@index([siteId, eventId])
-  @@index([eventId, isActive])
-  @@index([siteId, eventId, market, selection])
+  @@id([teamId, competitionId])
+}
+
+model Market {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  category    String?
+  sport       Sport?
+  createdAt   DateTime @default(now())
 }
 
 model Boletin {
@@ -185,13 +165,16 @@ model Boletin {
   userId          String
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String?
+  siteSlug        String?       // betting site slug, e.g. "betclic"
   stake           Decimal       @db.Decimal(10, 2)
   totalOdds       Decimal       @db.Decimal(10, 4)
   potentialReturn Decimal       @db.Decimal(10, 2)
   status          BoletinStatus @default(PENDING)
   actualReturn    Decimal?      @db.Decimal(10, 2)
+  cashoutAmount   Decimal?      @db.Decimal(10, 2) // amount received when cashing out early
   notes           String?
   isPublic        Boolean       @default(false)
+  betDate         DateTime?     // actual date the bet was placed (may differ from createdAt)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -202,20 +185,19 @@ model Boletin {
 }
 
 model BoletinItem {
-  id        String     @id @default(cuid())
-  boletinId String
-  boletin   Boletin    @relation(fields: [boletinId], references: [id], onDelete: Cascade)
-  eventId   String
-  event     SportEvent @relation(fields: [eventId], references: [id])
-  siteId    String
-  site      BettingSite @relation(fields: [siteId], references: [id])
-  market    String
-  selection String
-  oddValue  Decimal    @db.Decimal(10, 2)
-  result    ItemResult @default(PENDING)
+  id          String     @id @default(cuid())
+  boletinId   String
+  boletin     Boletin    @relation(fields: [boletinId], references: [id], onDelete: Cascade)
+  homeTeam    String
+  awayTeam    String
+  competition String
+  sport       Sport      @default(FOOTBALL)
+  market      String
+  selection   String
+  oddValue    Decimal    @db.Decimal(10, 2)
+  result      ItemResult @default(PENDING)
 
   @@index([boletinId])
-  @@index([eventId])
 }
 
 model Friendship {

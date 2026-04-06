@@ -3,15 +3,11 @@ import Constants from 'expo-constants';
 import { io, type Socket } from 'socket.io-client';
 import type {
   BoletinResultPayload,
-  EventStatusChangePayload,
   Notification,
-  OddsUpdatedPayload,
   FriendActivityPayload,
 } from '@betintel/shared';
 
 type SocketEventMap = {
-  'odds:updated': OddsUpdatedPayload;
-  'event:statusChange': EventStatusChangePayload;
   'boletin:result': BoletinResultPayload;
   'friend:activity': FriendActivityPayload;
   'notification:new': { notification: Notification };

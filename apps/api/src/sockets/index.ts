@@ -1,6 +1,6 @@
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
-import type { BoletinResultPayload, EventStatusChangePayload, FriendActivityPayload } from '@betintel/shared';
+import type { BoletinResultPayload, FriendActivityPayload } from '@betintel/shared';
 import { verifyAccessToken, type JwtPayload } from '../services/auth/tokenService';
 import { logger } from '../utils/logger';
 
@@ -101,17 +101,6 @@ export function initializeSocketServer(server: HttpServer): Server {
   });
 
   return io;
-}
-
-/** Emits an event status change to event and live subscribers. */
-export function emitEventStatusChange(payload: EventStatusChangePayload): void {
-  const server = getSocketServer();
-  if (!server) {
-    return;
-  }
-
-  server.to(eventRoomName(payload.eventId)).emit('event:statusChange', payload);
-  server.to(liveRoomName()).emit('event:statusChange', payload);
 }
 
 /** Emits a boletin result update to the owner's private room. */

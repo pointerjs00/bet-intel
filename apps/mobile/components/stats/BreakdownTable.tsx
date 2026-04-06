@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import type { StatsBreakdownRow } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatPercentage } from '../../utils/formatters';
@@ -55,17 +55,17 @@ export function BreakdownTable<TRow extends StatsBreakdownRow>({
 
 interface SiteBreakdownLabelProps {
   name: string;
-  logoUrl: string | null;
+  logo?: ImageSourcePropType | null;
 }
 
 /** Compact site label with optional logo fallback for site breakdown tables. */
-export function SiteBreakdownLabel({ name, logoUrl }: SiteBreakdownLabelProps) {
+export function SiteBreakdownLabel({ name, logo }: SiteBreakdownLabelProps) {
   const { colors } = useTheme();
 
   return (
     <View style={styles.siteLabelWrap}>
-      {logoUrl ? (
-        <Image source={{ uri: logoUrl }} style={styles.siteLogo} />
+      {logo ? (
+        <Image source={logo} style={styles.siteLogo} />
       ) : (
         <View style={[styles.siteFallback, { backgroundColor: colors.primary }]}>
           <Text style={styles.siteFallbackText}>{name.slice(0, 2).toUpperCase()}</Text>

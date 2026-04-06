@@ -29,6 +29,8 @@ function getLabel(status: BoletinStatus): string {
       return 'Void';
     case BoletinStatus.PARTIAL:
       return 'Parcial';
+    case BoletinStatus.CASHOUT:
+      return 'Cashout';
     case BoletinStatus.PENDING:
     default:
       return 'Pendente';
@@ -60,6 +62,12 @@ function getPalette(status: BoletinStatus, colors: ReturnType<typeof useTheme>['
         background: 'rgba(255, 149, 0, 0.14)',
         border: 'rgba(255, 149, 0, 0.24)',
         text: colors.warning,
+      };
+    case BoletinStatus.CASHOUT:
+      return {
+        background: 'rgba(255, 215, 0, 0.14)',
+        border: 'rgba(255, 215, 0, 0.32)',
+        text: colors.gold,
       };
     case BoletinStatus.PENDING:
     default:

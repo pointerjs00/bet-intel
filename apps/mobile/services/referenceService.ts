@@ -1,0 +1,57 @@
+import { useQuery } from '@tanstack/react-query';
+import type { Competition, Market, Team } from '@betintel/shared';
+import { apiClient } from './apiClient';
+
+// ─── Request functions ────────────────────────────────────────────────────────
+
+async function fetchCompetitions(sport?: string): Promise<Competition[]> {
+  const params = sport ? { sport } : undefined;
+  const { data } = await apiClient.get('/reference/competitions', { params });
+  return data.data;
+}
+
+async function fetchTeams(params?: {
+  sport?: string;
+  competition?: string;
+  search?: string;
+}): Promise<Team[]> {
+  const { data } = await apiClient.get('/reference/teams', { params });
+  return data.data;
+}
+
+async function fetchMarkets(sport?: string): Promise<Market[]> {
+  const params = sport ? { sport } : undefined;
+  const { data } = await apiClient.get('/reference/markets', { params });
+  return data.data;
+}
+
+// ─── React Query hooks ────────────────────────────────────────────────────────
+
+export function useCompetitions(sport?: string) {
+  return useQuery({
+    queryKey: ['reference', 'competitions', sport],
+    queryFn: () => fetchCompetitions(sport),
+    staleTime: 24 * 60 * 60 * 1000, // 24h — reference data rarely changes
+  });
+}
+
+export function useTeams(params?: {
+  sport?: string;
+  competition?: string;
+  search?: string;
+}) {
+  return useQuery({
+    queryKey: ['reference', 'teams', params],
+    queryFn: () => fetchTeams(params),
+    staleTime: 24 * 60 * 60 * 1000,
+    enabled: !params?.search || params.search.length >= 2,
+  });
+}
+
+export function useMarkets(sport?: string) {
+  return useQuery({
+    queryKey: ['reference', 'markets', sport],
+    queryFn: () => fetchMarkets(sport),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}

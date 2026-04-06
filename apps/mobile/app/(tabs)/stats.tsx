@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type { StatsPeriod } from '@betintel/shared';
-import { BreakdownTable, SiteBreakdownLabel } from '../../components/stats/BreakdownTable';
+import { BreakdownTable } from '../../components/stats/BreakdownTable';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
 import { PnLChart } from '../../components/stats/PnLChart';
 import { ROICard } from '../../components/stats/ROICard';
@@ -85,6 +85,17 @@ export default function StatsScreen() {
               </Card>
             </Animated.View>
 
+            <Animated.View entering={FadeInDown.delay(275).duration(400).springify()} style={styles.heroMetricsRow}>
+              <Card style={styles.metricCard}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média (ganhas)</Text>
+                <Text style={[styles.metricValue, { color: colors.primary }]}>{formatOdds(stats.summary.averageWonOdds)}</Text>
+              </Card>
+              <Card style={styles.metricCard}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média (perdidas)</Text>
+                <Text style={[styles.metricValue, { color: colors.danger }]}>{formatOdds(stats.summary.averageLostOdds)}</Text>
+              </Card>
+            </Animated.View>
+
             <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
               <WinRateRing winRate={stats.summary.winRate} />
             </Animated.View>
@@ -106,11 +117,11 @@ export default function StatsScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(450).duration(400).springify()}>
-              <BreakdownTable
-                rows={stats.bySite}
-                title="Por casa"
-                renderLabel={(row) => <SiteBreakdownLabel logoUrl={row.logoUrl} name={row.label} />}
-              />
+              <BreakdownTable rows={stats.byTeam} title="Por equipa" />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(475).duration(400).springify()}>
+              <BreakdownTable rows={stats.byCompetition} title="Por competição" />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(500).duration(400).springify()}>

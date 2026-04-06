@@ -2,10 +2,11 @@ import { Request, Response } from 'express';
 import { statsQuerySchema } from '@betintel/shared';
 import {
   getPersonalStats,
+  getStatsByCompetition,
   getStatsByMarket,
   getStatsByOddsRange,
-  getStatsBySite,
   getStatsBySport,
+  getStatsByTeam,
   getStatsSummary,
   getStatsTimeline,
 } from '../services/stats/statsService';
@@ -96,15 +97,30 @@ export async function getStatsBySportHandler(req: Request, res: Response): Promi
   }
 }
 
-/** Handles GET /api/stats/me/by-site. */
-export async function getStatsBySiteHandler(req: Request, res: Response): Promise<void> {
+/** Handles GET /api/stats/me/by-team. */
+export async function getStatsByTeamHandler(req: Request, res: Response): Promise<void> {
   const parsed = parseStatsQuery(req, res);
   if (!parsed) {
     return;
   }
 
   try {
-    const rows = await getStatsBySite(requireUserId(req), parsed.period);
+    const rows = await getStatsByTeam(requireUserId(req), parsed.period);
+    ok(res, rows);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles GET /api/stats/me/by-competition. */
+export async function getStatsByCompetitionHandler(req: Request, res: Response): Promise<void> {
+  const parsed = parseStatsQuery(req, res);
+  if (!parsed) {
+    return;
+  }
+
+  try {
+    const rows = await getStatsByCompetition(requireUserId(req), parsed.period);
     ok(res, rows);
   } catch (err) {
     fail(res, err);

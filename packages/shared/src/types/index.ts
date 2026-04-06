@@ -28,13 +28,7 @@ export enum Sport {
   OTHER = 'OTHER',
 }
 
-export enum EventStatus {
-  UPCOMING = 'UPCOMING',
-  LIVE = 'LIVE',
-  FINISHED = 'FINISHED',
-  CANCELLED = 'CANCELLED',
-  POSTPONED = 'POSTPONED',
-}
+
 
 export enum BoletinStatus {
   PENDING = 'PENDING',
@@ -42,6 +36,7 @@ export enum BoletinStatus {
   LOST = 'LOST',
   VOID = 'VOID',
   PARTIAL = 'PARTIAL',
+  CASHOUT = 'CASHOUT',
 }
 
 export enum ItemResult {
@@ -61,8 +56,7 @@ export enum NotificationType {
   FRIEND_REQUEST = 'FRIEND_REQUEST',
   FRIEND_ACCEPTED = 'FRIEND_ACCEPTED',
   BOLETIN_SHARED = 'BOLETIN_SHARED',
-  EVENT_RESULT = 'EVENT_RESULT',
-  ODDS_CHANGE = 'ODDS_CHANGE',
+  BOLETIN_RESULT = 'BOLETIN_RESULT',
   SYSTEM = 'SYSTEM',
 }
 
@@ -89,8 +83,7 @@ export interface User {
   avatarUrl: string | null;
   bio: string | null;
   expoPushToken: string | null;
-  /** Betting site slugs preferred by this user */
-  preferredSites: string[];
+
   theme: Theme;
   /** ISO 4217 currency code, e.g. "EUR" */
   currency: string;
@@ -126,54 +119,43 @@ export interface RefreshToken {
   createdAt: string;
 }
 
-export interface BettingSite {
+// ─── Reference Data ───────────────────────────────────────────────────────────
+
+export interface Competition {
   id: string;
-  /** URL-friendly identifier, e.g. "betclic", "bet365" */
-  slug: string;
   name: string;
-  logoUrl: string | null;
-  baseUrl: string;
-  isActive: boolean;
-  lastScraped: string | null;
-  createdAt: string;
-}
-
-export interface SportEvent {
-  id: string;
-  /** ID assigned by the betting site */
-  externalId: string | null;
+  country: string;
   sport: Sport;
-  league: string;
-  homeTeam: string;
-  awayTeam: string;
-  eventDate: string;
-  status: EventStatus;
-  homeScore: number | null;
-  awayScore: number | null;
-  liveClock?: string | null;
-  createdAt: string;
-  updatedAt: string;
+  tier: number;
+  points?: number | null;
+  logoUrl?: string | null;
+  countryPrestige?: number | null;
+  countryPoints?: number | null;
+  countryOrder?: number | null;
 }
 
-export interface Odd {
+export interface Team {
   id: string;
-  siteId: string;
-  eventId: string;
-  /** e.g. "1X2", "Over/Under 2.5", "BTTS" */
-  market: string;
-  /** e.g. "1", "X", "2", "Over", "Under" */
-  selection: string;
-  /** Serialised as string to preserve decimal precision */
-  value: string;
-  isActive: boolean;
-  scrapedAt: string;
-  updatedAt: string;
+  name: string;
+  sport: Sport;
+  country: string | null;
+  imageUrl?: string | null;
+  displayName?: string | null;
+}
+
+export interface Market {
+  id: string;
+  name: string;
+  category: string | null;
+  sport: Sport | null;
 }
 
 export interface Boletin {
   id: string;
   userId: string;
   name: string | null;
+  /** Slug of the betting site used, e.g. "betclic" */
+  siteSlug: string | null;
   /** Decimal serialised as string */
   stake: string;
   /** Decimal serialised as string */
@@ -183,8 +165,12 @@ export interface Boletin {
   status: BoletinStatus;
   /** Decimal serialised as string; null while PENDING */
   actualReturn: string | null;
+  /** Decimal serialised as string; set when status is CASHOUT */
+  cashoutAmount: string | null;
   notes: string | null;
   isPublic: boolean;
+  /** ISO-8601 string — when the bet was actually placed (may differ from createdAt) */
+  betDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -192,8 +178,10 @@ export interface Boletin {
 export interface BoletinItem {
   id: string;
   boletinId: string;
-  eventId: string;
-  siteId: string;
+  homeTeam: string;
+  awayTeam: string;
+  competition: string;
+  sport: Sport;
   market: string;
   selection: string;
   /** Decimal serialised as string */
@@ -238,29 +226,7 @@ export interface SocialUser extends CompactUser {
   lastLoginAt: string | null;
 }
 
-export interface CompactBettingSite {
-  id: string;
-  slug: string;
-  name: string;
-  logoUrl: string | null;
-}
-
-export interface CompactSportEvent {
-  id: string;
-  league: string;
-  homeTeam: string;
-  awayTeam: string;
-  eventDate: string;
-  status: EventStatus;
-  homeScore: number | null;
-  awayScore: number | null;
-  liveClock?: string | null;
-}
-
-export interface BoletinItemDetail extends BoletinItem {
-  event: CompactSportEvent;
-  site: CompactBettingSite;
-}
+export interface BoletinItemDetail extends BoletinItem {}
 
 export interface BoletinShareDetail extends SharedBoletin {
   sharedBy: CompactUser;
@@ -355,33 +321,6 @@ export interface NotificationsPageMeta extends PaginationMeta {
   unreadCount: number;
 }
 
-// ─── Scraper types ────────────────────────────────────────────────────────────
-
-export interface ScrapedSelection {
-  selection: string;
-  value: number;
-}
-
-export interface ScrapedMarket {
-  /** e.g. "1X2", "Over/Under 2.5" */
-  market: string;
-  selections: ScrapedSelection[];
-}
-
-export interface ScrapedEvent {
-  externalId: string;
-  sport: Sport;
-  league: string;
-  homeTeam: string;
-  awayTeam: string;
-  eventDate: Date;
-  markets: ScrapedMarket[];
-  isLive?: boolean;
-  homeScore?: number | null;
-  awayScore?: number | null;
-  liveClock?: string | null;
-}
-
 // ─── API response wrapper ─────────────────────────────────────────────────────
 
 export interface PaginationMeta {
@@ -435,23 +374,6 @@ export interface GoogleAuthResponse {
 
 // ─── Socket.io event payloads ─────────────────────────────────────────────────
 
-export interface OddsUpdatedPayload {
-  eventId: string;
-  siteId: string;
-  market: string;
-  selection: string;
-  oldValue: string;
-  newValue: string;
-}
-
-export interface EventStatusChangePayload {
-  eventId: string;
-  status: EventStatus;
-  homeScore: number | null;
-  awayScore: number | null;
-  liveClock: string | null;
-}
-
 export interface BoletinResultPayload {
   boletinId: string;
   status: BoletinStatus;
@@ -484,6 +406,8 @@ export interface StatsSummary {
   roi: number;
   winRate: number;
   averageOdds: number;
+  averageWonOdds: number;
+  averageLostOdds: number;
   averageStake: number;
   averageReturn: number;
 }
@@ -508,10 +432,12 @@ export interface StatsBySportRow extends StatsBreakdownRow {
   sport: Sport;
 }
 
-export interface StatsBySiteRow extends StatsBreakdownRow {
-  siteId: string;
-  slug: string;
-  logoUrl: string | null;
+export interface StatsByTeamRow extends StatsBreakdownRow {
+  team: string;
+}
+
+export interface StatsByCompetitionRow extends StatsBreakdownRow {
+  competition: string;
 }
 
 export interface StatsByMarketRow extends StatsBreakdownRow {
@@ -558,7 +484,8 @@ export interface StatsTopBoletin {
 export interface PersonalStats {
   summary: StatsSummary;
   bySport: StatsBySportRow[];
-  bySite: StatsBySiteRow[];
+  byTeam: StatsByTeamRow[];
+  byCompetition: StatsByCompetitionRow[];
   byMarket: StatsByMarketRow[];
   byOddsRange: StatsByOddsRangeRow[];
   timeline: StatsTimelinePoint[];

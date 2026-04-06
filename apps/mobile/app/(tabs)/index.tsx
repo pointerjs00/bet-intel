@@ -1,834 +1,475 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useMemo, useRef, useState } from 'react';
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQueryClient } from '@tanstack/react-query';
-import { useTheme } from '../../theme/useTheme';
-import { useFilterStore } from '../../stores/filterStore';
-import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
-import { useBettingSites, useLeagues, useLiveEvents, useOddsFeed, useSports, type OddsEvent } from '../../services/oddsService';
-import { LiveBadge } from '../../components/odds/LiveBadge';
-import { OddsCard } from '../../components/odds/OddsCard';
-import { SiteLogoChip } from '../../components/odds/SiteLogoChip';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import type GorhomBottomSheet from '@gorhom/bottom-sheet';
+import { BoletinStatus } from '@betintel/shared';
+import { BoletinCard } from '../../components/boletins/BoletinCard';
+import {
+  BoletinFilterSheet,
+  type BoletinFilter,
+  type BoletinSort,
+  type CompetitionEntry,
+  type TeamEntry,
+} from '../../components/boletins/BoletinFilterSheet';
+import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Chip } from '../../components/ui/Chip';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
+import { filterBoletinsByStatus, useBoletins, useDeleteBoletinMutation } from '../../services/boletinService';
 import { useUnreadNotificationsCount } from '../../services/socialService';
-import type { Sport } from '@betintel/shared';
-import { ActivityIndicator } from 'react-native';
-import { formatLiveClock } from '../../utils/formatters';
+import { tokens } from '../../theme/tokens';
+import { useTheme } from '../../theme/useTheme';
+import { formatCurrency } from '../../utils/formatters';
 
-const HOME_PAGE_LIMIT = 20;
+type StatusFilter = 'ALL' | BoletinStatus;
+type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
 
-// Estimated card height for getItemLayout (card ~200px + separator 16px)
-const ITEM_HEIGHT = 216;
-
-// Stable separator component — avoids re-creation on every render
-const ItemSeparator = () => <View style={separatorStyle} />;
-
-// ─── Competitions panel — self-contained memoized component ────────────────
-// Lives outside HomeScreen so its internal state (open/search) never causes
-// the main screen to re-render. This is the heaviest part of the header
-// (can render 200+ league rows). With React.memo it only re-renders when
-// the league list or the active selection changes.
-
-interface CompetitionsPanelProps {
-  availableLeagues: string[];
-  selectedLeague: string | null;
-  setLeague: (l: string | null) => void;
-  colors: ReturnType<typeof useTheme>['colors'];
-}
-
-const CompetitionsPanel = React.memo(function CompetitionsPanel({
-  availableLeagues,
-  selectedLeague,
-  setLeague,
-  colors,
-}: CompetitionsPanelProps) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-
-  const categorized = useMemo(() => {
-    const searchLower = search.toLowerCase();
-    const filtered = search
-      ? availableLeagues.filter((l) => l.toLowerCase().includes(searchLower))
-      : availableLeagues;
-
-    const portuguese: string[] = [];
-    const topEuropean: string[] = [];
-    const others: string[] = [];
-    const PT_KW = ['portugal', 'liga nos', 'primeira liga', 'segunda liga', 'taça de portugal', 'taça da liga'];
-    const EU_KW = ['premier league', 'la liga', 'laliga', 'bundesliga', 'serie a', 'ligue 1'];
-
-    for (const league of filtered) {
-      const lower = league.toLowerCase();
-      if (PT_KW.some((kw) => lower.includes(kw))) portuguese.push(league);
-      else if (EU_KW.some((kw) => lower.includes(kw))) topEuropean.push(league);
-      else others.push(league);
-    }
-
-    return {
-      portuguese: portuguese.sort(),
-      topEuropean: topEuropean.sort(),
-      others: others.sort((a, b) => a.localeCompare(b)),
-    };
-  }, [availableLeagues, search]);
-
-  if (availableLeagues.length === 0) return null;
-
-  return (
-    <View style={{ marginTop: 8 }}>
-      <Pressable
-        onPress={() => setOpen((prev) => !prev)}
-        style={[styles.competitionsHeader, { backgroundColor: colors.surface, borderColor: colors.border }]}
-      >
-        <View style={styles.competitionsHeaderLeft}>
-          <MaterialCommunityIcons color={colors.textSecondary} name="trophy-outline" size={18} />
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Competições</Text>
-          {selectedLeague ? (
-            <View style={[styles.countPill, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={[styles.countPillText, { color: colors.primary }]} numberOfLines={1}>
-                {selectedLeague}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        <MaterialCommunityIcons
-          color={colors.textSecondary}
-          name={open ? 'chevron-up' : 'chevron-down'}
-          size={22}
-        />
-      </Pressable>
-
-      {open ? (
-        <Card style={styles.leagueCard}>
-          <View style={[styles.leagueSearchWrap, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-            <MaterialCommunityIcons color={colors.textMuted} name="magnify" size={18} />
-            <TextInput
-              placeholder="Pesquisar competição..."
-              placeholderTextColor={colors.textMuted}
-              value={search}
-              onChangeText={setSearch}
-              style={[styles.leagueSearchInput, { color: colors.textPrimary }]}
-            />
-            {search.length > 0 ? (
-              <Pressable onPress={() => setSearch('')} hitSlop={8}>
-                <MaterialCommunityIcons color={colors.textMuted} name="close-circle" size={16} />
-              </Pressable>
-            ) : null}
-          </View>
-          <ScrollView style={styles.leagueList} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-            <Pressable
-              onPress={() => setLeague(null)}
-              style={[styles.leagueRow, { borderColor: colors.border }]}
-            >
-              <Text style={[styles.leagueRowText, { color: selectedLeague === null ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === null ? '700' : '500' }]}>
-                Todas as competições
-              </Text>
-              {selectedLeague === null ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
-            </Pressable>
-
-            {categorized.portuguese.length > 0 ? (
-              <>
-                <View style={styles.leagueGroupHeader}>
-                  <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>🇵🇹 Liga Portuguesa</Text>
-                </View>
-                {categorized.portuguese.map((league) => (
-                  <Pressable key={league} onPress={() => setLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
-                    <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
-                    {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
-                  </Pressable>
-                ))}
-              </>
-            ) : null}
-
-            {categorized.topEuropean.length > 0 ? (
-              <>
-                <View style={styles.leagueGroupHeader}>
-                  <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>🏆 Top Europeias</Text>
-                </View>
-                {categorized.topEuropean.map((league) => (
-                  <Pressable key={league} onPress={() => setLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
-                    <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
-                    {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
-                  </Pressable>
-                ))}
-              </>
-            ) : null}
-
-            {categorized.others.length > 0 ? (
-              <>
-                <View style={styles.leagueGroupHeader}>
-                  <Text style={[styles.leagueGroupLabel, { color: colors.textMuted }]}>📋 Outras</Text>
-                </View>
-                {categorized.others.map((league) => (
-                  <Pressable key={league} onPress={() => setLeague(selectedLeague === league ? null : league)} style={[styles.leagueRow, { borderColor: colors.border }]}>
-                    <Text style={[styles.leagueRowText, { color: selectedLeague === league ? colors.primary : colors.textPrimary, fontWeight: selectedLeague === league ? '700' : '500' }]}>{league}</Text>
-                    {selectedLeague === league ? <MaterialCommunityIcons color={colors.primary} name="check-circle" size={18} /> : null}
-                  </Pressable>
-                ))}
-              </>
-            ) : null}
-
-            {categorized.portuguese.length === 0 && categorized.topEuropean.length === 0 && categorized.others.length === 0 ? (
-              <View style={styles.leagueEmptySearch}>
-                <Text style={[styles.leagueEmptyText, { color: colors.textMuted }]}>Nenhuma competição encontrada</Text>
-              </View>
-            ) : null}
-          </ScrollView>
-        </Card>
-      ) : null}
-    </View>
-  );
-});
-const separatorStyle = { height: 16 };
-
-type HomeListItem = OddsEvent | { id: string; type: 'skeleton' };
+const STATUS_FILTERS: Array<{ key: StatusFilter; label: string }> = [
+  { key: 'ALL', label: '📋 Todos' },
+  { key: BoletinStatus.PENDING, label: '⏳ Pendente' },
+  { key: BoletinStatus.WON, label: '✅ Ganhou' },
+  { key: BoletinStatus.LOST, label: '❌ Perdeu' },
+  { key: BoletinStatus.CASHOUT, label: '💵 Cashout' },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
-  const selectedSites = useFilterStore((s) => s.selectedSites);
-  const selectedSports = useFilterStore((s) => s.selectedSports);
-  const selectedMarkets = useFilterStore((s) => s.selectedMarkets);
-  const selectedLeague = useFilterStore((s) => s.selectedLeague);
-  const teamSearch = useFilterStore((s) => s.teamSearch);
-  const setTeamSearch = useFilterStore((s) => s.setTeamSearch);
-  const minOdds = useFilterStore((s) => s.minOdds);
-  const maxOdds = useFilterStore((s) => s.maxOdds);
-  const dateRange = useFilterStore((s) => s.dateRange);
-  const activeFilterCount = useFilterStore((s) => s.activeFilterCount);
-  const setLeague = useFilterStore((s) => s.setLeague);
-  const addBuilderItem = useBoletinBuilderStore((s) => s.addItem);
-  const unreadNotificationCount = useUnreadNotificationsCount().data ?? 0;
-  const [page, setPage] = useState(1);
-  const [feedItems, setFeedItems] = useState<OddsEvent[]>([]);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  // Local state for the search input — debounced before updating the store
-  const [localTeamSearch, setLocalTeamSearch] = useState(teamSearch);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filterSheetRef = useRef<GorhomBottomSheet>(null);
 
-  const handleTeamSearchChange = useCallback(
-    (text: string) => {
-      setLocalTeamSearch(text);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        setTeamSearch(text);
-      }, 400);
-    },
-    [setTeamSearch],
-  );
+  const [selectedFilter, setSelectedFilter] = useState<StatusFilter>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
 
-  const handleClearTeamSearch = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    setLocalTeamSearch('');
-    setTeamSearch('');
-  }, [setTeamSearch]);
+  const boletinsQuery = useBoletins();
+  const deleteMutation = useDeleteBoletinMutation();
+  const unreadCount = useUnreadNotificationsCount().data ?? 0;
 
-  const filters = useMemo(
-    () => ({
-      selectedSites,
-      selectedSports,
-      selectedMarkets,
-      selectedLeague,
-      teamSearch: teamSearch.trim() || undefined,
-      minOdds,
-      maxOdds,
-      dateRange,
-      page,
-      limit: HOME_PAGE_LIMIT,
-    }),
-    [dateRange, maxOdds, minOdds, page, selectedLeague, selectedMarkets, selectedSites, selectedSports, teamSearch],
-  );
+  const boletins = boletinsQuery.data ?? [];
 
-  const filterKey = JSON.stringify({
-    selectedSites,
-    selectedSports,
-    selectedMarkets,
-    selectedLeague,
-    teamSearch,
-    minOdds,
-    maxOdds,
-    dateRange: dateRange
-      ? { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() }
-      : null,
+  // Derive range maxima from actual data for slider bounds
+  const dataRanges = useMemo(() => {
+    if (boletins.length === 0) return { maxStake: 100, maxOdds: 20, maxReturn: 1000 };
+    return {
+      maxStake: Math.max(100, ...boletins.map((b) => Number(b.stake))),
+      maxOdds: Math.max(10, ...boletins.map((b) => Number(b.totalOdds))),
+      maxReturn: Math.max(100, ...boletins.map((b) => Number(b.actualReturn ?? b.potentialReturn))),
+    };
+  }, [boletins]);
+
+  const [filter, setFilter] = useState<BoletinFilter>({
+    stakeRange: [0, dataRanges.maxStake],
+    oddsRange: [1, dataRanges.maxOdds],
+    returnRange: [0, dataRanges.maxReturn],
+    sport: null,
+    competitions: [],
+    teams: [],
   });
 
-  const oddsFeedQuery = useOddsFeed(filters);
-  const liveEventsQuery = useLiveEvents();
-  const sitesQuery = useBettingSites();
-  const sportsQuery = useSports();
-  const leaguesQuery = useLeagues();
+  // All unique competitions and teams from loaded data
+  const allCompetitions = useMemo((): CompetitionEntry[] => {
+    const map = new Map<string, CompetitionEntry['sport']>();
+    boletins.forEach((b) => b.items.forEach((i) => { if (!map.has(i.competition)) map.set(i.competition, i.sport); }));
+    return Array.from(map.entries()).map(([name, sport]) => ({ name, sport })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [boletins]);
 
-  // Derive unique league names from the leagues API (pre-fetched on init so the
-  // full competition list is immediately available without waiting for the feed).
-  const availableLeagues = useMemo(() => {
-    const seen = new Set<string>();
-    if (leaguesQuery.data) {
-      for (const item of leaguesQuery.data) {
-        if (item.league && item.league !== 'Futebol') seen.add(item.league);
-      }
+  const allTeams = useMemo((): TeamEntry[] => {
+    const map = new Map<string, TeamEntry['sport']>();
+    boletins.forEach((b) =>
+      b.items.forEach((i) => {
+        if (!map.has(i.homeTeam)) map.set(i.homeTeam, i.sport);
+        if (!map.has(i.awayTeam)) map.set(i.awayTeam, i.sport);
+      }),
+    );
+    return Array.from(map.entries()).map(([name, sport]) => ({ name, sport })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [boletins]);
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filter.stakeRange[0] > 0 || filter.stakeRange[1] < dataRanges.maxStake) count++;
+    if (filter.oddsRange[0] > 1 || filter.oddsRange[1] < dataRanges.maxOdds) count++;
+    if (filter.returnRange[0] > 0 || filter.returnRange[1] < dataRanges.maxReturn) count++;
+    if (filter.sport !== null) count++;
+    if (filter.competitions.length > 0) count++;
+    if (filter.teams.length > 0) count++;
+    return count;
+  }, [filter, dataRanges]);
+
+  const isDefaultSort = sort.by === 'date' && sort.dir === 'desc';
+
+  const filtered = useMemo(() => {
+    let result = filterBoletinsByStatus(boletins, selectedFilter);
+
+    // Search by name, home or away team
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (b) =>
+          (b.name ?? '').toLowerCase().includes(q) ||
+          b.items.some(
+            (i) =>
+              i.homeTeam.toLowerCase().includes(q) ||
+              i.awayTeam.toLowerCase().includes(q),
+          ),
+      );
     }
-    return Array.from(seen);
-  }, [leaguesQuery.data]);
 
-  useEffect(() => {
-    setPage(1);
-    setFeedItems([]);
-  }, [filterKey]);
-
-  useEffect(() => {
-    if (!oddsFeedQuery.data) return;
-    const events = oddsFeedQuery.data.events;
-    if (page === 1) {
-      setFeedItems(events);
-      return;
-    }
-    // O(1) dedup via Set — avoids the O(n²) .some() scan on every load-more
-    setFeedItems((current) => {
-      const seenIds = new Set(current.map((item) => item.id));
-      const newItems = events.filter((event) => !seenIds.has(event.id));
-      return newItems.length > 0 ? [...current, ...newItems] : current;
+    // Range filters
+    result = result.filter((b) => {
+      const stake = Number(b.stake);
+      const odds = Number(b.totalOdds);
+      const ret = Number(b.actualReturn ?? b.potentialReturn);
+      return (
+        stake >= filter.stakeRange[0] &&
+        stake <= filter.stakeRange[1] &&
+        odds >= filter.oddsRange[0] &&
+        odds <= filter.oddsRange[1] &&
+        ret >= filter.returnRange[0] &&
+        ret <= filter.returnRange[1]
+      );
     });
-  }, [oddsFeedQuery.data, page]);
 
-  const onRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    setPage(1);
-    setFeedItems([]);
-    await queryClient.invalidateQueries({ queryKey: ['odds'] });
-    setIsRefreshing(false);
-  }, [queryClient]);
+    // Sport filter
+    if (filter.sport !== null) {
+      result = result.filter((b) => b.items.some((i) => i.sport === filter.sport));
+    }
 
-  const hasMore = page < (oddsFeedQuery.data?.meta.totalPages ?? 1);
-  const listData: HomeListItem[] =
-    oddsFeedQuery.isLoading && feedItems.length === 0
-      ? [1, 2, 3].map((item) => ({ id: `skeleton-${item}`, type: 'skeleton' as const }))
-      : feedItems;
+    // Competition filter
+    if (filter.competitions.length > 0) {
+      result = result.filter((b) =>
+        b.items.some((i) => filter.competitions.includes(i.competition)),
+      );
+    }
 
-  const renderItem = useCallback(
-    ({ item }: { item: HomeListItem }) =>
-      'type' in item ? (
-        <Card style={styles.skeletonCard}>
-          <Skeleton height={14} width={120} />
-          <Skeleton height={22} width="84%" />
-          <Skeleton height={14} width={140} />
-          <Skeleton height={120} width="100%" />
-        </Card>
-      ) : (
-        <OddsCard
-          event={item}
-          onOddPress={(odd, selection) => {
-            addBuilderItem({
-              id: `${item.id}:${odd.site.id}:${odd.market}:${selection}`,
-              eventId: item.id,
-              siteId: odd.site.id,
-              market: odd.market,
-              selection,
-              oddValue: Number(odd.value),
-              event: {
-                awayTeam: item.awayTeam,
-                eventDate: item.eventDate,
-                homeTeam: item.homeTeam,
-                league: item.league,
-              },
-              site: {
-                id: odd.site.id,
-                slug: odd.site.slug,
-                name: odd.site.name,
-                logoUrl: odd.site.logoUrl,
-              },
-            });
-            showToast('Seleção adicionada ao boletin.', 'success');
-            router.push('/boletins/create');
-          }}
-          onAddPress={() => {
-            const firstAvailableOdd = item.odds.find((odd) =>
-              odd.selection === '1' || odd.selection === 'X' || odd.selection === '2'
-            );
+    // Team filter
+    if (filter.teams.length > 0) {
+      result = result.filter((b) =>
+        b.items.some(
+          (i) => filter.teams.includes(i.homeTeam) || filter.teams.includes(i.awayTeam),
+        ),
+      );
+    }
 
-            if (!firstAvailableOdd) {
-              showToast('Abre o evento para escolheres uma odd disponível.', 'info');
-              router.push(`/odds/${item.id}`);
-              return;
-            }
+    // Sort
+    return [...result].sort((a, b) => {
+      let valA: number;
+      let valB: number;
+      switch (sort.by) {
+        case 'stake':
+          valA = Number(a.stake);
+          valB = Number(b.stake);
+          break;
+        case 'odds':
+          valA = Number(a.totalOdds);
+          valB = Number(b.totalOdds);
+          break;
+        case 'return':
+          valA = Number(a.actualReturn ?? a.potentialReturn);
+          valB = Number(b.actualReturn ?? b.potentialReturn);
+          break;
+        case 'events':
+          valA = a.items.length;
+          valB = b.items.length;
+          break;
+        case 'date':
+        default:
+          valA = new Date(a.betDate ?? a.createdAt).getTime();
+          valB = new Date(b.betDate ?? b.createdAt).getTime();
+      }
+      return sort.dir === 'asc' ? valA - valB : valB - valA;
+    });
+  }, [boletins, selectedFilter, searchQuery, filter, sort]);
 
-            addBuilderItem({
-              id: `${item.id}:${firstAvailableOdd.site.id}:${firstAvailableOdd.market}:${firstAvailableOdd.selection}`,
-              eventId: item.id,
-              siteId: firstAvailableOdd.site.id,
-              market: firstAvailableOdd.market,
-              selection: firstAvailableOdd.selection,
-              oddValue: Number(firstAvailableOdd.value),
-              event: {
-                awayTeam: item.awayTeam,
-                eventDate: item.eventDate,
-                homeTeam: item.homeTeam,
-                league: item.league,
-              },
-              site: {
-                id: firstAvailableOdd.site.id,
-                slug: firstAvailableOdd.site.slug,
-                name: firstAvailableOdd.site.name,
-                logoUrl: firstAvailableOdd.site.logoUrl,
-              },
-            });
-            showToast('Seleção adicionada ao boletin.', 'success');
-            router.push('/boletins/create');
-          }}
-          onPress={() => router.push(`/odds/${item.id}`)}
-        />
-      ),
-    [addBuilderItem, router, showToast],
-  );
+  const listData: SlipListItem[] = boletinsQuery.isLoading
+    ? [{ id: 's1', type: 'skeleton' }, { id: 's2', type: 'skeleton' }, { id: 's3', type: 'skeleton' }]
+    : filtered;
 
-  const getItemLayout = useCallback(
-    (_data: ArrayLike<HomeListItem> | null | undefined, index: number) => ({
-      length: ITEM_HEIGHT,
-      offset: ITEM_HEIGHT * index,
-      index,
-    }),
-    [],
-  );
+  const summary = useMemo(() => {
+    return boletins.reduce(
+      (acc, boletin) => {
+        acc.totalStaked += Number(boletin.stake);
+        acc.totalReturned += Number(boletin.actualReturn ?? 0);
+        return acc;
+      },
+      { totalStaked: 0, totalReturned: 0 },
+    );
+  }, [boletins]);
 
-  const liveEvents = liveEventsQuery.data ?? [];
+  const roi =
+    summary.totalStaked > 0
+      ? ((summary.totalReturned - summary.totalStaked) / summary.totalStaked) * 100
+      : 0;
 
-  const header = (
-    <View style={styles.headerSection}>
-      {/* Top bar */}
-      <Animated.View entering={FadeInDown.duration(400).springify()} style={styles.topBar}>
-        <View style={styles.logoWrap}>
-          <Text style={[styles.logo, { color: colors.textPrimary }]}>BetIntel</Text>
-          <Text style={[styles.tagline, { color: colors.textMuted }]}>Odds em direto e melhores comparações</Text>
-        </View>
-        <View style={styles.topActions}>
-          <Pressable
-            onPress={() => router.push('/(tabs)/profile')}
-            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <MaterialCommunityIcons color={colors.textPrimary} name="bell-outline" size={20} />
-            {unreadNotificationCount > 0 ? (
-              <View style={[styles.badge, { backgroundColor: colors.danger }]}>
-                <Text style={styles.badgeText}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/odds/filter')}
-            style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          >
-            <MaterialCommunityIcons color={colors.textPrimary} name="tune-variant" size={20} />
-            {activeFilterCount > 0 ? (
-              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
-                <Text style={styles.badgeText}>{activeFilterCount}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-        </View>
-      </Animated.View>
-
-      {/* Live events strip */}
-      <Animated.View entering={FadeInDown.delay(80).duration(400).springify()}>
-        <View style={styles.sectionHeader}>
-          <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Ao vivo</Text>
-          {liveEvents.length > 0 ? (
-            <View style={[styles.countPill, { backgroundColor: colors.surfaceRaised }]}>
-              <Text style={[styles.countPillText, { color: colors.live }]}>{liveEvents.length}</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {liveEventsQuery.isLoading ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.liveStrip}>
-            {[1, 2, 3].map((k) => (
-              <Card key={k} style={styles.liveCardSkeleton}>
-                <Skeleton height={14} width={72} />
-                <Skeleton height={18} width={160} />
-                <Skeleton height={14} width={90} />
-              </Card>
-            ))}
-          </ScrollView>
-        ) : liveEvents.length === 0 ? (
-          <Card style={styles.liveEmptyCard}>
-            <MaterialCommunityIcons color={colors.textMuted} name="broadcast-off" size={22} />
-            <Text style={[styles.liveEmptyText, { color: colors.textMuted }]}>Sem eventos ao vivo neste momento</Text>
-          </Card>
-        ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.liveStrip} contentContainerStyle={{ gap: 10 }}>
-            {liveEvents.map((item, index) => (
-              <Animated.View key={item.id} entering={FadeInRight.delay(index * 80).duration(400).springify()}>
-                <Card onPress={() => router.push(`/odds/${item.id}`)} style={styles.liveCard}>
-                  <View style={styles.liveCardTop}>
-                    <LiveBadge />
-                    <Text style={[styles.liveLeague, { color: colors.textMuted }]} numberOfLines={1}>{item.league}</Text>
-                  </View>
-                  <Text numberOfLines={1} style={[styles.liveTeams, { color: colors.textPrimary }]}>
-                    {item.homeTeam} vs {item.awayTeam}
-                  </Text>
-                  <View style={styles.liveScoreRow}>
-                    {(() => {
-                      const resolvedLiveClock = formatLiveClock(item.liveClock, item.eventDate);
-                      const liveSummary = [
-                        item.homeScore != null && item.awayScore != null
-                          ? `${item.homeScore} – ${item.awayScore}`
-                          : null,
-                        resolvedLiveClock,
-                      ].filter(Boolean).join(' · ');
-
-                      return (
-                    <Text style={[styles.liveScoreText, { color: colors.primary }]}>
-                        {liveSummary || 'Ao vivo'}
-                    </Text>
-                      );
-                    })()}
-                    <MaterialCommunityIcons color={colors.textMuted} name="chevron-right" size={16} />
-                  </View>
-                </Card>
-              </Animated.View>
-            ))}
-          </ScrollView>
-        )}
-      </Animated.View>
-
-      {/* Team search bar */}
-      <Animated.View entering={FadeInDown.delay(160).duration(400).springify()}>
-        <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <MaterialCommunityIcons color={colors.textMuted} name="magnify" size={20} />
-          <TextInput
-            placeholder="Pesquisar equipa..."
-            placeholderTextColor={colors.textMuted}
-            value={localTeamSearch}
-            onChangeText={handleTeamSearchChange}
-            style={[styles.searchInput, { color: colors.textPrimary }]}
-            returnKeyType="search"
-            autoCorrect={false}
-          />
-          {localTeamSearch.length > 0 ? (
-            <Pressable onPress={handleClearTeamSearch} hitSlop={8}>
-              <MaterialCommunityIcons color={colors.textMuted} name="close-circle" size={18} />
-            </Pressable>
-          ) : null}
-        </View>
-      </Animated.View>
-
-      {/* Quick filters — box grid */}
-      <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
-        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Filtros rápidos</Text>
-        <View style={styles.filterGrid}>
-          {buildQuickFilterItems(sportsQuery.data ?? [], sitesQuery.data ?? [], selectedSports, selectedSites).map((item) => (
-            <Pressable
-              key={item.key}
-              onPress={item.key === 'all'
-                ? () => { useFilterStore.getState().reset(); handleClearTeamSearch(); }
-                : (item.onPress ?? (() => undefined))}
-              style={({ pressed }) => [
-                styles.filterBox,
-                {
-                  backgroundColor: item.active ? colors.primary + '18' : colors.surface,
-                  borderColor: item.active ? colors.primary : colors.border,
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              {item.site ? (
-                <SiteLogoChip compact logoUrl={item.site.logoUrl} name={item.site.name} slug={item.site.slug} />
-              ) : item.icon ? (
-                <Text style={styles.filterBoxEmoji}>{item.icon}</Text>
-              ) : (
-                <MaterialCommunityIcons color={item.active ? colors.primary : colors.textSecondary} name="select-all" size={18} />
-              )}
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.filterBoxLabel,
-                  { color: item.active ? colors.primary : colors.textPrimary },
-                ]}
-              >
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </Animated.View>
-
-      {/* Competitions — collapsible dropdown (self-contained, memoized) */}
-      <CompetitionsPanel
-        availableLeagues={availableLeagues}
-        selectedLeague={selectedLeague}
-        setLeague={setLeague}
-        colors={colors}
-      />
-
-      {/* Feed section header */}
-      <Animated.View entering={FadeInDown.delay(320).duration(400).springify()}>
-        <View style={styles.sectionHeader}>
-          <MaterialCommunityIcons color={colors.textSecondary} name="format-list-bulleted" size={18} />
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Feed de odds</Text>
-          {feedItems.length > 0 ? (
-            <View style={[styles.countPill, { backgroundColor: colors.surfaceRaised }]}>
-              <Text style={[styles.countPillText, { color: colors.textSecondary }]}>{feedItems.length}</Text>
-            </View>
-          ) : null}
-        </View>
-      </Animated.View>
-    </View>
-  );
+  const hasActiveControls = searchQuery.trim().length > 0 || activeFilterCount > 0 || !isDefaultSort;
 
   return (
-    <FlatList
-      contentContainerStyle={{
-        backgroundColor: colors.background,
-        paddingBottom: insets.bottom + 100,
-        paddingHorizontal: tokens.spacing.lg,
-        paddingTop: insets.top + tokens.spacing.md,
-      }}
-      data={listData}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={header}
-      ListEmptyComponent={
-        !oddsFeedQuery.isLoading ? (
-          <EmptyState
-            icon="magnify"
-            title="Sem eventos para estes filtros"
-            message="Ajusta os filtros ou espera pela próxima atualização dos scrapers."
-          />
-        ) : null
-      }
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={onRefresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
-      renderItem={renderItem}
-      getItemLayout={getItemLayout}
-      windowSize={5}
-      maxToRenderPerBatch={8}
-      initialNumToRender={6}
-      showsVerticalScrollIndicator={false}
-      ItemSeparatorComponent={ItemSeparator}
-      ListFooterComponent={
-        <View style={styles.footerActions}>
-          {oddsFeedQuery.isFetching && feedItems.length > 0 ? (
-            <ActivityIndicator color={colors.primary} size="small" />
-          ) : hasMore ? (
-            <Pressable
-              onPress={() => setPage((p) => p + 1)}
-              style={[styles.loadMoreBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            >
-              <Text style={[styles.loadMoreText, { color: colors.textPrimary }]}>Carregar mais</Text>
-              <MaterialCommunityIcons color={colors.textSecondary} name="chevron-down" size={18} />
-            </Pressable>
-          ) : feedItems.length > 0 ? (
-            <Text style={[styles.footerEnd, { color: colors.textMuted }]}>Todos os eventos carregados</Text>
-          ) : null}
-        </View>
-      }
-    />
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <FlatList
+        contentContainerStyle={{
+          paddingTop: insets.top + tokens.spacing.md,
+          paddingBottom: Math.max(insets.bottom, 12) + 64 + tokens.spacing.lg,
+          paddingHorizontal: tokens.spacing.lg,
+        }}
+        data={listData}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View style={styles.headerWrap}>
+            {/* Title row */}
+            <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.titleRow}>
+              <View style={styles.titleBlock}>
+                <Text style={[styles.logo, { color: colors.textPrimary }]}>BetIntel</Text>
+                <Text style={[styles.tagline, { color: colors.textMuted }]}>O teu tracker de apostas</Text>
+              </View>
+              <View style={styles.topActions}>
+                {unreadCount > 0 ? (
+                  <View style={[styles.notifBadge, { backgroundColor: colors.danger }]}>
+                    <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                  </View>
+                ) : null}
+                <Pressable
+                  onPress={() => router.push('/boletins/create')}
+                  style={[styles.iconButton, { backgroundColor: colors.primary }]}
+                >
+                  <Ionicons color="#FFFFFF" name="add" size={20} />
+                </Pressable>
+              </View>
+            </Animated.View>
+
+            {/* Summary card */}
+            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+              <Card style={styles.summaryCard}>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
+                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(summary.totalStaked)}</Text>
+                </View>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno</Text>
+                  <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(summary.totalReturned)}</Text>
+                </View>
+                <View style={styles.summaryMetric}>
+                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>ROI</Text>
+                  <Text style={[styles.summaryValue, { color: roi >= 0 ? colors.primary : colors.danger }]}>{roi.toFixed(1)}%</Text>
+                </View>
+              </Card>
+            </Animated.View>
+
+            {/* Search bar */}
+            <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+              <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                <Ionicons color={colors.textMuted} name="search" size={18} />
+                <TextInput
+                  onChangeText={setSearchQuery}
+                  placeholder="Pesquisar boletins..."
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.searchInput, { color: colors.textPrimary }]}
+                  value={searchQuery}
+                />
+                {searchQuery.length > 0 ? (
+                  <Pressable hitSlop={8} onPress={() => setSearchQuery('')}>
+                    <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+                  </Pressable>
+                ) : null}
+              </View>
+            </Animated.View>
+
+            {/* Status filter chips + sort/filter buttons */}
+            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.controlsRow}>
+              <FlatList
+                contentContainerStyle={styles.filterList}
+                data={STATUS_FILTERS}
+                horizontal
+                keyExtractor={(item) => item.key}
+                renderItem={({ item }) => (
+                  <Chip
+                    label={item.label}
+                    selected={item.key === selectedFilter}
+                    onPress={() => setSelectedFilter(item.key)}
+                  />
+                )}
+                showsHorizontalScrollIndicator={false}
+                ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
+              />
+              <Pressable
+                onPress={() => filterSheetRef.current?.expand()}
+                style={[
+                  styles.filterBtn,
+                  {
+                    backgroundColor:
+                      activeFilterCount > 0 || !isDefaultSort ? colors.primary : colors.surfaceRaised,
+                    borderColor: activeFilterCount > 0 || !isDefaultSort ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  color={activeFilterCount > 0 || !isDefaultSort ? '#fff' : colors.textSecondary}
+                  name="options-outline"
+                  size={18}
+                />
+                {(activeFilterCount > 0 || !isDefaultSort) ? (
+                  <Text style={styles.filterBtnBadge}>
+                    {activeFilterCount + (!isDefaultSort ? 1 : 0)}
+                  </Text>
+                ) : null}
+              </Pressable>
+            </Animated.View>
+
+            {/* Active filters summary */}
+            {hasActiveControls ? (
+              <Pressable
+                onPress={() => {
+                  setSearchQuery('');
+                  setSort({ by: 'date', dir: 'desc' });
+                  setFilter({
+                    stakeRange: [0, dataRanges.maxStake],
+                    oddsRange: [1, dataRanges.maxOdds],
+                    returnRange: [0, dataRanges.maxReturn],
+                    sport: null,
+                    competitions: [],
+                    teams: [],
+                  });
+                }}
+              >
+                <Text style={[styles.clearFilters, { color: colors.textMuted }]}>
+                  {filtered.length} resultado{filtered.length !== 1 ? 's' : ''} · Limpar filtros
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          !boletinsQuery.isLoading ? (
+            <EmptyState
+              icon="receipt"
+              title={hasActiveControls ? 'Nenhum boletim encontrado' : 'Ainda não tens boletins'}
+              message={
+                hasActiveControls
+                  ? 'Nenhum boletim corresponde aos filtros activos.'
+                  : 'Cria o teu primeiro boletim tocando no botão + acima.'
+              }
+              action={
+                hasActiveControls ? undefined : (
+                  <Button onPress={() => router.push('/boletins/create')} title="Criar boletim" />
+                )
+              }
+            />
+          ) : null
+        }
+        renderItem={({ item, index }) => {
+          if ('type' in item) {
+            return (
+              <Card style={styles.skeletonCard}>
+                <Skeleton height={20} width={110} />
+                <Skeleton height={26} width="88%" />
+                <Skeleton height={80} width="100%" />
+              </Card>
+            );
+          }
+
+          return (
+            <Animated.View entering={FadeInDown.delay(300 + index * 60).duration(400).springify()}>
+              <BoletinCard
+                boletin={item}
+                onDelete={async () => {
+                  try {
+                    await deleteMutation.mutateAsync(item.id);
+                    showToast('Boletim eliminado.', 'success');
+                  } catch (error) {
+                    showToast(getErrorMessage(error), 'error');
+                  }
+                }}
+                onPress={() => router.push(`/boletins/${item.id}`)}
+                onShare={() =>
+                  showToast(
+                    'A partilha para amigos fica visível quando o módulo social estiver pronto.',
+                    'info',
+                  )
+                }
+              />
+            </Animated.View>
+          );
+        }}
+        ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.lg }} />}
+        ListFooterComponent={
+          <View style={styles.footerBar}>
+            <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
+          </View>
+        }
+        showsVerticalScrollIndicator={false}
+      />
+
+      {/* Sort & Filter bottom sheet */}
+      <BoletinFilterSheet
+        sheetRef={filterSheetRef}
+        sort={sort}
+        filter={filter}
+        maxStake={dataRanges.maxStake}
+        maxOdds={dataRanges.maxOdds}
+        maxReturn={dataRanges.maxReturn}
+        allCompetitions={allCompetitions}
+        allTeams={allTeams}
+        onApply={(newSort, newFilter) => {
+          setSort(newSort);
+          setFilter(newFilter);
+        }}
+      />
+    </View>
   );
 }
 
-interface QuickFilterItem {
-  key: string;
-  label: string;
-  active: boolean;
-  onPress?: () => void;
-  icon?: string;
-  site?: { slug: string; name: string; logoUrl: string | null };
-}
-
-function buildQuickFilterItems(
-  sports: string[],
-  sites: Array<{ slug: string; name: string; logoUrl: string | null }>,
-  selectedSports: Sport[],
-  selectedSites: string[],
-): QuickFilterItem[] {
-  const items: QuickFilterItem[] = [
-    {
-      key: 'all',
-      label: 'Todos',
-      active: selectedSports.length === 0 && selectedSites.length === 0,
-    },
-  ];
-
-  sports.slice(0, 4).forEach((sport) => {
-    items.push({
-      key: `sport-${sport}`,
-      label: getSportName(sport),
-      icon: getSportEmoji(sport),
-      active: selectedSports.includes(sport as Sport),
-      onPress: () => useFilterStore.getState().toggleSport(sport as Sport),
-    });
-  });
-
-  sites.slice(0, 4).forEach((site) => {
-    items.push({
-      key: `site-${site.slug}`,
-      label: site.name,
-      active: selectedSites.includes(site.slug),
-      onPress: () => useFilterStore.getState().toggleSite(site.slug),
-      site,
-    });
-  });
-
-  return items;
-}
-
-function getSportEmoji(sport: string): string {
-  switch (sport) {
-    case 'FOOTBALL': return '⚽';
-    case 'BASKETBALL': return '🏀';
-    case 'TENNIS': return '🎾';
-    case 'VOLLEYBALL': return '🏐';
-    case 'HANDBALL': return '🤾';
-    default: return '🏅';
+function getErrorMessage(error: unknown): string {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    typeof error.response === 'object' &&
+    error.response !== null &&
+    'data' in error.response &&
+    typeof error.response.data === 'object' &&
+    error.response.data !== null &&
+    'error' in error.response.data
+  ) {
+    return String(error.response.data.error);
   }
-}
-
-function getSportName(sport: string): string {
-  switch (sport) {
-    case 'FOOTBALL': return 'Futebol';
-    case 'BASKETBALL': return 'Basket';
-    case 'TENNIS': return 'Ténis';
-    case 'VOLLEYBALL': return 'Vólei';
-    case 'HANDBALL': return 'Andebol';
-    default: return sport;
-  }
+  if (error instanceof Error) return error.message;
+  return 'Não foi possível concluir a operação.';
 }
 
 const styles = StyleSheet.create({
-  headerSection: {
-    gap: 20,
-    marginBottom: 18,
-  },
-  topBar: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  logoWrap: {
-    flex: 1,
-    gap: 4,
-  },
-  logo: {
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  tagline: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  topActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  iconBtn: {
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    height: 44,
-    justifyContent: 'center',
-    position: 'relative',
-    width: 44,
-  },
-  badge: {
+  screen: { flex: 1 },
+  headerWrap: { gap: 14, marginBottom: 18 },
+  titleRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
+  titleBlock: { flex: 1, gap: 4, paddingRight: 16 },
+  logo: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
+  tagline: { fontSize: 14, fontWeight: '600' },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconButton: { alignItems: 'center', borderRadius: 16, height: 44, justifyContent: 'center', width: 44 },
+  notifBadge: {
     alignItems: 'center',
     borderRadius: 10,
     height: 20,
     justifyContent: 'center',
     minWidth: 20,
     paddingHorizontal: 4,
-    position: 'absolute',
-    right: -4,
-    top: -4,
   },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-  },
-  countPill: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  countPillText: {
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  liveDot: {
-    borderRadius: 4,
-    height: 8,
-    width: 8,
-  },
-
-  /* Live strip */
-  liveStrip: {
-    marginTop: 8,
-  },
-  liveCard: {
-    gap: 8,
-    width: 230,
-  },
-  liveCardSkeleton: {
-    gap: 12,
-    marginRight: 10,
-    width: 230,
-  },
-  liveCardTop: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  liveLeague: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  liveTeams: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  liveScoreRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  liveScoreText: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  liveEmptyCard: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
-  },
-  liveEmptyText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  /* Filter strips */
+  notifBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  summaryCard: { flexDirection: 'row', gap: 12 },
+  summaryMetric: { flex: 1, gap: 6 },
+  summaryLabel: { fontSize: 12, fontWeight: '700' },
+  summaryValue: { fontSize: 18, fontWeight: '900' },
   searchBar: {
     alignItems: 'center',
     borderRadius: 14,
@@ -836,134 +477,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 11,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
-    paddingVertical: 0,
-  },
-  filterGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 10,
-  },
-  filterBox: {
+  searchInput: { flex: 1, fontSize: 15, fontWeight: '500' },
+  controlsRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  filterList: { gap: 8 },
+  filterBtn: {
     alignItems: 'center',
     borderRadius: 12,
     borderWidth: 1,
+    flexDirection: 'row',
     gap: 4,
+    height: 36,
     justifyContent: 'center',
-    minWidth: 72,
     paddingHorizontal: 12,
-    paddingVertical: 10,
   },
-  filterBoxEmoji: {
-    fontSize: 18,
-  },
-  filterBoxLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  competitionsHeader: {
-    alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  competitionsHeaderLeft: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    gap: 8,
-  },
-
-  /* Feed */
-  skeletonCard: {
-    gap: 14,
-  },
-  footerActions: {
-    alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  loadMoreBtn: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  loadMoreText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  footerEnd: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-
-  /* League list */
-  leagueCard: {
-    marginTop: 4,
-    overflow: 'hidden',
-    padding: 0,
-    borderTopLeftRadius: 0,
-    borderTopRightRadius: 0,
-  },
-  leagueSearchWrap: {
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  leagueSearchInput: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    paddingVertical: 0,
-  },
-  leagueList: {
-    maxHeight: 220,
-  },
-  leagueGroupHeader: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  leagueGroupLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  leagueRow: {
-    alignItems: 'center',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  leagueRowText: {
-    flex: 1,
-    fontSize: 14,
-  },
-  leagueEmptySearch: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  leagueEmptyText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
+  filterBtnBadge: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  clearFilters: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  skeletonCard: { gap: 14 },
+  footerBar: { marginTop: tokens.spacing.xl },
 });

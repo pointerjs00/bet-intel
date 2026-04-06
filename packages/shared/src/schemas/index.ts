@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { BoletinStatus, Sport } from '../types';
+import { BoletinStatus, ItemResult, Sport } from '../types';
 
 // ─── Reusable field schemas ───────────────────────────────────────────────────
 
@@ -129,11 +129,13 @@ export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>;
 
 /** A single selection inside a new boletin. */
 export const createBoletinItemSchema = z.object({
-  eventId: z.string().cuid('ID de evento inválido'),
-  siteId: z.string().cuid('ID de site inválido'),
-  /** e.g. "1X2", "Over/Under 2.5" */
+  homeTeam: z.string().min(1, 'Equipa da casa obrigatória').max(100),
+  awayTeam: z.string().min(1, 'Equipa visitante obrigatória').max(100),
+  competition: z.string().min(1, 'Competição obrigatória').max(100),
+  sport: z.nativeEnum(Sport).default(Sport.FOOTBALL),
+  /** e.g. "Resultado Final (1X2)", "Ambas Marcam" */
   market: z.string().min(1, 'Mercado obrigatório'),
-  /** e.g. "1", "X", "2", "Over" */
+  /** e.g. "1", "X", "2", "Over 2.5" */
   selection: z.string().min(1, 'Seleção obrigatória'),
   /** Decimal odds value, European format */
   oddValue: z
@@ -147,16 +149,18 @@ export type CreateBoletinItemInput = z.infer<typeof createBoletinItemSchema>;
 /** Creates a new boletin (betting slip). */
 export const createBoletinSchema = z.object({
   name: z.string().max(100, 'Nome máximo 100 caracteres').optional(),
+  siteSlug: z.string().max(50).optional(),
   stake: z
     .number({ invalid_type_error: 'Valor de aposta inválido' })
     .positive('O valor da aposta deve ser positivo')
     .max(100_000, 'Valor máximo de aposta é €100.000'),
   items: z
     .array(createBoletinItemSchema)
-    .min(1, 'O boletin deve ter pelo menos uma seleção')
-    .max(20, 'Máximo 20 seleções por boletin'),
+    .min(1, 'O boletim deve ter pelo menos uma seleção')
+    .max(20, 'Máximo 20 seleções por boletim'),
   notes: z.string().max(500, 'Notas máximo 500 caracteres').optional(),
   isPublic: z.boolean().default(false),
+  betDate: z.string().datetime({ offset: true }).optional(),
 });
 
 export type CreateBoletinInput = z.infer<typeof createBoletinSchema>;
@@ -165,15 +169,39 @@ export type CreateBoletinInput = z.infer<typeof createBoletinSchema>;
 export const updateBoletinSchema = z.object({
   name: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
+  siteSlug: z.string().max(50).nullable().optional(),
+  stake: z
+    .number()
+    .positive('A stake deve ser positiva')
+    .optional(),
   status: z.nativeEnum(BoletinStatus).optional(),
   actualReturn: z
     .number()
     .nonnegative('O retorno não pode ser negativo')
     .optional(),
+  cashoutAmount: z
+    .number()
+    .nonnegative('O valor do cashout não pode ser negativo')
+    .optional(),
   isPublic: z.boolean().optional(),
+  betDate: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 export type UpdateBoletinInput = z.infer<typeof updateBoletinSchema>;
+
+/** Updates individual boletin item results (mark selections as won/lost). */
+export const updateBoletinItemsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().cuid(),
+        result: z.nativeEnum(ItemResult),
+      }),
+    )
+    .min(1, 'Seleciona pelo menos um item'),
+});
+
+export type UpdateBoletinItemsInput = z.infer<typeof updateBoletinItemsSchema>;
 
 /** Share a boletin with one or more friends. */
 export const shareBoletinSchema = z.object({
@@ -185,36 +213,6 @@ export const shareBoletinSchema = z.object({
 });
 
 export type ShareBoletinInput = z.infer<typeof shareBoletinSchema>;
-
-// ─── Odds filter schema ───────────────────────────────────────────────────────
-
-/**
- * Query parameter schema for GET /api/odds.
- * Uses z.coerce to handle string query params arriving as strings from the URL.
- * The `sites` field accepts a comma-separated string and transforms it to string[].
- */
-export const filterSchema = z.object({
-  /** Comma-separated betting site slugs, e.g. "betclic,bet365" */
-  sites: z
-    .string()
-    .optional()
-    .transform((val) => val?.split(',').filter(Boolean) ?? []),
-  sport: z.nativeEnum(Sport).optional(),
-  league: z.string().optional(),
-  /** Free-text search across homeTeam and awayTeam (case-insensitive contains) */
-  search: z.string().max(100).optional(),
-  dateFrom: z.string().datetime({ message: 'Data inválida' }).optional(),
-  dateTo: z.string().datetime({ message: 'Data inválida' }).optional(),
-  minOdds: z.coerce.number().min(1.01).max(1000).optional(),
-  maxOdds: z.coerce.number().min(1.01).max(1000).optional(),
-  market: z.string().optional(),
-  /** Only show upcoming or live events */
-  status: z.enum(['UPCOMING', 'LIVE']).optional(),
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-});
-
-export type FilterInput = z.infer<typeof filterSchema>;
 
 // ─── User profile schemas ─────────────────────────────────────────────────────
 
@@ -228,8 +226,6 @@ export const updateProfileSchema = z.object({
     .regex(/^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$/, 'Token Expo inválido')
     .nullable()
     .optional(),
-  /** Betting site slugs the user prefers */
-  preferredSites: z.array(z.string()).optional(),
   /** ISO 4217 currency code */
   currency: z.string().length(3, 'Código de moeda inválido').optional(),
   theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional(),

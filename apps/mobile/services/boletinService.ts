@@ -4,6 +4,8 @@ import type {
   BoletinShareDetail,
   BoletinStatus,
   CreateBoletinInput,
+  CreateBoletinItemInput,
+  ItemResult,
   ShareBoletinInput,
   UpdateBoletinInput,
 } from '@betintel/shared';
@@ -46,6 +48,30 @@ export async function deleteBoletinRequest(id: string): Promise<void> {
 /** Shares a boletin with one or more user IDs. */
 export async function shareBoletinRequest(id: string, payload: ShareBoletinInput): Promise<BoletinShareDetail[]> {
   const response = await apiClient.post<ApiEnvelope<BoletinShareDetail[]>>(`/betintel/${id}/share`, payload);
+  return response.data.data;
+}
+
+/** Updates individual item results (mark as won/lost/void). */
+export async function updateBoletinItemsRequest(
+  id: string,
+  items: Array<{ id: string; result: ItemResult }>,
+): Promise<BoletinDetail> {
+  const response = await apiClient.patch<ApiEnvelope<BoletinDetail>>(`/betintel/${id}/items`, { items });
+  return response.data.data;
+}
+
+/** Adds a new selection to an existing boletin. */
+export async function addBoletinItemRequest(
+  id: string,
+  item: CreateBoletinItemInput,
+): Promise<BoletinDetail> {
+  const response = await apiClient.post<ApiEnvelope<BoletinDetail>>(`/betintel/${id}/items`, item);
+  return response.data.data;
+}
+
+/** Removes a selection from an existing boletin. */
+export async function deleteBoletinItemRequest(boletinId: string, itemId: string): Promise<BoletinDetail> {
+  const response = await apiClient.delete<ApiEnvelope<BoletinDetail>>(`/betintel/${boletinId}/items/${itemId}`);
   return response.data.data;
 }
 
@@ -121,6 +147,49 @@ export function useShareBoletinMutation() {
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(variables.id) });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
+    },
+  });
+}
+
+/** Mutation hook for updating individual item results (won/lost/void). */
+export function useUpdateBoletinItemsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ boletinId, items }: { boletinId: string; items: Array<{ id: string; result: ItemResult }> }) =>
+      updateBoletinItemsRequest(boletinId, items),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
+    },
+  });
+}
+
+/** Mutation hook for adding a new selection to an existing boletin. */
+export function useAddBoletinItemMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ boletinId, item }: { boletinId: string; item: CreateBoletinItemInput }) =>
+      addBoletinItemRequest(boletinId, item),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
+    },
+  });
+}
+
+/** Mutation hook for deleting a selection from an existing boletin. */
+export function useDeleteBoletinItemMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ boletinId, itemId }: { boletinId: string; itemId: string }) =>
+      deleteBoletinItemRequest(boletinId, itemId),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
     },
   });
 }
