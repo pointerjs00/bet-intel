@@ -1,28 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import type { BoletinDetail, CreateBoletinInput } from '@betintel/shared';
+import type { BoletinDetail, CreateBoletinInput, Sport } from '@betintel/shared';
 import { createBoletinRequest } from '../services/boletinService';
+import { parseDDMMYYYYToISO } from '../utils/formatters';
 
 export interface BoletinBuilderItem {
   id: string;
-  eventId: string;
-  siteId: string;
+  homeTeam: string;
+  homeTeamImageUrl?: string | null;
+  awayTeam: string;
+  awayTeamImageUrl?: string | null;
+  competition: string;
+  sport: Sport;
   market: string;
   selection: string;
   oddValue: number;
-  event: {
-    league: string;
-    homeTeam: string;
-    awayTeam: string;
-    eventDate: string;
-  };
-  site: {
-    id: string;
-    slug: string;
-    name: string;
-    logoUrl: string | null;
-  };
 }
 
 interface BuilderStateValues {
@@ -30,6 +23,8 @@ interface BuilderStateValues {
   stake: number;
   name: string;
   notes: string;
+  siteSlug: string;
+  betDate: string; // DD/MM/YYYY display string, or '' for today
   isPublic: boolean;
   totalOdds: number;
   potentialReturn: number;
@@ -41,6 +36,8 @@ interface BoletinBuilderStore extends BuilderStateValues {
   setStake: (stake: number) => void;
   setName: (name: string) => void;
   setNotes: (notes: string) => void;
+  setSiteSlug: (siteSlug: string) => void;
+  setBetDate: (betDate: string) => void;
   setPublic: (value: boolean) => void;
   reset: () => void;
   save: () => Promise<BoletinDetail>;
@@ -51,6 +48,8 @@ const DEFAULT_STATE: BuilderStateValues = {
   stake: 0,
   name: '',
   notes: '',
+  siteSlug: '',
+  betDate: '',
   isPublic: false,
   totalOdds: 1,
   potentialReturn: 0,
@@ -68,14 +67,19 @@ function withComputed(state: BuilderStateValues): BuilderStateValues {
 }
 
 function buildCreatePayload(state: BuilderStateValues): CreateBoletinInput {
+  const betDateISO = state.betDate.length === 10 ? parseDDMMYYYYToISO(state.betDate) : null;
   return {
     name: state.name.trim() || undefined,
     notes: state.notes.trim() || undefined,
+    siteSlug: state.siteSlug.trim() || undefined,
+    betDate: betDateISO ?? undefined,
     isPublic: state.isPublic,
     stake: state.stake,
     items: state.items.map((item) => ({
-      eventId: item.eventId,
-      siteId: item.siteId,
+      homeTeam: item.homeTeam,
+      awayTeam: item.awayTeam,
+      competition: item.competition,
+      sport: item.sport,
       market: item.market,
       selection: item.selection,
       oddValue: item.oddValue,
@@ -112,6 +116,8 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         ),
       setName: (name) => set((state) => ({ ...state, name })),
       setNotes: (notes) => set((state) => ({ ...state, notes })),
+      setSiteSlug: (siteSlug) => set((state) => ({ ...state, siteSlug })),
+      setBetDate: (betDate) => set((state) => ({ ...state, betDate })),
       setPublic: (isPublic) => set((state) => ({ ...state, isPublic })),
       reset: () => set(withComputed(DEFAULT_STATE)),
       save: async () => {
@@ -138,6 +144,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         stake: state.stake,
         name: state.name,
         notes: state.notes,
+        betDate: state.betDate,
         isPublic: state.isPublic,
       }),
       merge: (persistedState, currentState) => ({

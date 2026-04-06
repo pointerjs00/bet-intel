@@ -1,9 +1,11 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { ItemResult } from '@betintel/shared';
+import { ItemResult, Sport } from '@betintel/shared';
+import { TeamBadge } from '../ui/TeamBadge';
+import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { useTheme } from '../../theme/useTheme';
-import { formatOdds, formatShortDateTime } from '../../utils/formatters';
+import { formatOdds } from '../../utils/formatters';
 
 interface BoletinItemProps {
   item: {
@@ -11,43 +13,101 @@ interface BoletinItemProps {
     selection: string;
     oddValue: string;
     result: ItemResult;
-    event: {
-      league: string;
-      homeTeam: string;
-      awayTeam: string;
-      eventDate: string;
-    };
-    site: {
-      name: string;
-    };
+    homeTeam: string;
+    homeTeamImageUrl?: string | null;
+    awayTeam: string;
+    awayTeamImageUrl?: string | null;
+    competition: string;
+    sport?: Sport;
   };
   onRemove?: () => void;
+  onResultChange?: (result: ItemResult) => void;
 }
 
 /** Renders one selection row in builder and detail contexts. */
-export function BoletinItem({ item, onRemove }: BoletinItemProps) {
+export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps) {
   const { colors } = useTheme();
   const resultMeta = getResultMeta(item.result, colors);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: `${resultMeta.color}0D`,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      {/* Result accent stripe */}
+      <View
+        style={[
+          styles.resultStripe,
+          { backgroundColor: resultMeta.color },
+        ]}
+      />
       <View style={styles.headerRow}>
         <View style={styles.titleWrap}>
-          <Text numberOfLines={1} style={[styles.title, { color: colors.textPrimary }]}>
-            {item.event.homeTeam} vs {item.event.awayTeam}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {item.event.league} • {formatShortDateTime(item.event.eventDate)}
-          </Text>
+          <View style={styles.teamRow}>
+            <TeamBadge
+              imageUrl={item.homeTeamImageUrl}
+              name={item.homeTeam}
+              size={15}
+              variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+            />
+            <Text numberOfLines={1} style={[styles.teamName, { color: colors.textPrimary }]}>
+              {item.homeTeam}
+            </Text>
+            <Text style={[styles.vsText, { color: colors.textSecondary }]}>vs</Text>
+            <Text numberOfLines={1} style={[styles.teamNameAway, { color: colors.textPrimary }]}>
+              {item.awayTeam}
+            </Text>
+            <TeamBadge
+              imageUrl={item.awayTeamImageUrl}
+              name={item.awayTeam}
+              size={15}
+              variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+            />
+          </View>
+          <View style={styles.competitionRow}>
+            <CompetitionBadge name={item.competition} size={14} />
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              {item.competition}
+            </Text>
+          </View>
         </View>
 
         {onRemove ? (
           <Pressable hitSlop={10} onPress={onRemove}>
             <Ionicons color={colors.danger} name="trash-outline" size={18} />
           </Pressable>
+        ) : onResultChange ? (
+          <View style={styles.resultButtons}>
+            <Pressable
+              hitSlop={6}
+              onPress={() => onResultChange(item.result === ItemResult.WON ? ItemResult.PENDING : ItemResult.WON)}
+              style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.WON ? 'rgba(0,200,81,0.18)' : colors.surfaceRaised }]}
+            >
+              <Ionicons color={item.result === ItemResult.WON ? colors.primary : colors.textMuted} name="checkmark" size={16} />
+            </Pressable>
+            <Pressable
+              hitSlop={6}
+              onPress={() => onResultChange(item.result === ItemResult.LOST ? ItemResult.PENDING : ItemResult.LOST)}
+              style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.LOST ? 'rgba(255,59,48,0.18)' : colors.surfaceRaised }]}
+            >
+              <Ionicons color={item.result === ItemResult.LOST ? colors.danger : colors.textMuted} name="close" size={16} />
+            </Pressable>
+            <Pressable
+              hitSlop={6}
+              onPress={() => onResultChange(item.result === ItemResult.VOID ? ItemResult.PENDING : ItemResult.VOID)}
+              style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.VOID ? 'rgba(0,122,255,0.18)' : colors.surfaceRaised }]}
+            >
+              <Ionicons color={item.result === ItemResult.VOID ? colors.info : colors.textMuted} name="remove" size={16} />
+            </Pressable>
+          </View>
         ) : (
           <View style={[styles.resultIcon, { backgroundColor: resultMeta.background }]}>
-            <Ionicons color={resultMeta.color} name={resultMeta.icon} size={14} />
+            <Ionicons color={resultMeta.color} name={resultMeta.icon} size={18} />
           </View>
         )}
       </View>
@@ -56,13 +116,10 @@ export function BoletinItem({ item, onRemove }: BoletinItemProps) {
         <View style={styles.metaBlock}>
           <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Mercado</Text>
           <Text style={[styles.metaValue, { color: colors.textPrimary }]}>
-            {item.market} • {item.selection}
+            {item.market === item.selection
+              ? item.market
+              : `${item.market} • ${item.selection}`}
           </Text>
-        </View>
-
-        <View style={styles.metaBlock}>
-          <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Site</Text>
-          <Text style={[styles.metaValue, { color: colors.textPrimary }]}>{item.site.name}</Text>
         </View>
 
         <View style={styles.metaBlockRight}>
@@ -93,7 +150,15 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     gap: 14,
+    overflow: 'hidden',
     padding: 14,
+  },
+  resultStripe: {
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 4,
   },
   headerRow: {
     alignItems: 'flex-start',
@@ -105,9 +170,33 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingRight: 12,
   },
-  title: {
+  teamRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+  },
+  teamName: {
+    flexShrink: 1,
     fontSize: 15,
     fontWeight: '800',
+    minWidth: 0,
+  },
+  vsText: {
+    flexShrink: 0,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  teamNameAway: {
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '800',
+    minWidth: 0,
+  },
+  competitionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
   },
   subtitle: {
     fontSize: 12,
@@ -116,9 +205,20 @@ const styles = StyleSheet.create({
   resultIcon: {
     alignItems: 'center',
     borderRadius: 999,
-    height: 28,
+    height: 34,
     justifyContent: 'center',
-    width: 28,
+    width: 34,
+  },
+  resultButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  resultBtn: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
   },
   footerRow: {
     flexDirection: 'row',
