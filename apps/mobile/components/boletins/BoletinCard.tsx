@@ -186,28 +186,30 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
             const icon = itemResultIcon(item.result);
             return (
               <View key={item.id} style={styles.previewRow}>
+                {/* Result dot */}
                 <View style={[styles.resultDot, { backgroundColor: icon.color }]} />
+
+                {/* Home badge */}
                 <TeamBadge
                   name={item.homeTeam}
-                  size={13}
+                  size={20}
                   imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.homeTeam) ?? null) : null}
                   variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
                 />
-                <Text numberOfLines={1} style={[styles.previewTeamName, { color: colors.textSecondary }]}>
-                  {item.homeTeam}
-                </Text>
+
                 <Text style={[styles.previewVs, { color: colors.textMuted }]}>vs</Text>
-                <Text numberOfLines={1} style={[styles.previewTeamNameAway, { color: colors.textSecondary }]}>
-                  {item.awayTeam}
-                </Text>
+
+                {/* Away badge */}
                 <TeamBadge
                   name={item.awayTeam}
-                  size={13}
+                  size={20}
                   imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.awayTeam) ?? null) : null}
                   variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
                 />
-                <Text style={[styles.previewMeta, { color: colors.textMuted }]}>
-                  {'• '}{item.selection} @ {formatOdds(item.oddValue)}
+
+                {/* Selection & odds — fills remaining space, truncates gracefully */}
+                <Text numberOfLines={1} style={[styles.previewMeta, { color: colors.textMuted, flex: 1 }]}>
+                  {'  '}{item.selection} @ {formatOdds(item.oddValue)}
                 </Text>
               </View>
             );
@@ -359,11 +361,9 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: 14, fontWeight: '800' },
   resultDot: { borderRadius: 4, flexShrink: 0, height: 8, width: 8 },
   previewList: { gap: 6 },
-  previewRow: { alignItems: 'center', flexDirection: 'row', gap: 4 },
-  previewTeamName: { flexShrink: 1, fontSize: 12, fontWeight: '600', minWidth: 0 },
-  previewVs: { flexShrink: 0, fontSize: 11, fontWeight: '500', paddingHorizontal: 1 },
-  previewTeamNameAway: { flexShrink: 1, fontSize: 12, fontWeight: '600', minWidth: 0 },
-  previewMeta: { flexShrink: 0, fontSize: 12, fontWeight: '600' },
+  previewRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  previewVs: { flexShrink: 0, fontSize: 11, fontWeight: '500' },
+  previewMeta: { flexShrink: 1, fontSize: 12, fontWeight: '600', minWidth: 0 },
   previewMore: { fontSize: 12, fontWeight: '600' },
   expandedList: { gap: 8 },
   expandedItem: {

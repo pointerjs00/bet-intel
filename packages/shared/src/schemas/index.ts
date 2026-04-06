@@ -273,6 +273,9 @@ export type UsernameAvailabilityQueryInput = z.infer<typeof usernameAvailability
 
 export const statsPeriodSchema = z.enum(['week', 'month', 'year', 'all']);
 
+export const timelineGranularitySchema = z.enum(['daily', 'weekly', 'monthly']);
+export type TimelineGranularity = z.infer<typeof timelineGranularitySchema>;
+
 export const statsQuerySchema = z.object({
   period: statsPeriodSchema.default('all'),
   /** Single site filter (legacy, still supported) */
@@ -283,6 +286,8 @@ export const statsQuerySchema = z.object({
   dateFrom: z.string().optional(),
   /** Custom date range end — ISO date string e.g. "2026-03-31" */
   dateTo: z.string().optional(),
+  /** Timeline bucket size — overrides the period-default granularity */
+  granularity: timelineGranularitySchema.optional(),
 });
 
 export type StatsQueryInput = z.infer<typeof statsQuerySchema>;

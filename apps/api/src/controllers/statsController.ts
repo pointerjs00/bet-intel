@@ -50,10 +50,10 @@ function parseStatsQuery(req: Request, res: Response): StatsOptions | null {
     return null;
   }
 
-  const { period, siteSlug, siteSlugs: rawSiteSlugs, dateFrom, dateTo } = parsed.data;
+  const { period, siteSlug, siteSlugs: rawSiteSlugs, dateFrom, dateTo, granularity } = parsed.data;
   // siteSlugs arrives as a comma-separated string from query params
   const siteSlugs = rawSiteSlugs ? rawSiteSlugs.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
-  return { period, siteSlug, siteSlugs, dateFrom, dateTo };
+  return { period, siteSlug, siteSlugs, dateFrom, dateTo, granularity };
 }
 
 /** Handles GET /api/stats/me. */

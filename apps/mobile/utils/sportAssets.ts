@@ -887,14 +887,14 @@ const SITE_LOGOS: Record<string, ImageSourcePropType> = {
   placard:  require('../assets/logos/placard.png'),
   betano:   require('../assets/logos/betano.png'),
   solverde: require('../assets/logos/solverde.png'),
-  // Remote logos via Clearbit CDN (no API key required, 128×128 PNG)
-  bet365:   { uri: 'https://logo.clearbit.com/bet365.com' },
-  esconline:{ uri: 'https://logo.clearbit.com/esportesonline.com' },
-  moosh:    { uri: 'https://logo.clearbit.com/moosh.pt' },
-  betway:   { uri: 'https://logo.clearbit.com/betway.com' },
-  '888sport':{ uri: 'https://logo.clearbit.com/888sport.com' },
-  bwin:     { uri: 'https://logo.clearbit.com/bwin.com' },
-  lebull:   { uri: 'https://logo.clearbit.com/lebull.pt' },
+  // Remote logos via Google favicon service (reliable, 128×128 PNG)
+  bet365:    { uri: 'https://www.google.com/s2/favicons?domain=bet365.com&sz=128' },
+  esconline: { uri: 'https://www.google.com/s2/favicons?domain=esconline.pt&sz=128' },
+  moosh:     { uri: 'https://www.google.com/s2/favicons?domain=moosh.pt&sz=128' },
+  betway:    { uri: 'https://www.google.com/s2/favicons?domain=betway.com&sz=128' },
+  '888sport':{ uri: 'https://www.google.com/s2/favicons?domain=888sport.com&sz=128' },
+  bwin:      { uri: 'https://www.google.com/s2/favicons?domain=bwin.com&sz=128' },
+  lebull:    { uri: 'https://www.google.com/s2/favicons?domain=lebull.pt&sz=128' },
 };
 
 export interface BettingSite {

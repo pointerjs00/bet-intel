@@ -14,6 +14,7 @@ import { Chip } from '../../components/ui/Chip';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
+import { DatePickerField } from '../../components/ui/DatePickerField';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import type { DropdownSection } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -28,7 +29,7 @@ import {
 } from '../../services/boletinService';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO } from '../../utils/formatters';
+import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate } from '../../utils/formatters';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
 
@@ -595,27 +596,12 @@ export default function BoletinDetailScreen() {
                     <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
                   </Pressable>
                   {/* Date input */}
-                  <View>
-                    <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary, marginBottom: 6 }]}>DATA DA APOSTA</Text>
-                    <TextInput
-                      keyboardType="numeric"
-                      maxLength={10}
-                      onChangeText={(v) => {
-                        const digits = v.replace(/\D/g, '').slice(0, 8);
-                        let formatted = digits;
-                        if (digits.length > 4) {
-                          formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
-                        } else if (digits.length > 2) {
-                          formatted = digits.slice(0, 2) + '/' + digits.slice(2);
-                        }
-                        setEditBetDate(formatted);
-                      }}
-                      placeholder="DD/MM/AAAA"
-                      placeholderTextColor={colors.textMuted}
-                      style={[styles.notesInput, { color: colors.textPrimary, borderColor: colors.border, minHeight: 44, padding: 10 }]}
-                      value={editBetDate}
-                    />
-                  </View>
+                  <DatePickerField
+                    label="DATA DA APOSTA"
+                    value={editBetDate.length === 10 ? parseDDMMYYYYToDate(editBetDate) : null}
+                    onChange={(date) => setEditBetDate(formatDateToDDMMYYYY(date.toISOString()))}
+                    onClear={() => setEditBetDate('')}
+                  />
                   <SearchableDropdown
                     items={BETTING_SITES.map((s) => ({ label: s.name, value: s.slug }))}
                     onClose={() => setShowEditSites(false)}

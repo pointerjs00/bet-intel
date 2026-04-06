@@ -55,13 +55,15 @@ export interface StatsOptions {
   dateFrom?: string;
   /** Custom range end — ISO date string e.g. "2026-03-31". */
   dateTo?: string;
+  /** Timeline bucket size — overrides the period-default (week→daily, month→weekly, year/all→monthly). */
+  granularity?: 'daily' | 'weekly' | 'monthly';
 }
 
 /** Returns the full statistics bundle for the authenticated user. */
 export async function getPersonalStats(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<PersonalStats> {
   const options = normaliseOpts(opts, siteSlug);
   const boletins = await getBoletinsForPeriod(userId, options);
-  return buildStatsBundle(boletins, options.period);
+  return buildStatsBundle(boletins, options.period, options.granularity);
 }
 
 /** Returns the summary-only stats payload. */
@@ -120,12 +122,16 @@ async function getBoletinsForPeriod(
 ): Promise<StatsBoletinRecord[]> {
   const { period, siteSlug, siteSlugs, dateFrom, dateTo } = opts;
 
-  // Resolve effective date range
-  let range: { start: Date; end: Date } | null;
-  if (dateFrom && dateTo) {
-    range = { start: new Date(dateFrom), end: new Date(`${dateTo}T23:59:59.999Z`) };
+  // Resolve effective date range — each bound is independent
+  let range: { start: Date | null; end: Date | null } | null;
+  if (dateFrom || dateTo) {
+    range = {
+      start: dateFrom ? new Date(dateFrom) : null,
+      end: dateTo ? new Date(`${dateTo}T23:59:59.999Z`) : null,
+    };
   } else {
-    range = getPeriodRange(period, new Date());
+    const periodRange = getPeriodRange(period, new Date());
+    range = periodRange ? { start: periodRange.start, end: periodRange.end } : null;
   }
 
   // Resolve site filter: siteSlugs takes priority, then siteSlug
@@ -143,9 +149,20 @@ async function getBoletinsForPeriod(
         ? {
             OR: [
               // Boletins with an explicit betDate — filter by that date
-              { betDate: { gte: range.start, lte: range.end } },
+              {
+                betDate: {
+                  ...(range.start ? { gte: range.start } : {}),
+                  ...(range.end ? { lte: range.end } : {}),
+                },
+              },
               // Boletins without a betDate — fall back to createdAt
-              { betDate: null, createdAt: { gte: range.start, lte: range.end } },
+              {
+                betDate: null,
+                createdAt: {
+                  ...(range.start ? { gte: range.start } : {}),
+                  ...(range.end ? { lte: range.end } : {}),
+                },
+              },
             ],
           }
         : {}),
@@ -155,7 +172,7 @@ async function getBoletinsForPeriod(
   });
 }
 
-function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod): PersonalStats {
+function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod, granularity?: 'daily' | 'weekly' | 'monthly'): PersonalStats {
   const summary = buildSummary(boletins, period);
   const bySportMap = new Map<string, StatsBySportRow>();
   const byTeamMap = new Map<string, StatsByTeamRow>();
@@ -220,7 +237,7 @@ function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod): 
     }
   }
 
-  const timeline = buildTimeline(boletins, period);
+  const timeline = buildTimeline(boletins, period, granularity);
   const settledBoletins = boletins.filter((boletin) => isSettledStatus(boletin.status));
 
   return {
@@ -325,15 +342,22 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
   };
 }
 
-function buildTimeline(boletins: StatsBoletinRecord[], period: StatsPeriod): StatsTimelinePoint[] {
+function periodToDefaultGranularity(period: StatsPeriod): 'daily' | 'weekly' | 'monthly' {
+  if (period === 'week') return 'daily';
+  if (period === 'month') return 'weekly';
+  return 'monthly';
+}
+
+function buildTimeline(boletins: StatsBoletinRecord[], period: StatsPeriod, granularity?: 'daily' | 'weekly' | 'monthly'): StatsTimelinePoint[] {
   const range = getTimelineRange(period, boletins, new Date());
-  const buckets = createTimelineBuckets(period, range.start, range.end);
+  const effectiveGranularity = granularity ?? periodToDefaultGranularity(period);
+  const buckets = createTimelineBuckets(effectiveGranularity, range.start, range.end);
   const bucketMap = new Map<string, TimelineAccumulator>(
     buckets.map((bucket) => [bucket.key, { ...bucket, settledStake: 0 }]),
   );
 
   for (const boletin of boletins) {
-    const bucketKey = getTimelineBucketKey(period, boletin.createdAt);
+    const bucketKey = getTimelineBucketKey(effectiveGranularity, boletin.createdAt);
     const bucket = bucketMap.get(bucketKey);
 
     if (!bucket) {
@@ -659,16 +683,16 @@ function getTimelineRange(
   return { start: startOfMonth(firstBoletin), end: now };
 }
 
-function createTimelineBuckets(period: StatsPeriod, start: Date, end: Date): TimelineAccumulator[] {
+function createTimelineBuckets(granularity: 'daily' | 'weekly' | 'monthly', start: Date, end: Date): TimelineAccumulator[] {
   const buckets: TimelineAccumulator[] = [];
 
-  if (period === 'week') {
+  if (granularity === 'daily') {
     let cursor = startOfDay(start);
     while (cursor <= end) {
       const bucketStart = new Date(cursor);
       const bucketEnd = endOfDay(cursor);
       buckets.push({
-        key: getTimelineBucketKey(period, bucketStart),
+        key: getTimelineBucketKey(granularity, bucketStart),
         label: formatDayMonth(bucketStart),
         bucketStart: bucketStart.toISOString(),
         bucketEnd: bucketEnd.toISOString(),
@@ -685,13 +709,13 @@ function createTimelineBuckets(period: StatsPeriod, start: Date, end: Date): Tim
     return buckets;
   }
 
-  if (period === 'month') {
+  if (granularity === 'weekly') {
     let cursor = startOfWeek(start);
     while (cursor <= end) {
       const bucketStart = new Date(cursor);
       const bucketEnd = endOfWeek(cursor);
       buckets.push({
-        key: getTimelineBucketKey(period, bucketStart),
+        key: getTimelineBucketKey(granularity, bucketStart),
         label: formatDayMonth(bucketStart),
         bucketStart: bucketStart.toISOString(),
         bucketEnd: bucketEnd.toISOString(),
@@ -708,13 +732,14 @@ function createTimelineBuckets(period: StatsPeriod, start: Date, end: Date): Tim
     return buckets;
   }
 
+  // monthly
   let cursor = startOfMonth(start);
   while (cursor <= end) {
     const bucketStart = new Date(cursor);
     const bucketEnd = endOfMonth(cursor);
     buckets.push({
-      key: getTimelineBucketKey(period, bucketStart),
-      label: formatMonthLabel(bucketStart, period === 'all'),
+      key: getTimelineBucketKey(granularity, bucketStart),
+      label: formatMonthLabel(bucketStart, true),
       bucketStart: bucketStart.toISOString(),
       bucketEnd: bucketEnd.toISOString(),
       totalStaked: 0,
@@ -731,12 +756,12 @@ function createTimelineBuckets(period: StatsPeriod, start: Date, end: Date): Tim
   return buckets;
 }
 
-function getTimelineBucketKey(period: StatsPeriod, date: Date): string {
-  if (period === 'week') {
+function getTimelineBucketKey(granularity: 'daily' | 'weekly' | 'monthly', date: Date): string {
+  if (granularity === 'daily') {
     return startOfDay(date).toISOString().slice(0, 10);
   }
 
-  if (period === 'month') {
+  if (granularity === 'weekly') {
     return startOfWeek(date).toISOString().slice(0, 10);
   }
 

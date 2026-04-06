@@ -8,12 +8,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type GorhomBottomSheet from '@gorhom/bottom-sheet';
-import { BoletinStatus } from '@betintel/shared';
+import { BoletinStatus, Sport } from '@betintel/shared';
 import { BoletinCard } from '../../components/boletins/BoletinCard';
 import {
   BoletinFilterSheet,
@@ -29,18 +29,16 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
-import { filterBoletinsByStatus, useBoletins, useDeleteBoletinMutation } from '../../services/boletinService';
+import { useBoletins, useDeleteBoletinMutation } from '../../services/boletinService';
 import { useUnreadNotificationsCount } from '../../services/socialService';
 import { tokens } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
 
-type StatusFilter = 'ALL' | BoletinStatus;
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
 
-const STATUS_FILTERS: Array<{ key: StatusFilter; label: string }> = [
-  { key: 'ALL', label: '📋 Todos' },
+const STATUS_FILTERS: Array<{ key: BoletinStatus; label: string }> = [
   { key: BoletinStatus.PENDING, label: '⏳ Pendente' },
   { key: BoletinStatus.WON, label: '✅ Ganhou' },
   { key: BoletinStatus.LOST, label: '❌ Perdeu' },
@@ -54,9 +52,42 @@ export default function HomeScreen() {
   const { showToast } = useToast();
   const filterSheetRef = useRef<GorhomBottomSheet>(null);
 
-  const [selectedFilter, setSelectedFilter] = useState<StatusFilter>('ALL');
+  const [activeStatuses, setActiveStatuses] = useState<Set<BoletinStatus>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
+
+  // Read filter params pushed from the stats screen (e.g. filterTeam, filterSport, etc.)
+  const { filterSport, filterTeam, filterCompetition, filterMarket } = useLocalSearchParams<{
+    filterSport?: string;
+    filterTeam?: string;
+    filterCompetition?: string;
+    filterMarket?: string;
+  }>();
+
+  // Apply incoming params to filter state every time the screen is focused with new params
+  useEffect(() => {
+    if (!filterSport && !filterTeam && !filterCompetition && !filterMarket) return;
+
+    setFilter((prev) => ({
+      ...prev,
+      sport: filterSport ? (filterSport as Sport) : prev.sport,
+      teams: filterTeam ? [filterTeam] : prev.teams,
+      competitions: filterCompetition ? [filterCompetition] : prev.competitions,
+    }));
+
+    if (filterMarket) {
+      setSearchQuery(filterMarket);
+    }
+
+    // Clear the params so navigating back doesn't re-apply them
+    router.setParams({
+      filterSport: '',
+      filterTeam: '',
+      filterCompetition: '',
+      filterMarket: '',
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterSport, filterTeam, filterCompetition, filterMarket]);
 
   const boletinsQuery = useBoletins();
   const deleteMutation = useDeleteBoletinMutation();
@@ -146,9 +177,9 @@ export default function HomeScreen() {
   const isDefaultSort = sort.by === 'date' && sort.dir === 'desc';
 
   const filtered = useMemo(() => {
-    let result = filterBoletinsByStatus(boletins, selectedFilter);
+    let result = activeStatuses.size > 0 ? boletins.filter((b) => activeStatuses.has(b.status)) : boletins;
 
-    // Search by name, home or away team
+    // Search by name, team, market or selection
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -157,7 +188,9 @@ export default function HomeScreen() {
           b.items.some(
             (i) =>
               i.homeTeam.toLowerCase().includes(q) ||
-              i.awayTeam.toLowerCase().includes(q),
+              i.awayTeam.toLowerCase().includes(q) ||
+              i.market.toLowerCase().includes(q) ||
+              i.selection.toLowerCase().includes(q),
           ),
       );
     }
@@ -231,7 +264,7 @@ export default function HomeScreen() {
       }
       return sort.dir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [boletins, selectedFilter, searchQuery, filter, sort]);
+  }, [boletins, activeStatuses, searchQuery, filter, sort]);
 
   const listData: SlipListItem[] = boletinsQuery.isLoading
     ? [{ id: 's1', type: 'skeleton' }, { id: 's2', type: 'skeleton' }, { id: 's3', type: 'skeleton' }]
@@ -293,20 +326,25 @@ export default function HomeScreen() {
 
             {/* Summary card */}
             <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
-              <Card style={styles.summaryCard}>
-                <View style={styles.summaryMetric}>
-                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
-                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(summary.totalStaked)}</Text>
-                </View>
-                <View style={styles.summaryMetric}>
-                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno</Text>
-                  <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(summary.totalReturned)}</Text>
-                </View>
-                <View style={styles.summaryMetric}>
-                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>ROI</Text>
-                  <Text style={[styles.summaryValue, { color: roi >= 0 ? colors.primary : colors.danger }]}>{roi.toFixed(1)}%</Text>
-                </View>
-              </Card>
+              <Pressable onPress={() => router.push('/(tabs)/stats')}>
+                <Card style={styles.summaryCard}>
+                  <View style={styles.summaryMetric}>
+                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
+                    <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(summary.totalStaked)}</Text>
+                  </View>
+                  <View style={styles.summaryMetric}>
+                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno</Text>
+                    <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(summary.totalReturned)}</Text>
+                  </View>
+                  <View style={styles.summaryMetric}>
+                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>ROI</Text>
+                    <Text style={[styles.summaryValue, { color: roi >= 0 ? colors.primary : colors.danger }]}>{roi.toFixed(1)}%</Text>
+                  </View>
+                  <View style={styles.summaryChevron}>
+                    <Ionicons color={colors.textMuted} name="chevron-forward" size={16} />
+                  </View>
+                </Card>
+              </Pressable>
             </Animated.View>
 
             {/* Search bar */}
@@ -338,8 +376,15 @@ export default function HomeScreen() {
                 renderItem={({ item }) => (
                   <Chip
                     label={item.label}
-                    selected={item.key === selectedFilter}
-                    onPress={() => setSelectedFilter(item.key)}
+                    selected={activeStatuses.has(item.key)}
+                    onPress={() => {
+                      setActiveStatuses((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(item.key)) next.delete(item.key);
+                        else next.add(item.key);
+                        return next;
+                      });
+                    }}
                   />
                 )}
                 showsHorizontalScrollIndicator={false}
@@ -375,6 +420,7 @@ export default function HomeScreen() {
                 onPress={() => {
                   setSearchQuery('');
                   setSort({ by: 'date', dir: 'desc' });
+                  setActiveStatuses(new Set());
                   setFilter({
                     stakeRange: [0, dataRanges.maxStake],
                     oddsRange: [1, dataRanges.maxOdds],
@@ -534,8 +580,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   notifBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
-  summaryCard: { flexDirection: 'row', gap: 12 },
+  summaryCard: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   summaryMetric: { flex: 1, gap: 6 },
+  summaryChevron: { justifyContent: 'center', paddingLeft: 4 },
   summaryLabel: { fontSize: 12, fontWeight: '700' },
   summaryValue: { fontSize: 18, fontWeight: '900' },
   searchBar: {

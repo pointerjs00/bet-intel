@@ -19,8 +19,8 @@ interface ApiEnvelope<T> {
 
 export const statsQueryKeys = {
   all: ['stats'] as const,
-  me: (period: StatsPeriod, siteSlugs: string[], dateFrom?: string, dateTo?: string) =>
-    ['stats', 'me', period, siteSlugs.join(','), dateFrom ?? '', dateTo ?? ''] as const,
+  me: (period: StatsPeriod, siteSlugs: string[], dateFrom?: string, dateTo?: string, granularity?: string) =>
+    ['stats', 'me', period, siteSlugs.join(','), dateFrom ?? '', dateTo ?? '', granularity ?? ''] as const,
   summary: (period: StatsPeriod, siteSlug?: string) => ['stats', 'summary', period, siteSlug ?? ''] as const,
   bySport: (period: StatsPeriod, siteSlug?: string) => ['stats', 'by-sport', period, siteSlug ?? ''] as const,
   byTeam: (period: StatsPeriod, siteSlug?: string) => ['stats', 'by-team', period, siteSlug ?? ''] as const,
@@ -36,14 +36,17 @@ export function usePersonalStats(
   siteSlugs: string[] = [],
   dateFrom?: string,
   dateTo?: string,
+  granularity?: 'daily' | 'weekly' | 'monthly',
 ) {
   return useQuery({
-    queryKey: statsQueryKeys.me(period, siteSlugs, dateFrom, dateTo),
+    queryKey: statsQueryKeys.me(period, siteSlugs, dateFrom, dateTo, granularity),
+    staleTime: 0,         // always refetch on granularity / period / filter changes
     queryFn: async () => {
       const params: Record<string, string> = { period };
       if (siteSlugs.length > 0) params.siteSlugs = siteSlugs.join(',');
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
+      if (granularity) params.granularity = granularity;
       const response = await apiClient.get<ApiEnvelope<PersonalStats>>('/stats/me', { params });
       return response.data.data;
     },

@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import React, { useMemo, useState } from 'react';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type { StatsPeriod } from '@betintel/shared';
 import { BreakdownTable } from '../../components/stats/BreakdownTable';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
-import { PnLChart } from '../../components/stats/PnLChart';
+import { PnLChart, type TimelineGranularity } from '../../components/stats/PnLChart';
 import { ROICard } from '../../components/stats/ROICard';
 import { WinRateRing } from '../../components/stats/WinRateRing';
 import { Card } from '../../components/ui/Card';
-import { Chip } from '../../components/ui/Chip';
 import { DatePickerField } from '../../components/ui/DatePickerField';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { usePersonalStats } from '../../services/statsService';
+import { useBoletins } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
@@ -38,6 +38,7 @@ function toISODate(date: Date): string {
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { colors, tokens } = useTheme();
   const [period, setPeriod] = useState<StatsPeriod>('month');
   // Custom date range (overrides period chips when both are set)
@@ -47,14 +48,30 @@ export default function StatsScreen() {
   // Multi-site filter
   const [siteSlugs, setSiteSlugs] = useState<string[]>([]);
   const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
+  // Timeline granularity
+  const [granularity, setGranularity] = useState<TimelineGranularity>('weekly');
 
-  // Resolve params for the query
+  // Resolve params for the query — each date is independent; either alone still filters
   const activeFrom = useCustomRange && dateFrom ? toISODate(dateFrom) : undefined;
   const activeTo = useCustomRange && dateTo ? toISODate(dateTo) : undefined;
+  // Switch to 'all' whenever custom range mode is on, even if only one date is set
   const activePeriod: StatsPeriod = useCustomRange ? 'all' : period;
 
-  const statsQuery = usePersonalStats(activePeriod, siteSlugs, activeFrom, activeTo);
+  const statsQuery = usePersonalStats(activePeriod, siteSlugs, activeFrom, activeTo, granularity);
   const stats = statsQuery.data;
+
+  const boletinsQuery = useBoletins();
+  const betDateBounds = useMemo(() => {
+    const list = boletinsQuery.data ?? [];
+    if (list.length === 0) return { min: undefined, max: undefined };
+    const timestamps = list.map((b) =>
+      new Date((b as any).betDate ?? b.createdAt).getTime(),
+    );
+    return {
+      min: new Date(Math.min(...timestamps)),
+      max: new Date(),
+    };
+  }, [boletinsQuery.data]);
 
   const siteLabel =
     siteSlugs.length === 0
@@ -80,23 +97,62 @@ export default function StatsScreen() {
           <Text style={[styles.title, { color: colors.textPrimary }]}>Lê o teu histórico e encontra onde tens vantagem.</Text>
         </Animated.View>
 
-        {/* Period chips */}
-        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
-          <ScrollView contentContainerStyle={styles.periodTabs} horizontal showsHorizontalScrollIndicator={false}>
-            {PERIOD_OPTIONS.map((option) => (
-              <Chip
-                key={option.key}
-                label={option.label}
-                selected={!useCustomRange && option.key === period}
-                onPress={() => { setPeriod(option.key); setUseCustomRange(false); }}
-              />
-            ))}
-            <Chip
-              label="Personalizado"
-              selected={useCustomRange}
-              onPress={() => setUseCustomRange(true)}
-            />
-          </ScrollView>
+        {/* Period grid (2×2) + secondary controls row */}
+        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={styles.filterZone}>
+          <View style={styles.periodGrid}>
+            {PERIOD_OPTIONS.map((option) => {
+              const active = !useCustomRange && option.key === period;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  onPress={() => { setPeriod(option.key); setUseCustomRange(false); }}
+                  style={[
+                    styles.periodGridBtn,
+                    { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surfaceRaised },
+                  ]}
+                >
+                  <Text style={[styles.periodGridBtnText, { color: active ? '#fff' : colors.textSecondary }]}>
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <View style={styles.secondaryControlRow}>
+            {/* Personalizado toggle */}
+            <TouchableOpacity
+              onPress={() => setUseCustomRange((v) => !v)}
+              style={[
+                styles.secondaryBtn,
+                { borderColor: useCustomRange ? colors.primary : colors.border, backgroundColor: useCustomRange ? `${colors.primary}22` : colors.surfaceRaised },
+              ]}
+            >
+              <Ionicons color={useCustomRange ? colors.primary : colors.textSecondary} name="calendar-outline" size={14} />
+              <Text style={[styles.secondaryBtnText, { color: useCustomRange ? colors.primary : colors.textSecondary }]}>
+                Personalizado
+              </Text>
+            </TouchableOpacity>
+
+            {/* Site filter button */}
+            <TouchableOpacity
+              onPress={() => setSiteDropdownOpen(true)}
+              style={[
+                styles.secondaryBtn,
+                { borderColor: siteSlugs.length > 0 ? colors.primary : colors.border, backgroundColor: siteSlugs.length > 0 ? `${colors.primary}22` : colors.surfaceRaised, flex: 1 },
+              ]}
+            >
+              <Ionicons color={siteSlugs.length > 0 ? colors.primary : colors.textSecondary} name="business-outline" size={14} />
+              <Text style={[styles.secondaryBtnText, { color: siteSlugs.length > 0 ? colors.primary : colors.textSecondary, flex: 1 }]} numberOfLines={1}>
+                {siteLabel}
+              </Text>
+              {siteSlugs.length > 0 && (
+                <Pressable hitSlop={8} onPress={() => setSiteSlugs([])}>
+                  <Ionicons color={colors.primary} name="close-circle" size={15} />
+                </Pressable>
+              )}
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Custom date range pickers */}
@@ -105,7 +161,8 @@ export default function StatsScreen() {
             <View style={styles.datePickerCol}>
               <DatePickerField
                 label="De"
-                maxDate={dateTo ?? undefined}
+                minDate={betDateBounds.min}
+                maxDate={dateTo ?? betDateBounds.max}
                 value={dateFrom}
                 onChange={setDateFrom}
                 onClear={() => setDateFrom(null)}
@@ -114,7 +171,8 @@ export default function StatsScreen() {
             <View style={styles.datePickerCol}>
               <DatePickerField
                 label="Até"
-                minDate={dateFrom ?? undefined}
+                minDate={dateFrom ?? betDateBounds.min}
+                maxDate={betDateBounds.max}
                 value={dateTo}
                 onChange={setDateTo}
                 onClear={() => setDateTo(null)}
@@ -123,28 +181,6 @@ export default function StatsScreen() {
           </Animated.View>
         )}
 
-        {/* Site filter — multi-select dropdown trigger */}
-        <Animated.View entering={FadeInDown.delay(130).duration(400).springify()} style={styles.siteFilterRow}>
-          <Pressable
-            onPress={() => setSiteDropdownOpen(true)}
-            style={[styles.siteFilterBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-          >
-            <Ionicons color={colors.textSecondary} name="business-outline" size={15} />
-            <Text style={[styles.siteFilterLabel, { color: siteSlugs.length > 0 ? colors.textPrimary : colors.textSecondary }]}>
-              {siteLabel}
-            </Text>
-            {siteSlugs.length > 0 && (
-              <Pressable
-                hitSlop={8}
-                onPress={() => setSiteSlugs([])}
-                style={styles.siteClearBtn}
-              >
-                <Ionicons color={colors.textMuted} name="close-circle" size={15} />
-              </Pressable>
-            )}
-            <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
-          </Pressable>
-        </Animated.View>
 
         <SearchableDropdown
           multiSelect
@@ -201,14 +237,48 @@ export default function StatsScreen() {
               <WinRateRing winRate={stats.summary.winRate} />
             </Animated.View>
 
+            {/* Additional metrics */}
+            <Animated.View entering={FadeInDown.delay(320).duration(400).springify()} style={styles.heroMetricsRow}>
+              <Card style={styles.metricCard}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total boletins</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{stats.summary.totalBoletins}</Text>
+                <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
+                  {stats.summary.settledBoletins} decidido{stats.summary.settledBoletins !== 1 ? 's' : ''} · {stats.summary.pendingBoletins} pendente{stats.summary.pendingBoletins !== 1 ? 's' : ''}
+                </Text>
+              </Card>
+              <Card style={styles.metricCard}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.averageStake)}</Text>
+                <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
+                  Retorno médio: {formatCurrency(stats.summary.averageReturn)}
+                </Text>
+              </Card>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(335).duration(400).springify()} style={styles.heroMetricsRow}>
+              <Card style={styles.metricCard}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média geral</Text>
+                <Text style={[styles.metricValue, { color: colors.info }]}>{formatOdds(stats.summary.averageOdds)}</Text>
+              </Card>
+              <Card style={styles.metricCard}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Ganhos / Perdidos</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>
+                  <Text style={{ color: colors.primary }}>{stats.summary.wonBoletins}</Text>
+                  {' / '}
+                  <Text style={{ color: colors.danger }}>{stats.summary.lostBoletins}</Text>
+                </Text>
+              </Card>
+            </Animated.View>
+
             <Animated.View entering={FadeInDown.delay(350).duration(400).springify()}>
-              <PnLChart data={stats.timeline} />
+              <PnLChart data={stats.timeline} granularity={granularity} onGranularityChange={setGranularity} />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
               <BreakdownTable
                 rows={stats.bySport}
                 title="Por desporto"
+                onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterSport: row.key } })}
                 renderLabel={(row) => (
                   <Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>
                     {row.label}
@@ -218,15 +288,28 @@ export default function StatsScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(450).duration(400).springify()}>
-              <BreakdownTable rows={stats.byTeam} title="Por equipa" />
+              <BreakdownTable
+                rows={stats.byTeam}
+                title="Por equipa"
+                onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterTeam: row.label } })}
+              />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(475).duration(400).springify()}>
-              <BreakdownTable rows={stats.byCompetition} title="Por competição" />
+              <BreakdownTable
+                rows={stats.byCompetition}
+                title="Por competição"
+                onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterCompetition: row.label } })}
+              />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(500).duration(400).springify()}>
-              <BreakdownTable rows={stats.byMarket} title="Por mercado" />
+              <BreakdownTable
+                expandLabels
+                rows={stats.byMarket}
+                title="Por mercado"
+                onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterMarket: row.label } })}
+              />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(550).duration(400).springify()}>
@@ -244,6 +327,7 @@ export default function StatsScreen() {
                   stake={boletin.stake}
                   title={boletin.name ?? 'Boletin sem nome'}
                   totalOdds={boletin.totalOdds}
+                  onPress={() => router.push(`/boletins/${boletin.id}`)}
                 />
               ))}
             </ScrollView>
@@ -259,6 +343,7 @@ export default function StatsScreen() {
                   stake={boletin.stake}
                   title={boletin.name ?? 'Boletin sem nome'}
                   totalOdds={boletin.totalOdds}
+                  onPress={() => router.push(`/boletins/${boletin.id}`)}
                 />
               ))}
             </ScrollView>
@@ -280,6 +365,7 @@ function MiniBoletinCard({
   totalOdds,
   profitLoss,
   accentColor,
+  onPress,
 }: {
   title: string;
   label: string;
@@ -287,16 +373,22 @@ function MiniBoletinCard({
   totalOdds: number;
   profitLoss: number;
   accentColor: string;
+  onPress?: () => void;
 }) {
   const { colors } = useTheme();
 
   return (
-    <Card style={styles.miniCard}>
-      <Text style={[styles.miniLabel, { color: accentColor }]}>{label}</Text>
-      <Text numberOfLines={2} style={[styles.miniTitle, { color: colors.textPrimary }]}>{title}</Text>
-      <Text style={[styles.miniMeta, { color: colors.textSecondary }]}>Stake {formatCurrency(stake)} • Odds {formatOdds(totalOdds)}</Text>
-      <Text style={[styles.miniProfit, { color: profitLoss >= 0 ? colors.primary : colors.danger }]}>{formatCurrency(profitLoss)}</Text>
-    </Card>
+    <Pressable onPress={onPress} style={({ pressed }) => ({ opacity: pressed && onPress ? 0.7 : 1 })}>
+      <Card style={styles.miniCard}>
+        <View style={styles.miniCardHeader}>
+          <Text style={[styles.miniLabel, { color: accentColor }]}>{label}</Text>
+          {onPress ? <Ionicons color={colors.textMuted} name="chevron-forward" size={14} /> : null}
+        </View>
+        <Text numberOfLines={2} style={[styles.miniTitle, { color: colors.textPrimary }]}>{title}</Text>
+        <Text style={[styles.miniMeta, { color: colors.textSecondary }]}>Stake {formatCurrency(stake)} • Odds {formatOdds(totalOdds)}</Text>
+        <Text style={[styles.miniProfit, { color: profitLoss >= 0 ? colors.primary : colors.danger }]}>{formatCurrency(profitLoss)}</Text>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -308,18 +400,28 @@ const styles = StyleSheet.create({
   periodTabs: { gap: 8, marginBottom: 12 },
   dateRangeRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   datePickerCol: { flex: 1 },
-  siteFilterRow: { marginBottom: 22 },
-  siteFilterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
+  filterZone: { gap: 10, marginBottom: 18 },
+  periodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  periodGridBtn: {
+    flexBasis: '47%',
+    flexGrow: 1,
     paddingVertical: 10,
     borderRadius: 10,
     borderWidth: 1,
-    gap: 8,
+    alignItems: 'center',
   },
-  siteFilterLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
-  siteClearBtn: {},
+  periodGridBtnText: { fontSize: 13, fontWeight: '700' },
+  secondaryControlRow: { flexDirection: 'row', gap: 8 },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  secondaryBtnText: { fontSize: 13, fontWeight: '600' },
   siteDropdownLogo: { width: 20, height: 20, borderRadius: 3 },
   loadingStack: { gap: 16 },
   contentStack: { gap: 18 },
@@ -327,10 +429,12 @@ const styles = StyleSheet.create({
   metricCard: { flex: 1, gap: 6 },
   metricLabel: { fontSize: 12, fontWeight: '700' },
   metricValue: { fontSize: 18, fontWeight: '900' },
+  metricSmall: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   tableLabel: { fontSize: 14, fontWeight: '800' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   horizontalCards: { gap: 12 },
   miniCard: { gap: 8, width: 250 },
+  miniCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   miniLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
   miniTitle: { fontSize: 18, fontWeight: '900', lineHeight: 24 },
   miniMeta: { fontSize: 12, fontWeight: '600', lineHeight: 18 },

@@ -1,38 +1,83 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { StatsTimelinePoint } from '@betintel/shared';
 import { Area, CartesianChart, Line } from 'victory-native';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
 
+export type TimelineGranularity = 'daily' | 'weekly' | 'monthly';
+
+const GRANULARITY_OPTIONS: Array<{ key: TimelineGranularity; label: string }> = [
+  { key: 'daily', label: 'Diário' },
+  { key: 'weekly', label: 'Semanal' },
+  { key: 'monthly', label: 'Mensal' },
+];
+
+// Max number of axis labels shown below the chart
+const MAX_AXIS_LABELS = 5;
+
 interface PnLChartProps {
   data: StatsTimelinePoint[];
+  granularity?: TimelineGranularity;
+  onGranularityChange?: (g: TimelineGranularity) => void;
 }
 
+// x is a Unix timestamp in seconds — Victory Native needs a numeric x
 interface TimelineDatum extends Record<string, number> {
-  index: number;
+  x: number;
   profitLoss: number;
 }
 
+function toEpochSeconds(iso: string): number {
+  return Math.floor(new Date(iso).getTime() / 1000);
+}
+
 /** Area chart for period P&L trend. */
-export function PnLChart({ data }: PnLChartProps) {
+export function PnLChart({ data, granularity = 'weekly', onGranularityChange }: PnLChartProps) {
   const { colors } = useTheme();
 
-  const chartData = useMemo<TimelineDatum[]>(() => {
-    if (data.length === 0) {
-      return [{ index: 0, profitLoss: 0 }];
-    }
-
-    return data.map((item, index) => ({
-      index,
-      profitLoss: item.profitLoss,
-    }));
+  // Trim leading empty buckets so active data fills the chart width
+  const visibleData = useMemo<StatsTimelinePoint[]>(() => {
+    if (data.length <= 3) return data;
+    const firstActive = data.findIndex((d) => d.totalStaked > 0 || d.profitLoss !== 0);
+    // Keep 1 zero-bucket before the first active point for visual context
+    if (firstActive > 1) return data.slice(firstActive - 1);
+    return data;
   }, [data]);
 
+  // Map real bucket timestamps → x values so Victory Native spaces data in real time
+  const chartData = useMemo<TimelineDatum[]>(() => {
+    const mapped = visibleData.map((item) => ({
+      x: toEpochSeconds(item.bucketStart),
+      profitLoss: item.profitLoss,
+    }));
+
+    // CartesianChart requires >= 2 points with a non-zero x-domain
+    if (mapped.length === 0) {
+      const now = Math.floor(Date.now() / 1000);
+      return [{ x: now - 86_400, profitLoss: 0 }, { x: now, profitLoss: 0 }];
+    }
+    if (mapped.length === 1) {
+      return [{ x: mapped[0]!.x - 86_400, profitLoss: 0 }, mapped[0]!];
+    }
+    return mapped;
+  }, [visibleData]);
+
   const maxValue = useMemo(
-    () => Math.max(...chartData.map((item) => Math.abs(item.profitLoss)), 0),
-    [chartData],
+    () => Math.max(...visibleData.map((item) => Math.abs(item.profitLoss)), 0),
+    [visibleData],
   );
+
+  // Sample up to MAX_AXIS_LABELS evenly distributed labels (always include first + last)
+  const axisLabels = useMemo<string[]>(() => {
+    if (visibleData.length === 0) return [];
+    if (visibleData.length <= MAX_AXIS_LABELS) return visibleData.map((item) => item.label);
+    const step = (visibleData.length - 1) / (MAX_AXIS_LABELS - 1);
+    return Array.from({ length: MAX_AXIS_LABELS }, (_, i) => {
+      const idx = Math.min(Math.round(i * step), visibleData.length - 1);
+      return visibleData[idx]!.label;
+    });
+  }, [visibleData]);
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -41,10 +86,37 @@ export function PnLChart({ data }: PnLChartProps) {
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Amplitude: {formatCurrency(maxValue)}</Text>
       </View>
 
+      {onGranularityChange ? (
+        <View style={styles.granularityRow}>
+          {GRANULARITY_OPTIONS.map((opt) => (
+            <Pressable
+              key={opt.key}
+              onPress={() => onGranularityChange(opt.key)}
+              style={[
+                styles.granularityBtn,
+                {
+                  backgroundColor: granularity === opt.key ? colors.primary : colors.surfaceRaised,
+                  borderColor: granularity === opt.key ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.granularityLabel,
+                  { color: granularity === opt.key ? '#fff' : colors.textSecondary },
+                ]}
+              >
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+
       <View style={styles.chartWrap}>
-        <CartesianChart<TimelineDatum, 'index', 'profitLoss'>
+        <CartesianChart<TimelineDatum, 'x', 'profitLoss'>
           data={chartData}
-          xKey="index"
+          xKey="x"
           yKeys={["profitLoss"]}
         >
           {({ points, chartBounds }) => (
@@ -60,13 +132,20 @@ export function PnLChart({ data }: PnLChartProps) {
         </CartesianChart>
       </View>
 
-      <View style={styles.labelsRow}>
-        {data.slice(0, 6).map((item) => (
-          <Text key={item.key} numberOfLines={1} style={[styles.axisLabel, { color: colors.textSecondary }]}>
-            {item.label}
-          </Text>
-        ))}
-      </View>
+      {/* Evenly-distributed axis labels aligned to chart width */}
+      {axisLabels.length > 0 && (
+        <View style={styles.labelsRow}>
+          {axisLabels.map((label, i) => (
+            <Text
+              key={`${label}-${i}`}
+              numberOfLines={1}
+              style={[styles.axisLabel, { color: colors.textSecondary }]}
+            >
+              {label}
+            </Text>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -89,14 +168,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  granularityRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  granularityBtn: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  granularityLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   chartWrap: {
     height: 190,
     overflow: 'hidden',
   },
   labelsRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'space-between',
   },
   axisLabel: {
     fontSize: 11,

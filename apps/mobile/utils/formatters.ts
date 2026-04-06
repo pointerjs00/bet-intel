@@ -84,6 +84,12 @@ export function parseDDMMYYYYToISO(input: string): string | null {
   return isNaN(date.getTime()) ? null : date.toISOString();
 }
 
+/** Parses a DD/MM/YYYY string into a Date object, or null if invalid. */
+export function parseDDMMYYYYToDate(input: string): Date | null {
+  const iso = parseDDMMYYYYToISO(input);
+  return iso ? new Date(iso) : null;
+}
+
 /** Formats a date string using a full pt-PT date. */
 export function formatLongDate(value: string): string {
   return new Date(value).toLocaleDateString('pt-PT', {
