@@ -26,6 +26,7 @@ interface BuilderStateValues {
   siteSlug: string;
   betDate: string; // DD/MM/YYYY display string, or '' for today
   isPublic: boolean;
+  isFreebet: boolean;
   totalOdds: number;
   potentialReturn: number;
 }
@@ -39,6 +40,7 @@ interface BoletinBuilderStore extends BuilderStateValues {
   setSiteSlug: (siteSlug: string) => void;
   setBetDate: (betDate: string) => void;
   setPublic: (value: boolean) => void;
+  setFreebet: (value: boolean) => void;
   reset: () => void;
   save: () => Promise<BoletinDetail>;
 }
@@ -51,6 +53,7 @@ const DEFAULT_STATE: BuilderStateValues = {
   siteSlug: '',
   betDate: '',
   isPublic: false,
+  isFreebet: false,
   totalOdds: 1,
   potentialReturn: 0,
 };
@@ -74,6 +77,7 @@ function buildCreatePayload(state: BuilderStateValues): CreateBoletinInput {
     siteSlug: state.siteSlug.trim() || undefined,
     betDate: betDateISO ?? undefined,
     isPublic: state.isPublic,
+    isFreebet: state.isFreebet,
     stake: state.stake,
     items: state.items.map((item) => ({
       homeTeam: item.homeTeam,
@@ -119,6 +123,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
       setSiteSlug: (siteSlug) => set((state) => ({ ...state, siteSlug })),
       setBetDate: (betDate) => set((state) => ({ ...state, betDate })),
       setPublic: (isPublic) => set((state) => ({ ...state, isPublic })),
+      setFreebet: (isFreebet) => set((state) => ({ ...state, isFreebet })),
       reset: () => set(withComputed(DEFAULT_STATE)),
       save: async () => {
         const state = get();
@@ -146,6 +151,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         notes: state.notes,
         betDate: state.betDate,
         isPublic: state.isPublic,
+        isFreebet: state.isFreebet,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type { StatsPeriod } from '@betintel/shared';
@@ -11,10 +12,13 @@ import { ROICard } from '../../components/stats/ROICard';
 import { WinRateRing } from '../../components/stats/WinRateRing';
 import { Card } from '../../components/ui/Card';
 import { Chip } from '../../components/ui/Chip';
+import { DatePickerField } from '../../components/ui/DatePickerField';
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { usePersonalStats } from '../../services/statsService';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
+import { BETTING_SITES } from '../../utils/sportAssets';
 
 const PERIOD_OPTIONS: Array<{ key: StatsPeriod; label: string }> = [
   { key: 'week', label: 'Esta Semana' },
@@ -23,13 +27,41 @@ const PERIOD_OPTIONS: Array<{ key: StatsPeriod; label: string }> = [
   { key: 'all', label: 'Sempre' },
 ];
 
+const SITE_DROPDOWN_ITEMS = BETTING_SITES.map((site) => ({
+  label: site.name,
+  value: site.slug,
+}));
+
+function toISODate(date: Date): string {
+  return date.toISOString().split('T')[0]!;
+}
+
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const [period, setPeriod] = useState<StatsPeriod>('month');
-  const statsQuery = usePersonalStats(period);
+  // Custom date range (overrides period chips when both are set)
+  const [useCustomRange, setUseCustomRange] = useState(false);
+  const [dateFrom, setDateFrom] = useState<Date | null>(null);
+  const [dateTo, setDateTo] = useState<Date | null>(null);
+  // Multi-site filter
+  const [siteSlugs, setSiteSlugs] = useState<string[]>([]);
+  const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
 
+  // Resolve params for the query
+  const activeFrom = useCustomRange && dateFrom ? toISODate(dateFrom) : undefined;
+  const activeTo = useCustomRange && dateTo ? toISODate(dateTo) : undefined;
+  const activePeriod: StatsPeriod = useCustomRange ? 'all' : period;
+
+  const statsQuery = usePersonalStats(activePeriod, siteSlugs, activeFrom, activeTo);
   const stats = statsQuery.data;
+
+  const siteLabel =
+    siteSlugs.length === 0
+      ? 'Todas as casas'
+      : siteSlugs.length === 1
+      ? (BETTING_SITES.find((s) => s.slug === siteSlugs[0])?.name ?? siteSlugs[0])
+      : `${siteSlugs.length} casas`;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -48,18 +80,87 @@ export default function StatsScreen() {
           <Text style={[styles.title, { color: colors.textPrimary }]}>Lê o teu histórico e encontra onde tens vantagem.</Text>
         </Animated.View>
 
+        {/* Period chips */}
         <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
           <ScrollView contentContainerStyle={styles.periodTabs} horizontal showsHorizontalScrollIndicator={false}>
             {PERIOD_OPTIONS.map((option) => (
               <Chip
                 key={option.key}
                 label={option.label}
-                selected={option.key === period}
-                onPress={() => setPeriod(option.key)}
+                selected={!useCustomRange && option.key === period}
+                onPress={() => { setPeriod(option.key); setUseCustomRange(false); }}
               />
             ))}
+            <Chip
+              label="Personalizado"
+              selected={useCustomRange}
+              onPress={() => setUseCustomRange(true)}
+            />
           </ScrollView>
         </Animated.View>
+
+        {/* Custom date range pickers */}
+        {useCustomRange && (
+          <Animated.View entering={FadeInDown.duration(250)} style={styles.dateRangeRow}>
+            <View style={styles.datePickerCol}>
+              <DatePickerField
+                label="De"
+                maxDate={dateTo ?? undefined}
+                value={dateFrom}
+                onChange={setDateFrom}
+                onClear={() => setDateFrom(null)}
+              />
+            </View>
+            <View style={styles.datePickerCol}>
+              <DatePickerField
+                label="Até"
+                minDate={dateFrom ?? undefined}
+                value={dateTo}
+                onChange={setDateTo}
+                onClear={() => setDateTo(null)}
+              />
+            </View>
+          </Animated.View>
+        )}
+
+        {/* Site filter — multi-select dropdown trigger */}
+        <Animated.View entering={FadeInDown.delay(130).duration(400).springify()} style={styles.siteFilterRow}>
+          <Pressable
+            onPress={() => setSiteDropdownOpen(true)}
+            style={[styles.siteFilterBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+          >
+            <Ionicons color={colors.textSecondary} name="business-outline" size={15} />
+            <Text style={[styles.siteFilterLabel, { color: siteSlugs.length > 0 ? colors.textPrimary : colors.textSecondary }]}>
+              {siteLabel}
+            </Text>
+            {siteSlugs.length > 0 && (
+              <Pressable
+                hitSlop={8}
+                onPress={() => setSiteSlugs([])}
+                style={styles.siteClearBtn}
+              >
+                <Ionicons color={colors.textMuted} name="close-circle" size={15} />
+              </Pressable>
+            )}
+            <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
+          </Pressable>
+        </Animated.View>
+
+        <SearchableDropdown
+          multiSelect
+          items={SITE_DROPDOWN_ITEMS}
+          selectedValues={siteSlugs}
+          title="Casas de apostas"
+          visible={siteDropdownOpen}
+          onClose={() => setSiteDropdownOpen(false)}
+          onSelect={() => {}}
+          onSelectMultiple={setSiteSlugs}
+          renderItemLeft={(item) => {
+            const site = BETTING_SITES.find((s) => s.slug === item.value);
+            if (!site?.logo) return null;
+            return <Image resizeMode="contain" source={site.logo} style={styles.siteDropdownLogo} />;
+          }}
+        />
 
         {statsQuery.isLoading || !stats ? (
           <View style={styles.loadingStack}>
@@ -204,7 +305,22 @@ const styles = StyleSheet.create({
   headerWrap: { gap: 8, marginBottom: 18 },
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
-  periodTabs: { gap: 8, marginBottom: 22 },
+  periodTabs: { gap: 8, marginBottom: 12 },
+  dateRangeRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  datePickerCol: { flex: 1 },
+  siteFilterRow: { marginBottom: 22 },
+  siteFilterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 8,
+  },
+  siteFilterLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
+  siteClearBtn: {},
+  siteDropdownLogo: { width: 20, height: 20, borderRadius: 3 },
   loadingStack: { gap: 16 },
   contentStack: { gap: 18 },
   heroMetricsRow: { flexDirection: 'row', gap: 12 },

@@ -102,6 +102,7 @@ model User {
   sentSharedBoletins     SharedBoletin[] @relation("SharedBoletinSender")
   receivedSharedBoletins SharedBoletin[] @relation("SharedBoletinRecipient")
   notifications    Notification[]
+  favourites       UserFavourite[]
 }
 
 model RefreshToken {
@@ -174,6 +175,7 @@ model Boletin {
   cashoutAmount   Decimal?      @db.Decimal(10, 2) // amount received when cashing out early
   notes           String?
   isPublic        Boolean       @default(false)
+  isFreebet       Boolean       @default(false) // stake was a bookmaker freebet — not real money out of pocket
   betDate         DateTime?     // actual date the bet was placed (may differ from createdAt)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
@@ -251,4 +253,26 @@ model Notification {
 
   @@index([userId, isRead])
   @@index([userId, createdAt])
+}
+
+// ─── Favourites ───────────────────────────────────────────────────────────────
+
+enum FavouriteType {
+  COMPETITION // a specific competition/tournament
+  COUNTRY     // all competitions in a country (for a sport)
+  TEAM        // a specific team/player
+}
+
+model UserFavourite {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      FavouriteType
+  sport     Sport
+  /// Competition name, country name, or team name depending on type
+  targetKey String
+  createdAt DateTime      @default(now())
+
+  @@unique([userId, type, sport, targetKey])
+  @@index([userId, sport])
 }

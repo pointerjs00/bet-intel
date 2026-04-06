@@ -19,24 +19,32 @@ interface ApiEnvelope<T> {
 
 export const statsQueryKeys = {
   all: ['stats'] as const,
-  me: (period: StatsPeriod) => ['stats', 'me', period] as const,
-  summary: (period: StatsPeriod) => ['stats', 'summary', period] as const,
-  bySport: (period: StatsPeriod) => ['stats', 'by-sport', period] as const,
-  byTeam: (period: StatsPeriod) => ['stats', 'by-team', period] as const,
-  byCompetition: (period: StatsPeriod) => ['stats', 'by-competition', period] as const,
-  byMarket: (period: StatsPeriod) => ['stats', 'by-market', period] as const,
-  byOddsRange: (period: StatsPeriod) => ['stats', 'by-odds-range', period] as const,
-  timeline: (period: StatsPeriod) => ['stats', 'timeline', period] as const,
+  me: (period: StatsPeriod, siteSlugs: string[], dateFrom?: string, dateTo?: string) =>
+    ['stats', 'me', period, siteSlugs.join(','), dateFrom ?? '', dateTo ?? ''] as const,
+  summary: (period: StatsPeriod, siteSlug?: string) => ['stats', 'summary', period, siteSlug ?? ''] as const,
+  bySport: (period: StatsPeriod, siteSlug?: string) => ['stats', 'by-sport', period, siteSlug ?? ''] as const,
+  byTeam: (period: StatsPeriod, siteSlug?: string) => ['stats', 'by-team', period, siteSlug ?? ''] as const,
+  byCompetition: (period: StatsPeriod, siteSlug?: string) => ['stats', 'by-competition', period, siteSlug ?? ''] as const,
+  byMarket: (period: StatsPeriod, siteSlug?: string) => ['stats', 'by-market', period, siteSlug ?? ''] as const,
+  byOddsRange: (period: StatsPeriod, siteSlug?: string) => ['stats', 'by-odds-range', period, siteSlug ?? ''] as const,
+  timeline: (period: StatsPeriod, siteSlug?: string) => ['stats', 'timeline', period, siteSlug ?? ''] as const,
 };
 
 /** Returns the full authenticated-user statistics payload for a given period. */
-export function usePersonalStats(period: StatsPeriod) {
+export function usePersonalStats(
+  period: StatsPeriod,
+  siteSlugs: string[] = [],
+  dateFrom?: string,
+  dateTo?: string,
+) {
   return useQuery({
-    queryKey: statsQueryKeys.me(period),
+    queryKey: statsQueryKeys.me(period, siteSlugs, dateFrom, dateTo),
     queryFn: async () => {
-      const response = await apiClient.get<ApiEnvelope<PersonalStats>>('/stats/me', {
-        params: { period },
-      });
+      const params: Record<string, string> = { period };
+      if (siteSlugs.length > 0) params.siteSlugs = siteSlugs.join(',');
+      if (dateFrom) params.dateFrom = dateFrom;
+      if (dateTo) params.dateTo = dateTo;
+      const response = await apiClient.get<ApiEnvelope<PersonalStats>>('/stats/me', { params });
       return response.data.data;
     },
   });

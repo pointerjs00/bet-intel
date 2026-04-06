@@ -21,8 +21,10 @@ import { Chip } from '../ui/Chip';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { TeamBadge } from '../ui/TeamBadge';
 import { SearchableDropdown } from '../ui/SearchableDropdown';
+import { CompetitionPickerModal } from '../ui/CompetitionPickerModal';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
+import { type BettingSite } from '../../utils/sportAssets';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -56,6 +58,7 @@ export interface BoletinFilter {
   sport: Sport | null;
   competitions: string[];
   teams: string[];
+  sites: string[];
 }
 
 export interface CompetitionEntry { name: string; sport: Sport }
@@ -70,7 +73,10 @@ interface BoletinFilterSheetProps {
   maxReturn: number;
   allCompetitions: CompetitionEntry[];
   allTeams: TeamEntry[];
+  allSites: BettingSite[];
   onApply: (sort: BoletinSort, filter: BoletinFilter) => void;
+  /** Called whenever the sheet snap index changes (-1 = closed, ≥0 = open) */
+  onIndexChange?: (index: number) => void;
 }
 
 const SORT_OPTIONS: Array<{ key: SortBy; label: string }> = [
@@ -90,7 +96,9 @@ export function BoletinFilterSheet({
   maxReturn,
   allCompetitions,
   allTeams,
+  allSites,
   onApply,
+  onIndexChange,
 }: BoletinFilterSheetProps) {
   const { colors, tokens } = useTheme();
   const { bottom: safeBottom } = useSafeAreaInsets();
@@ -105,13 +113,14 @@ export function BoletinFilterSheet({
 
   const onSheetChange = useCallback(
     (index: number) => {
+      onIndexChange?.(index);
       if (index >= 0) {
         setDraftSort(sort);
         setDraftFilter(filter);
         setSliderKey((k) => k + 1);
       }
     },
-    [sort, filter],
+    [sort, filter, onIndexChange],
   );
 
   const handleApply = () => {
@@ -128,6 +137,7 @@ export function BoletinFilterSheet({
       sport: null,
       competitions: [],
       teams: [],
+      sites: [],
     });
     setSliderKey((k) => k + 1);
   };
@@ -159,13 +169,16 @@ export function BoletinFilterSheet({
   );
 
   const compSections = useMemo(() => {
-    const sportMap = new Map<Sport, CompetitionEntry[]>();
-    visibleCompetitions.forEach((c) => {
-      if (!sportMap.has(c.sport)) sportMap.set(c.sport, []);
-      sportMap.get(c.sport)!.push(c);
-    });
-    return Array.from(sportMap.entries()).map(([sport, comps]) => ({
-      title: SPORT_LABELS[sport] ?? sport,
+    const countryMap = new Map<string, CompetitionEntry[]>();
+    for (const c of visibleCompetitions) {
+      const sport = c.sport;
+      const sportLabel = SPORT_LABELS[sport] ?? sport;
+      if (!countryMap.has(sportLabel)) countryMap.set(sportLabel, []);
+      countryMap.get(sportLabel)!.push(c);
+    }
+    return Array.from(countryMap.entries()).map(([group, comps]) => ({
+      title: group,
+      country: group,
       data: comps.map((c) => ({ label: c.name, value: c.name })),
     }));
   }, [visibleCompetitions]);
@@ -271,6 +284,30 @@ export function BoletinFilterSheet({
             onHighChange={(v) => setDraftFilter((p) => ({ ...p, returnRange: [p.returnRange[0], v] }))}
             formatValue={formatCurrency}
           />
+
+          {/* BETTING SITES */}
+          {allSites.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Casa de apostas</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortChips}>
+                {allSites.map((site) => (
+                  <Chip
+                    key={site.slug}
+                    label={site.name}
+                    selected={draftFilter.sites.includes(site.slug)}
+                    onPress={() =>
+                      setDraftFilter((prev) => ({
+                        ...prev,
+                        sites: prev.sites.includes(site.slug)
+                          ? prev.sites.filter((s) => s !== site.slug)
+                          : [...prev.sites, site.slug],
+                      }))
+                    }
+                  />
+                ))}
+              </ScrollView>
+            </>
+          )}
 
           {/* SPORT */}
           {availableSports.length > 1 && (
@@ -379,13 +416,12 @@ export function BoletinFilterSheet({
         </View>
       </GorhomBottomSheet>
 
-      <SearchableDropdown
+      <CompetitionPickerModal
         visible={showCompModal}
         onClose={() => setShowCompModal(false)}
         title="Competição"
         sections={compSections}
-        renderLeft={(value) => <CompetitionBadge name={value} size={22} />}
-        onSelect={() => {}}
+        sport={draftFilter.sport ?? undefined}
         multiSelect
         selectedValues={draftFilter.competitions}
         onSelectMultiple={(vals) => setDraftFilter((p) => ({ ...p, competitions: vals }))}

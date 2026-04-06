@@ -76,13 +76,16 @@ export async function deleteBoletinItemRequest(boletinId: string, itemId: string
 }
 
 /** Returns the authenticated user's own boletins. */
+export async function listBoletinsRequest(): Promise<BoletinDetail[]> {
+  const response = await apiClient.get<ApiEnvelope<BoletinDetail[]>>('/boletins');
+  return response.data.data;
+}
+
+/** Returns the authenticated user's own boletins. */
 export function useBoletins() {
   return useQuery({
     queryKey: boletinQueryKeys.mine(),
-    queryFn: async () => {
-      const response = await apiClient.get<ApiEnvelope<BoletinDetail[]>>('/boletins');
-      return response.data.data;
-    },
+    queryFn: listBoletinsRequest,
   });
 }
 

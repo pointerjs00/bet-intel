@@ -16,7 +16,12 @@ To **verify the API is running** after deploy:
 ssh <user>@<hetzner-host>
 docker ps | grep betintel-api
 # Should show the container as Up
-curl http://localhost:3000/api/health
+curl http://localhost:3000/health
+```
+
+Public API base URL:
+```sh
+https://api.stream-intel.online/api
 ```
 
 ---

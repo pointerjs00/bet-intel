@@ -1,5 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
-import Constants from 'expo-constants';
+import { apiBaseUrl, releaseBuildUsesLocalOnlyApiUrl } from './runtimeConfig';
 
 interface AuthStoreBridge {
   getAccessToken: () => string | null;
@@ -14,21 +14,8 @@ export function setAuthStoreBridge(bridge: AuthStoreBridge): void {
   authStoreBridge = bridge;
 }
 
-const expoExtra = Constants.expoConfig?.extra as {
-  apiBaseUrl?: string;
-} | undefined;
-
-// On Android emulator, 10.0.2.2 maps to the host machine's localhost.
-// On iOS simulator, localhost works directly.
-const defaultApiUrl = 'http://10.0.2.2:3000/api';
-
-const baseURL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ??
-  expoExtra?.apiBaseUrl ??
-  defaultApiUrl;
-
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: apiBaseUrl,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -49,6 +36,16 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
+
+    if (!error.response && releaseBuildUsesLocalOnlyApiUrl) {
+      return Promise.reject(
+        new Error(
+          `Esta APK foi construída com um URL de API apenas para emulador (${apiBaseUrl}). `
+          + 'Para testar num telemóvel, define EXPO_PUBLIC_RELEASE_API_BASE_URL com o IP local da tua máquina '
+          + '(por exemplo http://192.168.x.x:3001/api) ou com uma API pública válida e gera uma nova APK.',
+        ),
+      );
+    }
 
     const status = error.response?.status;
     const url = originalRequest?.url ?? '';

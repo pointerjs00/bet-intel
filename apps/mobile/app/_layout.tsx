@@ -20,7 +20,7 @@ import {
   resetDevicePushTokenCache,
   syncDevicePushToken,
 } from '../services/notificationService';
-import { apiClient } from '../services/apiClient';
+import { boletinQueryKeys, listBoletinsRequest } from '../services/boletinService';
 import '../global.css';
 
 const queryClient = new QueryClient();
@@ -36,8 +36,8 @@ function usePrefetchHomeData(isAuthenticated: boolean) {
 
     void safeFetch(() =>
       qc.prefetchQuery({
-        queryKey: ['boletins', 'mine'],
-        queryFn: () => apiClient.get('/betintel').then((r) => (r.data as { data: unknown[] }).data),
+        queryKey: boletinQueryKeys.mine(),
+        queryFn: listBoletinsRequest,
         staleTime: 30_000,
       }),
     );

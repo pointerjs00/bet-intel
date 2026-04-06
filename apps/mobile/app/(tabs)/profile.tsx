@@ -16,6 +16,7 @@ import { Avatar } from '../../components/ui/Avatar';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Chip } from '../../components/ui/Chip';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -72,6 +73,10 @@ export default function ProfileScreen() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Confirmation modals
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
 
   useEffect(() => {
     if (!profileQuery.data) {
@@ -318,7 +323,7 @@ export default function ProfileScreen() {
                       <Button
                         disabled={!canUnlinkGoogle}
                         loading={unlinkGoogleAccountMutation.isPending}
-                        onPress={handleUnlinkGoogleAccount}
+                        onPress={() => canUnlinkGoogle && setShowUnlinkConfirm(true)}
                         title={canUnlinkGoogle ? 'Desligar Google' : 'Define password primeiro'}
                         variant="ghost"
                       />
@@ -367,9 +372,7 @@ export default function ProfileScreen() {
                 </View>
 
                 <Button
-                  onPress={async () => {
-                    await logout();
-                  }}
+                  onPress={() => setShowLogoutConfirm(true)}
                   title="Terminar sessão"
                   variant="danger"
                 />
@@ -385,6 +388,30 @@ export default function ProfileScreen() {
           </View>
         )}
       </ScrollView>
+
+      <ConfirmModal
+        visible={showLogoutConfirm}
+        title="Terminar sessão"
+        message="Tens a certeza que queres sair? Precisarás entrar novamente para aceder à tua conta."
+        confirmLabel="Sair"
+        cancelLabel="Ficar"
+        onConfirm={async () => {
+          setShowLogoutConfirm(false);
+          await logout();
+        }}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
+      <ConfirmModal
+        visible={showUnlinkConfirm}
+        title="Desligar conta Google"
+        message="Tens a certeza? Continuarás a poder entrar com a tua password. Não poderás desligar se não tiveres password definida."
+        confirmLabel="Desligar"
+        onConfirm={async () => {
+          setShowUnlinkConfirm(false);
+          await handleUnlinkGoogleAccount();
+        }}
+        onCancel={() => setShowUnlinkConfirm(false)}
+      />
     </View>
   );
 }

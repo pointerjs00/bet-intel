@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  BackHandler,
   FlatList,
   Pressable,
   StyleSheet,
@@ -7,7 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -24,6 +25,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Chip } from '../../components/ui/Chip';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
@@ -32,6 +34,7 @@ import { useUnreadNotificationsCount } from '../../services/socialService';
 import { tokens } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
+import { BETTING_SITES } from '../../utils/sportAssets';
 
 type StatusFilter = 'ALL' | BoletinStatus;
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
@@ -59,6 +62,29 @@ export default function HomeScreen() {
   const deleteMutation = useDeleteBoletinMutation();
   const unreadCount = useUnreadNotificationsCount().data ?? 0;
 
+  // Track whether the filter sheet is open so the back gesture dismisses it
+  // instead of doing default OS back handling (which exits the app on a root tab).
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  // State for the delete-boletin confirmation modal.
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isFilterSheetOpen) {
+        filterSheetRef.current?.close();
+        return true; // consume — don't let OS handle it
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [isFilterSheetOpen]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void boletinsQuery.refetch();
+    }, [boletinsQuery.refetch]),
+  );
+
   const boletins = boletinsQuery.data ?? [];
 
   // Derive range maxima from actual data for slider bounds
@@ -78,6 +104,7 @@ export default function HomeScreen() {
     sport: null,
     competitions: [],
     teams: [],
+    sites: [],
   });
 
   // All unique competitions and teams from loaded data
@@ -98,6 +125,12 @@ export default function HomeScreen() {
     return Array.from(map.entries()).map(([name, sport]) => ({ name, sport })).sort((a, b) => a.name.localeCompare(b.name));
   }, [boletins]);
 
+  // All betting sites that appear in loaded boletins (in BETTING_SITES canonical order)
+  const allSitesInData = useMemo(() => {
+    const slugsInData = new Set(boletins.map((b) => b.siteSlug).filter(Boolean) as string[]);
+    return BETTING_SITES.filter((s) => slugsInData.has(s.slug));
+  }, [boletins]);
+
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filter.stakeRange[0] > 0 || filter.stakeRange[1] < dataRanges.maxStake) count++;
@@ -106,6 +139,7 @@ export default function HomeScreen() {
     if (filter.sport !== null) count++;
     if (filter.competitions.length > 0) count++;
     if (filter.teams.length > 0) count++;
+    if (filter.sites.length > 0) count++;
     return count;
   }, [filter, dataRanges]);
 
@@ -162,6 +196,11 @@ export default function HomeScreen() {
           (i) => filter.teams.includes(i.homeTeam) || filter.teams.includes(i.awayTeam),
         ),
       );
+    }
+
+    // Betting site filter
+    if (filter.sites.length > 0) {
+      result = result.filter((b) => b.siteSlug !== null && filter.sites.includes(b.siteSlug));
     }
 
     // Sort
@@ -226,6 +265,9 @@ export default function HomeScreen() {
         }}
         data={listData}
         keyExtractor={(item) => item.id}
+        onRefresh={() => {
+          void boletinsQuery.refetch();
+        }}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             {/* Title row */}
@@ -340,6 +382,7 @@ export default function HomeScreen() {
                     sport: null,
                     competitions: [],
                     teams: [],
+                    sites: [],
                   });
                 }}
               >
@@ -352,20 +395,29 @@ export default function HomeScreen() {
         }
         ListEmptyComponent={
           !boletinsQuery.isLoading ? (
-            <EmptyState
-              icon="receipt"
-              title={hasActiveControls ? 'Nenhum boletim encontrado' : 'Ainda não tens boletins'}
-              message={
-                hasActiveControls
-                  ? 'Nenhum boletim corresponde aos filtros activos.'
-                  : 'Cria o teu primeiro boletim tocando no botão + acima.'
-              }
-              action={
-                hasActiveControls ? undefined : (
-                  <Button onPress={() => router.push('/boletins/create')} title="Criar boletim" />
-                )
-              }
-            />
+            boletinsQuery.isError ? (
+              <EmptyState
+                icon="cloud-outline"
+                title="Não foi possível carregar os boletins"
+                message="Toca em tentar novamente para actualizar a lista com os dados mais recentes."
+                action={<Button onPress={() => void boletinsQuery.refetch()} title="Tentar novamente" />}
+              />
+            ) : (
+              <EmptyState
+                icon="receipt"
+                title={hasActiveControls ? 'Nenhum boletim encontrado' : 'Ainda não tens boletins'}
+                message={
+                  hasActiveControls
+                    ? 'Nenhum boletim corresponde aos filtros activos.'
+                    : 'Cria o teu primeiro boletim tocando no botão + acima.'
+                }
+                action={
+                  hasActiveControls ? undefined : (
+                    <Button onPress={() => router.push('/boletins/create')} title="Criar boletim" />
+                  )
+                }
+              />
+            )
           ) : null
         }
         renderItem={({ item, index }) => {
@@ -383,14 +435,7 @@ export default function HomeScreen() {
             <Animated.View entering={FadeInDown.delay(300 + index * 60).duration(400).springify()}>
               <BoletinCard
                 boletin={item}
-                onDelete={async () => {
-                  try {
-                    await deleteMutation.mutateAsync(item.id);
-                    showToast('Boletim eliminado.', 'success');
-                  } catch (error) {
-                    showToast(getErrorMessage(error), 'error');
-                  }
-                }}
+                onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
                 onPress={() => router.push(`/boletins/${item.id}`)}
                 onShare={() =>
                   showToast(
@@ -409,6 +454,7 @@ export default function HomeScreen() {
           </View>
         }
         showsVerticalScrollIndicator={false}
+        refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
       />
 
       {/* Sort & Filter bottom sheet */}
@@ -421,10 +467,32 @@ export default function HomeScreen() {
         maxReturn={dataRanges.maxReturn}
         allCompetitions={allCompetitions}
         allTeams={allTeams}
+        allSites={allSitesInData}
         onApply={(newSort, newFilter) => {
           setSort(newSort);
           setFilter(newFilter);
         }}
+        onIndexChange={(idx) => setIsFilterSheetOpen(idx >= 0)}
+      />
+
+      <ConfirmModal
+        visible={deleteTarget !== null}
+        title="Eliminar boletim"
+        message={`Tens a certeza que queres eliminar "${deleteTarget?.name ?? 'este boletim'}"? Esta ação não pode ser revertida.`}
+        confirmLabel="Eliminar"
+        storageKey="delete-boletin"
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          const id = deleteTarget.id;
+          setDeleteTarget(null);
+          try {
+            await deleteMutation.mutateAsync(id);
+            showToast('Boletim eliminado.', 'success');
+          } catch (error) {
+            showToast(getErrorMessage(error), 'error');
+          }
+        }}
+        onCancel={() => setDeleteTarget(null)}
       />
     </View>
   );

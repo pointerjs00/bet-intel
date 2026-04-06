@@ -28,6 +28,7 @@ import {
 } from '@betintel/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { DatePickerField } from '../../components/ui/DatePickerField';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { CompetitionBadge } from '../../components/ui/CompetitionBadge';
@@ -38,6 +39,8 @@ import { OddsCalculator } from '../../components/boletins/OddsCalculator';
 import { StakeInput } from '../../components/boletins/StakeInput';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import type { DropdownSection } from '../../components/ui/SearchableDropdown';
+import { CompetitionPickerModal } from '../../components/ui/CompetitionPickerModal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { boletinQueryKeys } from '../../services/boletinService';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER } from '../../utils/sportAssets';
@@ -420,12 +423,12 @@ function AddSelectionForm({ onAdd }: AddSelectionFormProps) {
         items={SPORT_OPTIONS.map((s) => ({ label: `${s.icon} ${s.label}`, value: s.key }))}
         onSelect={(val) => setSport(val as Sport)}
       />
-      <SearchableDropdown
+      <CompetitionPickerModal
         visible={showCompetitions}
         onClose={() => setShowCompetitions(false)}
         title="Competição"
         sections={competitionSections}
-        renderItemLeft={(item) => <CompetitionBadge country={item.country} name={item.value} size={22} />}
+        sport={sport as Sport | undefined}
         onSelect={(val) => {
           setCompetition(val);
           const found = competitionsQuery.data?.find((c) => c.name === val);
@@ -434,7 +437,6 @@ function AddSelectionForm({ onAdd }: AddSelectionFormProps) {
           setHomeTeam('');
           setAwayTeam('');
         }}
-        isLoading={competitionsQuery.isLoading}
       />
       <SearchableDropdown
         visible={showHomeTeams}
@@ -496,6 +498,7 @@ export default function CreateBoletinScreen() {
   const name = useBoletinBuilderStore((state) => state.name);
   const notes = useBoletinBuilderStore((state) => state.notes);
   const isPublic = useBoletinBuilderStore((state) => state.isPublic);
+  const isFreebet = useBoletinBuilderStore((state) => state.isFreebet);
   const siteSlug = useBoletinBuilderStore((state) => state.siteSlug);
   const totalOdds = useBoletinBuilderStore((state) => state.totalOdds);
   const potentialReturn = useBoletinBuilderStore((state) => state.potentialReturn);
@@ -505,6 +508,7 @@ export default function CreateBoletinScreen() {
   const setName = useBoletinBuilderStore((state) => state.setName);
   const setNotes = useBoletinBuilderStore((state) => state.setNotes);
   const setPublic = useBoletinBuilderStore((state) => state.setPublic);
+  const setFreebet = useBoletinBuilderStore((state) => state.setFreebet);
   const setSiteSlug = useBoletinBuilderStore((state) => state.setSiteSlug);
   const setBetDate = useBoletinBuilderStore((state) => state.setBetDate);
   const betDate = useBoletinBuilderStore((state) => state.betDate);
@@ -513,6 +517,10 @@ export default function CreateBoletinScreen() {
 
   const [showSites, setShowSites] = useState(false);
   const selectedSiteName = BETTING_SITES.find((s) => s.slug === siteSlug)?.name;
+
+  // Confirmation modals
+  const [pendingReset, setPendingReset] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}> 
@@ -533,7 +541,16 @@ export default function CreateBoletinScreen() {
                 <Text style={[styles.title, { color: colors.textPrimary }]}>Cria o teu boletim adicionando seleções.</Text>
               </View>
 
-              <Pressable hitSlop={10} onPress={reset}>
+              <Pressable
+                hitSlop={10}
+                onPress={() => {
+                  if (items.length > 0) {
+                    setPendingReset(true);
+                  } else {
+                    reset();
+                  }
+                }}
+              >
                 <Ionicons color={colors.danger} name="refresh-outline" size={22} />
               </Pressable>
             </Animated.View>
@@ -554,23 +571,23 @@ export default function CreateBoletinScreen() {
               <Input label="Nome" onChangeText={setName} placeholder="Liga Portugal Domingo" value={name} />
               <Input label="Notas" multiline onChangeText={setNotes} placeholder="Notas opcionais" value={notes} />
               {/* Data da aposta */}
-              <Input
-                label="DATA DA APOSTA"
+              <DatePickerField
+                label="Data da aposta"
+                maxDate={new Date()}
                 placeholder="DD/MM/AAAA (opcional)"
-                keyboardType="numeric"
-                maxLength={10}
-                value={betDate}
-                onChangeText={(v) => {
-                  // Strip non-digits, then re-insert slashes at positions 2 and 4
-                  const digits = v.replace(/\D/g, '').slice(0, 8);
-                  let formatted = digits;
-                  if (digits.length > 4) {
-                    formatted = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
-                  } else if (digits.length > 2) {
-                    formatted = digits.slice(0, 2) + '/' + digits.slice(2);
-                  }
-                  setBetDate(formatted);
+                value={(() => {
+                  if (!betDate || betDate.length < 10) return null;
+                  const [dd, mm, yyyy] = betDate.split('/');
+                  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+                  return isNaN(d.getTime()) ? null : d;
+                })()}
+                onChange={(date) => {
+                  const dd = String(date.getDate()).padStart(2, '0');
+                  const mm = String(date.getMonth() + 1).padStart(2, '0');
+                  const yyyy = date.getFullYear();
+                  setBetDate(`${dd}/${mm}/${yyyy}`);
                 }}
+                onClear={() => setBetDate('')}
               />
               {/* Site de apostas */}
               <Pressable
@@ -587,13 +604,20 @@ export default function CreateBoletinScreen() {
               </Pressable>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()} style={{ gap: tokens.spacing.sm }}>
               <Card style={styles.publicRow}>
                 <View style={styles.publicTextWrap}>
                   <Text style={[styles.publicTitle, { color: colors.textPrimary }]}>Tornar boletim público</Text>
                   <Text style={[styles.publicSubtitle, { color: colors.textSecondary }]}>Permite mostrar este boletim no teu perfil e em futuras partilhas.</Text>
                 </View>
                 <Switch onValueChange={setPublic} value={isPublic} />
+              </Card>
+              <Card style={styles.publicRow}>
+                <View style={styles.publicTextWrap}>
+                  <Text style={[styles.publicTitle, { color: colors.textPrimary }]}>Aposta gratuita (freebet)</Text>
+                  <Text style={[styles.publicSubtitle, { color: colors.textSecondary }]}>A stake era um freebet — não tens dinheiro real em risco. As tuas estatísticas de lucro/prejuízo serão calculadas em conformidade.</Text>
+                </View>
+                <Switch onValueChange={setFreebet} value={isFreebet} />
               </Card>
             </Animated.View>
 
@@ -625,7 +649,7 @@ export default function CreateBoletinScreen() {
               selection: item.selection,
               sport: item.sport,
             }}
-            onRemove={() => removeItem(item.id)}
+            onRemove={() => setRemoveTarget(item.id)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.md }} />}
@@ -652,6 +676,32 @@ export default function CreateBoletinScreen() {
           title="Guardar boletim"
         />
       </View>
+
+      {/* Confirmation modals */}
+      <ConfirmModal
+        visible={pendingReset}
+        title="Limpar boletim"
+        message="Tens a certeza que queres remover todas as seleções e repor o construtor?"
+        confirmLabel="Limpar tudo"
+        storageKey="reset-builder"
+        onConfirm={() => {
+          setPendingReset(false);
+          reset();
+        }}
+        onCancel={() => setPendingReset(false)}
+      />
+      <ConfirmModal
+        visible={removeTarget !== null}
+        title="Remover seleção"
+        message="Queres remover esta seleção do boletim?"
+        confirmLabel="Remover"
+        storageKey="remove-selection"
+        onConfirm={() => {
+          if (removeTarget) removeItem(removeTarget);
+          setRemoveTarget(null);
+        }}
+        onCancel={() => setRemoveTarget(null)}
+      />
 
       {/* Site selector modal */}
       <SearchableDropdown

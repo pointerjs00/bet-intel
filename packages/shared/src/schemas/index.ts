@@ -160,6 +160,7 @@ export const createBoletinSchema = z.object({
     .max(20, 'Máximo 20 seleções por boletim'),
   notes: z.string().max(500, 'Notas máximo 500 caracteres').optional(),
   isPublic: z.boolean().default(false),
+  isFreebet: z.boolean().default(false),
   betDate: z.string().datetime({ offset: true }).optional(),
 });
 
@@ -274,6 +275,14 @@ export const statsPeriodSchema = z.enum(['week', 'month', 'year', 'all']);
 
 export const statsQuerySchema = z.object({
   period: statsPeriodSchema.default('all'),
+  /** Single site filter (legacy, still supported) */
+  siteSlug: z.string().max(50).optional(),
+  /** Multi-site filter — comma-separated slugs when sent as a query param */
+  siteSlugs: z.string().optional(),
+  /** Custom date range start — ISO date string e.g. "2026-03-01" */
+  dateFrom: z.string().optional(),
+  /** Custom date range end — ISO date string e.g. "2026-03-31" */
+  dateTo: z.string().optional(),
 });
 
 export type StatsQueryInput = z.infer<typeof statsQuerySchema>;

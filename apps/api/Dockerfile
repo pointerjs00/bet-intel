@@ -21,8 +21,8 @@ RUN pnpm --filter @betintel/shared build
 RUN pnpm --filter api build
 
 FROM node:20-alpine AS runner
-# Chromium removed — scraping uses HTTP APIs only (The Odds API + Kambi CDN)
-RUN apk add --no-cache ca-certificates openssl
+# ATP rankings refresh falls back to browser scraping when direct fetches are blocked.
+RUN apk add --no-cache ca-certificates openssl chromium nss freetype harfbuzz ttf-freefont
 
 ENV NODE_ENV=production
 

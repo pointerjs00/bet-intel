@@ -1,11 +1,11 @@
 import { AppState, type AppStateStatus } from 'react-native';
-import Constants from 'expo-constants';
 import { io, type Socket } from 'socket.io-client';
 import type {
   BoletinResultPayload,
   Notification,
   FriendActivityPayload,
 } from '@betintel/shared';
+import { socketBaseUrl } from './runtimeConfig';
 
 type SocketEventMap = {
   'boletin:result': BoletinResultPayload;
@@ -25,10 +25,6 @@ let currentToken: string | null = null;
 let appStateSubscription: { remove: () => void } | null = null;
 const eventSubscriptionCounts = new Map<string, number>();
 const persistentListeners = new Map<keyof SocketEventMap, Set<SocketListener>>();
-
-const expoExtra = Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined;
-const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL ?? expoExtra?.apiBaseUrl ?? 'http://localhost:3000/api';
-const socketBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
 
 /** Ensures the authenticated socket client exists and connects with the current JWT. */
 export function connectSocket(token: string): void {

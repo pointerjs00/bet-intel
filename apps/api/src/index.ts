@@ -16,6 +16,7 @@ import { statsRouter } from './routes/statsRoutes';
 import { usersRouter } from './routes/usersRoutes';
 import { friendsRouter } from './routes/friendsRoutes';
 import { notificationsRouter } from './routes/notificationsRoutes';
+import { favouritesRouter } from './routes/favouritesRoutes';
 import { defaultLimiter } from './middleware/rateLimiter';
 import { initializeSocketServer } from './sockets';
 import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
@@ -68,6 +69,7 @@ app.use('/api/stats', statsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/favourites', favouritesRouter);
 
 // ─── 404 handler ───────────────────────────────────────────────────────────────
 

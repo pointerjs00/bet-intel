@@ -11,6 +11,7 @@ import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Chip } from '../../components/ui/Chip';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
@@ -66,6 +67,8 @@ export default function BoletinDetailScreen() {
   const [editBetDate, setEditBetDate] = useState(''); // DD/MM/YYYY display string
   const [showCashoutInput, setShowCashoutInput] = useState(false);
   const [cashoutValue, setCashoutValue] = useState('');
+  // Target item to remove (confirmation modal)
+  const [removeItemTarget, setRemoveItemTarget] = useState<{ boletinId: string; itemId: string } | null>(null);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
   const updateItemsMutation = useUpdateBoletinItemsMutation();
@@ -831,13 +834,8 @@ export default function BoletinDetailScreen() {
                   ? (tennisPhotoLookup.get(item.awayTeam) ?? null)
                   : null,
               }}
-              onRemove={isEditing ? async () => {
-                try {
-                  await deleteItemMutation.mutateAsync({ boletinId: boletin.id, itemId: item.id });
-                  showToast('Seleção removida.', 'success');
-                } catch (error) {
-                  showToast(getErrorMessage(error), 'error');
-                }
+              onRemove={isEditing ? () => {
+                setRemoveItemTarget({ boletinId: boletin.id, itemId: item.id });
               } : undefined}
               onResultChange={!isEditing ? async (result) => {
                 try {
@@ -858,6 +856,26 @@ export default function BoletinDetailScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.md }} />}
         showsVerticalScrollIndicator={false}
+      />
+
+      <ConfirmModal
+        visible={removeItemTarget !== null}
+        title="Remover seleção"
+        message="Queres remover esta seleção do boletim?"
+        confirmLabel="Remover"
+        storageKey="remove-selection"
+        onConfirm={async () => {
+          if (!removeItemTarget) return;
+          const target = removeItemTarget;
+          setRemoveItemTarget(null);
+          try {
+            await deleteItemMutation.mutateAsync({ boletinId: target.boletinId, itemId: target.itemId });
+            showToast('Seleção removida.', 'success');
+          } catch (error) {
+            showToast(getErrorMessage(error), 'error');
+          }
+        }}
+        onCancel={() => setRemoveItemTarget(null)}
       />
     </View>
   );

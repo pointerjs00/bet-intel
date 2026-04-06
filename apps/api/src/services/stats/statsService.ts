@@ -45,66 +45,108 @@ const ODDS_RANGE_DEFINITIONS: OddsRangeDefinition[] = [
   { key: 'gte-5.0', label: '5.0+', minOdds: 5.0, maxOdds: null },
 ];
 
+export interface StatsOptions {
+  period: StatsPeriod;
+  /** Single site slug (legacy). If provided alongside siteSlugs, both are applied. */
+  siteSlug?: string;
+  /** Array of site slugs for multi-site filtering. */
+  siteSlugs?: string[];
+  /** Custom range start — ISO date string e.g. "2026-03-01". Overrides period range when both from+to are set. */
+  dateFrom?: string;
+  /** Custom range end — ISO date string e.g. "2026-03-31". */
+  dateTo?: string;
+}
+
 /** Returns the full statistics bundle for the authenticated user. */
-export async function getPersonalStats(userId: string, period: StatsPeriod): Promise<PersonalStats> {
-  const boletins = await getBoletinsForPeriod(userId, period);
-  return buildStatsBundle(boletins, period);
+export async function getPersonalStats(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<PersonalStats> {
+  const options = normaliseOpts(opts, siteSlug);
+  const boletins = await getBoletinsForPeriod(userId, options);
+  return buildStatsBundle(boletins, options.period);
 }
 
 /** Returns the summary-only stats payload. */
-export async function getStatsSummary(userId: string, period: StatsPeriod): Promise<StatsSummary> {
-  const stats = await getPersonalStats(userId, period);
+export async function getStatsSummary(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsSummary> {
+  const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.summary;
 }
 
 /** Returns the sport breakdown rows for the authenticated user. */
-export async function getStatsBySport(userId: string, period: StatsPeriod): Promise<StatsBySportRow[]> {
-  const stats = await getPersonalStats(userId, period);
+export async function getStatsBySport(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsBySportRow[]> {
+  const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.bySport;
 }
 
 /** Returns the team breakdown rows for the authenticated user. */
-export async function getStatsByTeam(userId: string, period: StatsPeriod): Promise<StatsByTeamRow[]> {
-  const stats = await getPersonalStats(userId, period);
+export async function getStatsByTeam(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsByTeamRow[]> {
+  const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.byTeam;
 }
 
 /** Returns the competition breakdown rows for the authenticated user. */
-export async function getStatsByCompetition(userId: string, period: StatsPeriod): Promise<StatsByCompetitionRow[]> {
-  const stats = await getPersonalStats(userId, period);
+export async function getStatsByCompetition(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsByCompetitionRow[]> {
+  const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.byCompetition;
 }
 
 /** Returns the market breakdown rows for the authenticated user. */
-export async function getStatsByMarket(userId: string, period: StatsPeriod): Promise<StatsByMarketRow[]> {
-  const stats = await getPersonalStats(userId, period);
+export async function getStatsByMarket(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsByMarketRow[]> {
+  const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.byMarket;
 }
 
 /** Returns the odds-range breakdown rows for the authenticated user. */
-export async function getStatsByOddsRange(userId: string, period: StatsPeriod): Promise<StatsByOddsRangeRow[]> {
-  const stats = await getPersonalStats(userId, period);
+export async function getStatsByOddsRange(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsByOddsRangeRow[]> {
+  const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.byOddsRange;
 }
 
 /** Returns the timeline rows for the authenticated user. */
-export async function getStatsTimeline(userId: string, period: StatsPeriod): Promise<StatsTimelinePoint[]> {
-  const stats = await getPersonalStats(userId, period);
+export async function getStatsTimeline(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsTimelinePoint[]> {
+  const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.timeline;
 }
 
-async function getBoletinsForPeriod(userId: string, period: StatsPeriod): Promise<StatsBoletinRecord[]> {
-  const range = getPeriodRange(period, new Date());
+/** Normalises the overloaded opts parameter into a StatsOptions object. */
+function normaliseOpts(opts: StatsOptions | StatsPeriod, siteSlug?: string): StatsOptions {
+  if (typeof opts === 'string') {
+    return { period: opts, siteSlug };
+  }
+  return opts;
+}
+
+async function getBoletinsForPeriod(
+  userId: string,
+  opts: StatsOptions,
+): Promise<StatsBoletinRecord[]> {
+  const { period, siteSlug, siteSlugs, dateFrom, dateTo } = opts;
+
+  // Resolve effective date range
+  let range: { start: Date; end: Date } | null;
+  if (dateFrom && dateTo) {
+    range = { start: new Date(dateFrom), end: new Date(`${dateTo}T23:59:59.999Z`) };
+  } else {
+    range = getPeriodRange(period, new Date());
+  }
+
+  // Resolve site filter: siteSlugs takes priority, then siteSlug
+  const effectiveSlugs: string[] = siteSlugs && siteSlugs.length > 0
+    ? siteSlugs
+    : siteSlug
+    ? [siteSlug]
+    : [];
 
   return prisma.boletin.findMany({
     where: {
       userId,
+      ...(effectiveSlugs.length > 0 ? { siteSlug: { in: effectiveSlugs } } : {}),
       ...(range
         ? {
-            createdAt: {
-              gte: range.start,
-              lte: range.end,
-            },
+            OR: [
+              // Boletins with an explicit betDate — filter by that date
+              { betDate: { gte: range.start, lte: range.end } },
+              // Boletins without a betDate — fall back to createdAt
+              { betDate: null, createdAt: { gte: range.start, lte: range.end } },
+            ],
           }
         : {}),
     },
@@ -144,10 +186,11 @@ function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod): 
 
   for (const boletin of boletins) {
     const stake = decimalToNumber(boletin.stake);
+    const effectiveStake = boletin.isFreebet ? 0 : stake;
     const settled = isSettledStatus(boletin.status);
     const effectiveReturn = settled ? getEffectiveReturn(boletin) : 0;
     const itemCount = Math.max(boletin.items.length, 1);
-    const stakeShare = stake / itemCount;
+    const stakeShare = effectiveStake / itemCount;
     const returnShare = effectiveReturn / itemCount;
 
     for (const item of boletin.items) {
@@ -211,15 +254,18 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
 
   for (const boletin of boletins) {
     const stake = decimalToNumber(boletin.stake);
+    // Freebet stakes are not real money — exclude from financial totals so P&L and ROI
+    // reflect only money the user actually put in.
+    const effectiveStake = boletin.isFreebet ? 0 : stake;
     const odds = decimalToNumber(boletin.totalOdds);
-    totalStaked += stake;
+    totalStaked += effectiveStake;
     totalOdds += odds;
 
     switch (boletin.status) {
       case BoletinStatus.WON:
         settledBoletins += 1;
         wonBoletins += 1;
-        settledStake += stake;
+        settledStake += effectiveStake;
         totalReturned += getEffectiveReturn(boletin);
         wonOddsSum += odds;
         wonOddsCount += 1;
@@ -227,7 +273,7 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
       case BoletinStatus.LOST:
         settledBoletins += 1;
         lostBoletins += 1;
-        settledStake += stake;
+        settledStake += effectiveStake;
         totalReturned += getEffectiveReturn(boletin);
         lostOddsSum += odds;
         lostOddsCount += 1;
@@ -235,13 +281,13 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
       case BoletinStatus.VOID:
         settledBoletins += 1;
         voidBoletins += 1;
-        settledStake += stake;
+        settledStake += effectiveStake;
         totalReturned += getEffectiveReturn(boletin);
         break;
       case BoletinStatus.PARTIAL:
         settledBoletins += 1;
         partialBoletins += 1;
-        settledStake += stake;
+        settledStake += effectiveStake;
         totalReturned += getEffectiveReturn(boletin);
         wonOddsSum += odds;
         wonOddsCount += 1;
@@ -295,10 +341,11 @@ function buildTimeline(boletins: StatsBoletinRecord[], period: StatsPeriod): Sta
     }
 
     const stake = decimalToNumber(boletin.stake);
-    bucket.totalStaked += stake;
+    const effectiveStake = boletin.isFreebet ? 0 : stake;
+    bucket.totalStaked += effectiveStake;
 
     if (isSettledStatus(boletin.status)) {
-      bucket.settledStake += stake;
+      bucket.settledStake += effectiveStake;
       bucket.settledBoletins += 1;
       bucket.totalReturned += getEffectiveReturn(boletin);
     } else {

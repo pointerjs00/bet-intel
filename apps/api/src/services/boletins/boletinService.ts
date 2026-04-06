@@ -77,6 +77,7 @@ export async function createBoletin(userId: string, input: CreateBoletinInput): 
       name: normalizeNullableText(input.name),
       notes: normalizeNullableText(input.notes),
       isPublic: input.isPublic,
+      isFreebet: input.isFreebet ?? false,
       siteSlug: input.siteSlug ?? null,
       betDate: input.betDate ? new Date(input.betDate) : null,
       stake,
@@ -223,7 +224,8 @@ export async function updateBoletinItems(
       actualReturn = existing.stake.mul(activeOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
     } else if (hasVoid && !hasWon) {
       newStatus = BoletinStatus.VOID;
-      actualReturn = existing.stake;
+      // Freebets have no real cash to refund on void events
+      actualReturn = existing.isFreebet ? new Prisma.Decimal(0) : existing.stake;
     } else {
       newStatus = BoletinStatus.WON;
       actualReturn = existing.potentialReturn;
@@ -493,7 +495,7 @@ function assertUniqueSelections(items: CreateBoletinInput['items']): void {
 }
 
 function resolveActualReturn(
-  boletin: { stake: Prisma.Decimal; potentialReturn: Prisma.Decimal; actualReturn: Prisma.Decimal | null },
+  boletin: { stake: Prisma.Decimal; potentialReturn: Prisma.Decimal; actualReturn: Prisma.Decimal | null; isFreebet: boolean },
   status: BoletinStatus,
   actualReturn?: number,
   cashoutAmount?: number,
@@ -508,7 +510,8 @@ function resolveActualReturn(
     case BoletinStatus.LOST:
       return new Prisma.Decimal(0);
     case BoletinStatus.VOID:
-      return boletin.stake;
+      // Freebets have no real cash to refund on void events
+      return boletin.isFreebet ? new Prisma.Decimal(0) : boletin.stake;
     case BoletinStatus.CASHOUT:
       return cashoutAmount !== undefined
         ? new Prisma.Decimal(cashoutAmount).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
@@ -611,6 +614,7 @@ function serializeBoletinDetail(boletin: Prisma.BoletinGetPayload<{ include: typ
     cashoutAmount: boletin.cashoutAmount?.toString() ?? null,
     notes: boletin.notes,
     isPublic: boletin.isPublic,
+    isFreebet: boletin.isFreebet,
     siteSlug: boletin.siteSlug,
     betDate: boletin.betDate?.toISOString() ?? null,
     createdAt: boletin.createdAt.toISOString(),

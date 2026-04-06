@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  Image,
   LayoutAnimation,
   Platform,
   Pressable,
@@ -16,11 +17,13 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import type { BoletinDetail, ItemResult } from '@betintel/shared';
-import { BoletinStatus } from '@betintel/shared';
+import { BoletinStatus, Sport } from '@betintel/shared';
 import { TeamBadge } from '../ui/TeamBadge';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatOdds } from '../../utils/formatters';
+import { BETTING_SITES } from '../../utils/sportAssets';
+import { useTeams } from '../../services/referenceService';
 import { StatusBadge } from './StatusBadge';
 
 if (Platform.OS === 'android') {
@@ -54,11 +57,37 @@ function itemResultIcon(result: ItemResult): { name: React.ComponentProps<typeof
   }
 }
 
+function SiteBadge({ slug, colors }: { slug: string; colors: ReturnType<typeof useTheme>['colors'] }) {
+  const site = BETTING_SITES.find((s) => s.slug === slug);
+  if (!site) return null;
+  return (
+    <View style={[styles.siteBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+      {site.logo ? (
+        <Image source={site.logo} style={styles.siteLogo} resizeMode="contain" />
+      ) : null}
+      <Text style={[styles.siteBadgeName, { color: colors.textSecondary }]}>{site.name}</Text>
+    </View>
+  );
+}
+
 /** Summary card used on the user's boletin list. */
 export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const chevronRotation = useSharedValue(0);
+
+  // Resolve ATP player photos using the same reference data as the create screen.
+  // React Query deduplicates concurrent calls and serves cached data (staleTime 24h).
+  const { data: tennisTeams } = useTeams({ sport: 'TENNIS', competition: 'ATP Tour' });
+  const tennisPhotoMap = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const team of tennisTeams ?? []) {
+      const url = team.imageUrl ?? null;
+      if (team.displayName) map.set(team.displayName, url);
+      map.set(team.name, url);
+    }
+    return map;
+  }, [tennisTeams]);
 
   const chevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${chevronRotation.value}deg` }],
@@ -93,7 +122,17 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
       />
       {/* Header row */}
       <View style={styles.headerRow}>
-        <StatusBadge status={boletin.status} />
+        <View style={styles.headerLeft}>
+          <StatusBadge status={boletin.status} />
+          {boletin.isFreebet ? (
+            <View style={[styles.freebetBadge, { backgroundColor: 'rgba(0,122,255,0.15)', borderColor: 'rgba(0,122,255,0.35)' }]}>
+              <Text style={[styles.freebetText, { color: '#007AFF' }]}>Freebet</Text>
+            </View>
+          ) : null}
+          {boletin.siteSlug ? (
+            <SiteBadge colors={colors} slug={boletin.siteSlug} />
+          ) : null}
+        </View>
         <Text style={[styles.date, { color: colors.textSecondary }]}>
           {formatLongDate(boletin.betDate ?? boletin.createdAt)}
         </Text>
@@ -116,9 +155,11 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
         </View>
         {boletin.status === BoletinStatus.LOST ? (
           <View style={styles.metric}>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>📉 Perdido</Text>
-            <Text style={[styles.metricValue, { color: colors.danger }]}>
-              -{formatCurrency(boletin.stake)}
+            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>
+              {boletin.isFreebet ? '🎁 Freebet' : '📉 Perdido'}
+            </Text>
+            <Text style={[styles.metricValue, { color: boletin.isFreebet ? colors.info : colors.danger }]}>
+              {boletin.isFreebet ? 'Grátis' : `-${formatCurrency(boletin.stake)}`}
             </Text>
           </View>
         ) : boletin.status === BoletinStatus.CASHOUT ? (
@@ -146,7 +187,12 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
             return (
               <View key={item.id} style={styles.previewRow}>
                 <View style={[styles.resultDot, { backgroundColor: icon.color }]} />
-                <TeamBadge name={item.homeTeam} size={13} />
+                <TeamBadge
+                  name={item.homeTeam}
+                  size={13}
+                  imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.homeTeam) ?? null) : null}
+                  variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                />
                 <Text numberOfLines={1} style={[styles.previewTeamName, { color: colors.textSecondary }]}>
                   {item.homeTeam}
                 </Text>
@@ -154,7 +200,12 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
                 <Text numberOfLines={1} style={[styles.previewTeamNameAway, { color: colors.textSecondary }]}>
                   {item.awayTeam}
                 </Text>
-                <TeamBadge name={item.awayTeam} size={13} />
+                <TeamBadge
+                  name={item.awayTeam}
+                  size={13}
+                  imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.awayTeam) ?? null) : null}
+                  variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                />
                 <Text style={[styles.previewMeta, { color: colors.textMuted }]}>
                   {'• '}{item.selection} @ {formatOdds(item.oddValue)}
                 </Text>
@@ -188,7 +239,12 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
                 <View style={styles.expandedItemTop}>
                   <Ionicons color={icon.color} name={icon.name} size={16} />
                   <View style={styles.expandedTeams}>
-                    <TeamBadge name={item.homeTeam} size={14} />
+                    <TeamBadge
+                      name={item.homeTeam}
+                      size={14}
+                      imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.homeTeam) ?? null) : null}
+                      variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                    />
                     <Text numberOfLines={1} style={[styles.expandedTeamText, { color: colors.textPrimary }]}>
                       {item.homeTeam}
                     </Text>
@@ -196,7 +252,12 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
                     <Text numberOfLines={1} style={[styles.expandedTeamText, { color: colors.textPrimary }]}>
                       {item.awayTeam}
                     </Text>
-                    <TeamBadge name={item.awayTeam} size={14} />
+                    <TeamBadge
+                      name={item.awayTeam}
+                      size={14}
+                      imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.awayTeam) ?? null) : null}
+                      variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                    />
                   </View>
                   <Text style={[styles.expandedOdd, { color: colors.gold }]}>
                     {formatOdds(item.oddValue)}
@@ -272,6 +333,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  headerLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  freebetBadge: {
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  freebetText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  siteBadge: { alignItems: 'center', borderRadius: 6, borderWidth: 1, flexDirection: 'row', gap: 4, paddingHorizontal: 6, paddingVertical: 2 },
+  siteLogo: { borderRadius: 3, height: 14, width: 14 },
+  siteBadgeName: { fontSize: 11, fontWeight: '700' },
   date: { fontSize: 12, fontWeight: '700' },
   name: { fontSize: 20, fontWeight: '900', lineHeight: 26 },
   metricsRow: { flexDirection: 'row', gap: 12 },

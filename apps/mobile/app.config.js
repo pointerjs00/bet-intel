@@ -124,7 +124,8 @@ module.exports = ({ config }) => ({
     router: {
       origin: false,
     },
-    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://bet.stream-intel.online:3000/api',
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+    releaseApiBaseUrl: process.env.EXPO_PUBLIC_RELEASE_API_BASE_URL,
   },
   experiments: {
     typedRoutes: true,

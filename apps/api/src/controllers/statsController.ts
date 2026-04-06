@@ -9,6 +9,7 @@ import {
   getStatsByTeam,
   getStatsSummary,
   getStatsTimeline,
+  type StatsOptions,
 } from '../services/stats/statsService';
 import { logger } from '../utils/logger';
 
@@ -38,7 +39,7 @@ function requireUserId(req: Request): string {
   return userId;
 }
 
-function parseStatsQuery(req: Request, res: Response): { period: 'week' | 'month' | 'year' | 'all' } | null {
+function parseStatsQuery(req: Request, res: Response): StatsOptions | null {
   const parsed = statsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     res.status(422).json({
@@ -49,7 +50,10 @@ function parseStatsQuery(req: Request, res: Response): { period: 'week' | 'month
     return null;
   }
 
-  return parsed.data;
+  const { period, siteSlug, siteSlugs: rawSiteSlugs, dateFrom, dateTo } = parsed.data;
+  // siteSlugs arrives as a comma-separated string from query params
+  const siteSlugs = rawSiteSlugs ? rawSiteSlugs.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+  return { period, siteSlug, siteSlugs, dateFrom, dateTo };
 }
 
 /** Handles GET /api/stats/me. */
@@ -60,7 +64,7 @@ export async function getPersonalStatsHandler(req: Request, res: Response): Prom
   }
 
   try {
-    const stats = await getPersonalStats(requireUserId(req), parsed.period);
+    const stats = await getPersonalStats(requireUserId(req), parsed);
     ok(res, stats);
   } catch (err) {
     fail(res, err);
@@ -75,7 +79,7 @@ export async function getStatsSummaryHandler(req: Request, res: Response): Promi
   }
 
   try {
-    const summary = await getStatsSummary(requireUserId(req), parsed.period);
+    const summary = await getStatsSummary(requireUserId(req), parsed);
     ok(res, summary);
   } catch (err) {
     fail(res, err);
@@ -90,7 +94,7 @@ export async function getStatsBySportHandler(req: Request, res: Response): Promi
   }
 
   try {
-    const rows = await getStatsBySport(requireUserId(req), parsed.period);
+    const rows = await getStatsBySport(requireUserId(req), parsed);
     ok(res, rows);
   } catch (err) {
     fail(res, err);
@@ -105,7 +109,7 @@ export async function getStatsByTeamHandler(req: Request, res: Response): Promis
   }
 
   try {
-    const rows = await getStatsByTeam(requireUserId(req), parsed.period);
+    const rows = await getStatsByTeam(requireUserId(req), parsed);
     ok(res, rows);
   } catch (err) {
     fail(res, err);
@@ -120,7 +124,7 @@ export async function getStatsByCompetitionHandler(req: Request, res: Response):
   }
 
   try {
-    const rows = await getStatsByCompetition(requireUserId(req), parsed.period);
+    const rows = await getStatsByCompetition(requireUserId(req), parsed);
     ok(res, rows);
   } catch (err) {
     fail(res, err);
@@ -135,7 +139,7 @@ export async function getStatsByMarketHandler(req: Request, res: Response): Prom
   }
 
   try {
-    const rows = await getStatsByMarket(requireUserId(req), parsed.period);
+    const rows = await getStatsByMarket(requireUserId(req), parsed);
     ok(res, rows);
   } catch (err) {
     fail(res, err);
@@ -150,7 +154,7 @@ export async function getStatsByOddsRangeHandler(req: Request, res: Response): P
   }
 
   try {
-    const rows = await getStatsByOddsRange(requireUserId(req), parsed.period);
+    const rows = await getStatsByOddsRange(requireUserId(req), parsed);
     ok(res, rows);
   } catch (err) {
     fail(res, err);
@@ -165,7 +169,7 @@ export async function getStatsTimelineHandler(req: Request, res: Response): Prom
   }
 
   try {
-    const timeline = await getStatsTimeline(requireUserId(req), parsed.period);
+    const timeline = await getStatsTimeline(requireUserId(req), parsed);
     ok(res, timeline);
   } catch (err) {
     fail(res, err);

@@ -36,7 +36,11 @@ export function CompetitionBadge({ name, country, size = 18, style }: Competitio
         ]}
       >
         <Image
-          source={{ uri }}
+          source={{
+            uri,
+            headers: { 'User-Agent': 'BetIntel/1.0 (ReactNative; mobile app) okhttp/4.9.2' },
+            cache: 'force-cache',
+          }}
           style={{ width: size, height: size }}
           onError={() => setImgFailed(true)}
           resizeMode="contain"

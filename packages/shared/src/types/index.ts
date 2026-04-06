@@ -169,6 +169,8 @@ export interface Boletin {
   cashoutAmount: string | null;
   notes: string | null;
   isPublic: boolean;
+  /** When true the stake was a bookmaker freebet — not real money out of pocket. */
+  isFreebet: boolean;
   /** ISO-8601 string — when the bet was actually placed (may differ from createdAt) */
   betDate: string | null;
   createdAt: string;
@@ -491,4 +493,21 @@ export interface PersonalStats {
   timeline: StatsTimelinePoint[];
   bestBoletins: StatsTopBoletin[];
   worstBoletins: StatsTopBoletin[];
+}
+
+// ─── Favourites ───────────────────────────────────────────────────────────────
+
+export enum FavouriteType {
+  COMPETITION = 'COMPETITION',
+  COUNTRY = 'COUNTRY',
+  TEAM = 'TEAM',
+}
+
+export interface UserFavourite {
+  id: string;
+  userId: string;
+  type: FavouriteType;
+  sport: Sport;
+  targetKey: string;
+  createdAt: string;
 }
