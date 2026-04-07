@@ -40,6 +40,7 @@ const THEME_OPTIONS: Array<{ key: ThemePreference; label: string }> = [
   { key: 'light', label: 'Claro' },
   { key: 'dark', label: 'Escuro' },
   { key: 'system', label: 'Sistema' },
+  { key: 'scheduled', label: 'Agendado' },
 ];
 
 export default function ProfileScreen() {
@@ -89,8 +90,11 @@ export default function ProfileScreen() {
     setCurrency(profileQuery.data.currency ?? 'EUR');
 
     const nextThemePreference = mapThemeFromApi(profileQuery.data.theme);
-    setLocalThemePreference(nextThemePreference);
-    setThemePreference(nextThemePreference);
+    // Don't overwrite the local 'scheduled' preference — it only exists client-side
+    if (storedThemePreference !== 'scheduled') {
+      setLocalThemePreference(nextThemePreference);
+      setThemePreference(nextThemePreference);
+    }
   }, [profileQuery.data, setThemePreference]);
 
   const notificationItems = notificationsQuery.data?.items ?? [];
@@ -235,6 +239,11 @@ export default function ProfileScreen() {
                       />
                     ))}
                   </View>
+                  {themePreference === 'scheduled' && (
+                    <Text style={[styles.scheduleHint, { color: colors.textMuted }]}>
+                      Modo escuro ativo das 22:00 às 07:00
+                    </Text>
+                  )}
                 </View>
 
 
@@ -470,6 +479,7 @@ const styles = StyleSheet.create({
   preferenceGroup: { gap: 8 },
   preferenceLabel: { fontSize: 13, lineHeight: 20 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  scheduleHint: { fontSize: 12, fontStyle: 'italic', marginTop: 4 },
   notificationsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   notificationsTitleWrap: { gap: 2, flex: 1, paddingRight: 12 },
   accountSection: { gap: 10 },

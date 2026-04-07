@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { StatsTimelinePoint } from '@betintel/shared';
 import { Area, CartesianChart, Line } from 'victory-native';
 import { useTheme } from '../../theme/useTheme';
@@ -20,6 +21,7 @@ interface PnLChartProps {
   data: StatsTimelinePoint[];
   granularity?: TimelineGranularity;
   onGranularityChange?: (g: TimelineGranularity) => void;
+  onInfoPress?: () => void;
 }
 
 // x is a Unix timestamp in seconds — Victory Native needs a numeric x
@@ -32,9 +34,10 @@ function toEpochSeconds(iso: string): number {
   return Math.floor(new Date(iso).getTime() / 1000);
 }
 
-/** Area chart for period P&L trend. */
-export function PnLChart({ data, granularity = 'weekly', onGranularityChange }: PnLChartProps) {
+/** Area chart for period P&L trend with optional cumulative mode. */
+export function PnLChart({ data, granularity = 'weekly', onGranularityChange, onInfoPress }: PnLChartProps) {
   const { colors } = useTheme();
+  const [cumulative, setCumulative] = useState(false);
 
   // Trim leading empty buckets so active data fills the chart width
   const visibleData = useMemo<StatsTimelinePoint[]>(() => {
@@ -47,10 +50,20 @@ export function PnLChart({ data, granularity = 'weekly', onGranularityChange }: 
 
   // Map real bucket timestamps → x values so Victory Native spaces data in real time
   const chartData = useMemo<TimelineDatum[]>(() => {
-    const mapped = visibleData.map((item) => ({
-      x: toEpochSeconds(item.bucketStart),
-      profitLoss: item.profitLoss,
-    }));
+    let mapped: TimelineDatum[];
+
+    if (cumulative) {
+      let runningTotal = 0;
+      mapped = visibleData.map((item) => {
+        runningTotal += item.profitLoss;
+        return { x: toEpochSeconds(item.bucketStart), profitLoss: runningTotal };
+      });
+    } else {
+      mapped = visibleData.map((item) => ({
+        x: toEpochSeconds(item.bucketStart),
+        profitLoss: item.profitLoss,
+      }));
+    }
 
     // CartesianChart requires >= 2 points with a non-zero x-domain
     if (mapped.length === 0) {
@@ -61,7 +74,7 @@ export function PnLChart({ data, granularity = 'weekly', onGranularityChange }: 
       return [{ x: mapped[0]!.x - 86_400, profitLoss: 0 }, mapped[0]!];
     }
     return mapped;
-  }, [visibleData]);
+  }, [visibleData, cumulative]);
 
   const maxValue = useMemo(
     () => Math.max(...visibleData.map((item) => Math.abs(item.profitLoss)), 0),
@@ -82,7 +95,32 @@ export function PnLChart({ data, granularity = 'weekly', onGranularityChange }: 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Timeline P&amp;L</Text>
+        <View style={styles.headerTitleRow}>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>
+            {cumulative ? 'P&L Acumulado' : 'Timeline P&L'}
+          </Text>
+          <View style={styles.headerActions}>
+            {onInfoPress ? (
+              <Pressable hitSlop={8} onPress={onInfoPress}>
+                <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => setCumulative((v) => !v)}
+              style={[
+                styles.cumulativeBtn,
+                {
+                  backgroundColor: cumulative ? colors.primary : colors.surfaceRaised,
+                  borderColor: cumulative ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.cumulativeBtnText, { color: cumulative ? '#fff' : colors.textSecondary }]}>
+                Acumulado
+              </Text>
+            </Pressable>
+          </View>
+        </View>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Amplitude: {formatCurrency(maxValue)}</Text>
       </View>
 
@@ -160,6 +198,16 @@ const styles = StyleSheet.create({
   header: {
     gap: 4,
   },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
   title: {
     fontSize: 18,
     fontWeight: '900',
@@ -180,6 +228,16 @@ const styles = StyleSheet.create({
   },
   granularityLabel: {
     fontSize: 12,
+    fontWeight: '700',
+  },
+  cumulativeBtn: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  cumulativeBtnText: {
+    fontSize: 11,
     fontWeight: '700',
   },
   chartWrap: {

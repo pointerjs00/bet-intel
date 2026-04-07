@@ -242,3 +242,48 @@ export async function listSharedBoletinsHandler(req: Request, res: Response): Pr
     fail(res, err);
   }
 }
+
+/** Handles GET /api/boletins/export?format=csv. */
+export async function exportBoletinsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const boletins = await listUserBoletins(requireUserId(req));
+
+    const header = 'Data,Nome,Casa,Stake,Odds,Retorno Potencial,Status,Retorno Real,Cashout,Freebet,Notas,Seleções';
+    const rows = boletins.map((b) => {
+      const date = b.betDate ?? b.createdAt;
+      const selections = b.items
+        .map((i) => `${i.homeTeam} vs ${i.awayTeam} | ${i.market} | ${i.selection} @ ${i.oddValue} (${i.result})`)
+        .join('; ');
+
+      return [
+        date,
+        csvEscape(b.name ?? ''),
+        csvEscape(b.siteSlug ?? ''),
+        b.stake,
+        b.totalOdds,
+        b.potentialReturn,
+        b.status,
+        b.actualReturn ?? '',
+        b.cashoutAmount ?? '',
+        b.isFreebet ? 'Sim' : 'Não',
+        csvEscape(b.notes ?? ''),
+        csvEscape(selections),
+      ].join(',');
+    });
+
+    const csv = [header, ...rows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="betintel-export.csv"');
+    res.send(csv);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+function csvEscape(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}

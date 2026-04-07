@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Pie, PolarChart } from 'victory-native';
 import { useTheme } from '../../theme/useTheme';
 import { formatPercentage } from '../../utils/formatters';
 
 interface WinRateRingProps {
   winRate: number;
+  onInfoPress?: () => void;
 }
 
 interface RingDatum extends Record<string, string | number> {
@@ -15,7 +17,7 @@ interface RingDatum extends Record<string, string | number> {
 }
 
 /** Donut chart for the current win rate. */
-export function WinRateRing({ winRate }: WinRateRingProps) {
+export function WinRateRing({ winRate, onInfoPress }: WinRateRingProps) {
   const { colors } = useTheme();
 
   const data = useMemo<RingDatum[]>(() => {
@@ -28,7 +30,14 @@ export function WinRateRing({ winRate }: WinRateRingProps) {
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textPrimary }]}>Win Rate</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Win Rate</Text>
+        {onInfoPress ? (
+          <Pressable hitSlop={8} onPress={onInfoPress}>
+            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
+          </Pressable>
+        ) : null}
+      </View>
       <View style={styles.chartWrap}>
         <PolarChart<RingDatum, 'label', 'value', 'color'>
           colorKey="color"
@@ -54,6 +63,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 10,
     padding: 18,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 18,

@@ -34,6 +34,7 @@ import { useUnreadNotificationsCount } from '../../services/socialService';
 import { tokens } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
+import { hapticLight } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
@@ -299,6 +300,7 @@ export default function HomeScreen() {
         data={listData}
         keyExtractor={(item) => item.id}
         onRefresh={() => {
+          hapticLight();
           void boletinsQuery.refetch();
         }}
         ListHeaderComponent={
@@ -315,6 +317,12 @@ export default function HomeScreen() {
                     <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
                   </View>
                 ) : null}
+                <Pressable
+                  onPress={() => router.push('/boletins/journal')}
+                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
+                >
+                  <Ionicons color={colors.textSecondary} name="journal-outline" size={20} />
+                </Pressable>
                 <Pressable
                   onPress={() => router.push('/boletins/create')}
                   style={[styles.iconButton, { backgroundColor: colors.primary }]}

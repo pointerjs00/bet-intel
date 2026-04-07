@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { useTheme } from '../../theme/useTheme';
+import { hapticSelection } from '../../utils/haptics';
 
 interface ChipProps {
   label: string;
@@ -24,7 +25,10 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      onPress={onPress}
+      onPress={() => {
+        hapticSelection();
+        onPress?.();
+      }}
       style={({ pressed }) => [
         styles.base,
         {

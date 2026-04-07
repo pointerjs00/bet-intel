@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { StatsByOddsRangeRow } from '@betintel/shared';
 import { Bar, CartesianChart } from 'victory-native';
 import { useTheme } from '../../theme/useTheme';
@@ -7,6 +8,7 @@ import { formatPercentage } from '../../utils/formatters';
 
 interface OddsRangeBarProps {
   rows: StatsByOddsRangeRow[];
+  onInfoPress?: () => void;
 }
 
 interface OddsRangeDatum extends Record<string, number> {
@@ -16,7 +18,7 @@ interface OddsRangeDatum extends Record<string, number> {
 }
 
 /** Bar chart for ROI by odds range. */
-export function OddsRangeBar({ rows }: OddsRangeBarProps) {
+export function OddsRangeBar({ rows, onInfoPress }: OddsRangeBarProps) {
   const { colors } = useTheme();
 
   const chartData = useMemo<OddsRangeDatum[]>(() => {
@@ -33,7 +35,14 @@ export function OddsRangeBar({ rows }: OddsRangeBarProps) {
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textPrimary }]}>ROI por Range de Odds</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>ROI por Range de Odds</Text>
+        {onInfoPress ? (
+          <Pressable hitSlop={8} onPress={onInfoPress}>
+            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
+          </Pressable>
+        ) : null}
+      </View>
 
       <View style={styles.chartWrap}>
         <CartesianChart<OddsRangeDatum, 'index', 'positive' | 'negative'>
@@ -70,6 +79,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 18,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 18,

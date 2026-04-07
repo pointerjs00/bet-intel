@@ -1,13 +1,21 @@
 import { BoletinStatus, ItemResult, Prisma, Sport } from '@prisma/client';
 import type {
   PersonalStats,
+  SiteMonthlyROI,
   StatsByCompetitionRow,
+  StatsByLegCountRow,
   StatsByMarketRow,
   StatsByOddsRangeRow,
+  StatsBySiteRow,
+  StatsBySportMarketCell,
   StatsBySportRow,
+  StatsByStakeBracketRow,
   StatsByTeamRow,
+  StatsByWeekdayRow,
   StatsBreakdownRow,
+  StatsFreebetSummary,
   StatsPeriod,
+  StatsStreaks,
   StatsSummary,
   StatsTimelinePoint,
   StatsTopBoletin,
@@ -247,6 +255,11 @@ function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod, g
     byCompetition: finalizeRows(Array.from(byCompetitionMap.values())),
     byMarket: finalizeRows(Array.from(byMarketMap.values())),
     byOddsRange: finalizeRows(Array.from(byOddsRangeMap.values())),
+    byWeekday: buildByWeekday(boletins),
+    byLegCount: buildByLegCount(boletins),
+    byStakeBracket: buildByStakeBracket(boletins),
+    bySportMarket: buildBySportMarket(boletins),
+    bySite: buildBySite(boletins),
     timeline,
     bestBoletins: buildTopBoletins(settledBoletins, 'best'),
     worstBoletins: buildTopBoletins(settledBoletins, 'worst'),
@@ -268,6 +281,18 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
   let wonOddsCount = 0;
   let lostOddsSum = 0;
   let lostOddsCount = 0;
+  let wonStakeSum = 0;
+  let lostStakeSum = 0;
+
+  // Freebet tracking
+  let totalFreebets = 0;
+  let wonFreebets = 0;
+  let lostFreebets = 0;
+  let freebetReturned = 0;
+
+  // Odds efficiency: sum of actual returns vs implied returns (stake × odds)
+  let impliedReturnSum = 0;
+  let actualReturnSum = 0;
 
   for (const boletin of boletins) {
     const stake = decimalToNumber(boletin.stake);
@@ -278,6 +303,26 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
     totalStaked += effectiveStake;
     totalOdds += odds;
 
+    // Track freebets separately
+    if (boletin.isFreebet && isSettledStatus(boletin.status)) {
+      totalFreebets += 1;
+      const fbReturn = getEffectiveReturn(boletin);
+      freebetReturned += fbReturn;
+      if (boletin.status === BoletinStatus.WON || boletin.status === BoletinStatus.PARTIAL) {
+        wonFreebets += 1;
+      } else if (boletin.status === BoletinStatus.LOST) {
+        lostFreebets += 1;
+      }
+    }
+
+    const settled = isSettledStatus(boletin.status);
+
+    // Track odds efficiency for non-freebet settled boletins
+    if (settled && !boletin.isFreebet) {
+      impliedReturnSum += stake * odds; // what a "perfect" bettor would expect
+      actualReturnSum += getEffectiveReturn(boletin);
+    }
+
     switch (boletin.status) {
       case BoletinStatus.WON:
         settledBoletins += 1;
@@ -286,6 +331,7 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
         totalReturned += getEffectiveReturn(boletin);
         wonOddsSum += odds;
         wonOddsCount += 1;
+        wonStakeSum += effectiveStake;
         break;
       case BoletinStatus.LOST:
         settledBoletins += 1;
@@ -294,6 +340,7 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
         totalReturned += getEffectiveReturn(boletin);
         lostOddsSum += odds;
         lostOddsCount += 1;
+        lostStakeSum += effectiveStake;
         break;
       case BoletinStatus.VOID:
         settledBoletins += 1;
@@ -308,6 +355,12 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
         totalReturned += getEffectiveReturn(boletin);
         wonOddsSum += odds;
         wonOddsCount += 1;
+        wonStakeSum += effectiveStake;
+        break;
+      case BoletinStatus.CASHOUT:
+        settledBoletins += 1;
+        settledStake += effectiveStake;
+        totalReturned += getEffectiveReturn(boletin);
         break;
       case BoletinStatus.PENDING:
       default:
@@ -318,6 +371,18 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
 
   const profitLoss = totalReturned - settledStake;
   const decisiveBoletins = wonBoletins + lostBoletins + partialBoletins;
+
+  // Streak computation — sort settled boletins by betDate (or createdAt) chronologically
+  const streaks = buildStreaks(boletins);
+
+  // Freebet summary
+  const freebetSummary: StatsFreebetSummary = {
+    totalFreebets,
+    wonFreebets,
+    lostFreebets,
+    totalReturned: round(freebetReturned),
+    profitLoss: round(freebetReturned), // freebets cost nothing so profit = returned
+  };
 
   return {
     period,
@@ -339,7 +404,436 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
     averageLostOdds: lostOddsCount > 0 ? round(lostOddsSum / lostOddsCount, 2) : 0,
     averageStake: boletins.length > 0 ? round(totalStaked / boletins.length) : 0,
     averageReturn: settledBoletins > 0 ? round(totalReturned / settledBoletins) : 0,
+    averageWonStake: wonBoletins + partialBoletins > 0 ? round(wonStakeSum / (wonBoletins + partialBoletins)) : 0,
+    averageLostStake: lostBoletins > 0 ? round(lostStakeSum / lostBoletins) : 0,
+    oddsEfficiency: impliedReturnSum > 0 ? round((actualReturnSum / impliedReturnSum) * 100) : 0,
+    streaks,
+    freebetSummary,
   };
+}
+
+function buildStreaks(boletins: StatsBoletinRecord[]): StatsStreaks {
+  // Only consider decisive boletins (WON/LOST/PARTIAL) sorted by bet date
+  const decisive = boletins
+    .filter((b) =>
+      b.status === BoletinStatus.WON ||
+      b.status === BoletinStatus.LOST ||
+      b.status === BoletinStatus.PARTIAL,
+    )
+    .sort((a, b) => {
+      const dateA = a.betDate ?? a.createdAt;
+      const dateB = b.betDate ?? b.createdAt;
+      return dateA.getTime() - dateB.getTime();
+    });
+
+  let currentType: 'WON' | 'LOST' | null = null;
+  let currentCount = 0;
+  let longestWin = 0;
+  let longestLoss = 0;
+  let runType: 'WON' | 'LOST' | null = null;
+  let runCount = 0;
+
+  for (const boletin of decisive) {
+    const isWin = boletin.status === BoletinStatus.WON || boletin.status === BoletinStatus.PARTIAL;
+    const type: 'WON' | 'LOST' = isWin ? 'WON' : 'LOST';
+
+    if (type === runType) {
+      runCount += 1;
+    } else {
+      // Flush previous run
+      if (runType === 'WON' && runCount > longestWin) longestWin = runCount;
+      if (runType === 'LOST' && runCount > longestLoss) longestLoss = runCount;
+      runType = type;
+      runCount = 1;
+    }
+  }
+
+  // Flush final run
+  if (runType === 'WON' && runCount > longestWin) longestWin = runCount;
+  if (runType === 'LOST' && runCount > longestLoss) longestLoss = runCount;
+
+  currentType = runType;
+  currentCount = runCount;
+
+  return { currentType, currentCount, longestWin, longestLoss };
+}
+
+const WEEKDAY_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+function buildByWeekday(boletins: StatsBoletinRecord[]): StatsByWeekdayRow[] {
+  const map = new Map<number, StatsByWeekdayRow>();
+
+  // Pre-initialise all 7 days
+  for (let d = 0; d < 7; d++) {
+    map.set(d, {
+      weekday: d,
+      key: String(d),
+      label: WEEKDAY_LABELS[d]!,
+      totalBets: 0,
+      won: 0,
+      lost: 0,
+      void: 0,
+      pending: 0,
+      settledStake: 0,
+      totalStaked: 0,
+      totalReturned: 0,
+      profitLoss: 0,
+      roi: 0,
+      winRate: 0,
+    });
+  }
+
+  for (const boletin of boletins) {
+    const date = boletin.betDate ?? boletin.createdAt;
+    const weekday = date.getUTCDay();
+    const row = map.get(weekday)!;
+    const stake = boletin.isFreebet ? 0 : decimalToNumber(boletin.stake);
+    const settled = isSettledStatus(boletin.status);
+    const effectiveReturn = settled ? getEffectiveReturn(boletin) : 0;
+
+    row.totalBets += 1;
+    row.totalStaked += stake;
+
+    if (settled) {
+      row.settledStake += stake;
+      row.totalReturned += effectiveReturn;
+    }
+
+    switch (boletin.status) {
+      case BoletinStatus.WON:
+      case BoletinStatus.PARTIAL:
+        row.won += 1;
+        break;
+      case BoletinStatus.LOST:
+        row.lost += 1;
+        break;
+      case BoletinStatus.VOID:
+        row.void += 1;
+        break;
+      case BoletinStatus.CASHOUT:
+        // Cashout counts as settled but doesn't affect won/lost
+        break;
+      case BoletinStatus.PENDING:
+      default:
+        row.pending += 1;
+        break;
+    }
+  }
+
+  // Reorder to start on Monday: 1,2,3,4,5,6,0
+  const mondayFirst = [1, 2, 3, 4, 5, 6, 0];
+  const rows = mondayFirst.map((d) => map.get(d)!);
+  return computeRowMetrics(rows);
+}
+
+function buildByLegCount(boletins: StatsBoletinRecord[]): StatsByLegCountRow[] {
+  const map = new Map<number, StatsByLegCountRow>();
+
+  for (const boletin of boletins) {
+    const legCount = boletin.items.length;
+    if (legCount === 0) continue;
+
+    let row = map.get(legCount);
+    if (!row) {
+      row = {
+        legCount,
+        key: String(legCount),
+        label: legCount === 1 ? 'Simples' : `${legCount} seleções`,
+        totalBets: 0,
+        won: 0,
+        lost: 0,
+        void: 0,
+        pending: 0,
+        settledStake: 0,
+        totalStaked: 0,
+        totalReturned: 0,
+        profitLoss: 0,
+        roi: 0,
+        winRate: 0,
+      };
+      map.set(legCount, row);
+    }
+
+    const stake = boletin.isFreebet ? 0 : decimalToNumber(boletin.stake);
+    const settled = isSettledStatus(boletin.status);
+    const effectiveReturn = settled ? getEffectiveReturn(boletin) : 0;
+
+    row.totalBets += 1;
+    row.totalStaked += stake;
+
+    if (settled) {
+      row.settledStake += stake;
+      row.totalReturned += effectiveReturn;
+    }
+
+    switch (boletin.status) {
+      case BoletinStatus.WON:
+      case BoletinStatus.PARTIAL:
+        row.won += 1;
+        break;
+      case BoletinStatus.LOST:
+        row.lost += 1;
+        break;
+      case BoletinStatus.VOID:
+        row.void += 1;
+        break;
+      case BoletinStatus.CASHOUT:
+        break;
+      case BoletinStatus.PENDING:
+      default:
+        row.pending += 1;
+        break;
+    }
+  }
+
+  // Sort by leg count ascending
+  const rows = Array.from(map.values()).sort((a, b) => a.legCount - b.legCount);
+  return computeRowMetrics(rows);
+}
+
+interface StakeBracketDef {
+  key: string;
+  label: string;
+  minStake: number;
+  maxStake: number | null;
+}
+
+const STAKE_BRACKET_DEFS: StakeBracketDef[] = [
+  { key: '0-5', label: '€0–5', minStake: 0, maxStake: 5 },
+  { key: '5-10', label: '€5–10', minStake: 5, maxStake: 10 },
+  { key: '10-25', label: '€10–25', minStake: 10, maxStake: 25 },
+  { key: '25-50', label: '€25–50', minStake: 25, maxStake: 50 },
+  { key: '50+', label: '€50+', minStake: 50, maxStake: null },
+];
+
+function buildByStakeBracket(boletins: StatsBoletinRecord[]): StatsByStakeBracketRow[] {
+  const map = new Map<string, StatsByStakeBracketRow>(
+    STAKE_BRACKET_DEFS.map((def) => [
+      def.key,
+      {
+        key: def.key,
+        label: def.label,
+        minStake: def.minStake,
+        maxStake: def.maxStake,
+        totalBets: 0,
+        won: 0,
+        lost: 0,
+        void: 0,
+        pending: 0,
+        settledStake: 0,
+        totalStaked: 0,
+        totalReturned: 0,
+        profitLoss: 0,
+        roi: 0,
+        winRate: 0,
+      },
+    ]),
+  );
+
+  for (const boletin of boletins) {
+    const stake = decimalToNumber(boletin.stake);
+    const bracket = STAKE_BRACKET_DEFS.find(
+      (def) => stake >= def.minStake && (def.maxStake === null || stake < def.maxStake),
+    ) ?? STAKE_BRACKET_DEFS[STAKE_BRACKET_DEFS.length - 1];
+    const row = map.get(bracket.key)!;
+    const effectiveStake = boletin.isFreebet ? 0 : stake;
+    const settled = isSettledStatus(boletin.status);
+    const effectiveReturn = settled ? getEffectiveReturn(boletin) : 0;
+
+    row.totalBets += 1;
+    row.totalStaked += effectiveStake;
+
+    if (settled) {
+      row.settledStake += effectiveStake;
+      row.totalReturned += effectiveReturn;
+    }
+
+    switch (boletin.status) {
+      case BoletinStatus.WON:
+      case BoletinStatus.PARTIAL:
+        row.won += 1;
+        break;
+      case BoletinStatus.LOST:
+        row.lost += 1;
+        break;
+      case BoletinStatus.VOID:
+        row.void += 1;
+        break;
+      case BoletinStatus.CASHOUT:
+        break;
+      case BoletinStatus.PENDING:
+      default:
+        row.pending += 1;
+        break;
+    }
+  }
+
+  // Preserve bracket order
+  const rows = STAKE_BRACKET_DEFS.map((def) => map.get(def.key)!);
+  return computeRowMetrics(rows);
+}
+
+function buildBySportMarket(boletins: StatsBoletinRecord[]): StatsBySportMarketCell[] {
+  const map = new Map<string, { sport: string; market: string; totalBets: number; won: number; lost: number; staked: number; returned: number }>();
+
+  for (const boletin of boletins) {
+    const stake = boletin.isFreebet ? 0 : decimalToNumber(boletin.stake);
+    const settled = isSettledStatus(boletin.status);
+    const effectiveReturn = settled ? getEffectiveReturn(boletin) : 0;
+    const itemCount = Math.max(boletin.items.length, 1);
+    const stakeShare = stake / itemCount;
+    const returnShare = effectiveReturn / itemCount;
+
+    for (const item of boletin.items) {
+      const key = `${item.sport}::${item.market}`;
+      let cell = map.get(key);
+      if (!cell) {
+        cell = { sport: item.sport, market: item.market, totalBets: 0, won: 0, lost: 0, staked: 0, returned: 0 };
+        map.set(key, cell);
+      }
+      cell.totalBets += 1;
+      cell.staked += stakeShare;
+      cell.returned += returnShare;
+
+      if (item.result === ItemResult.WON) cell.won += 1;
+      else if (item.result === ItemResult.LOST) cell.lost += 1;
+    }
+  }
+
+  return Array.from(map.values()).map((cell) => {
+    const profitLoss = cell.returned - cell.staked;
+    const decisive = cell.won + cell.lost;
+    return {
+      sport: cell.sport,
+      market: cell.market,
+      totalBets: cell.totalBets,
+      won: cell.won,
+      lost: cell.lost,
+      roi: cell.staked > 0 ? round((profitLoss / cell.staked) * 100) : 0,
+      winRate: decisive > 0 ? round((cell.won / decisive) * 100) : 0,
+    };
+  });
+}
+
+function getMonthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+function buildBySite(boletins: StatsBoletinRecord[]): StatsBySiteRow[] {
+  const map = new Map<string, {
+    siteSlug: string;
+    totalBets: number;
+    won: number;
+    lost: number;
+    void: number;
+    pending: number;
+    settledStake: number;
+    totalStaked: number;
+    totalReturned: number;
+    oddsSum: number;
+    oddsCount: number;
+    monthly: Map<string, { staked: number; returned: number }>;
+  }>();
+
+  for (const boletin of boletins) {
+    const slug = boletin.siteSlug ?? 'unknown';
+    let row = map.get(slug);
+    if (!row) {
+      row = {
+        siteSlug: slug,
+        totalBets: 0,
+        won: 0,
+        lost: 0,
+        void: 0,
+        pending: 0,
+        settledStake: 0,
+        totalStaked: 0,
+        totalReturned: 0,
+        oddsSum: 0,
+        oddsCount: 0,
+        monthly: new Map(),
+      };
+      map.set(slug, row);
+    }
+
+    const stake = boletin.isFreebet ? 0 : decimalToNumber(boletin.stake);
+    const odds = decimalToNumber(boletin.totalOdds);
+    const settled = isSettledStatus(boletin.status);
+    const effectiveReturn = settled ? getEffectiveReturn(boletin) : 0;
+
+    row.totalBets += 1;
+    row.totalStaked += stake;
+    row.oddsSum += odds;
+    row.oddsCount += 1;
+
+    if (settled) {
+      row.settledStake += stake;
+      row.totalReturned += effectiveReturn;
+
+      // Monthly bucket
+      const monthKey = getMonthKey(boletin.betDate ?? boletin.createdAt);
+      let monthly = row.monthly.get(monthKey);
+      if (!monthly) {
+        monthly = { staked: 0, returned: 0 };
+        row.monthly.set(monthKey, monthly);
+      }
+      monthly.staked += stake;
+      monthly.returned += effectiveReturn;
+    }
+
+    switch (boletin.status) {
+      case BoletinStatus.WON:
+      case BoletinStatus.PARTIAL:
+        row.won += 1;
+        break;
+      case BoletinStatus.LOST:
+        row.lost += 1;
+        break;
+      case BoletinStatus.VOID:
+        row.void += 1;
+        break;
+      case BoletinStatus.CASHOUT:
+        break;
+      case BoletinStatus.PENDING:
+      default:
+        row.pending += 1;
+        break;
+    }
+  }
+
+  return Array.from(map.values())
+    .map((row): StatsBySiteRow => {
+      const profitLoss = row.totalReturned - row.settledStake;
+      const decisive = row.won + row.lost;
+
+      // Build monthly ROI series sorted chronologically
+      const monthlySeries: SiteMonthlyROI[] = Array.from(row.monthly.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, data]): SiteMonthlyROI => ({
+          month,
+          roi: data.staked > 0 ? round((data.returned - data.staked) / data.staked * 100) : 0,
+        }));
+
+      return {
+        key: row.siteSlug,
+        label: row.siteSlug,
+        siteSlug: row.siteSlug,
+        averageOdds: row.oddsCount > 0 ? round(row.oddsSum / row.oddsCount, 2) : 0,
+        totalBets: row.totalBets,
+        won: row.won,
+        lost: row.lost,
+        void: row.void,
+        pending: row.pending,
+        settledStake: round(row.settledStake),
+        totalStaked: round(row.totalStaked),
+        totalReturned: round(row.totalReturned),
+        profitLoss: round(profitLoss),
+        roi: row.settledStake > 0 ? round((profitLoss / row.settledStake) * 100) : 0,
+        winRate: decisive > 0 ? round((row.won / decisive) * 100) : 0,
+        monthlySeries,
+      };
+    })
+    .sort((a, b) => b.totalStaked - a.totalStaked);
 }
 
 function periodToDefaultGranularity(period: StatsPeriod): 'daily' | 'weekly' | 'monthly' {
@@ -557,22 +1051,24 @@ function applyBreakdownContribution(
 }
 
 function finalizeRows<T extends BreakdownAccumulator>(rows: T[]): T[] {
-  return rows
-    .map((row) => {
-      const profitLoss = row.totalReturned - row.settledStake;
-      const decisive = row.won + row.lost;
+  return computeRowMetrics(rows).sort((left, right) => right.totalStaked - left.totalStaked);
+}
 
-      return {
-        ...row,
-        settledStake: round(row.settledStake),
-        totalStaked: round(row.totalStaked),
-        totalReturned: round(row.totalReturned),
-        profitLoss: round(profitLoss),
-        roi: row.settledStake > 0 ? round((profitLoss / row.settledStake) * 100) : 0,
-        winRate: decisive > 0 ? round((row.won / decisive) * 100) : 0,
-      };
-    })
-    .sort((left, right) => right.totalStaked - left.totalStaked);
+function computeRowMetrics<T extends BreakdownAccumulator>(rows: T[]): T[] {
+  return rows.map((row) => {
+    const profitLoss = row.totalReturned - row.settledStake;
+    const decisive = row.won + row.lost;
+
+    return {
+      ...row,
+      settledStake: round(row.settledStake),
+      totalStaked: round(row.totalStaked),
+      totalReturned: round(row.totalReturned),
+      profitLoss: round(profitLoss),
+      roi: row.settledStake > 0 ? round((profitLoss / row.settledStake) * 100) : 0,
+      winRate: decisive > 0 ? round((row.won / decisive) * 100) : 0,
+    };
+  });
 }
 
 function getEffectiveReturn(boletin: StatsBoletinRecord): number {
@@ -589,6 +1085,8 @@ function getEffectiveReturn(boletin: StatsBoletinRecord): number {
       return decimalToNumber(boletin.stake);
     case BoletinStatus.PARTIAL:
       return decimalToNumber(boletin.stake);
+    case BoletinStatus.CASHOUT:
+      return decimalToNumber(boletin.cashoutAmount) || decimalToNumber(boletin.stake);
     case BoletinStatus.PENDING:
     default:
       return 0;

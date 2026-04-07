@@ -6,6 +6,7 @@ import {
   createBoletinHandler,
   deleteBoletinHandler,
   deleteBoletinItemHandler,
+  exportBoletinsHandler,
   getBoletinHandler,
   listBoletinsHandler,
   listSharedBoletinsHandler,
@@ -21,6 +22,7 @@ boletinCollectionRouter.use(authenticate, defaultLimiter);
 betintelRouter.use(authenticate, defaultLimiter);
 
 boletinCollectionRouter.get('/', listBoletinsHandler);
+boletinCollectionRouter.get('/export', exportBoletinsHandler);
 boletinCollectionRouter.post('/', createBoletinHandler);
 
 betintelRouter.get('/shared', listSharedBoletinsHandler);

@@ -9,6 +9,59 @@ import type {
   ShareBoletinInput,
   UpdateBoletinInput,
 } from '@betintel/shared';
+import { Alert, Platform } from 'react-native';
+import { requireOptionalNativeModule } from 'expo-modules-core';
+import * as FileSystem from 'expo-file-system';
+import * as XLSX from 'xlsx';
+
+/**
+ * Saves `content` to a user-accessible location and, if expo-sharing is
+ * available, opens the OS share sheet.
+ *
+ * Android: opens SAF directory picker (user picks Downloads or any folder).
+ * iOS:     writes to the app's Documents directory (visible in Files app)
+ *          then optionally shares.
+ */
+async function saveAndShare(
+  filename: string,
+  content: string,
+  encoding: FileSystem.EncodingType,
+  shareOptions: { mimeType: string; dialogTitle: string; UTI: string },
+): Promise<void> {
+  if (Platform.OS === 'android') {
+    const SAF = FileSystem.StorageAccessFramework;
+    const perm = await SAF.requestDirectoryPermissionsAsync();
+    if (!perm.granted) return; // user cancelled
+
+    const fileUri = await SAF.createFileAsync(
+      perm.directoryUri,
+      filename.replace(/\.[^.]+$/, ''), // name without extension
+      shareOptions.mimeType,
+    );
+    await SAF.writeAsStringAsync(fileUri, content, { encoding });
+    Alert.alert(shareOptions.dialogTitle, `Guardado com sucesso na pasta escolhida.`);
+    return;
+  }
+
+  // iOS — write to Documents (accessible via Files app)
+  const path = `${FileSystem.documentDirectory}${filename}`;
+  await FileSystem.writeAsStringAsync(path, content, { encoding });
+
+  const native = requireOptionalNativeModule('ExpoSharing');
+  if (native) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Sharing = require('expo-sharing') as typeof import('expo-sharing');
+    await Sharing.shareAsync(path, shareOptions);
+  } else {
+    Alert.alert(
+      shareOptions.dialogTitle,
+      `Guardado em:
+${path}
+
+Abre a app Ficheiros para aceder.`,
+    );
+  }
+}
 import { apiClient } from './apiClient';
 
 interface ApiEnvelope<T> {
@@ -79,6 +132,102 @@ export async function deleteBoletinItemRequest(boletinId: string, itemId: string
 export async function listBoletinsRequest(): Promise<BoletinDetail[]> {
   const response = await apiClient.get<ApiEnvelope<BoletinDetail[]>>('/boletins');
   return response.data.data;
+}
+
+// ─── Client-side export helpers ─────────────────────────────────────────────
+
+function formatExportDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function boletinsToRows(boletins: BoletinDetail[]): Record<string, unknown>[] {
+  return boletins.map((b) => ({
+    Data: formatExportDate(b.betDate ?? b.createdAt),
+    Nome: b.name ?? '',
+    Casa: b.siteSlug ?? '',
+    'Stake (€)': parseFloat(b.stake),
+    'Odds totais': parseFloat(b.totalOdds),
+    'Retorno potencial (€)': parseFloat(b.potentialReturn),
+    'Retorno real (€)': b.actualReturn != null ? parseFloat(b.actualReturn) : '',
+    Estado: b.status,
+    Freebet: b.isFreebet ? 'Sim' : 'Não',
+    'Nº seleções': b.items.length,
+    Notas: b.notes ?? '',
+  }));
+}
+
+function selectionsToRows(boletins: BoletinDetail[]): Record<string, unknown>[] {
+  const rows: Record<string, unknown>[] = [];
+  for (const b of boletins) {
+    const date = formatExportDate(b.betDate ?? b.createdAt);
+    for (const item of b.items) {
+      rows.push({
+        Data: date,
+        'ID Boletin': b.id,
+        Nome: b.name ?? '',
+        Desporto: item.sport,
+        Competição: item.competition,
+        Casa: item.homeTeam,
+        Fora: item.awayTeam,
+        Mercado: item.market,
+        Seleção: item.selection,
+        Odd: parseFloat(item.oddValue),
+        Resultado: item.result,
+      });
+    }
+  }
+  return rows;
+}
+
+/** Builds a CSV string from boletins and saves it to a user-accessible location. */
+export async function exportBoletinsToCsv(boletins: BoletinDetail[]): Promise<void> {
+  const rows = boletinsToRows(boletins);
+  if (rows.length === 0) throw new Error('Sem dados para exportar.');
+
+  const headers = Object.keys(rows[0]);
+  const escape = (v: unknown): string => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+  const csv = [
+    headers.join(','),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(',')),
+  ].join('\n');
+
+  await saveAndShare('betintel-export.csv', csv, FileSystem.EncodingType.UTF8, {
+    mimeType: 'text/csv',
+    dialogTitle: 'Exportar CSV',
+    UTI: 'public.comma-separated-values-text',
+  });
+}
+
+/** Builds a two-sheet XLSX from boletins and saves it to a user-accessible location. */
+export async function exportBoletinsToXlsx(boletins: BoletinDetail[]): Promise<void> {
+  const boletinRows = boletinsToRows(boletins);
+  const selectionRows = selectionsToRows(boletins);
+  if (boletinRows.length === 0) throw new Error('Sem dados para exportar.');
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(boletinRows), 'Boletins');
+  if (selectionRows.length > 0) {
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(selectionRows), 'Seleções');
+  }
+
+  const base64: string = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
+  await saveAndShare(
+    'betintel-export.xlsx',
+    base64,
+    FileSystem.EncodingType.Base64,
+    {
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      dialogTitle: 'Exportar Excel',
+      UTI: 'com.microsoft.excel.xlsx',
+    },
+  );
 }
 
 /** Returns the authenticated user's own boletins. */

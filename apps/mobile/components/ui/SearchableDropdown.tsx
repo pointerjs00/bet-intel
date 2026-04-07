@@ -138,7 +138,6 @@ export function SearchableDropdown({
           <View style={[styles.searchWrap, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <MaterialCommunityIcons color={colors.textMuted} name="magnify" size={18} />
             <TextInput
-              autoFocus
               placeholder="Pesquisar..."
               placeholderTextColor={colors.textMuted}
               value={search}

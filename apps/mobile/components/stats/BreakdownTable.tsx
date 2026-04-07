@@ -11,6 +11,7 @@ interface BreakdownTableProps<TRow extends StatsBreakdownRow> {
   maxRows?: number;
   renderLabel?: (row: TRow) => React.ReactNode;
   onRowPress?: (row: TRow) => void;
+  onInfoPress?: () => void;
   /** When true, label text uses numberOfLines={2} so full market names are visible. */
   expandLabels?: boolean;
 }
@@ -22,6 +23,7 @@ export function BreakdownTable<TRow extends StatsBreakdownRow>({
   maxRows = 6,
   renderLabel,
   onRowPress,
+  onInfoPress,
   expandLabels,
 }: BreakdownTableProps<TRow>) {
   const { colors } = useTheme();
@@ -31,7 +33,14 @@ export function BreakdownTable<TRow extends StatsBreakdownRow>({
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+        {onInfoPress ? (
+          <Pressable hitSlop={8} onPress={onInfoPress}>
+            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
+          </Pressable>
+        ) : null}
+      </View>
 
       <View style={[styles.headerRow, { borderColor: colors.border }]}> 
         <Text style={[styles.headerCellLabel, { color: colors.textSecondary }]}>Grupo</Text>
@@ -121,6 +130,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
     padding: 18,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 18,

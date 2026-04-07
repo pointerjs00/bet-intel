@@ -392,6 +392,21 @@ export interface FriendActivityPayload {
 
 export type StatsPeriod = 'week' | 'month' | 'year' | 'all';
 
+export interface StatsStreaks {
+  currentType: 'WON' | 'LOST' | null;
+  currentCount: number;
+  longestWin: number;
+  longestLoss: number;
+}
+
+export interface StatsFreebetSummary {
+  totalFreebets: number;
+  wonFreebets: number;
+  lostFreebets: number;
+  totalReturned: number;
+  profitLoss: number;
+}
+
 export interface StatsSummary {
   period: StatsPeriod;
   totalBoletins: number;
@@ -412,6 +427,12 @@ export interface StatsSummary {
   averageLostOdds: number;
   averageStake: number;
   averageReturn: number;
+  averageWonStake: number;
+  averageLostStake: number;
+  /** Odds efficiency: (actual_return / implied_return) * 100. >100 = outperforming. */
+  oddsEfficiency: number;
+  streaks: StatsStreaks;
+  freebetSummary: StatsFreebetSummary;
 }
 
 export interface StatsBreakdownRow {
@@ -449,6 +470,41 @@ export interface StatsByMarketRow extends StatsBreakdownRow {
 export interface StatsByOddsRangeRow extends StatsBreakdownRow {
   minOdds: number | null;
   maxOdds: number | null;
+}
+
+export interface StatsByWeekdayRow extends StatsBreakdownRow {
+  /** 0 = Sunday, 1 = Monday, …, 6 = Saturday */
+  weekday: number;
+}
+
+export interface StatsByLegCountRow extends StatsBreakdownRow {
+  legCount: number;
+}
+
+export interface StatsByStakeBracketRow extends StatsBreakdownRow {
+  minStake: number;
+  maxStake: number | null;
+}
+
+export interface StatsBySportMarketCell {
+  sport: string;
+  market: string;
+  totalBets: number;
+  won: number;
+  lost: number;
+  roi: number;
+  winRate: number;
+}
+
+export interface SiteMonthlyROI {
+  month: string;
+  roi: number;
+}
+
+export interface StatsBySiteRow extends StatsBreakdownRow {
+  siteSlug: string;
+  averageOdds: number;
+  monthlySeries: SiteMonthlyROI[];
 }
 
 export interface StatsTimelinePoint {
@@ -490,6 +546,11 @@ export interface PersonalStats {
   byCompetition: StatsByCompetitionRow[];
   byMarket: StatsByMarketRow[];
   byOddsRange: StatsByOddsRangeRow[];
+  byWeekday: StatsByWeekdayRow[];
+  byLegCount: StatsByLegCountRow[];
+  byStakeBracket: StatsByStakeBracketRow[];
+  bySportMarket: StatsBySportMarketCell[];
+  bySite: StatsBySiteRow[];
   timeline: StatsTimelinePoint[];
   bestBoletins: StatsTopBoletin[];
   worstBoletins: StatsTopBoletin[];

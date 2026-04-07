@@ -23,9 +23,11 @@ import {
   compareTennisCountries,
   getTennisTournamentCountry,
   getTennisTournamentPoints,
+  BoletinStatus,
   ItemResult,
   Sport,
 } from '@betintel/shared';
+import type { BoletinDetail } from '@betintel/shared';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { DatePickerField } from '../../components/ui/DatePickerField';
@@ -36,17 +38,20 @@ import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useToast } from '../../components/ui/Toast';
 import { BoletinItem as BoletinSelectionRow } from '../../components/boletins/BoletinItem';
 import { OddsCalculator } from '../../components/boletins/OddsCalculator';
+import { ProjectionCard } from '../../components/boletins/ProjectionCard';
 import { StakeInput } from '../../components/boletins/StakeInput';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import type { DropdownSection } from '../../components/ui/SearchableDropdown';
 import { CompetitionPickerModal } from '../../components/ui/CompetitionPickerModal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
-import { boletinQueryKeys } from '../../services/boletinService';
+import { boletinQueryKeys, useBoletins } from '../../services/boletinService';
+import { usePersonalStats } from '../../services/statsService';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER } from '../../utils/sportAssets';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { useBoletinBuilderStore, type BoletinBuilderItem } from '../../stores/boletinBuilderStore';
 import { useTheme } from '../../theme/useTheme';
+import { hapticLight, hapticSuccess } from '../../utils/haptics';
 
 // ─── Sport options ───────────────────────────────────────────────────────────
 const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
@@ -65,9 +70,10 @@ const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
 // ─── Add Selection Form ──────────────────────────────────────────────────────
 interface AddSelectionFormProps {
   onAdd: (item: BoletinBuilderItem) => void;
+  pendingBoletins: BoletinDetail[];
 }
 
-function AddSelectionForm({ onAdd }: AddSelectionFormProps) {
+function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
 
@@ -242,6 +248,23 @@ function AddSelectionForm({ onAdd }: AddSelectionFormProps) {
 
     const humanized = humanizeMarket(market, homeTeam, awayTeam);
     const id = `${homeTeam}:${awayTeam}:${competition}:${humanized}:${selection}`;
+
+    // Duplicate detection — check against items in all PENDING boletins
+    const normH = homeTeam.trim().toLowerCase();
+    const normA = awayTeam.trim().toLowerCase();
+    const normM = humanized.toLowerCase();
+    const duplicate = pendingBoletins.some((b) =>
+      b.items.some(
+        (i) =>
+          i.homeTeam.toLowerCase() === normH &&
+          i.awayTeam.toLowerCase() === normA &&
+          i.market.toLowerCase() === normM,
+      ),
+    );
+    if (duplicate) {
+      showToast('Atenção: já tens uma aposta pendente com esta seleção.', 'info');
+    }
+
     onAdd({
       id,
       homeTeam: homeTeam.trim(),
@@ -265,6 +288,7 @@ function AddSelectionForm({ onAdd }: AddSelectionFormProps) {
     setSelection('');
     setOddValue('');
     Keyboard.dismiss();
+    hapticLight();
     showToast('Seleção adicionada.', 'success');
   }, [homeTeam, homeTeamItem?.imageUrl, awayTeam, awayTeamItem?.imageUrl, competition, sport, market, selection, oddValue, onAdd, showToast]);
 
@@ -518,6 +542,16 @@ export default function CreateBoletinScreen() {
   const [showSites, setShowSites] = useState(false);
   const selectedSiteName = BETTING_SITES.find((s) => s.slug === siteSlug)?.name;
 
+  // Pending boletins used for duplicate bet detection
+  const boletinsQuery = useBoletins();
+  const pendingBoletins = useMemo(
+    () => (boletinsQuery.data ?? []).filter((b) => b.status === BoletinStatus.PENDING),
+    [boletinsQuery.data],
+  );
+
+  // Cached stats for projections
+  const statsQuery = usePersonalStats('all');
+
   // Confirmation modals
   const [pendingReset, setPendingReset] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
@@ -556,12 +590,18 @@ export default function CreateBoletinScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
-              <AddSelectionForm onAdd={addItem} />
+              <AddSelectionForm onAdd={addItem} pendingBoletins={pendingBoletins} />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
               <OddsCalculator potentialReturn={potentialReturn} stake={stake} totalOdds={totalOdds} />
             </Animated.View>
+
+            {items.length > 0 && statsQuery.data ? (
+              <Animated.View entering={FadeInDown.delay(175).duration(400).springify()}>
+                <ProjectionCard items={items} stats={statsQuery.data} />
+              </Animated.View>
+            ) : null}
 
             <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
               <StakeInput onChange={setStake} value={stake} />
@@ -665,6 +705,7 @@ export default function CreateBoletinScreen() {
               const created = await save();
               await queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
               await queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
+              hapticSuccess();
               showToast('Boletim criado com sucesso.', 'success');
               router.replace(`/boletins/${created.id}`);
             } catch (error) {

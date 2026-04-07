@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { StatsSummary } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatPercentage } from '../../utils/formatters';
@@ -7,16 +8,24 @@ import { formatCurrency, formatPercentage } from '../../utils/formatters';
 interface ROICardProps {
   summary: StatsSummary;
   title?: string;
+  onInfoPress?: () => void;
 }
 
 /** Hero card for ROI, stake, and profit/loss. */
-export function ROICard({ summary, title = 'ROI' }: ROICardProps) {
+export function ROICard({ summary, title = 'ROI', onInfoPress }: ROICardProps) {
   const { colors } = useTheme();
   const roiPositive = summary.roi >= 0;
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
+        {onInfoPress ? (
+          <Pressable hitSlop={8} onPress={onInfoPress}>
+            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
+          </Pressable>
+        ) : null}
+      </View>
       <Text style={[styles.roiValue, { color: roiPositive ? colors.primary : colors.danger }]}>
         {formatPercentage(summary.roi)}
       </Text>
@@ -43,6 +52,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 14,
     padding: 18,
+  },
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 13,

@@ -449,7 +449,6 @@ export function CompetitionPickerModal({
           >
             <MaterialCommunityIcons color={colors.textMuted} name="magnify" size={18} />
             <TextInput
-              autoFocus
               placeholder="Pesquisar competição..."
               placeholderTextColor={colors.textMuted}
               value={search}

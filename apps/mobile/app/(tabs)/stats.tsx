@@ -1,21 +1,28 @@
-import React, { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type { StatsPeriod } from '@betintel/shared';
 import { BreakdownTable } from '../../components/stats/BreakdownTable';
+import { FreebetCard } from '../../components/stats/FreebetCard';
+import { HeatmapCalendar } from '../../components/stats/HeatmapCalendar';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
 import { PnLChart, type TimelineGranularity } from '../../components/stats/PnLChart';
 import { ROICard } from '../../components/stats/ROICard';
+import { SiteROITable } from '../../components/stats/SiteROITable';
+import { SportMarketMatrix } from '../../components/stats/SportMarketMatrix';
+import { StreakCard } from '../../components/stats/StreakCard';
 import { WinRateRing } from '../../components/stats/WinRateRing';
 import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
 import { DatePickerField } from '../../components/ui/DatePickerField';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { usePersonalStats } from '../../services/statsService';
-import { useBoletins } from '../../services/boletinService';
+import { useBoletins, exportBoletinsToCsv, exportBoletinsToXlsx } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
@@ -80,6 +87,46 @@ export default function StatsScreen() {
       ? (BETTING_SITES.find((s) => s.slug === siteSlugs[0])?.name ?? siteSlugs[0])
       : `${siteSlugs.length} casas`;
 
+  const handleExport = useCallback(() => {
+    const data = boletinsQuery.data ?? [];
+    Alert.alert(
+      'Exportar dados',
+      'Escolhe o formato de exportação:',
+      [
+        {
+          text: 'CSV',
+          onPress: async () => {
+            try {
+              await exportBoletinsToCsv(data);
+            } catch {
+              Alert.alert('Erro', 'Não foi possível exportar os dados.');
+            }
+          },
+        },
+        {
+          text: 'Excel (XLSX)',
+          onPress: async () => {
+            try {
+              await exportBoletinsToXlsx(data);
+            } catch {
+              Alert.alert('Erro', 'Não foi possível exportar os dados.');
+            }
+          },
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
+  }, [boletinsQuery.data]);
+
+  const pushInfo = useCallback(
+    (metric: string, value?: number) =>
+      router.push({
+        pathname: '/metric-info',
+        params: { metric, ...(value !== undefined ? { value: String(value) } : {}) },
+      }),
+    [router],
+  );
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Estatísticas' }} />
@@ -93,8 +140,13 @@ export default function StatsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.headerWrap}>
-          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Dashboard</Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Lê o teu histórico e encontra onde tens vantagem.</Text>
+          <View style={styles.headerTopRow}>
+            <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Dashboard</Text>
+            <TouchableOpacity onPress={handleExport} style={styles.exportBtn} hitSlop={8}>
+              <Ionicons color={colors.textSecondary} name="download-outline" size={20} />
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.title, { color: colors.textPrimary }]}>Encontra onde tens vantagem no teu histórico</Text>
         </Animated.View>
 
         {/* Period grid (2×2) + secondary controls row */}
@@ -203,10 +255,17 @@ export default function StatsScreen() {
             <Card style={{ gap: 12 }}><Skeleton height={24} width="60%" /><Skeleton height={80} width="100%" /></Card>
             <Card style={{ gap: 12 }}><Skeleton height={18} width={140} /><Skeleton height={160} width="100%" /></Card>
           </View>
+        ) : stats.summary.totalBoletins === 0 ? (
+          <EmptyState
+            icon="chart-line"
+            title="Sem estatísticas"
+            message="Cria o teu primeiro boletim para começares a ver a evolução das tuas apostas aqui."
+            action={<Button onPress={() => router.push('/boletins/create')} title="Criar boletim" />}
+          />
         ) : (
           <View style={styles.contentStack}>
             <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
-              <ROICard summary={stats.summary} title="ROI do período" />
+              <ROICard summary={stats.summary} title="ROI do período" onInfoPress={() => pushInfo('roi', stats.summary.roi)} />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(250).duration(400).springify()} style={styles.heroMetricsRow}>
@@ -234,7 +293,34 @@ export default function StatsScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
-              <WinRateRing winRate={stats.summary.winRate} />
+              <WinRateRing winRate={stats.summary.winRate} onInfoPress={() => pushInfo('win-rate', stats.summary.winRate)} />
+            </Animated.View>
+
+            {/* Streak tracker */}
+            <Animated.View entering={FadeInDown.delay(310).duration(400).springify()}>
+              <StreakCard streaks={stats.summary.streaks} onInfoPress={() => pushInfo('streaks', stats.summary.streaks.currentType === 'WON' ? stats.summary.streaks.currentCount : stats.summary.streaks.currentType === 'LOST' ? -stats.summary.streaks.currentCount : 0)} />
+            </Animated.View>
+
+            {/* Average stake by outcome */}
+            <Animated.View entering={FadeInDown.delay(315).duration(400).springify()} style={styles.heroMetricsRow}>
+              <Card style={styles.metricCard}>
+                <View style={styles.metricLabelRow}>
+                  <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (ganhas)</Text>
+                  <Pressable hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
+                    <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                  </Pressable>
+                </View>
+                <Text style={[styles.metricValue, { color: colors.primary }]}>{formatCurrency(stats.summary.averageWonStake)}</Text>
+              </Card>
+              <Card style={styles.metricCard}>
+                <View style={styles.metricLabelRow}>
+                  <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (perdidas)</Text>
+                  <Pressable hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
+                    <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                  </Pressable>
+                </View>
+                <Text style={[styles.metricValue, { color: colors.danger }]}>{formatCurrency(stats.summary.averageLostStake)}</Text>
+              </Card>
             </Animated.View>
 
             {/* Additional metrics */}
@@ -270,14 +356,37 @@ export default function StatsScreen() {
               </Card>
             </Animated.View>
 
+            {/* Odds efficiency */}
+            <Animated.View entering={FadeInDown.delay(340).duration(400).springify()} style={styles.heroMetricsRow}>
+              <Card style={styles.metricCard}>
+                <View style={styles.metricLabelRow}>
+                  <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Eficiência de odds</Text>
+                  <Pressable hitSlop={6} onPress={() => pushInfo('odds-efficiency', stats.summary.oddsEfficiency)}>
+                    <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                  </Pressable>
+                </View>
+                <Text style={[styles.metricValue, { color: stats.summary.oddsEfficiency >= 100 ? colors.primary : stats.summary.oddsEfficiency > 0 ? colors.danger : colors.textMuted }]}>
+                  {stats.summary.oddsEfficiency > 0 ? formatPercentage(stats.summary.oddsEfficiency) : '—'}
+                </Text>
+                <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
+                  {stats.summary.oddsEfficiency >= 100 ? 'Acima da expectativa' : stats.summary.oddsEfficiency > 0 ? 'Abaixo da expectativa' : 'Sem dados'}
+                </Text>
+              </Card>
+              <Card style={styles.metricCard}>
+                <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Retorno médio</Text>
+                <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.averageReturn)}</Text>
+              </Card>
+            </Animated.View>
+
             <Animated.View entering={FadeInDown.delay(350).duration(400).springify()}>
-              <PnLChart data={stats.timeline} granularity={granularity} onGranularityChange={setGranularity} />
+              <PnLChart data={stats.timeline} granularity={granularity} onGranularityChange={setGranularity} onInfoPress={() => pushInfo('pnl', stats.summary.profitLoss)} />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
               <BreakdownTable
                 rows={stats.bySport}
                 title="Por desporto"
+                onInfoPress={() => pushInfo('by-sport', stats.bySport.length)}
                 onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterSport: row.key } })}
                 renderLabel={(row) => (
                   <Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>
@@ -291,6 +400,7 @@ export default function StatsScreen() {
               <BreakdownTable
                 rows={stats.byTeam}
                 title="Por equipa"
+                onInfoPress={() => pushInfo('by-team', stats.byTeam.length)}
                 onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterTeam: row.label } })}
               />
             </Animated.View>
@@ -299,6 +409,7 @@ export default function StatsScreen() {
               <BreakdownTable
                 rows={stats.byCompetition}
                 title="Por competição"
+                onInfoPress={() => pushInfo('by-competition', stats.byCompetition.length)}
                 onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterCompetition: row.label } })}
               />
             </Animated.View>
@@ -308,12 +419,59 @@ export default function StatsScreen() {
                 expandLabels
                 rows={stats.byMarket}
                 title="Por mercado"
+                onInfoPress={() => pushInfo('by-market', stats.byMarket.length)}
                 onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterMarket: row.label } })}
               />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(550).duration(400).springify()}>
-              <OddsRangeBar rows={stats.byOddsRange} />
+              <OddsRangeBar rows={stats.byOddsRange} onInfoPress={() => pushInfo('by-odds-range', stats.byOddsRange.length)} />
+            </Animated.View>
+
+            {/* Site ROI with sparklines */}
+            <Animated.View entering={FadeInDown.delay(560).duration(400).springify()}>
+              <SiteROITable rows={stats.bySite} onInfoPress={() => pushInfo('by-site', stats.bySite.length)} />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(575).duration(400).springify()}>
+              <BreakdownTable
+                rows={stats.byWeekday}
+                title="Por dia da semana"
+                onInfoPress={() => pushInfo('by-weekday', stats.byWeekday.length)}
+              />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(600).duration(400).springify()}>
+              <BreakdownTable
+                rows={stats.byLegCount}
+                title="Por nº de seleções"
+                onInfoPress={() => pushInfo('by-leg-count', stats.byLegCount.length)}
+              />
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(620).duration(400).springify()}>
+              <FreebetCard summary={stats.summary.freebetSummary} onInfoPress={() => pushInfo('freebet', stats.summary.freebetSummary.totalFreebets)} />
+            </Animated.View>
+
+            {/* Bet frequency heatmap */}
+            {boletinsQuery.data && boletinsQuery.data.length > 0 && (
+              <Animated.View entering={FadeInDown.delay(630).duration(400).springify()}>
+                <HeatmapCalendar boletins={boletinsQuery.data} onInfoPress={() => pushInfo('heatmap', (boletinsQuery.data ?? []).filter(b => b.status !== 'PENDING').length)} />
+              </Animated.View>
+            )}
+
+            {/* Stake bracket breakdown */}
+            <Animated.View entering={FadeInDown.delay(640).duration(400).springify()}>
+              <BreakdownTable
+                rows={stats.byStakeBracket}
+                title="Por faixa de stake"
+                onInfoPress={() => pushInfo('by-stake', stats.byStakeBracket.length)}
+              />
+            </Animated.View>
+
+            {/* Sport × Market matrix */}
+            <Animated.View entering={FadeInDown.delay(650).duration(400).springify()}>
+              <SportMarketMatrix cells={stats.bySportMarket} onInfoPress={() => pushInfo('sport-market-matrix', stats.bySportMarket.length)} />
             </Animated.View>
 
             <SectionTitle color={colors.textPrimary} title="Melhores boletins" />
@@ -395,38 +553,44 @@ function MiniBoletinCard({
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerWrap: { gap: 8, marginBottom: 18 },
+  headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  exportBtn: { padding: 4 },
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   periodTabs: { gap: 8, marginBottom: 12 },
   dateRangeRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   datePickerCol: { flex: 1 },
-  filterZone: { gap: 10, marginBottom: 18 },
-  periodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterZone: { gap: 7, marginBottom: 12 },
+  periodGrid: { flexDirection: 'row', gap: 6 },
   periodGridBtn: {
-    flexBasis: '47%',
-    flexGrow: 1,
-    paddingVertical: 10,
+    flex: 1,
+    paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
   },
-  periodGridBtnText: { fontSize: 13, fontWeight: '700' },
-  secondaryControlRow: { flexDirection: 'row', gap: 8 },
+  periodGridBtnText: { fontSize: 12, fontWeight: '700' },
+  secondaryControlRow: { flexDirection: 'row', gap: 6 },
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
   },
-  secondaryBtnText: { fontSize: 13, fontWeight: '600' },
+  secondaryBtnText: { fontSize: 12, fontWeight: '600' },
   siteDropdownLogo: { width: 20, height: 20, borderRadius: 3 },
   loadingStack: { gap: 16 },
   contentStack: { gap: 18 },
   heroMetricsRow: { flexDirection: 'row', gap: 12 },
   metricCard: { flex: 1, gap: 6 },
+  metricLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   metricLabel: { fontSize: 12, fontWeight: '700' },
   metricValue: { fontSize: 18, fontWeight: '900' },
   metricSmall: { fontSize: 11, fontWeight: '600', marginTop: 2 },
