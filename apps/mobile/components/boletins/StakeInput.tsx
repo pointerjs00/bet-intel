@@ -49,15 +49,18 @@ export function StakeInput({ value, onChange }: StakeInputProps) {
       <Text style={[styles.preview, { color: colors.textSecondary }]}>Atual: {formatCurrency(value)}</Text>
 
       <View style={styles.quickList}>
-        {QUICK_STAKES.map((stake) => (
-          <Pressable
-            key={stake}
-            onPress={() => onChange(stake)}
-            style={[styles.quickChip, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-          >
-            <Text style={[styles.quickChipText, { color: colors.textPrimary }]}>{formatCurrency(stake)}</Text>
-          </Pressable>
-        ))}
+        {QUICK_STAKES.map((stake) => {
+          const isActive = Math.abs(value - stake) < 0.001;
+          return (
+            <Pressable
+              key={stake}
+              onPress={() => onChange(stake)}
+              style={[styles.quickChip, { backgroundColor: isActive ? colors.primary : colors.surfaceRaised, borderColor: isActive ? colors.primary : colors.border }]}
+            >
+              <Text style={[styles.quickChipText, { color: isActive ? '#FFFFFF' : colors.textPrimary }]}>{formatCurrency(stake)}</Text>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );

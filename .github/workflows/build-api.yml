@@ -111,6 +111,12 @@ jobs:
               --network app_network \
               ghcr.io/${{ github.repository }}/betintel-api:latest \
               sh -c "cd /app/apps/api && npx prisma migrate deploy --schema=./prisma/schema.prisma"
+            # Seed reference data (competitions, teams, markets) — all upserts, idempotent
+            docker run --rm \
+              --env-file "$ENV_FILE" \
+              --network app_network \
+              ghcr.io/${{ github.repository }}/betintel-api:latest \
+              sh -c "cd /app/apps/api && node dist/prisma/seed.js"
             if command -v docker-compose >/dev/null 2>&1; then
               docker-compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api
             else

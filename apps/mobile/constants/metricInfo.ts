@@ -40,8 +40,8 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
 
   'win-rate': {
     id: 'win-rate',
-    title: 'Win Rate',
-    subtitle: 'Taxa de Vitória',
+    title: 'Taxa de Vitória',
+    subtitle: 'Percentagem de vitórias',
     icon: 'trophy-outline',
     description:
       'A taxa de vitória mostra a percentagem de apostas resolvidas que terminaram em vitória. Não inclui apostas pendentes nem apostas anuladas (void).',
@@ -91,7 +91,7 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
 
   pnl: {
     id: 'pnl',
-    title: 'P&L Timeline',
+    title: 'Evolução P&L',
     subtitle: 'Lucro e Prejuízo ao longo do tempo',
     icon: 'bar-chart-outline',
     description:
@@ -417,6 +417,148 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
       if (value < -5) return { text: `A tua stake média nas derrotas é €${Math.abs(value).toFixed(0)} maior do que nas vitórias. Possível sinal de apostas impulsivas de alto valor — considera usar stakes fixas para eliminar o viés emocional.`, sentiment: 'negative' };
       if (value > 5) return { text: `A tua stake média nas vitórias é €${value.toFixed(0)} maior do que nas derrotas. Podes estar a ser mais cauteloso em apostas que não confias tanto — analisa se esse padrão é intencional.`, sentiment: 'neutral' };
       return { text: 'As tuas stakes nas vitórias e derrotas são semelhantes. Boa consistência — estás a apostar sem viés emocional evidente.', sentiment: 'positive' };
+    },
+  },
+
+  // ── Boletin detail metrics ───────────────────────────────────────────────
+
+  'boletin-stake': {
+    id: 'boletin-stake',
+    title: 'Stake',
+    subtitle: 'Montante apostado neste boletim',
+    icon: 'cash-outline',
+    description:
+      'A stake é o valor que colocas em risco neste boletim. É o montante que pagas à casa de apostas para participar na aposta. Se o boletim perder, perdes toda a stake.',
+    formulaLabel: 'Retorno se ganhar',
+    formula: 'Retorno = Stake × Odd Total',
+    example:
+      'Se apostas €20 com odd total de 2.50, o teu retorno se ganhares será €50 (€20 × 2.50). O teu lucro líquido seria €30 (€50 − €20 de stake).',
+    tips: [
+      'Nunca apostes mais do que podes perder — a gestão de bankroll é mais importante do que a seleção de apostas.',
+      'Uma regra comum é não arriscar mais de 1–5% do bankroll total por aposta.',
+      'A stake deve refletir a tua confiança na aposta e o valor (edge) que acreditas ter.',
+    ],
+    interpret: (value) => {
+      if (value <= 0) return { text: 'Valor de stake inválido.', sentiment: 'neutral' };
+      return { text: `Apostaste €${value.toFixed(2)} neste boletim. Se ganhar, esse valor é incluído no retorno final.`, sentiment: 'neutral' };
+    },
+  },
+
+  'boletin-odds': {
+    id: 'boletin-odds',
+    title: 'Odd Total',
+    subtitle: 'Odd acumulada do boletim',
+    icon: 'layers-outline',
+    description:
+      'A odd total é o produto de todas as odds das seleções no boletim. Num acumulador, representa o multiplicador aplicado à stake — quanto maior, maior o retorno potencial mas menor a probabilidade real de ganhar.',
+    formulaLabel: 'Como se calcula',
+    formula: 'Odd Total = Odd 1 × Odd 2 × Odd 3 × ...',
+    example:
+      'Num boletim com 3 seleções de odds 1.80, 2.10 e 1.50: Odd Total = 1.80 × 2.10 × 1.50 = 5.67. Com stake de €10, o retorno seria €56.70.',
+    tips: [
+      'Cada seleção extra multiplica a odd total mas também multiplica o risco — todas as seleções têm de ganhar.',
+      'Odds muito altas em acumuladores parecem atrativas, mas a probabilidade real de ganhar cai drasticamente.',
+      'Uma odd de 2.00 implica 50% de probabilidade — compara sempre com a probabilidade que tu estimas.',
+    ],
+    interpret: (value) => {
+      if (value < 1.5) return { text: `Odd total de ${value.toFixed(2)} — muito baixa. Grande probabilidade implícita de ganhar, mas o retorno é modesto.`, sentiment: 'neutral' };
+      if (value < 3.0) return { text: `Odd total de ${value.toFixed(2)} — moderada. Bom equilíbrio entre retorno potencial e probabilidade de ganhar.`, sentiment: 'positive' };
+      if (value < 7.0) return { text: `Odd total de ${value.toFixed(2)} — alta. Retorno apelativo, mas a probabilidade de todas as seleções ganharem é mais baixa.`, sentiment: 'neutral' };
+      return { text: `Odd total de ${value.toFixed(2)} — muito alta. O retorno potencial é grande, mas a probabilidade de ganhar tudo é muito reduzida.`, sentiment: 'negative' };
+    },
+  },
+
+  'boletin-potential-return': {
+    id: 'boletin-potential-return',
+    title: 'Retorno',
+    subtitle: 'Valor total a receber se ganhar',
+    icon: 'wallet-outline',
+    description:
+      'O retorno é o valor total que recebes da casa de apostas se todas as seleções do boletim vencerem. Inclui sempre a stake original mais o lucro. Para boletins já resolvidos, mostra o valor efetivamente recebido.',
+    formulaLabel: 'Fórmula',
+    formula: 'Retorno Potencial = Stake × Odd Total',
+    example:
+      'Com stake de €25 e odd total de 3.20: Retorno = €25 × 3.20 = €80. Desses €80, €25 são a tua stake recuperada e €55 são lucro líquido.',
+    tips: [
+      'O retorno inclui sempre a stake — o teu lucro real é Retorno − Stake.',
+      'Para boletins pendentes, este valor é apenas uma estimativa — só garantes o retorno se ganhar.',
+      'Compara o retorno potencial com a stake para avaliar se o risco/recompensa faz sentido.',
+    ],
+    interpret: (value) => {
+      if (value <= 0) return { text: 'Sem retorno calculado.', sentiment: 'neutral' };
+      return { text: `Podes receber €${value.toFixed(2)} se todas as seleções ganharem. Lembra-te que este valor já inclui a tua stake.`, sentiment: 'positive' };
+    },
+  },
+
+  'boletin-profit': {
+    id: 'boletin-profit',
+    title: 'Lucro / Prejuízo',
+    subtitle: 'Ganho ou perda líquida',
+    icon: 'trending-up-outline',
+    description:
+      'O lucro ou prejuízo é a diferença líquida entre o retorno recebido (ou potencial) e a stake apostada. Um valor positivo significa ganho real; zero significa que apenas recuperaste a stake; negativo significa perda.',
+    formulaLabel: 'Fórmula',
+    formula: 'Lucro = Retorno − Stake',
+    example:
+      'Apostaste €30 e recebeste €75 → Lucro = €75 − €30 = +€45. Apostaste €30 e perdeste → Prejuízo = €0 − €30 = −€30.',
+    tips: [
+      'O lucro é diferente do retorno — o retorno inclui a tua stake devolvida.',
+      'Acompanha o lucro acumulado no histórico de estatísticas para perceber a tua tendência real a longo prazo.',
+      'Um boletim com odd alta anula o impacto de muitos pequenos ganhos — diversifica a gestão de risco.',
+    ],
+    interpret: (value) => {
+      if (value > 0) return { text: `Lucro de €${value.toFixed(2)} neste boletim. Excelente! Este é o valor que ganhas além da stake recuperada.`, sentiment: 'positive' };
+      if (value === 0) return { text: 'Lucro de €0 — recuperaste exatamente a stake. Sem ganho nem perda.', sentiment: 'neutral' };
+      return { text: `Prejuízo de €${Math.abs(value).toFixed(2)} neste boletim. Faz parte — analisa se havia valor real na aposta quando a fizeste.`, sentiment: 'negative' };
+    },
+  },
+
+  'boletin-roi': {
+    id: 'boletin-roi',
+    title: 'ROI',
+    subtitle: 'Retorno sobre o investimento',
+    icon: 'trending-up-outline',
+    description:
+      'O ROI (Return on Investment) deste boletim mede a rentabilidade em relação à stake apostada, expresso em percentagem. Um ROI positivo significa que o retorno superou o investimento.',
+    formulaLabel: 'Fórmula',
+    formula: 'ROI = ((Retorno − Stake) ÷ Stake) × 100',
+    example:
+      'Apostaste €20 e recebeste €35. ROI = ((35 − 20) ÷ 20) × 100 = +75%. Apostaste €20 e perdeste. ROI = ((0 − 20) ÷ 20) × 100 = −100%.',
+    tips: [
+      'Um ROI de −100% significa que perdeste toda a stake — o pior resultado possível.',
+      'Um ROI de 0% significa que só recuperaste a stake — sem lucro nem perda.',
+      'O ROI de um único boletim tem pouco valor estatístico — analisa o ROI global na página de Estatísticas para uma visão real.',
+    ],
+    interpret: (value) => {
+      const sign = value > 0 ? '+' : '';
+      if (value > 0) return { text: `ROI de ${sign}${value.toFixed(1)}% — ganhaste mais do que arriscaste neste boletim.`, sentiment: 'positive' };
+      if (value === 0) return { text: 'ROI de 0% — recuperaste exatamente a stake, sem ganho nem perda.', sentiment: 'neutral' };
+      if (value <= -100) return { text: 'ROI de −100% — perdeste toda a stake neste boletim.', sentiment: 'negative' };
+      return { text: `ROI de ${value.toFixed(1)}% — perdeste ${Math.abs(value).toFixed(1)}% do montante apostado.`, sentiment: 'negative' };
+    },
+  },
+
+  'boletin-selections': {
+    id: 'boletin-selections',
+    title: 'Seleções',
+    subtitle: 'Número de pernas do boletim',
+    icon: 'list-outline',
+    description:
+      'O número de seleções indica quantos jogos ou eventos diferentes incluíste neste boletim. Num acumulador, todas as seleções têm de ganhar para o boletim ser vencedor.',
+    formulaLabel: 'Impacto no risco',
+    formula: 'P(ganhar) = P(sel.1) × P(sel.2) × ... × P(sel.N)',
+    example:
+      'Com 3 seleções de 60% de probabilidade cada: P(ganhar tudo) = 0.60 × 0.60 × 0.60 = 21.6%. Com 5 seleções de 60%: P = 0.60⁵ ≈ 7.8%. O risco aumenta exponencialmente.',
+    tips: [
+      'Cada seleção extra multiplica o risco — um acumulador de 5 seleções é muito mais difícil do que 5 apostas singulares.',
+      'Boletins singulares (1 seleção) têm menor risco e permitem uma gestão de bankroll mais precisa.',
+      'Uma única seleção errada num acumulador anula todas as seleções corretas — uma desvantagem crítica.',
+    ],
+    interpret: (value) => {
+      if (value === 1) return { text: 'Boletim singular (1 seleção) — menor risco, mais fácil de gerir. Ideal para apostas de alta confiança.', sentiment: 'positive' };
+      if (value === 2) return { text: 'Dupla (2 seleções) — risco moderado. Ambas têm de ganhar, mas o retorno é proporcionalmente maior.', sentiment: 'neutral' };
+      if (value <= 4) return { text: `Acumulador de ${value} seleções — risco intermédio. Todas têm de ganhar para o boletim ser vencedor.`, sentiment: 'neutral' };
+      return { text: `Acumulador de ${value} seleções — risco alto. A probabilidade de todas ganharem diminui drasticamente com cada seleção adicional.`, sentiment: 'negative' };
     },
   },
 };

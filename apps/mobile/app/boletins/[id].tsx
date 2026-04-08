@@ -1,16 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
-import { OddsCalculator } from '../../components/boletins/OddsCalculator';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Chip } from '../../components/ui/Chip';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
@@ -26,6 +24,7 @@ import {
   useUpdateBoletinItemsMutation,
   useAddBoletinItemMutation,
   useDeleteBoletinItemMutation,
+  useDeleteBoletinMutation,
 } from '../../services/boletinService';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { useTheme } from '../../theme/useTheme';
@@ -54,6 +53,7 @@ const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
 
 export default function BoletinDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
@@ -70,11 +70,14 @@ export default function BoletinDetailScreen() {
   const [cashoutValue, setCashoutValue] = useState('');
   // Target item to remove (confirmation modal)
   const [removeItemTarget, setRemoveItemTarget] = useState<{ boletinId: string; itemId: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const [pendingPublic, setPendingPublic] = useState(false);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
   const updateItemsMutation = useUpdateBoletinItemsMutation();
   const addItemMutation = useAddBoletinItemMutation();
   const deleteItemMutation = useDeleteBoletinItemMutation();
+  const deleteMutation = useDeleteBoletinMutation();
 
   // ── Add-Selection form state ─────────────────────────────────────────────
   const [addSport, setAddSport] = useState<Sport>(Sport.FOOTBALL);
@@ -289,19 +292,43 @@ export default function BoletinDetailScreen() {
   };
 
   const bannerColor = useMemo(() => {
+    // Darker shades to ensure WCAG AA contrast (≥4.5:1) with white text
     switch (boletin?.status) {
       case BoletinStatus.WON:
-        return colors.primary;
+        return '#007A32'; // dark green — 5.5:1 contrast with #FFF
       case BoletinStatus.LOST:
-        return colors.danger;
+        return '#CC2F26'; // dark red — 5.3:1 contrast with #FFF
       case BoletinStatus.CASHOUT:
-        return colors.gold;
+        return '#8B6914'; // dark gold — 5.0:1 contrast with #FFF
       case BoletinStatus.PARTIAL:
       case BoletinStatus.PENDING:
       default:
-        return colors.warning;
+        return '#A66000'; // dark amber — 4.9:1 contrast with #FFF
     }
-  }, [boletin?.status, colors.danger, colors.info, colors.primary, colors.warning]);
+  }, [boletin?.status]);
+
+  const pushInfo = useCallback(
+    (metric: string, value?: number) =>
+      router.push({
+        pathname: '/metric-info' as Href,
+        params: { metric, ...(value !== undefined ? { value: String(value) } : {}) },
+      }),
+    [router],
+  );
+
+  // ── Computed stats ────────────────────────────────────────────────────────
+  const boletinStats = useMemo(() => {
+    if (!boletin) return null;
+    const stake = Number(boletin.stake);
+    const totalOdds = Number(boletin.totalOdds);
+    const potentialReturn = Number(boletin.potentialReturn);
+    const actualReturn = boletin.actualReturn != null ? Number(boletin.actualReturn) : null;
+    const isPending = boletin.status === BoletinStatus.PENDING;
+    const displayReturn = actualReturn ?? potentialReturn;
+    const displayProfit = displayReturn - stake;
+    const displayROI = stake > 0 ? ((displayReturn - stake) / stake) * 100 : 0;
+    return { stake, totalOdds, potentialReturn, actualReturn, isPending, displayReturn, displayProfit, displayROI, selectionCount: boletin.items.length };
+  }, [boletin]);
 
   if (boletinQuery.isLoading) {
     return (
@@ -347,7 +374,7 @@ export default function BoletinDetailScreen() {
             <Animated.View entering={FadeInUp.duration(400).springify()}>
               <View style={[styles.statusBanner, { backgroundColor: bannerColor }]}>
                 <View style={styles.bannerTopRow}>
-                  <StatusBadge status={boletin.status} />
+                  <StatusBadge status={boletin.status} variant="banner" />
                   {isEditing ? (
                     <View style={styles.bannerEditActions}>
                       <Pressable hitSlop={10} onPress={handleCancelEdit} style={styles.bannerActionBtn}>
@@ -381,94 +408,190 @@ export default function BoletinDetailScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
-              <OddsCalculator
-                potentialReturn={Number(boletin.actualReturn ?? boletin.potentialReturn)}
-                stake={Number(boletin.stake)}
-                totalOdds={Number(boletin.totalOdds)}
-              />
-            </Animated.View>
+              {/* Stats grid */}
+              <Card style={styles.statsGrid}>
+                {/* Row 1: Stake | Odd Total */}
+                <View style={styles.statsRow}>
+                  <View style={styles.statCell}>
+                    <View style={styles.statLabelRow}>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Stake</Text>
+                      <Pressable accessibilityLabel="O que é a stake" hitSlop={8} onPress={() => pushInfo('boletin-stake', boletinStats?.stake)}>
+                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                      </Pressable>
+                    </View>
+                    {isEditing ? (
+                      <View style={styles.statEditRow}>
+                        <Text style={[styles.statValue, { color: colors.textPrimary }]}>{'€ '}</Text>
+                        <TextInput
+                          keyboardType="decimal-pad"
+                          maxLength={10}
+                          onChangeText={setEditStake}
+                          placeholder="0.00"
+                          placeholderTextColor={colors.textMuted}
+                          selectTextOnFocus
+                          style={[styles.statValueInput, { color: colors.textPrimary, borderBottomColor: colors.primary }]}
+                          value={editStake}
+                        />
+                      </View>
+                    ) : (
+                      <Text style={[styles.statValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
+                    )}
+                  </View>
+                  <View style={[styles.statDividerV, { backgroundColor: colors.border }]} />
+                  <View style={styles.statCell}>
+                    <View style={styles.statLabelRow}>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Odd Total</Text>
+                      <Pressable accessibilityLabel="O que é a odd total" hitSlop={8} onPress={() => pushInfo('boletin-odds', boletinStats?.totalOdds)}>
+                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                      </Pressable>
+                    </View>
+                    <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                      {(boletinStats?.totalOdds ?? 1).toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
 
-            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
-              <Card style={styles.summaryCard}>
-                <View style={styles.summaryMetric}>
-                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Stake</Text>
-                  {isEditing ? (
-                    <View style={styles.summaryInputRow}>
-                      <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>€ </Text>
-                      <TextInput
-                        keyboardType="decimal-pad"
-                        maxLength={10}
-                        onChangeText={setEditStake}
-                        placeholder="0.00"
-                        placeholderTextColor={colors.textMuted}
-                        selectTextOnFocus
-                        style={[styles.summaryValueInput, { color: colors.textPrimary, borderBottomColor: colors.primary }]}
-                        value={editStake}
-                      />
+                <View style={[styles.statDividerH, { backgroundColor: colors.border }]} />
+
+                {/* Row 2: Retorno | Lucro/Prejuízo */}
+                <View style={styles.statsRow}>
+                  <View style={styles.statCell}>
+                    <View style={styles.statLabelRow}>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                        {boletinStats?.isPending ? 'Retorno Potencial' : 'Retorno'}
+                      </Text>
+                      <Pressable accessibilityLabel="O que é o retorno" hitSlop={8} onPress={() => pushInfo('boletin-potential-return', boletinStats?.displayReturn)}>
+                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                      </Pressable>
                     </View>
-                  ) : (
-                    <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
-                  )}
-                </View>
-                <View style={styles.summaryMetric}>
-                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno atual</Text>
-                  {isEditing && boletin.status !== 'PENDING' ? (
-                    <View style={styles.summaryInputRow}>
-                      <Text style={[styles.summaryValue, { color: colors.primary }]}>€ </Text>
-                      <TextInput
-                        keyboardType="decimal-pad"
-                        maxLength={10}
-                        onChangeText={setEditActualReturn}
-                        placeholder="0.00"
-                        placeholderTextColor={colors.textMuted}
-                        selectTextOnFocus
-                        style={[styles.summaryValueInput, { color: colors.primary, borderBottomColor: colors.primary }]}
-                        value={editActualReturn}
-                      />
+                    {isEditing && !boletinStats?.isPending ? (
+                      <View style={styles.statEditRow}>
+                        <Text style={[styles.statValue, { color: colors.primary }]}>{'€ '}</Text>
+                        <TextInput
+                          keyboardType="decimal-pad"
+                          maxLength={10}
+                          onChangeText={setEditActualReturn}
+                          placeholder="0.00"
+                          placeholderTextColor={colors.textMuted}
+                          selectTextOnFocus
+                          style={[styles.statValueInput, { color: colors.primary, borderBottomColor: colors.primary }]}
+                          value={editActualReturn}
+                        />
+                      </View>
+                    ) : (
+                      <Text style={[styles.statValue, { color: colors.primary }]}>
+                        {formatCurrency(boletinStats?.displayReturn ?? boletin.potentialReturn)}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={[styles.statDividerV, { backgroundColor: colors.border }]} />
+                  <View style={styles.statCell}>
+                    <View style={styles.statLabelRow}>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                        {boletinStats?.isPending ? 'Lucro Potencial' : 'Lucro / Prejuízo'}
+                      </Text>
+                      <Pressable accessibilityLabel="O que é lucro/prejuízo" hitSlop={8} onPress={() => pushInfo('boletin-profit', boletinStats?.displayProfit)}>
+                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                      </Pressable>
                     </View>
-                  ) : (
-                    <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(boletin.actualReturn ?? boletin.potentialReturn)}</Text>
-                  )}
+                    <Text style={[styles.statValue, { color: (boletinStats?.displayProfit ?? 0) >= 0 ? colors.primary : colors.danger }]}>
+                      {(boletinStats?.displayProfit ?? 0) >= 0 ? '+' : ''}{formatCurrency(boletinStats?.displayProfit ?? 0)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.summaryMetric}>
-                  <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Visibilidade</Text>
-                  <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{boletin.isPublic ? 'Público' : 'Privado'}</Text>
+
+                <View style={[styles.statDividerH, { backgroundColor: colors.border }]} />
+
+                {/* Row 3: ROI | Seleções */}
+                <View style={styles.statsRow}>
+                  <View style={styles.statCell}>
+                    <View style={styles.statLabelRow}>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                        {boletinStats?.isPending ? 'ROI Potencial' : 'ROI'}
+                      </Text>
+                      <Pressable accessibilityLabel="O que é o ROI" hitSlop={8} onPress={() => pushInfo('boletin-roi', boletinStats?.displayROI)}>
+                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                      </Pressable>
+                    </View>
+                    <Text style={[styles.statValue, { color: (boletinStats?.displayROI ?? 0) >= 0 ? colors.primary : colors.danger }]}>
+                      {(boletinStats?.displayROI ?? 0) >= 0 ? '+' : ''}{(boletinStats?.displayROI ?? 0).toFixed(1)}%
+                    </Text>
+                  </View>
+                  <View style={[styles.statDividerV, { backgroundColor: colors.border }]} />
+                  <View style={styles.statCell}>
+                    <View style={styles.statLabelRow}>
+                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Seleções</Text>
+                      <Pressable accessibilityLabel="Número de seleções" hitSlop={8} onPress={() => pushInfo('boletin-selections', boletinStats?.selectionCount)}>
+                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
+                      </Pressable>
+                    </View>
+                    <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                      {boletinStats?.selectionCount ?? 0}
+                    </Text>
+                  </View>
+                </View>
+              </Card>
+
+              {/* Metadata row */}
+              <View style={styles.metaRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons color={colors.textMuted} name={boletin.isPublic ? 'eye-outline' : 'eye-off-outline'} size={13} />
+                  <Text style={[styles.metaText, { color: colors.textMuted }]}>{boletin.isPublic ? 'Público' : 'Privado'}</Text>
                 </View>
                 {boletin.siteSlug ? (
-                  <View style={styles.summaryMetric}>
-                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Site</Text>
-                    <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>
+                  <View style={styles.metaItem}>
+                    <Ionicons color={colors.textMuted} name="business-outline" size={13} />
+                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
                       {BETTING_SITES.find((s) => s.slug === boletin.siteSlug)?.name ?? boletin.siteSlug}
                     </Text>
                   </View>
                 ) : null}
-              </Card>
+              </View>
             </Animated.View>
+
 
             <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Estado</Text>
-              <FlatList
-                contentContainerStyle={styles.statusActions}
-                data={STATUS_ACTIONS}
-                horizontal
-                keyExtractor={(item) => item.key}
-                renderItem={({ item }) => (
-                  <Chip
-                    label={item.label}
-                    selected={item.key === boletin.status}
-                    onPress={async () => {
-                      try {
-                        await updateMutation.mutateAsync({ id: boletin.id, payload: { status: item.key } });
-                        showToast('Estado atualizado.', 'success');
-                      } catch (error) {
-                        showToast(getErrorMessage(error), 'error');
-                      }
-                    }}
-                  />
-                )}
-                showsHorizontalScrollIndicator={false}
-                ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
-              />
+              <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                {STATUS_ACTIONS.map((item) => {
+                  const active = item.key === boletin.status;
+                  const activeColor =
+                    item.key === BoletinStatus.WON
+                      ? '#007A32'
+                      : item.key === BoletinStatus.LOST
+                      ? '#CC2F26'
+                      : '#A66000';
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={async () => {
+                        try {
+                          await updateMutation.mutateAsync({ id: boletin.id, payload: { status: item.key } });
+                          showToast('Estado atualizado.', 'success');
+                        } catch (error) {
+                          showToast(getErrorMessage(error), 'error');
+                        }
+                      }}
+                      style={[
+                        styles.segmentItem,
+                        active && { backgroundColor: activeColor },
+                      ]}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                    >
+                      <Text
+                        style={[
+                          styles.segmentLabel,
+                          { color: active ? '#fff' : colors.textSecondary },
+                          active && styles.segmentLabelActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
               {boletin.status === BoletinStatus.PENDING && (
                 <View style={styles.cashoutSection}>
                   {!showCashoutInput ? (
@@ -526,15 +649,9 @@ export default function BoletinDetailScreen() {
             <Animated.View entering={FadeInDown.delay(350).duration(400).springify()} style={styles.actionButtons}>
               <Button
                 leftSlot={<Ionicons color={colors.textPrimary} name="globe-outline" size={16} />}
-                onPress={async () => {
-                  try {
-                    await updateMutation.mutateAsync({ id: boletin.id, payload: { isPublic: !boletin.isPublic } });
-                    showToast(boletin.isPublic ? 'Boletim privado.' : 'Boletim público.', 'success');
-                  } catch (error) {
-                    showToast(getErrorMessage(error), 'error');
-                  }
-                }}
+                onPress={() => setPendingPublic(true)}
                 size="sm"
+                style={{ flex: 1, minWidth: 100 }}
                 title={boletin.isPublic ? 'Tornar privado' : 'Tornar público'}
                 variant="secondary"
               />
@@ -542,7 +659,16 @@ export default function BoletinDetailScreen() {
                 leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
                 onPress={() => showToast('A partilha com amigos será ligada no passo social.', 'info')}
                 size="sm"
+                style={{ flex: 1, minWidth: 100 }}
                 title="Partilhar"
+                variant="secondary"
+              />
+              <Button
+                leftSlot={<Ionicons color={colors.danger} name="trash-outline" size={16} />}
+                onPress={() => setPendingDelete(true)}
+                size="sm"
+                style={{ flex: 1, minWidth: 100 }}
+                title="Apagar"
                 variant="secondary"
               />
             </Animated.View>
@@ -721,11 +847,11 @@ export default function BoletinDetailScreen() {
                   style={styles.customMarketToggle}
                 >
                   <Ionicons
-                    color={colors.info}
+                    color={colors.primary}
                     name={addUseCustomMarket ? 'list-outline' : 'create-outline'}
                     size={13}
                   />
-                  <Text style={[styles.customMarketToggleText, { color: colors.info }]}>
+                  <Text style={[styles.customMarketToggleText, { color: colors.primary }]}>
                     {addUseCustomMarket ? 'Escolher da lista de mercados' : 'Escrever mercado personalizado'}
                   </Text>
                 </Pressable>
@@ -845,6 +971,42 @@ export default function BoletinDetailScreen() {
       />
 
       <ConfirmModal
+        visible={pendingPublic}
+        title={boletin!.isPublic ? 'Tornar privado' : 'Tornar público'}
+        message={boletin!.isPublic
+          ? 'O boletim deixará de estar visível no teu perfil e nas partilhas.'
+          : 'O boletim ficará visível no teu perfil e poderá ser partilhado com amigos.'}
+        confirmLabel={boletin!.isPublic ? 'Tornar privado' : 'Tornar público'}
+        confirmVariant="primary"
+        onConfirm={async () => {
+          setPendingPublic(false);
+          try {
+            await updateMutation.mutateAsync({ id: boletin!.id, payload: { isPublic: !boletin!.isPublic } });
+            showToast(boletin!.isPublic ? 'Boletim privado.' : 'Boletim público.', 'success');
+          } catch (error) {
+            showToast(getErrorMessage(error), 'error');
+          }
+        }}
+        onCancel={() => setPendingPublic(false)}
+      />
+      <ConfirmModal
+        visible={pendingDelete}
+        title="Apagar boletim"
+        message="Tens a certeza que queres apagar este boletim? Esta ação não pode ser desfeita."
+        confirmLabel="Apagar"
+        storageKey="delete-boletin-detail"
+        onConfirm={async () => {
+          setPendingDelete(false);
+          try {
+            await deleteMutation.mutateAsync(boletin!.id);
+            router.back();
+          } catch (error) {
+            showToast(getErrorMessage(error), 'error');
+          }
+        }}
+        onCancel={() => setPendingDelete(false)}
+      />
+      <ConfirmModal
         visible={removeItemTarget !== null}
         title="Remover seleção"
         message="Queres remover esta seleção do boletim?"
@@ -909,9 +1071,43 @@ const styles = StyleSheet.create({
   summaryValue: { fontSize: 16, fontWeight: '900' },
   summaryInputRow: { alignItems: 'center', flexDirection: 'row' },
   summaryValueInput: { borderBottomWidth: 1, flex: 1, fontSize: 16, fontWeight: '900', paddingVertical: 2 },
+  // Stats grid
+  statsGrid: { overflow: 'hidden', padding: 0 },
+  statsRow: { flexDirection: 'row' },
+  statCell: { flex: 1, gap: 6, padding: 14 },
+  statLabelRow: { alignItems: 'center', flexDirection: 'row', gap: 4 },
+  statLabel: { flex: 1, fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  statValue: { fontSize: 18, fontWeight: '900' },
+  statValueInput: { borderBottomWidth: 1, flex: 1, fontSize: 18, fontWeight: '900', paddingVertical: 2 },
+  statEditRow: { alignItems: 'center', flexDirection: 'row' },
+  statDividerV: { width: 1 },
+  statDividerH: { height: 1 },
+  metaRow: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 2, paddingTop: 8 },
+  metaItem: { alignItems: 'center', flexDirection: 'row', gap: 4 },
+  metaText: { fontSize: 12, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   statusActions: { gap: 8 },
-  actionButtons: { flexDirection: 'row', gap: 10 },
+  segmentedControl: {
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    marginTop: 8,
+  },
+  segmentItem: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  segmentLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  segmentLabelActive: {
+    fontWeight: '800',
+  },
+  actionButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   notesCard: { gap: 10 },
   notesHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   notesTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },

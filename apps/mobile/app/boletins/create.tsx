@@ -3,7 +3,9 @@ import {
   FlatList,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   SectionList,
@@ -77,7 +79,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
 
-  const [sport, setSport] = useState<Sport>(Sport.FOOTBALL);
+  const [sport, setSport] = useState<string>(Sport.FOOTBALL);
   const [competition, setCompetition] = useState('');
   const [homeTeam, setHomeTeam] = useState('');
   const [awayTeam, setAwayTeam] = useState('');
@@ -102,17 +104,24 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
   const [showSports, setShowSports] = useState(false);
   const [competitionCountry, setCompetitionCountry] = useState('');
 
-  const competitionsQuery = useCompetitions(sport);
+  // Map custom-typed sport strings to Sport.OTHER for API queries
+  const sportForApi = useMemo(
+    () => (Object.values(Sport).includes(sport as Sport) ? (sport as Sport) : Sport.OTHER),
+    [sport],
+  );
+
+  const competitionsQuery = useCompetitions(sportForApi);
   const teamQueryParams = useMemo(
     () => (sport === Sport.TENNIS
-      ? { sport, competition: 'ATP Tour' }
-      : (competition ? { sport, competition } : { sport })),
-    [competition, sport],
+      ? { sport: sportForApi, competition: 'ATP Tour' }
+      : (competition ? { sport: sportForApi, competition } : { sport: sportForApi })),
+    [competition, sport, sportForApi],
   );
   // Tennis selections should always come from the ATP rankings pool, regardless of tournament.
   const teamsQuery = useTeams(teamQueryParams);
-  const allTeamsQuery = useTeams({ sport });
-  const marketsQuery = useMarkets(sport);
+  // Fallback pool — used only when the competition-scoped query returns nothing (cups, intl comps).
+  const allTeamsQuery = useTeams({ sport: sportForApi });
+  const marketsQuery = useMarkets(sportForApi);
 
   const competitionSections = useMemo(() => {
     const comps = (competitionsQuery.data ?? []).map((competition) => (
@@ -170,23 +179,35 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
     const sections = Array.from(countryMap.entries()).map(([country, cs]) => ({
       title: country,
       country,
-      data: cs.map((c) => ({ label: c.name, value: c.name })),
+      data: cs.map((c) => ({ label: c.name, value: c.name, tier: c.tier })),
     }));
+    // Top-6 football countries fixed first; remaining purely alphabetically
+    const TOP_6 = ['Portugal', 'Inglaterra', 'Espanha', 'Itália', 'Alemanha', 'França'];
     sections.sort((a, b) => {
-      const ai = COMPETITION_COUNTRY_ORDER.indexOf(a.country);
-      const bi = COMPETITION_COUNTRY_ORDER.indexOf(b.country);
-      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      const ai = TOP_6.indexOf(a.country);
+      const bi = TOP_6.indexOf(b.country);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return a.country.localeCompare(b.country, 'pt');
     });
     return sections;
   }, [competitionsQuery.data]);
+
+  // Resolve display label for sport (handles both enum and custom string)
+  const sportLabelObj = useMemo(
+    () => SPORT_OPTIONS.find((s) => s.key === sport) ?? (sport ? { icon: '🏅', label: sport } : null),
+    [sport],
+  );
 
   const teamItems = useMemo(() => {
     const data = teamsQuery.data ?? [];
     // If competition-scoped query finished but returned nothing, fall back to all teams for the sport.
     // Tennis intentionally stays pinned to the ATP rankings pool instead of broad sport fallbacks.
-    const source = sport !== Sport.TENNIS && competition && !teamsQuery.isLoading && data.length === 0
-      ? (allTeamsQuery.data ?? [])
-      : data;
+    const source =
+      sport !== Sport.TENNIS && competition && !teamsQuery.isLoading && data.length === 0
+        ? (allTeamsQuery.data ?? [])
+        : data;
     return source.map((team) => ({
       label: team.displayName ?? team.name,
       value: team.displayName ?? team.name,
@@ -229,7 +250,8 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
     }));
   }, [marketsQuery.data, homeTeam, awayTeam]);
 
-  const sportLabel = SPORT_OPTIONS.find((s) => s.key === sport);
+  // sportLabel is now derived above as sportLabelObj; keep alias for compatibility
+  const sportLabel = sportLabelObj;
 
   const handleAdd = useCallback(() => {
     if (!homeTeam.trim() || !awayTeam.trim()) {
@@ -272,7 +294,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       awayTeam: awayTeam.trim(),
       awayTeamImageUrl: awayTeamItem?.imageUrl ?? null,
       competition: competition.trim() || 'Geral',
-      sport,
+      sport: sportForApi,
       // For self-describing markets, store the humanized name so market === selection
       // and BoletinItem can display it just once.
       market: humanized,
@@ -290,7 +312,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
     Keyboard.dismiss();
     hapticLight();
     showToast('Seleção adicionada.', 'success');
-  }, [homeTeam, homeTeamItem?.imageUrl, awayTeam, awayTeamItem?.imageUrl, competition, sport, market, selection, oddValue, onAdd, showToast]);
+  }, [homeTeam, homeTeamItem?.imageUrl, awayTeam, awayTeamItem?.imageUrl, competition, sport, sportForApi, market, selection, oddValue, onAdd, showToast]);
 
   return (
     <Card style={[styles.addForm, { borderColor: colors.border }]}>
@@ -304,7 +326,24 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             {sportLabel ? `${sportLabel.icon} ${sportLabel.label}` : 'Selecionar'}
           </Text>
         </View>
-        <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        {sport !== Sport.FOOTBALL ? (
+          <Pressable
+            hitSlop={8}
+            onPress={() => {
+              setSport(Sport.FOOTBALL);
+              setCompetition('');
+              setCompetitionCountry('');
+              setHomeTeam('');
+              setAwayTeam('');
+              setMarket('');
+              setSelection('');
+            }}
+          >
+            <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+          </Pressable>
+        ) : (
+          <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        )}
       </Pressable>
 
       {/* Competition */}
@@ -318,7 +357,21 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             </Text>
           </View>
         </View>
-        <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        {competition ? (
+          <Pressable
+            hitSlop={8}
+            onPress={() => {
+              setCompetition('');
+              setCompetitionCountry('');
+              setHomeTeam('');
+              setAwayTeam('');
+            }}
+          >
+            <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+          </Pressable>
+        ) : (
+          <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        )}
       </Pressable>
 
       {/* Home Team / Player 1 */}
@@ -341,7 +394,13 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             </Text>
           </View>
         </View>
-        <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        {homeTeam ? (
+          <Pressable hitSlop={8} onPress={() => setHomeTeam('')}>
+            <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+          </Pressable>
+        ) : (
+          <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        )}
       </Pressable>
 
       {/* Away Team / Player 2 */}
@@ -364,7 +423,13 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             </Text>
           </View>
         </View>
-        <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        {awayTeam ? (
+          <Pressable hitSlop={8} onPress={() => setAwayTeam('')}>
+            <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+          </Pressable>
+        ) : (
+          <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+        )}
       </Pressable>
 
       {/* Market — only enabled once both teams are selected */}
@@ -392,7 +457,13 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
               {market ? (homeTeam && awayTeam ? humanizeMarket(market, homeTeam, awayTeam) : market) : 'Selecionar mercado'}
             </Text>
           </View>
-          <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+          {market ? (
+            <Pressable hitSlop={8} onPress={() => { setMarket(''); setSelection(''); }}>
+              <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+            </Pressable>
+          ) : (
+            <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+          )}
         </Pressable>
       )}
 
@@ -405,11 +476,11 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         style={styles.customMarketToggle}
       >
         <Ionicons
-          color={colors.info}
+          color={colors.primary}
           name={useCustomMarket ? 'list-outline' : 'create-outline'}
           size={13}
         />
-        <Text style={[styles.customMarketToggleText, { color: colors.info }]}>
+        <Text style={[styles.customMarketToggleText, { color: colors.primary }]}>
           {useCustomMarket ? 'Escolher da lista de mercados' : 'Escrever mercado personalizado'}
         </Text>
       </Pressable>
@@ -437,7 +508,13 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         </View>
       </View>
 
-      <Button title="Adicionar ao boletim" onPress={handleAdd} />
+      <Button
+        variant="secondary"
+        title="Adicionar ao boletim"
+        onPress={handleAdd}
+        leftSlot={<Ionicons name="add-circle-outline" size={18} color={colors.primary} />}
+        style={{ borderColor: colors.primary }}
+      />
 
       {/* Modals */}
       <SearchableDropdown
@@ -445,14 +522,25 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         onClose={() => setShowSports(false)}
         title="Desporto"
         items={SPORT_OPTIONS.map((s) => ({ label: `${s.icon} ${s.label}`, value: s.key }))}
-        onSelect={(val) => setSport(val as Sport)}
+        onSelect={(val) => {
+          setSport(val);
+          setCompetition('');
+          setCompetitionCountry('');
+          setHomeTeam('');
+          setAwayTeam('');
+          setMarket('');
+          setSelection('');
+        }}
+        allowCustomValue
       />
       <CompetitionPickerModal
         visible={showCompetitions}
         onClose={() => setShowCompetitions(false)}
         title="Competição"
         sections={competitionSections}
-        sport={sport as Sport | undefined}
+        sport={sportForApi}
+        defaultExpandedCount={sportForApi === Sport.FOOTBALL ? 6 : 10}
+        allowCustomValue
         onSelect={(val) => {
           setCompetition(val);
           const found = competitionsQuery.data?.find((c) => c.name === val);
@@ -478,6 +566,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         onSelect={setHomeTeam}
         isLoading={teamsQuery.isLoading || (competition !== '' && allTeamsQuery.isLoading)}
         allowCustomValue
+        initialVisibleCount={20}
       />
       <SearchableDropdown
         visible={showAwayTeams}
@@ -495,6 +584,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         onSelect={setAwayTeam}
         isLoading={teamsQuery.isLoading || (competition !== '' && allTeamsQuery.isLoading)}
         allowCustomValue
+        initialVisibleCount={20}
       />
       <SearchableDropdown
         visible={showMarkets}
@@ -503,6 +593,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         sections={marketSections}
         onSelect={setMarket}
         isLoading={marketsQuery.isLoading}
+        initialVisibleCount={8}
       />
     </Card>
   );
@@ -556,15 +647,29 @@ export default function CreateBoletinScreen() {
   const [pendingReset, setPendingReset] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
 
+  // Smart default name based on selections (e.g. "FC Porto vs SL Benfica")
+  const defaultName = useMemo(() => {
+    if (items.length === 0) return '';
+    if (items.length === 1) {
+      return `${items[0]!.homeTeam} vs ${items[0]!.awayTeam}`;
+    }
+    return `${items[0]!.homeTeam} vs ${items[0]!.awayTeam} + ${items.length - 1}`;
+  }, [items]);
+
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}> 
+    <KeyboardAvoidingView
+      style={[styles.screen, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <Stack.Screen options={{ title: 'Novo boletim' }} />
       <FlatList
+        style={{ flex: 1 }}
         contentContainerStyle={{
           paddingTop: insets.top + tokens.spacing.md,
-          paddingBottom: insets.bottom + 120,
+          paddingBottom: tokens.spacing.md,
           paddingHorizontal: tokens.spacing.lg,
         }}
+        keyboardShouldPersistTaps="handled"
         data={items}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
@@ -576,6 +681,7 @@ export default function CreateBoletinScreen() {
               </View>
 
               <Pressable
+                accessibilityLabel="Limpar boletim"
                 hitSlop={10}
                 onPress={() => {
                   if (items.length > 0) {
@@ -590,10 +696,12 @@ export default function CreateBoletinScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+              <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>1. Seleção</Text>
               <AddSelectionForm onAdd={addItem} pendingBoletins={pendingBoletins} />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+              <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>2. Aposta</Text>
               <OddsCalculator potentialReturn={potentialReturn} stake={stake} totalOdds={totalOdds} />
             </Animated.View>
 
@@ -608,7 +716,8 @@ export default function CreateBoletinScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(250).duration(400).springify()} style={{ gap: tokens.spacing.lg }}>
-              <Input label="Nome" onChangeText={setName} placeholder="Liga Portugal Domingo" value={name} />
+              <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>3. Detalhes</Text>
+              <Input label="Nome" onChangeText={setName} placeholder={defaultName || 'Liga Portugal Domingo'} value={name} />
               <Input label="Notas" multiline onChangeText={setNotes} placeholder="Notas opcionais" value={notes} />
               {/* Data da aposta */}
               <DatePickerField
@@ -657,7 +766,11 @@ export default function CreateBoletinScreen() {
                   <Text style={[styles.publicTitle, { color: colors.textPrimary }]}>Aposta gratuita (freebet)</Text>
                   <Text style={[styles.publicSubtitle, { color: colors.textSecondary }]}>A stake era um freebet — não tens dinheiro real em risco. As tuas estatísticas de lucro/prejuízo serão calculadas em conformidade.</Text>
                 </View>
-                <Switch onValueChange={setFreebet} value={isFreebet} />
+                <Switch
+                  onValueChange={setFreebet}
+                  trackColor={{ false: undefined, true: '#FFB300' }}
+                  value={isFreebet}
+                />
               </Card>
             </Animated.View>
 
@@ -696,8 +809,10 @@ export default function CreateBoletinScreen() {
         showsVerticalScrollIndicator={false}
       />
 
+      {/* Save button */}
       <View style={[styles.footerBar, { paddingBottom: insets.bottom + tokens.spacing.md, paddingHorizontal: tokens.spacing.lg }]}>
         <Button
+          disabled={items.length === 0}
           loading={isSaving}
           onPress={async () => {
             try {
@@ -715,6 +830,7 @@ export default function CreateBoletinScreen() {
             }
           }}
           title="Guardar boletim"
+          leftSlot={!isSaving ? <Ionicons name="checkmark-circle-outline" size={18} color="#fff" /> : undefined}
         />
       </View>
 
@@ -764,7 +880,7 @@ export default function CreateBoletinScreen() {
           );
         }}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -802,7 +918,8 @@ const styles = StyleSheet.create({
   publicTitle: { fontSize: 15, fontWeight: '800' },
   publicSubtitle: { fontSize: 13, lineHeight: 20 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
-  footerBar: { bottom: 0, left: 0, position: 'absolute', right: 0 },
+  sectionDivider: { fontSize: 13, fontWeight: '700', letterSpacing: 0.4, marginBottom: 10, textTransform: 'uppercase' },
+  footerBar: { paddingTop: 12 },
   // Add selection form
   addForm: { gap: 14 },
   formTitle: { fontSize: 16, fontWeight: '800' },

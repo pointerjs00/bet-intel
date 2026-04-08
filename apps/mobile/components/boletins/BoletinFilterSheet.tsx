@@ -248,7 +248,7 @@ export function BoletinFilterSheet({
               onPress={toggleSortDir}
               style={[styles.dirButton, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
             >
-              <Ionicons color={colors.primary} name={draftSort.dir === 'asc' ? 'arrow-up' : 'arrow-down'} size={18} />
+              <Ionicons color={colors.primary} name={draftSort.dir === 'asc' ? 'arrow-up' : 'arrow-down'} size={20} />
             </Pressable>
           </View>
 
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   sortRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   sortChipsScroll: { flex: 1, overflow: 'hidden' },
   sortChips: { gap: 8 },
-  dirButton: { alignItems: 'center', borderRadius: 10, borderWidth: 1, height: 36, justifyContent: 'center', width: 36 },
+  dirButton: { alignItems: 'center', borderRadius: 12, borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
   triggerBtn: {
     alignItems: 'center',
     borderRadius: 12,

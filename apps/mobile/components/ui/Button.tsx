@@ -75,6 +75,8 @@ export function Button({
           leftSlot
         )}
         <Text
+          adjustsFontSizeToFit
+          numberOfLines={1}
           style={[
             styles.label,
             {

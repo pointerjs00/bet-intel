@@ -76,7 +76,7 @@ export function SportMarketMatrix({ cells, onInfoPress }: SportMarketMatrixProps
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         ROI por combinação (cor = performance)
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator>
         <View>
           {/* Header row — market names */}
           <View style={styles.row}>
@@ -146,8 +146,8 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'stretch' },
   headerCell: { justifyContent: 'flex-end', paddingBottom: 6, paddingHorizontal: 4 },
   sportCol: { width: 90 },
-  valueCol: { width: 80, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 4 },
-  headerText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  valueCol: { width: 88, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 4 },
+  headerText: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   sportCell: { justifyContent: 'center', paddingRight: 4 },
   sportText: { fontSize: 12, fontWeight: '800' },
   emptyCell: { borderRadius: 4, margin: 1 },

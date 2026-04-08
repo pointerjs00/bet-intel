@@ -1,10 +1,14 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StatsByOddsRangeRow } from '@betintel/shared';
 import { Bar, CartesianChart } from 'victory-native';
+import { Text as SkiaText, matchFont } from '@shopify/react-native-skia';
 import { useTheme } from '../../theme/useTheme';
 import { formatPercentage } from '../../utils/formatters';
+
+const fontFamily = Platform.select({ ios: 'Helvetica', default: 'sans-serif' });
+const skiaFont = matchFont({ fontFamily, fontSize: 11, fontWeight: 'bold' });
 
 interface OddsRangeBarProps {
   rows: StatsByOddsRangeRow[];
@@ -33,6 +37,8 @@ export function OddsRangeBar({ rows, onInfoPress }: OddsRangeBarProps) {
     }));
   }, [rows]);
 
+  const font = skiaFont;
+
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.titleRow}>
@@ -54,6 +60,26 @@ export function OddsRangeBar({ rows, onInfoPress }: OddsRangeBarProps) {
             <>
               <Bar chartBounds={chartBounds} color={colors.primary} points={points.positive} />
               <Bar chartBounds={chartBounds} color={colors.danger} points={points.negative} />
+              {/* Value labels above/below each bar */}
+              {font && rows.map((row, i) => {
+                const posP = points.positive[i];
+                const negP = points.negative[i];
+                if (!posP && !negP) return null;
+                const point = row.roi >= 0 ? posP : negP;
+                if (!point) return null;
+                const label = formatPercentage(row.roi);
+                const yOffset = row.roi >= 0 ? -8 : 14;
+                return (
+                  <SkiaText
+                    key={i}
+                    x={(point as unknown as { x: number }).x - 14}
+                    y={(point as unknown as { y: number }).y + yOffset}
+                    text={label}
+                    font={font}
+                    color={row.roi >= 0 ? colors.primary : colors.danger}
+                  />
+                );
+              })}
             </>
           )}
         </CartesianChart>

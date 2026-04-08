@@ -141,7 +141,7 @@ export default function StatsScreen() {
       >
         <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.headerWrap}>
           <View style={styles.headerTopRow}>
-            <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Dashboard</Text>
+            <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Estatísticas</Text>
             <TouchableOpacity onPress={handleExport} style={styles.exportBtn} hitSlop={8}>
               <Ionicons color={colors.textSecondary} name="download-outline" size={20} />
             </TouchableOpacity>
@@ -306,7 +306,7 @@ export default function StatsScreen() {
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (ganhas)</Text>
-                  <Pressable hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
+                  <Pressable accessibilityLabel="Informação sobre stake média" hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
                     <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
                   </Pressable>
                 </View>
@@ -315,7 +315,7 @@ export default function StatsScreen() {
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (perdidas)</Text>
-                  <Pressable hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
+                  <Pressable accessibilityLabel="Informação sobre stake média" hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
                     <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
                   </Pressable>
                 </View>
@@ -361,7 +361,7 @@ export default function StatsScreen() {
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Eficiência de odds</Text>
-                  <Pressable hitSlop={6} onPress={() => pushInfo('odds-efficiency', stats.summary.oddsEfficiency)}>
+                  <Pressable accessibilityLabel="Informação sobre eficiência de odds" hitSlop={6} onPress={() => pushInfo('odds-efficiency', stats.summary.oddsEfficiency)}>
                     <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
                   </Pressable>
                 </View>
@@ -596,7 +596,7 @@ const styles = StyleSheet.create({
   metricSmall: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   tableLabel: { fontSize: 14, fontWeight: '800' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
-  horizontalCards: { gap: 12 },
+  horizontalCards: { gap: 12, paddingRight: 32 },
   miniCard: { gap: 8, width: 250 },
   miniCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   miniLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },

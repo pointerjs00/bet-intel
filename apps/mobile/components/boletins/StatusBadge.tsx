@@ -5,12 +5,14 @@ import { useTheme } from '../../theme/useTheme';
 
 interface StatusBadgeProps {
   status: BoletinStatus;
+  /** 'banner' variant uses opaque white background so it stands out on the coloured banner */
+  variant?: 'default' | 'banner';
 }
 
 /** Small status badge used across boletin list and detail screens. */
-export function StatusBadge({ status }: StatusBadgeProps) {
+export function StatusBadge({ status, variant = 'default' }: StatusBadgeProps) {
   const { colors } = useTheme();
-  const palette = getPalette(status, colors);
+  const palette = variant === 'banner' ? getBannerPalette(status) : getPalette(status, colors);
 
   return (
     <View style={[styles.badge, { backgroundColor: palette.background, borderColor: palette.border }]}>
@@ -34,6 +36,21 @@ function getLabel(status: BoletinStatus): string {
     case BoletinStatus.PENDING:
     default:
       return 'Pendente';
+  }
+}
+
+function getBannerPalette(status: BoletinStatus) {
+  switch (status) {
+    case BoletinStatus.WON:
+      return { background: '#fff', border: '#fff', text: '#007A32' };
+    case BoletinStatus.LOST:
+      return { background: '#fff', border: '#fff', text: '#CC2F26' };
+    case BoletinStatus.CASHOUT:
+      return { background: '#fff', border: '#fff', text: '#8B6914' };
+    case BoletinStatus.PARTIAL:
+    case BoletinStatus.PENDING:
+    default:
+      return { background: '#fff', border: '#fff', text: '#A66000' };
   }
 }
 

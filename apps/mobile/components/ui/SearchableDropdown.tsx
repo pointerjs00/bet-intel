@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -45,6 +45,11 @@ export interface SearchableDropdownProps {
   multiSelect?: boolean;
   selectedValues?: string[];
   onSelectMultiple?: (values: string[]) => void;
+  /**
+   * When set, sections or the flat list initially show only this many items.
+   * A "Carregar mais" button reveals the rest. Search always shows all matches.
+   */
+  initialVisibleCount?: number;
 }
 
 export function SearchableDropdown({
@@ -61,10 +66,34 @@ export function SearchableDropdown({
   multiSelect,
   selectedValues,
   onSelectMultiple,
+  initialVisibleCount,
 }: SearchableDropdownProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
+  // Per-section expanded state for sections mode ("Carregar mais")
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
+  // Flat list visible count for items mode ("Carregar mais")
+  const [flatVisible, setFlatVisible] = useState<number | undefined>(initialVisibleCount);
+
+  const isSearching = search.trim().length > 0;
+
+  // Reset visible count when modal opens / search changes
+  useEffect(() => {
+    if (visible) {
+      setExpandedSections(new Set());
+      setFlatVisible(initialVisibleCount);
+    }
+  }, [visible, initialVisibleCount]);
+
+  useEffect(() => {
+    if (isSearching) {
+      // When searching, show everything
+      setFlatVisible(undefined);
+    } else {
+      setFlatVisible(initialVisibleCount);
+    }
+  }, [isSearching, initialVisibleCount]);
 
   const filteredSections = useMemo(() => {
     if (!sections) return undefined;
@@ -75,11 +104,38 @@ export function SearchableDropdown({
       .filter((s) => s.data.length > 0);
   }, [sections, search]);
 
+  // Section total counts (before slicing) for "Carregar mais" remaining count
+  const sectionTotalCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of filteredSections ?? []) map.set(s.title, s.data.length);
+    return map;
+  }, [filteredSections]);
+
+  // Sliced sections: only apply limit when NOT searching
+  const displaySections = useMemo(() => {
+    if (!filteredSections) return undefined;
+    if (!initialVisibleCount || isSearching) return filteredSections;
+    return filteredSections.map((s) => {
+      if (expandedSections.has(s.title) || s.data.length <= initialVisibleCount) return s;
+      return { ...s, data: s.data.slice(0, initialVisibleCount) };
+    });
+  }, [filteredSections, initialVisibleCount, expandedSections, isSearching]);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return items ?? [];
     const lower = search.toLowerCase();
     return (items ?? []).filter((item) => item.label.toLowerCase().includes(lower));
   }, [items, search]);
+
+  // Visible flat items (apply limit when not searching)
+  const displayItems = useMemo(() => {
+    if (!items) return [];
+    if (isSearching || !flatVisible) return filtered;
+    return filtered.slice(0, flatVisible);
+  }, [filtered, items, isSearching, flatVisible]);
+
+  const flatHasMore = !isSearching && flatVisible !== undefined && filtered.length > flatVisible;
+  const flatRemaining = filtered.length - (flatVisible ?? 0);
 
   const noResults = sections ? (filteredSections?.length === 0) : filtered.length === 0;
 
@@ -180,7 +236,7 @@ export function SearchableDropdown({
                 </View>
               ) : sections ? (
                 <SectionList
-                  sections={filteredSections ?? sections}
+                  sections={displaySections ?? sections}
                   keyExtractor={(item) => item.value}
                   renderSectionHeader={({ section }) => (
                     <View style={[styles.sectionHeader, { backgroundColor: colors.surfaceRaised }]}>
@@ -192,6 +248,23 @@ export function SearchableDropdown({
                       ) : null}
                     </View>
                   )}
+                  renderSectionFooter={({ section }) => {
+                    if (!initialVisibleCount || isSearching || expandedSections.has(section.title)) return null;
+                    const total = sectionTotalCounts.get(section.title) ?? 0;
+                    const remaining = total - initialVisibleCount;
+                    if (remaining <= 0) return null;
+                    return (
+                      <Pressable
+                        onPress={() => setExpandedSections((prev) => new Set([...prev, section.title]))}
+                        style={[styles.loadMoreBtn, { borderColor: colors.border }]}
+                      >
+                        <Ionicons color={colors.primary} name="chevron-down-circle-outline" size={15} />
+                        <Text style={[styles.loadMoreText, { color: colors.primary }]}>
+                          Carregar mais ({remaining} mais)
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
                   renderItem={({ item }) => renderRow(item)}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
@@ -199,9 +272,22 @@ export function SearchableDropdown({
                 />
               ) : (
                 <FlatList
-                  data={filtered}
+                  data={displayItems}
                   keyExtractor={(item) => item.value}
                   renderItem={({ item }) => renderRow(item)}
+                  ListFooterComponent={
+                    flatHasMore ? (
+                      <Pressable
+                        onPress={() => setFlatVisible((prev) => (prev ?? 0) + (initialVisibleCount ?? 20))}
+                        style={[styles.loadMoreBtn, { borderColor: colors.border }]}
+                      >
+                        <Ionicons color={colors.primary} name="chevron-down-circle-outline" size={15} />
+                        <Text style={[styles.loadMoreText, { color: colors.primary }]}>
+                          Carregar mais ({flatRemaining} mais)
+                        </Text>
+                      </Pressable>
+                    ) : undefined
+                  }
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                   style={{ flex: 1 }}
@@ -296,4 +382,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   customValueText: { flex: 1, fontSize: 15, fontWeight: '700' },
+  loadMoreBtn: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 0,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    marginVertical: 4,
+    paddingVertical: 10,
+  },
+  loadMoreText: { fontSize: 13, fontWeight: '700' },
 });

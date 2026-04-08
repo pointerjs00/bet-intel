@@ -19,6 +19,7 @@ export function isSelfDescribing(market: string): boolean {
     /\bEmpate\b/.test(market) ||
     / ou /.test(market) ||
     /^EAA:/.test(market) ||
+    /^HT\/FT:/.test(market) ||
     /Cantos - Mais de \d/.test(market) ||
     /Cartões - Mais de \d/.test(market)
   );
@@ -54,6 +55,12 @@ export function humanizeMarket(market: string, homeTeam: string, awayTeam: strin
     .replace(/Total de Pontos - Menos de (\d+[.,]\d+)/g, '-$1 Pts')
     .replace(/Cantos - Mais de (\d+[.,]\d+)/g, 'Cantos: +$1')
     .replace(/Cartões - Mais de (\d+[.,]\d+)/g, 'Cartões: +$1')
+    // HT/FT: substitute Casa → home and Fora → away within the outcome codes
+    .replace(/HT\/FT: (\w+)\/(\w+)/g, (_, ht, ft) => {
+      const htLabel = ht === 'Casa' ? home : ht === 'Fora' ? away : ht;
+      const ftLabel = ft === 'Casa' ? home : ft === 'Fora' ? away : ft;
+      return `HT/FT: ${htLabel}/${ftLabel}`;
+    })
     .replace(/\bCasa\b/g, home)
     .replace(/\bFora\b/g, away);
 }

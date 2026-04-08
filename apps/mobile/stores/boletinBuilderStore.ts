@@ -5,6 +5,13 @@ import type { BoletinDetail, CreateBoletinInput, Sport } from '@betintel/shared'
 import { createBoletinRequest } from '../services/boletinService';
 import { parseDDMMYYYYToISO } from '../utils/formatters';
 
+function todayDDMMYYYY(): string {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
 export interface BoletinBuilderItem {
   id: string;
   homeTeam: string;
@@ -51,7 +58,7 @@ const DEFAULT_STATE: BuilderStateValues = {
   name: '',
   notes: '',
   siteSlug: '',
-  betDate: '',
+  betDate: todayDDMMYYYY(),
   isPublic: false,
   isFreebet: false,
   totalOdds: 1,
@@ -71,8 +78,16 @@ function withComputed(state: BuilderStateValues): BuilderStateValues {
 
 function buildCreatePayload(state: BuilderStateValues): CreateBoletinInput {
   const betDateISO = state.betDate.length === 10 ? parseDDMMYYYYToISO(state.betDate) : null;
+  // Smart default name from selections
+  let name = state.name.trim();
+  if (!name && state.items.length > 0) {
+    const first = state.items[0]!;
+    name = state.items.length === 1
+      ? `${first.homeTeam} vs ${first.awayTeam}`
+      : `${first.homeTeam} vs ${first.awayTeam} + ${state.items.length - 1}`;
+  }
   return {
-    name: state.name.trim() || undefined,
+    name: name || undefined,
     notes: state.notes.trim() || undefined,
     siteSlug: state.siteSlug.trim() || undefined,
     betDate: betDateISO ?? undefined,
@@ -124,7 +139,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
       setBetDate: (betDate) => set((state) => ({ ...state, betDate })),
       setPublic: (isPublic) => set((state) => ({ ...state, isPublic })),
       setFreebet: (isFreebet) => set((state) => ({ ...state, isFreebet })),
-      reset: () => set(withComputed(DEFAULT_STATE)),
+      reset: () => set(withComputed({ ...DEFAULT_STATE, betDate: todayDDMMYYYY() })),
       save: async () => {
         const state = get();
 

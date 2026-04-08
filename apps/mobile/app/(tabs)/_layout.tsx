@@ -33,7 +33,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         {state.routes.map((route, index) => {
           const descriptor = descriptors[route.key];
           const focused = state.index === index;
-          const tintColor = focused ? colors.primary : colors.textMuted;
+          const tintColor = focused ? colors.primary : colors.textSecondary;
 
           const onPress = () => {
             const event = navigation.emit({

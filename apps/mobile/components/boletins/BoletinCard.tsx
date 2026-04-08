@@ -286,14 +286,14 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
             onPress={(e) => { e.stopPropagation(); onShare?.(); }}
             style={[styles.iconBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
           >
-            <Ionicons color={colors.textSecondary} name="share-social-outline" size={17} />
+            <Ionicons color={colors.textSecondary} name="share-social-outline" size={20} />
           </Pressable>
           <Pressable
             hitSlop={10}
             onPress={(e) => { e.stopPropagation(); onDelete?.(); }}
             style={[styles.iconBtn, { backgroundColor: 'rgba(255,59,48,0.10)', borderColor: 'rgba(255,59,48,0.25)' }]}
           >
-            <Ionicons color="#FF3B30" name="trash-outline" size={17} />
+            <Ionicons color="#FF3B30" name="trash-outline" size={20} />
           </Pressable>
         </View>
 
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     top: 0,
-    width: 4,
+    width: 5,
   },
   headerRow: {
     alignItems: 'center',
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 20, fontWeight: '900', lineHeight: 26, marginLeft: 8, },
   metricsRow: { flexDirection: 'row', gap: 12, marginLeft: 8, },
   metric: { flex: 1, gap: 4 },
-  metricLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  metricLabel: { fontSize: 12, fontWeight: '600' },
   metricValue: { fontSize: 14, fontWeight: '800' },
   resultDot: { borderRadius: 4, flexShrink: 0, height: 8, width: 8, marginLeft: 8, },
   previewList: { gap: 6 },
@@ -388,14 +388,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginLeft: 8,
   },
-  iconActions: { flexDirection: 'row', gap: 8 },
+  iconActions: { flexDirection: 'row', gap: 12 },
   iconBtn: {
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    height: 36,
+    height: 44,
     justifyContent: 'center',
-    width: 36,
+    width: 44,
   },
   expandBtn: {
     alignItems: 'center',

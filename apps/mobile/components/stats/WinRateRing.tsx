@@ -31,7 +31,7 @@ export function WinRateRing({ winRate, onInfoPress }: WinRateRingProps) {
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Win Rate</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Taxa de Vitória</Text>
         {onInfoPress ? (
           <Pressable hitSlop={8} onPress={onInfoPress}>
             <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />

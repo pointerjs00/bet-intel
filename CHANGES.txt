@@ -1,0 +1,81 @@
+Review the BetIntel codebase and apply the following UX and design improvements, based on a visual audit of the current app. Prioritise the Boletins list, Create Boletin, and Stats screen first.
+
+Boletins List (app/(tabs)/index.tsx)
+
+The summary card at the top (Total apostado / Retorno / ROI) feels disconnected — add a subtle border or distinct background to make it feel more like a tappable card and less like floating text
+The status filter chips (Pendente / Ganhou / Perdeu / Cashout) are not visually selected when active — add a clear selected state (filled background, e.g. the green accent) so the user knows which filter is active
+The share and delete icon buttons on each boletin card are too close together and too small — increase spacing between them and ensure each has a minimum 44pt touch target
+The left-side coloured border on boletin cards (green for Ganhou, red for Perdeu) is a nice pattern — make it slightly thicker (4–5px) so it reads more clearly at a glance
+The boletin card label text (STAKE, ODDS, PERDIDO/RETORNO) is all-caps and small — reduce visual noise by lowercasing these labels and slightly increasing the font size
+
+
+Create Boletin Screen (app/boletins/create.tsx)
+Form structure & flow
+
+The form has no visual progress indicator — the user doesn't know how many steps remain before they can save. Add a subtle step indicator or section dividers (e.g. "1. Seleção", "2. Aposta", "3. Detalhes") to make the flow feel structured
+The "Adicionar ao boletim" button is visually identical to the surrounding form — make it more prominent with the green accent colour as a secondary button (outlined green) so it stands out as an action
+The reset button (↺) in the top right has no label and is easy to tap accidentally — add a confirmation dialog before resetting, and add an accessibilityLabel="Reiniciar boletim"
+The "Guardar boletim" button is always visible at the bottom even when no selections have been added yet — disable it and show a muted state until at least one selection exists, with a tooltip explaining why it's disabled
+
+Dropdowns & pickers
+
+The Desporto, Competição, Equipa Casa, Equipa Fora, and Mercado fields all open full-screen modal pickers — this is a lot of navigation for a single selection. Consider keeping Desporto as an inline segmented control (there are only 10 sports) instead of a modal, since it's the first and most frequent choice
+The Desporto picker modal has a search bar but only 10 items — the search is unnecessary here; remove it to simplify the picker
+The Competição picker groups by country with expandable sections — this is well structured, but the "Abrir todos" button expands everything at once which may be overwhelming. Rename it to "Expandir tudo" for clarity and add a "Recolher tudo" toggle
+The Equipa Casa / Equipa Fora lists are sorted alphabetically with no grouping — when a competition is already selected, filter the team list to only show teams from that competition by default, with an option to "Ver todas as equipas" if needed
+The favourite star on competitions (☆ / ★) is a great pattern — ensure tapping it gives haptic feedback and immediately reorders favourited competitions to the top of the list on the next open
+
+Odds & stake input
+
+The "Odd" input field has no keyboard type specified — ensure it opens a decimal numeric keyboard (keyboardType="decimal-pad") so users don't have to switch keyboards manually
+The stake quick-select chips (5,00 € / 10,00 € / 20,00 € / 50,00 €) are useful but have no visual selected state — highlight the active chip when a matching value is entered in the stake field
+The "Valor da aposta" label floats above the input but disappears once a value is typed — use a persistent floating label pattern so the field context is never lost
+The "Escrever mercado personalizado" link is in blue, which clashes with the green accent system — change it to the green accent colour for visual consistency
+
+Projection card
+
+The Projeção card shows historical ROI data which is great — but the disclaimer ("Algumas categorias têm poucas apostas — a projeção pode ser imprecisa") is in a very small italic font that's hard to read. Increase font size to at least 12sp and use the standard muted text colour instead of italic
+Add accessibilityLabel to the ROI médio histórico pill so screen readers announce it correctly
+
+Bottom of form
+
+The "Nome" field currently defaults to placeholder text — pre-fill it with a smart default based on the selections (e.g. "FC Porto vs SL Benfica") so the user only needs to edit if they want a custom name
+The "Data da aposta" field defaults to today but shows an empty placeholder — pre-fill it with today's date so it's clear what the default is, and only require editing if the user wants a different date
+The toggles for "Tornar boletim público" and "Aposta gratuita (freebet)" look identical in style — give the freebet toggle a distinct colour (e.g. amber/yellow) when active since it has a meaningful impact on stats calculations
+The "Seleções (1)" section at the bottom of the form is well placed — ensure each selection card has a accessibilityLabel summarising the pick (e.g. "FC Porto vence, odds 2.00, Liga Portugal Betclic")
+
+Calendar picker
+
+The date picker calendar is well styled — but future dates should be visually disabled (greyed out) since a bet cannot be placed in the future. Disable selection of any date after today
+
+
+Filter & Sort Sheet (Ordenar e Filtrar)
+
+The sort options (Data, Stake, Odds, Retorno, Eventos) are displayed as a horizontal scroll with no selected state — highlight the active sort option with the green accent colour and a filled chip style
+The range sliders for Stake, Odds Totais, and Retorno are hard to use precisely — add haptic feedback at min/max boundaries and consider allowing direct text input on the value fields (they appear to be read-only currently)
+The "Casa de Apostas" section shows only a text label with no visual affordance that it's tappable — add a chevron or pill chip style to make it clearly interactive
+
+
+Boletin Detail (app/boletins/[id].tsx)
+
+The status selector (Pendente / Ganhou / Perdeu) looks like plain text tabs — replace with a segmented control style with a clear active indicator so the user knows the current status at a glance
+The "Tornar público" and "Partilhar" buttons are the same visual weight — "Partilhar" should be the primary action (filled) and "Tornar público" secondary (outlined)
+The per-pick result icons (✓ / ✗ / −) on the selections lack labels — add accessibilityLabel props: "Ganhou", "Perdeu", "Void"
+The header card colour (green for Ganhou, red for Perdeu) is great — ensure text contrast on both colours passes WCAG AA (white text on the green may be borderline)
+
+
+Stats Screen (app/(tabs)/stats.tsx)
+
+The "unknown" entry in the "Por casa de apostas" table is showing as a raw slug — map unrecognised site slugs to a fallback label such as "Outra casa" instead
+The ROI por Range de Odds bar chart has no axis labels on the Y-axis and no value labels on each bar — add value labels above each bar (e.g. "+46.7%") so the chart is readable without a legend
+The Timeline P&L chart has no Y-axis labels or zero line — add a dashed zero line and at least 3 Y-axis tick labels so users can read absolute values
+The "Melhores boletins" and "Piores boletins" horizontal scroll cards are cut off at the right edge with no affordance that they scroll — add a partial peek of the next card to signal horizontal scrollability
+The Desporto × Mercado matrix column headers are truncated — allow headers to wrap to 2 lines or add a horizontal scroll with fixed row labels
+
+
+Global / Design System
+
+Several section titles mix Portuguese and English ("Win Rate", "Timeline P&L", "ROI por Range de Odds", "Dashboard") — decide on one language and apply consistently throughout
+Ensure all ⓘ info buttons across Stats cards have an accessibilityLabel such as "Mais informações sobre [métrica]"
+The bottom tab bar inactive icons are very low contrast against the dark background — increase the opacity or colour of inactive tab icons to improve legibility
+Add accessibilityRole="tab" and accessibilityState={{ selected }} to all bottom tab items

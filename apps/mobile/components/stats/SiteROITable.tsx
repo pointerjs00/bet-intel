@@ -82,7 +82,7 @@ function SiteRow({ row }: { row: StatsBySiteRow }) {
   return (
     <View style={[styles.dataRow, { borderTopColor: colors.border }]}>
       <Text numberOfLines={1} style={[styles.siteCol, styles.siteText, { color: colors.textPrimary }]}>
-        {row.label}
+        {row.label === 'unknown' ? 'Outra casa' : row.label}
       </Text>
       <Text style={[styles.numCol, styles.numText, { color: colors.textSecondary }]}>
         {row.totalBets}

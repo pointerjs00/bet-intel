@@ -29,8 +29,11 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
   const { colors } = useTheme();
   const resultMeta = getResultMeta(item.result, colors);
 
+  const a11yLabel = `${item.selection}, odds ${item.oddValue}, ${item.homeTeam} vs ${item.awayTeam}, ${item.competition}`;
+
   return (
     <View
+      accessibilityLabel={a11yLabel}
       style={[
         styles.card,
         {
@@ -84,6 +87,7 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
         ) : onResultChange ? (
           <View style={styles.resultButtons}>
             <Pressable
+              accessibilityLabel="Marcar como ganhou"
               hitSlop={6}
               onPress={() => onResultChange(item.result === ItemResult.WON ? ItemResult.PENDING : ItemResult.WON)}
               style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.WON ? 'rgba(0,200,81,0.18)' : colors.surfaceRaised }]}
@@ -91,6 +95,7 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
               <Ionicons color={item.result === ItemResult.WON ? colors.primary : colors.textMuted} name="checkmark" size={16} />
             </Pressable>
             <Pressable
+              accessibilityLabel="Marcar como perdeu"
               hitSlop={6}
               onPress={() => onResultChange(item.result === ItemResult.LOST ? ItemResult.PENDING : ItemResult.LOST)}
               style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.LOST ? 'rgba(255,59,48,0.18)' : colors.surfaceRaised }]}
@@ -98,6 +103,7 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
               <Ionicons color={item.result === ItemResult.LOST ? colors.danger : colors.textMuted} name="close" size={16} />
             </Pressable>
             <Pressable
+              accessibilityLabel="Marcar como void"
               hitSlop={6}
               onPress={() => onResultChange(item.result === ItemResult.VOID ? ItemResult.PENDING : ItemResult.VOID)}
               style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.VOID ? 'rgba(0,122,255,0.18)' : colors.surfaceRaised }]}
@@ -106,7 +112,7 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
             </Pressable>
           </View>
         ) : (
-          <View style={[styles.resultIcon, { backgroundColor: resultMeta.background }]}>
+          <View accessibilityLabel={resultMeta.a11yLabel} style={[styles.resultIcon, { backgroundColor: resultMeta.background }]}>
             <Ionicons color={resultMeta.color} name={resultMeta.icon} size={18} />
           </View>
         )}
@@ -125,6 +131,7 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
         <View style={styles.metaBlockRight}>
           <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Odd</Text>
           <Text style={[styles.metaValue, { color: colors.gold }]}>{formatOdds(item.oddValue)}</Text>
+          <ImpliedProbability oddValue={item.oddValue} result={item.result} />
         </View>
       </View>
     </View>
@@ -134,16 +141,58 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
 function getResultMeta(result: ItemResult, colors: ReturnType<typeof useTheme>['colors']) {
   switch (result) {
     case ItemResult.WON:
-      return { icon: 'checkmark', color: colors.primary, background: 'rgba(0, 200, 81, 0.12)' } as const;
+      return { icon: 'checkmark', color: colors.primary, background: 'rgba(0, 200, 81, 0.12)', a11yLabel: 'Ganhou' } as const;
     case ItemResult.LOST:
-      return { icon: 'close', color: colors.danger, background: 'rgba(255, 59, 48, 0.12)' } as const;
+      return { icon: 'close', color: colors.danger, background: 'rgba(255, 59, 48, 0.12)', a11yLabel: 'Perdeu' } as const;
     case ItemResult.VOID:
-      return { icon: 'remove', color: colors.info, background: 'rgba(0, 122, 255, 0.12)' } as const;
+      return { icon: 'remove', color: colors.info, background: 'rgba(0, 122, 255, 0.12)', a11yLabel: 'Void' } as const;
     case ItemResult.PENDING:
     default:
-      return { icon: 'time-outline', color: colors.warning, background: 'rgba(255, 149, 0, 0.12)' } as const;
+      return { icon: 'time-outline', color: colors.warning, background: 'rgba(255, 149, 0, 0.12)', a11yLabel: 'Pendente' } as const;
   }
 }
+
+function ImpliedProbability({ oddValue, result }: { oddValue: string; result: ItemResult }) {
+  const { colors } = useTheme();
+  const odd = parseFloat(oddValue);
+  if (!odd || odd < 1.01) return null;
+  const pct = (1 / odd) * 100;
+
+  // Color coding: high probability = green, medium = amber, low = red
+  const probColor =
+    pct >= 60 ? colors.primary :
+    pct >= 35 ? colors.warning :
+    colors.danger;
+
+  // For settled items keep a neutral muted look
+  const displayColor = result === ItemResult.PENDING ? probColor : colors.textMuted;
+
+  return (
+    <View style={probStyles.wrap}>
+      <View style={[probStyles.bar, { backgroundColor: colors.border }]}>
+        <View
+          style={[
+            probStyles.fill,
+            {
+              backgroundColor: displayColor,
+              width: `${Math.min(pct, 100)}%` as unknown as number,
+            },
+          ]}
+        />
+      </View>
+      <Text style={[probStyles.label, { color: displayColor }]}>
+        {pct.toFixed(0)}% prob.
+      </Text>
+    </View>
+  );
+}
+
+const probStyles = StyleSheet.create({
+  wrap: { alignItems: 'flex-end', gap: 3, marginTop: 2 },
+  bar: { borderRadius: 999, height: 3, overflow: 'hidden', width: 60 },
+  fill: { borderRadius: 999, height: 3 },
+  label: { fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
+});
 
 const styles = StyleSheet.create({
   card: {

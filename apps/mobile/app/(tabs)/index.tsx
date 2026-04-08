@@ -24,7 +24,6 @@ import {
 } from '../../components/boletins/BoletinFilterSheet';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Chip } from '../../components/ui/Chip';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -272,7 +271,7 @@ export default function HomeScreen() {
     : filtered;
 
   const summary = useMemo(() => {
-    return boletins.reduce(
+    return filtered.reduce(
       (acc, boletin) => {
         acc.totalStaked += Number(boletin.stake);
         acc.totalReturned += Number(boletin.actualReturn ?? 0);
@@ -280,7 +279,7 @@ export default function HomeScreen() {
       },
       { totalStaked: 0, totalReturned: 0 },
     );
-  }, [boletins]);
+  }, [filtered]);
 
   const roi =
     summary.totalStaked > 0
@@ -335,7 +334,7 @@ export default function HomeScreen() {
             {/* Summary card */}
             <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
               <Pressable onPress={() => router.push('/(tabs)/stats')}>
-                <Card style={styles.summaryCard}>
+                <Card style={[styles.summaryCard, { borderColor: colors.border }]}>
                   <View style={styles.summaryMetric}>
                     <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
                     <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(summary.totalStaked)}</Text>
@@ -374,30 +373,31 @@ export default function HomeScreen() {
               </View>
             </Animated.View>
 
-            {/* Status filter chips + sort/filter buttons */}
+            {/* Status filter grid + advanced filter button */}
             <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.controlsRow}>
-              <FlatList
-                contentContainerStyle={styles.filterList}
-                data={STATUS_FILTERS}
-                horizontal
-                keyExtractor={(item) => item.key}
-                renderItem={({ item }) => (
-                  <Chip
-                    label={item.label}
-                    selected={activeStatuses.has(item.key)}
-                    onPress={() => {
-                      setActiveStatuses((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(item.key)) next.delete(item.key);
-                        else next.add(item.key);
-                        return next;
-                      });
-                    }}
-                  />
-                )}
-                showsHorizontalScrollIndicator={false}
-                ItemSeparatorComponent={() => <View style={{ width: 8 }} />}
-              />
+              <View style={styles.statusFilterGrid}>
+                {STATUS_FILTERS.map((item) => {
+                  const active = activeStatuses.has(item.key);
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => {
+                        setActiveStatuses((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(item.key)) next.delete(item.key);
+                          else next.add(item.key);
+                          return next;
+                        });
+                      }}
+                      style={[styles.statusFilterBtn, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surfaceRaised }]}
+                    >
+                      <Text style={[styles.statusFilterBtnText, { color: active ? '#fff' : colors.textSecondary }]}>
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <Pressable
                 onPress={() => filterSheetRef.current?.expand()}
                 style={[
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   notifBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
-  summaryCard: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  summaryCard: { flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1 },
   summaryMetric: { flex: 1, gap: 6 },
   summaryChevron: { justifyContent: 'center', paddingLeft: 4 },
   summaryLabel: { fontSize: 12, fontWeight: '700' },
@@ -603,7 +603,10 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
   },
   searchInput: { flex: 1, fontSize: 15, fontWeight: '500' },
-  controlsRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  controlsRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  statusFilterGrid: { flex: 1, flexDirection: 'row', gap: 6 },
+  statusFilterBtn: { flex: 1, alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingVertical: 7 },
+  statusFilterBtnText: { fontSize: 11, fontWeight: '700' },
   filterList: { gap: 8 },
   filterBtn: {
     alignItems: 'center',

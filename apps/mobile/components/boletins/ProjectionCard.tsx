@@ -95,7 +95,10 @@ export function ProjectionCard({ items, stats }: ProjectionCardProps) {
       </Text>
 
       {/* Overall signal */}
-      <View style={[styles.signalRow, { backgroundColor: avgROI >= 0 ? colors.primary + '18' : colors.danger + '18', borderColor: avgROI >= 0 ? colors.primary + '40' : colors.danger + '40' }]}>
+      <View
+        accessibilityLabel={`ROI médio histórico: ${formatPercentage(avgROI)}`}
+        style={[styles.signalRow, { backgroundColor: avgROI >= 0 ? colors.primary + '18' : colors.danger + '18', borderColor: avgROI >= 0 ? colors.primary + '40' : colors.danger + '40' }]}
+      >
         <Ionicons
           color={avgROI >= 0 ? colors.primary : colors.danger}
           name={avgROI >= 0 ? 'trending-up' : 'trending-down'}
@@ -157,5 +160,5 @@ const styles = StyleSheet.create({
   insightMetrics: { alignItems: 'flex-end', gap: 2 },
   insightValue: { fontSize: 14, fontWeight: '800' },
   insightWinRate: { fontSize: 11, fontWeight: '500' },
-  disclaimer: { fontSize: 11, fontStyle: 'italic', lineHeight: 16, marginTop: 4 },
+  disclaimer: { fontSize: 12, lineHeight: 18, marginTop: 4 },
 });

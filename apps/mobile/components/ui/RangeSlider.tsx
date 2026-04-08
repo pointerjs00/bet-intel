@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/useTheme';
+import { hapticLight } from '../../utils/haptics';
 
 const THUMB = 24;
 
@@ -71,6 +72,7 @@ export function RangeSlider({
       const snapped = Math.round(raw / step) * step;
       const clamped = Math.max(min, Math.min(max, snapped));
       lowP.value = (clamped - min) / (max - min);
+      if (clamped <= min) runOnJS(hapticLight)();
       runOnJS(onLowChange)(clamped);
     });
 
@@ -92,6 +94,7 @@ export function RangeSlider({
       const snapped = Math.round(raw / step) * step;
       const clamped = Math.max(min, Math.min(max, snapped));
       highP.value = (clamped - min) / (max - min);
+      if (clamped >= max) runOnJS(hapticLight)();
       runOnJS(onHighChange)(clamped);
     });
 
