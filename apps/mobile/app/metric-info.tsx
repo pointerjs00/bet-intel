@@ -16,6 +16,10 @@ export default function MetricInfoScreen() {
     info?.interpret && numericValue !== undefined && !Number.isNaN(numericValue)
       ? info.interpret(numericValue)
       : undefined;
+  const exampleText =
+    info?.exampleFromValue && numericValue !== undefined && !Number.isNaN(numericValue)
+      ? info.exampleFromValue(numericValue)
+      : info?.example;
 
   if (!info) {
     return (
@@ -140,7 +144,7 @@ export default function MetricInfoScreen() {
             <Ionicons color={colors.primary} name="flash-outline" size={16} />
             <Text style={[styles.sectionLabel, { color: colors.primary }]}>Exemplo</Text>
           </View>
-          <Text style={[styles.bodyText, { color: colors.textPrimary }]}>{info.example}</Text>
+          <Text style={[styles.bodyText, { color: colors.textPrimary }]}>{exampleText}</Text>
         </View>
 
         {/* Tips */}

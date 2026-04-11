@@ -1,7 +1,7 @@
 import React, { useRef, useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { BoletinDetail } from '@betintel/shared';
+import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 
 interface HeatmapCalendarProps {
@@ -105,12 +105,10 @@ export const HeatmapCalendar = React.memo(function HeatmapCalendar({ boletins, o
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Frequência de apostas</Text>
         {onInfoPress ? (
-          <Pressable hitSlop={8} onPress={onInfoPress}>
-            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
-          </Pressable>
+          <InfoButton accessibilityLabel="Mais informação sobre frequência de apostas" onPress={onInfoPress} />
         ) : null}
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Frequência de apostas</Text>
       </View>
 
       {/* Day labels */}
@@ -202,7 +200,7 @@ const styles = StyleSheet.create({
   titleRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   title: {
     fontSize: 18,

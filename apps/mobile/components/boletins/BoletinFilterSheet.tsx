@@ -59,6 +59,8 @@ export interface BoletinFilter {
   competitions: string[];
   teams: string[];
   sites: string[];
+  weekday: number | null;
+  legCount: number | null;
 }
 
 export interface CompetitionEntry { name: string; sport: Sport }
@@ -79,12 +81,32 @@ interface BoletinFilterSheetProps {
   onIndexChange?: (index: number) => void;
 }
 
-const SORT_OPTIONS: Array<{ key: SortBy; label: string }> = [
-  { key: 'date', label: '📅 Data' },
-  { key: 'stake', label: '💰 Stake' },
-  { key: 'odds', label: '🎯 Odds' },
-  { key: 'return', label: '💸 Retorno' },
-  { key: 'events', label: '⚽ Eventos' },
+const WEEKDAY_OPTIONS: Array<{ label: string; value: number }> = [
+  { label: 'Dom', value: 0 },
+  { label: 'Seg', value: 1 },
+  { label: 'Ter', value: 2 },
+  { label: 'Qua', value: 3 },
+  { label: 'Qui', value: 4 },
+  { label: 'Sex', value: 5 },
+  { label: 'Sáb', value: 6 },
+];
+
+/** 6 = "6 or more" sentinel handled in the bets filter logic */
+const LEG_COUNT_OPTIONS: Array<{ label: string; value: number }> = [
+  { label: '1', value: 1 },
+  { label: '2', value: 2 },
+  { label: '3', value: 3 },
+  { label: '4', value: 4 },
+  { label: '5', value: 5 },
+  { label: '6+', value: 6 },
+];
+
+const SORT_OPTIONS: Array<{ key: SortBy; label: string; icon: string }> = [
+  { key: 'date',   label: 'Data',    icon: 'calendar-outline' },
+  { key: 'stake',  label: 'Stake',   icon: 'cash-outline' },
+  { key: 'odds',   label: 'Odds',    icon: 'stats-chart-outline' },
+  { key: 'return', label: 'Retorno', icon: 'trending-up-outline' },
+  { key: 'events', label: 'Eventos', icon: 'football-outline' },
 ];
 
 export function BoletinFilterSheet({
@@ -110,6 +132,8 @@ export function BoletinFilterSheet({
   const [sliderKey, setSliderKey] = useState(0);
   const [showCompModal, setShowCompModal] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
+  const [sitesOpen, setSitesOpen] = useState(false);
+  const [sportOpen, setSportOpen] = useState(false);
 
   const onSheetChange = useCallback(
     (index: number) => {
@@ -138,6 +162,8 @@ export function BoletinFilterSheet({
       competitions: [],
       teams: [],
       sites: [],
+      weekday: null,
+      legCount: null,
     });
     setSliderKey((k) => k + 1);
   };
@@ -229,27 +255,35 @@ export function BoletinFilterSheet({
           </View>
 
           {/* SORT */}
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Ordenar por</Text>
-          <View style={styles.sortRow}>
-            <View style={styles.sortChipsScroll}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortChips}>
-              {SORT_OPTIONS.map((opt) => (
-                <Chip
-                  key={opt.key}
-                  label={opt.label}
-                  selected={draftSort.by === opt.key}
-                  onPress={() => setDraftSort((prev) => ({ ...prev, by: opt.key }))}
-                />
-              ))}
-            </ScrollView>
-            </View>
+          <View style={styles.sectionTitleRow}>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Ordenar por</Text>
             <Pressable
               hitSlop={10}
               onPress={toggleSortDir}
               style={[styles.dirButton, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
             >
-              <Ionicons color={colors.primary} name={draftSort.dir === 'asc' ? 'arrow-up' : 'arrow-down'} size={20} />
+              <Ionicons color={colors.primary} name={draftSort.dir === 'asc' ? 'arrow-up' : 'arrow-down'} size={15} />
             </Pressable>
+          </View>
+          <View style={styles.filterBtnRow}>
+            {SORT_OPTIONS.map((opt) => {
+              const active = draftSort.by === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => setDraftSort((prev) => ({ ...prev, by: opt.key }))}
+                  style={[styles.filterBtn, {
+                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    borderColor: active ? colors.primary : colors.border,
+                  }]}
+                >
+                  <Ionicons name={opt.icon as any} size={14} color={active ? '#fff' : colors.textSecondary} />
+                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           {/* STAKE RANGE */}
@@ -289,23 +323,43 @@ export function BoletinFilterSheet({
           {allSites.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Casa de apostas</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortChips}>
-                {allSites.map((site) => (
-                  <Chip
-                    key={site.slug}
-                    label={site.name}
-                    selected={draftFilter.sites.includes(site.slug)}
-                    onPress={() =>
-                      setDraftFilter((prev) => ({
-                        ...prev,
-                        sites: prev.sites.includes(site.slug)
-                          ? prev.sites.filter((s) => s !== site.slug)
-                          : [...prev.sites, site.slug],
-                      }))
-                    }
-                  />
-                ))}
-              </ScrollView>
+              <Pressable
+                onPress={() => setSitesOpen((v) => !v)}
+                style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+              >
+                <Text style={[styles.dropdownHeaderText, { color: draftFilter.sites.length > 0 ? colors.textPrimary : colors.textMuted }]}>
+                  {draftFilter.sites.length > 0
+                    ? draftFilter.sites.map((slug) => allSites.find((s) => s.slug === slug)?.name ?? slug).join(', ')
+                    : 'Todas as casas'}
+                </Text>
+                <Ionicons color={colors.textMuted} name={sitesOpen ? 'chevron-up' : 'chevron-down'} size={16} />
+              </Pressable>
+              {sitesOpen && (
+                <View style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+                  {allSites.map((site, i) => {
+                    const active = draftFilter.sites.includes(site.slug);
+                    return (
+                      <Pressable
+                        key={site.slug}
+                        onPress={() =>
+                          setDraftFilter((prev) => ({
+                            ...prev,
+                            sites: active
+                              ? prev.sites.filter((s) => s !== site.slug)
+                              : [...prev.sites, site.slug],
+                          }))
+                        }
+                        style={[styles.dropdownItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+                      >
+                        <Text style={[styles.dropdownItemText, { color: active ? colors.primary : colors.textPrimary }]}>
+                          {site.name}
+                        </Text>
+                        {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </>
           )}
 
@@ -313,16 +367,34 @@ export function BoletinFilterSheet({
           {availableSports.length > 1 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Desporto</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortChips}>
-                {availableSports.map((s) => (
-                  <Chip
-                    key={s}
-                    label={SPORT_LABELS[s] ?? s}
-                    selected={draftFilter.sport === s}
-                    onPress={() => setSport(s)}
-                  />
-                ))}
-              </ScrollView>
+              <Pressable
+                onPress={() => setSportOpen((v) => !v)}
+                style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+              >
+                <Text style={[styles.dropdownHeaderText, { color: draftFilter.sport ? colors.textPrimary : colors.textMuted }]}>
+                  {draftFilter.sport ? (SPORT_LABELS[draftFilter.sport] ?? draftFilter.sport) : 'Todos os desportos'}
+                </Text>
+                <Ionicons color={colors.textMuted} name={sportOpen ? 'chevron-up' : 'chevron-down'} size={16} />
+              </Pressable>
+              {sportOpen && (
+                <View style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+                  {availableSports.map((s, i) => {
+                    const active = draftFilter.sport === s;
+                    return (
+                      <Pressable
+                        key={s}
+                        onPress={() => { setSport(s); setSportOpen(false); }}
+                        style={[styles.dropdownItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+                      >
+                        <Text style={[styles.dropdownItemText, { color: active ? colors.primary : colors.textPrimary }]}>
+                          {SPORT_LABELS[s] ?? s}
+                        </Text>
+                        {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
             </>
           )}
 
@@ -361,6 +433,56 @@ export function BoletinFilterSheet({
               )}
             </>
           )}
+
+          {/* WEEKDAY */}
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Dia da semana</Text>
+          <View style={styles.filterBtnRow}>
+            {WEEKDAY_OPTIONS.map((opt) => {
+              const active = draftFilter.weekday === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => setDraftFilter((prev) => ({
+                    ...prev,
+                    weekday: prev.weekday === opt.value ? null : opt.value,
+                  }))}
+                  style={[styles.filterBtn, {
+                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    borderColor: active ? colors.primary : colors.border,
+                  }]}
+                >
+                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* LEG COUNT */}
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Nº de seleções</Text>
+          <View style={styles.filterBtnRow}>
+            {LEG_COUNT_OPTIONS.map((opt) => {
+              const active = draftFilter.legCount === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => setDraftFilter((prev) => ({
+                    ...prev,
+                    legCount: prev.legCount === opt.value ? null : opt.value,
+                  }))}
+                  style={[styles.filterBtn, {
+                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    borderColor: active ? colors.primary : colors.border,
+                  }]}
+                >
+                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
           {/* TEAMS */}
           {allTeams.length > 0 && (
@@ -448,10 +570,35 @@ const styles = StyleSheet.create({
   sheetTitle: { fontSize: 18, fontWeight: '800' },
   resetText: { fontSize: 14, fontWeight: '700' },
   sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginTop: 4, textTransform: 'uppercase' },
-  sortRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
-  sortChipsScroll: { flex: 1, overflow: 'hidden' },
+  sectionTitleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   sortChips: { gap: 8 },
-  dirButton: { alignItems: 'center', borderRadius: 12, borderWidth: 1, height: 44, justifyContent: 'center', width: 44 },
+  dirButton: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 30, justifyContent: 'center', width: 30 },
+  filterBtnRow: { flexDirection: 'row', gap: 6 },
+  filterBtn: { alignItems: 'center', borderRadius: 10, borderWidth: 1, flex: 1, gap: 3, paddingVertical: 10 },
+  filterBtnLabel: { fontSize: 11, fontWeight: '700' },
+  dropdownHeader: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  dropdownHeaderText: { flex: 1, fontSize: 14, fontWeight: '600' },
+  dropdownList: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  dropdownItemText: { fontSize: 14, fontWeight: '500' },
   triggerBtn: {
     alignItems: 'center',
     borderRadius: 12,

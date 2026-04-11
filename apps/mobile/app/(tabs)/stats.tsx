@@ -19,6 +19,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { DatePickerField } from '../../components/ui/DatePickerField';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { InfoButton } from '../../components/ui/InfoButton';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { usePersonalStats, useStatsTimeline } from '../../services/statsService';
@@ -308,19 +309,25 @@ export default function StatsScreen() {
             <Animated.View entering={FadeInDown.delay(315).duration(400).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
+                  <InfoButton
+                    accessibilityLabel="Informação sobre stake média"
+                    onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}
+                    showLabel={false}
+                    size="sm"
+                  />
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (ganhas)</Text>
-                  <Pressable accessibilityLabel="Informação sobre stake média" hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
-                    <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                  </Pressable>
                 </View>
                 <Text style={[styles.metricValue, { color: colors.primary }]}>{formatCurrency(stats.summary.averageWonStake)}</Text>
               </Card>
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
+                  <InfoButton
+                    accessibilityLabel="Informação sobre stake média"
+                    onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}
+                    showLabel={false}
+                    size="sm"
+                  />
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (perdidas)</Text>
-                  <Pressable accessibilityLabel="Informação sobre stake média" hitSlop={6} onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)}>
-                    <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                  </Pressable>
                 </View>
                 <Text style={[styles.metricValue, { color: colors.danger }]}>{formatCurrency(stats.summary.averageLostStake)}</Text>
               </Card>
@@ -363,10 +370,13 @@ export default function StatsScreen() {
             <Animated.View entering={FadeInDown.delay(340).duration(400).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
+                  <InfoButton
+                    accessibilityLabel="Informação sobre eficiência de odds"
+                    onPress={() => pushInfo('odds-efficiency', stats.summary.oddsEfficiency)}
+                    showLabel={false}
+                    size="sm"
+                  />
                   <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Eficiência de odds</Text>
-                  <Pressable accessibilityLabel="Informação sobre eficiência de odds" hitSlop={6} onPress={() => pushInfo('odds-efficiency', stats.summary.oddsEfficiency)}>
-                    <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                  </Pressable>
                 </View>
                 <Text style={[styles.metricValue, { color: stats.summary.oddsEfficiency >= 100 ? colors.primary : stats.summary.oddsEfficiency > 0 ? colors.danger : colors.textMuted }]}>
                   {stats.summary.oddsEfficiency > 0 ? formatPercentage(stats.summary.oddsEfficiency) : '—'}
@@ -433,14 +443,20 @@ export default function StatsScreen() {
 
             {/* Site ROI with sparklines */}
             <Animated.View entering={FadeInDown.delay(560).duration(400).springify()}>
-              <SiteROITable rows={stats.bySite} onInfoPress={() => pushInfo('by-site', stats.bySite.length)} />
+              <SiteROITable
+                rows={stats.bySite}
+                onInfoPress={() => pushInfo('by-site', stats.bySite.length)}
+                onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterSite: row.siteSlug } })}
+              />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(575).duration(400).springify()}>
               <BreakdownTable
+                maxRows={7}
                 rows={stats.byWeekday}
                 title="Por dia da semana"
                 onInfoPress={() => pushInfo('by-weekday', stats.byWeekday.length)}
+                onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterWeekday: String(row.weekday) } })}
               />
             </Animated.View>
 
@@ -449,6 +465,7 @@ export default function StatsScreen() {
                 rows={stats.byLegCount}
                 title="Por nº de seleções"
                 onInfoPress={() => pushInfo('by-leg-count', stats.byLegCount.length)}
+                onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterLegCount: String(row.legCount) } })}
               />
             </Animated.View>
 
@@ -469,6 +486,15 @@ export default function StatsScreen() {
                 rows={stats.byStakeBracket}
                 title="Por faixa de stake"
                 onInfoPress={() => pushInfo('by-stake', stats.byStakeBracket.length)}
+                onRowPress={(row) =>
+                  router.push({
+                    pathname: '/(tabs)/',
+                    params: {
+                      filterStakeMin: String(row.minStake),
+                      filterStakeMax: row.maxStake === null ? 'open' : String(row.maxStake),
+                    },
+                  })
+                }
               />
             </Animated.View>
 
@@ -592,7 +618,7 @@ const styles = StyleSheet.create({
   metricLabelRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 6,
   },
   metricLabel: { fontSize: 12, fontWeight: '700' },
   metricValue: { fontSize: 18, fontWeight: '900' },

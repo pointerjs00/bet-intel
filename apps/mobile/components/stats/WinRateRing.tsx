@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import { Pie, PolarChart } from 'victory-native';
+import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatPercentage } from '../../utils/formatters';
 
@@ -31,12 +31,10 @@ export const WinRateRing = React.memo(function WinRateRing({ winRate, onInfoPres
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Taxa de Vitória</Text>
         {onInfoPress ? (
-          <Pressable hitSlop={8} onPress={onInfoPress}>
-            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
-          </Pressable>
+          <InfoButton accessibilityLabel="Mais informação sobre a taxa de vitória" onPress={onInfoPress} />
         ) : null}
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Taxa de Vitória</Text>
       </View>
       <View style={styles.chartWrap}>
         <PolarChart<RingDatum, 'label', 'value', 'color'>
@@ -67,7 +65,7 @@ const styles = StyleSheet.create({
   titleRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   title: {
     fontSize: 18,

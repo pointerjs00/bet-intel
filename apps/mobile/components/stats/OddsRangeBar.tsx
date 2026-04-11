@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { StatsByOddsRangeRow } from '@betintel/shared';
 import { Bar, CartesianChart } from 'victory-native';
 import { Text as SkiaText, matchFont } from '@shopify/react-native-skia';
+import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatPercentage } from '../../utils/formatters';
 
@@ -24,69 +24,86 @@ interface OddsRangeDatum extends Record<string, number> {
 /** Bar chart for ROI by odds range. */
 export const OddsRangeBar = React.memo(function OddsRangeBar({ rows, onInfoPress }: OddsRangeBarProps) {
   const { colors } = useTheme();
+  const visibleRows = rows.length > 0 ? rows : [{ key: 'empty', label: 'Sem dados', roi: 0, totalBets: 0 }];
 
   const chartData = useMemo<OddsRangeDatum[]>(() => {
-    if (rows.length === 0) {
+    if (visibleRows.length === 0) {
       return [{ index: 0, positive: 0, negative: 0 }];
     }
 
-    return rows.map((row, index) => ({
+    return visibleRows.map((row, index) => ({
       index,
       positive: Math.max(row.roi, 0),
       negative: Math.min(row.roi, 0),
     }));
-  }, [rows]);
+  }, [visibleRows]);
 
   const font = skiaFont;
+  const chartWidth = Math.max(320, visibleRows.length * 78);
+  const barWidth = Math.min(32, Math.max(20, chartWidth / Math.max(visibleRows.length * 3.4, 1)));
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>ROI por Range de Odds</Text>
         {onInfoPress ? (
-          <Pressable hitSlop={8} onPress={onInfoPress}>
-            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
-          </Pressable>
+          <InfoButton accessibilityLabel="Mais informação sobre ROI por range de odds" onPress={onInfoPress} />
         ) : null}
       </View>
 
-      <View style={styles.chartWrap}>
-        <CartesianChart<OddsRangeDatum, 'index', 'positive' | 'negative'>
-          data={chartData}
-          xKey="index"
-          yKeys={["positive", "negative"]}
-        >
-          {({ points, chartBounds }) => (
-            <>
-              <Bar chartBounds={chartBounds} color={colors.primary} points={points.positive} />
-              <Bar chartBounds={chartBounds} color={colors.danger} points={points.negative} />
-              {/* Value labels above/below each bar */}
-              {font && rows.map((row, i) => {
-                const posP = points.positive[i];
-                const negP = points.negative[i];
-                if (!posP && !negP) return null;
-                const point = row.roi >= 0 ? posP : negP;
-                if (!point) return null;
-                const label = formatPercentage(row.roi);
-                const yOffset = row.roi >= 0 ? -8 : 14;
-                return (
-                  <SkiaText
-                    key={i}
-                    x={(point as unknown as { x: number }).x - 14}
-                    y={(point as unknown as { y: number }).y + yOffset}
-                    text={label}
-                    font={font}
-                    color={row.roi >= 0 ? colors.primary : colors.danger}
-                  />
-                );
-              })}
-            </>
-          )}
-        </CartesianChart>
-      </View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={visibleRows.length > 4}
+        contentContainerStyle={styles.chartScrollContent}
+      >
+        <View style={[styles.chartWrap, { width: chartWidth }]}> 
+          <CartesianChart<OddsRangeDatum, 'index', 'positive' | 'negative'>
+            data={chartData}
+            xKey="index"
+            yKeys={["positive", "negative"]}
+            domainPadding={{ bottom: 28, left: 28, right: 28, top: 24 }}
+            padding={{ bottom: 24, left: 12, right: 12, top: 18 }}
+          >
+            {({ points, chartBounds }) => (
+              <>
+                <Bar barWidth={barWidth} chartBounds={chartBounds} color={colors.primary} points={points.positive} roundedCorners={{ topLeft: 8, topRight: 8 }} />
+                <Bar barWidth={barWidth} chartBounds={chartBounds} color={colors.danger} points={points.negative} roundedCorners={{ bottomLeft: 8, bottomRight: 8 }} />
+                {font && visibleRows.map((row, i) => {
+                  const posP = points.positive[i];
+                  const negP = points.negative[i];
+                  const point = row.roi >= 0 ? posP : negP;
+                  if (!point) return null;
+
+                  const label = formatPercentage(row.roi);
+                  const estimatedWidth = Math.max(28, label.length * 6.5);
+                  const rawX = (point as unknown as { x: number }).x - estimatedWidth / 2;
+                  const x = Math.max(
+                    chartBounds.left + 4,
+                    Math.min(chartBounds.right - estimatedWidth - 4, rawX),
+                  );
+                  const y = row.roi >= 0
+                    ? Math.max(chartBounds.top + 12, (point as unknown as { y: number }).y - 10)
+                    : Math.min(chartBounds.bottom - 4, (point as unknown as { y: number }).y + 18);
+
+                  return (
+                    <SkiaText
+                      key={row.key}
+                      x={x}
+                      y={y}
+                      text={label}
+                      font={font}
+                      color={row.roi >= 0 ? colors.primary : colors.danger}
+                    />
+                  );
+                })}
+              </>
+            )}
+          </CartesianChart>
+        </View>
+      </ScrollView>
 
       <View style={styles.legendList}>
-        {rows.map((row) => (
+        {visibleRows.map((row) => (
           <View key={row.key} style={styles.legendRow}>
             <Text style={[styles.legendLabel, { color: colors.textPrimary }]}>{row.label}</Text>
             <Text style={[styles.legendValue, { color: row.roi >= 0 ? colors.primary : colors.danger }]}>
@@ -117,7 +134,10 @@ const styles = StyleSheet.create({
   },
   chartWrap: {
     height: 200,
-    overflow: 'hidden',
+    overflow: 'visible',
+  },
+  chartScrollContent: {
+    minWidth: '100%',
   },
   legendList: {
     gap: 8,

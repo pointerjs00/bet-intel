@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -16,6 +16,7 @@ import { Input } from '../../components/ui/Input';
 import { DatePickerField } from '../../components/ui/DatePickerField';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import type { DropdownSection } from '../../components/ui/SearchableDropdown';
+import { InfoButton } from '../../components/ui/InfoButton';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useToast } from '../../components/ui/Toast';
@@ -33,13 +34,6 @@ import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate } from '../../utils/formatters';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
-
-const STATUS_ACTIONS = [
-  { key: BoletinStatus.PENDING, label: 'Pendente' },
-  { key: BoletinStatus.WON, label: 'Ganhou' },
-  { key: BoletinStatus.LOST, label: 'Perdeu' },
-  { key: BoletinStatus.VOID, label: 'Cancelado' },
-] as const;
 
 const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
   { key: Sport.FOOTBALL, label: 'Futebol', icon: '⚽' },
@@ -65,12 +59,9 @@ export default function BoletinDetailScreen() {
   const [editName, setEditName] = useState('');
   const [editStake, setEditStake] = useState('');
   const [editNotes, setEditNotes] = useState('');
-  const [editActualReturn, setEditActualReturn] = useState('');
   const [editSiteSlug, setEditSiteSlug] = useState('');
   const [showEditSites, setShowEditSites] = useState(false);
   const [editBetDate, setEditBetDate] = useState(''); // DD/MM/YYYY display string
-  const [showCashoutInput, setShowCashoutInput] = useState(false);
-  const [cashoutValue, setCashoutValue] = useState('');
   // Target item to remove (confirmation modal)
   const [removeItemTarget, setRemoveItemTarget] = useState<{ boletinId: string; itemId: string } | null>(null);
   // Item currently being edited
@@ -194,7 +185,6 @@ export default function BoletinDetailScreen() {
     setEditName(b.name ?? '');
     setEditStake(String(Number(b.stake)));
     setEditNotes(b.notes ?? '');
-    setEditActualReturn(b.actualReturn != null ? String(Number(b.actualReturn)) : '');
     setEditSiteSlug(b.siteSlug ?? '');
     setEditBetDate(formatDateToDDMMYYYY(b.betDate));
   };
@@ -279,10 +269,6 @@ export default function BoletinDetailScreen() {
       siteSlug: editSiteSlug.trim() || null,
       betDate: editBetDate.length === 10 ? (parseDDMMYYYYToISO(editBetDate) ?? null) : null,
     };
-    if (boletin.status !== 'PENDING' && editActualReturn) {
-      const ret = parseFloat(editActualReturn.replace(',', '.'));
-      if (!isNaN(ret)) payload.actualReturn = ret;
-    }
     try {
       await updateMutation.mutateAsync({ id: boletin.id, payload: payload as Parameters<typeof updateMutation.mutateAsync>[0]['payload'] });
       setIsEditing(false);
@@ -297,26 +283,6 @@ export default function BoletinDetailScreen() {
     seedEditFields(boletin);
     setIsEditing(false);
     Keyboard.dismiss();
-  };
-
-  const handleCashout = async () => {
-    if (!boletin) return;
-    const amount = parseFloat(cashoutValue.replace(',', '.'));
-    if (isNaN(amount) || amount < 0) {
-      showToast('Valor de cashout inválido.', 'error');
-      return;
-    }
-    try {
-      await updateMutation.mutateAsync({
-        id: boletin.id,
-        payload: { status: BoletinStatus.CASHOUT, cashoutAmount: amount, actualReturn: amount },
-      });
-      setShowCashoutInput(false);
-      setCashoutValue('');
-      showToast('Cashout registado.', 'success');
-    } catch (error) {
-      showToast(getErrorMessage(error), 'error');
-    }
   };
 
   const bannerColor = useMemo(() => {
@@ -338,7 +304,7 @@ export default function BoletinDetailScreen() {
   const pushInfo = useCallback(
     (metric: string, value?: number) =>
       router.push({
-        pathname: '/metric-info' as Href,
+        pathname: '/metric-info',
         params: { metric, ...(value !== undefined ? { value: String(value) } : {}) },
       }),
     [router],
@@ -357,12 +323,6 @@ export default function BoletinDetailScreen() {
     const displayROI = stake > 0 ? ((displayReturn - stake) / stake) * 100 : 0;
     return { stake, totalOdds, potentialReturn, actualReturn, isPending, displayReturn, displayProfit, displayROI, selectionCount: boletin.items.length };
   }, [boletin]);
-
-  // All items must have a non-PENDING result before the overall status can be changed
-  const allItemsResolved = useMemo(
-    () => boletin == null || boletin.items.length === 0 || boletin.items.every((item) => item.result !== ItemResult.PENDING),
-    [boletin],
-  );
 
   if (boletinQuery.isLoading) {
     return (
@@ -435,9 +395,7 @@ export default function BoletinDetailScreen() {
                   <View style={styles.statCell}>
                     <View style={styles.statLabelRow}>
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Stake</Text>
-                      <Pressable accessibilityLabel="O que é a stake" hitSlop={8} onPress={() => pushInfo('boletin-stake', boletinStats?.stake)}>
-                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                      </Pressable>
+                      <InfoButton accessibilityLabel="O que é a stake" onPress={() => pushInfo('boletin-stake', boletinStats?.stake)} showLabel={false} size="sm" />
                     </View>
                     {isEditing ? (
                       <View style={styles.statEditRow}>
@@ -461,9 +419,7 @@ export default function BoletinDetailScreen() {
                   <View style={styles.statCell}>
                     <View style={styles.statLabelRow}>
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Odd Total</Text>
-                      <Pressable accessibilityLabel="O que é a odd total" hitSlop={8} onPress={() => pushInfo('boletin-odds', boletinStats?.totalOdds)}>
-                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                      </Pressable>
+                      <InfoButton accessibilityLabel="O que é a odd total" onPress={() => pushInfo('boletin-odds', boletinStats?.totalOdds)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: colors.textPrimary }]}>
                       {(boletinStats?.totalOdds ?? 1).toFixed(2)}
@@ -480,29 +436,11 @@ export default function BoletinDetailScreen() {
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                         {boletinStats?.isPending ? 'Retorno Potencial' : 'Retorno'}
                       </Text>
-                      <Pressable accessibilityLabel="O que é o retorno" hitSlop={8} onPress={() => pushInfo('boletin-potential-return', boletinStats?.displayReturn)}>
-                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                      </Pressable>
+                      <InfoButton accessibilityLabel="O que é o retorno" onPress={() => pushInfo('boletin-potential-return', boletinStats?.displayReturn)} showLabel={false} size="sm" />
                     </View>
-                    {isEditing && !boletinStats?.isPending ? (
-                      <View style={styles.statEditRow}>
-                        <Text style={[styles.statValue, { color: colors.primary }]}>{'€ '}</Text>
-                        <TextInput
-                          keyboardType="decimal-pad"
-                          maxLength={10}
-                          onChangeText={setEditActualReturn}
-                          placeholder="0.00"
-                          placeholderTextColor={colors.textMuted}
-                          selectTextOnFocus
-                          style={[styles.statValueInput, { color: colors.primary, borderBottomColor: colors.primary }]}
-                          value={editActualReturn}
-                        />
-                      </View>
-                    ) : (
-                      <Text style={[styles.statValue, { color: colors.primary }]}>
-                        {formatCurrency(boletinStats?.displayReturn ?? boletin.potentialReturn)}
-                      </Text>
-                    )}
+                    <Text style={[styles.statValue, { color: colors.primary }]}>
+                      {formatCurrency(boletinStats?.displayReturn ?? boletin.potentialReturn)}
+                    </Text>
                   </View>
                   <View style={[styles.statDividerV, { backgroundColor: colors.border }]} />
                   <View style={styles.statCell}>
@@ -510,9 +448,7 @@ export default function BoletinDetailScreen() {
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                         {boletinStats?.isPending ? 'Lucro Potencial' : 'Lucro / Prejuízo'}
                       </Text>
-                      <Pressable accessibilityLabel="O que é lucro/prejuízo" hitSlop={8} onPress={() => pushInfo('boletin-profit', boletinStats?.displayProfit)}>
-                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                      </Pressable>
+                      <InfoButton accessibilityLabel="O que é lucro ou prejuízo" onPress={() => pushInfo('boletin-profit', boletinStats?.displayProfit)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: (boletinStats?.displayProfit ?? 0) >= 0 ? colors.primary : colors.danger }]}>
                       {(boletinStats?.displayProfit ?? 0) >= 0 ? '+' : ''}{formatCurrency(boletinStats?.displayProfit ?? 0)}
@@ -529,9 +465,7 @@ export default function BoletinDetailScreen() {
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                         {boletinStats?.isPending ? 'ROI Potencial' : 'ROI'}
                       </Text>
-                      <Pressable accessibilityLabel="O que é o ROI" hitSlop={8} onPress={() => pushInfo('boletin-roi', boletinStats?.displayROI)}>
-                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                      </Pressable>
+                      <InfoButton accessibilityLabel="O que é o ROI" onPress={() => pushInfo('boletin-roi', boletinStats?.displayROI)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: (boletinStats?.displayROI ?? 0) >= 0 ? colors.primary : colors.danger }]}>
                       {(boletinStats?.displayROI ?? 0) >= 0 ? '+' : ''}{(boletinStats?.displayROI ?? 0).toFixed(1)}%
@@ -541,9 +475,7 @@ export default function BoletinDetailScreen() {
                   <View style={styles.statCell}>
                     <View style={styles.statLabelRow}>
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Seleções</Text>
-                      <Pressable accessibilityLabel="Número de seleções" hitSlop={8} onPress={() => pushInfo('boletin-selections', boletinStats?.selectionCount)}>
-                        <Ionicons color={colors.textMuted} name="information-circle-outline" size={14} />
-                      </Pressable>
+                      <InfoButton accessibilityLabel="Número de seleções" onPress={() => pushInfo('boletin-selections', boletinStats?.selectionCount)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: colors.textPrimary }]}>
                       {boletinStats?.selectionCount ?? 0}
@@ -568,115 +500,6 @@ export default function BoletinDetailScreen() {
                 ) : null}
               </View>
             </Animated.View>
-
-
-            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
-              <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Estado</Text>
-              {!allItemsResolved && (
-                <View style={styles.statusLockRow}>
-                  <Ionicons color={colors.textMuted} name="lock-closed-outline" size={11} />
-                  <Text style={[styles.statusLockHint, { color: colors.textMuted }]}>
-                    Resolve todas as seleções para alterar o estado
-                  </Text>
-                </View>
-              )}
-              <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, opacity: allItemsResolved ? 1 : 0.4 }]}>
-                {STATUS_ACTIONS.map((item) => {
-                  const active = item.key === boletin.status;
-                  const activeColor =
-                    item.key === BoletinStatus.WON
-                      ? '#007A32'
-                      : item.key === BoletinStatus.LOST
-                      ? '#CC2F26'
-                      : item.key === BoletinStatus.VOID
-                      ? '#007AFF'
-                      : '#A66000';
-                  return (
-                    <Pressable
-                      key={item.key}
-                      disabled={!allItemsResolved}
-                      onPress={async () => {
-                        try {
-                          await updateMutation.mutateAsync({ id: boletin.id, payload: { status: item.key } });
-                          showToast('Estado atualizado.', 'success');
-                        } catch (error) {
-                          showToast(getErrorMessage(error), 'error');
-                        }
-                      }}
-                      style={[
-                        styles.segmentItem,
-                        active && { backgroundColor: activeColor },
-                      ]}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: active }}
-                    >
-                      <Text
-                        style={[
-                          styles.segmentLabel,
-                          { color: active ? '#fff' : colors.textSecondary },
-                          active && styles.segmentLabelActive,
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              {boletin.status === BoletinStatus.PENDING && (
-                <View style={styles.cashoutSection}>
-                  {!showCashoutInput ? (
-                    <Button
-                      leftSlot={<Ionicons color={colors.gold} name="cash-outline" size={16} />}
-                      onPress={() => setShowCashoutInput(true)}
-                      size="sm"
-                      title="Fazer Cashout"
-                      variant="secondary"
-                    />
-                  ) : (
-                    <View style={[styles.cashoutForm, { backgroundColor: colors.surfaceRaised, borderColor: colors.gold }]}>
-                      <Text style={[styles.cashoutLabel, { color: colors.textSecondary }]}>
-                        💵 Valor recebido no cashout (€)
-                      </Text>
-                      <TextInput
-                        autoFocus
-                        keyboardType="decimal-pad"
-                        maxLength={10}
-                        onChangeText={setCashoutValue}
-                        placeholder="0.00"
-                        placeholderTextColor={colors.textMuted}
-                        selectTextOnFocus
-                        style={[styles.cashoutInput, { color: colors.textPrimary, borderBottomColor: colors.gold }]}
-                        value={cashoutValue}
-                      />
-                      <View style={styles.cashoutActions}>
-                        <Button
-                          onPress={() => { setShowCashoutInput(false); setCashoutValue(''); }}
-                          size="sm"
-                          title="Cancelar"
-                          variant="ghost"
-                        />
-                        <Button
-                          disabled={updateMutation.isPending}
-                          onPress={handleCashout}
-                          size="sm"
-                          title="Confirmar"
-                          variant="primary"
-                        />
-                      </View>
-                    </View>
-                  )}
-                </View>
-              )}
-              {boletin.status === BoletinStatus.CASHOUT && boletin.cashoutAmount != null && (
-                <View style={[styles.cashoutBanner, { backgroundColor: `${colors.gold}18`, borderColor: `${colors.gold}40` }]}>
-                  <Text style={[styles.cashoutBannerText, { color: colors.gold }]}>
-                    💵 Cashout de {formatCurrency(boletin.cashoutAmount)}
-                  </Text>
-                </View>
-              )}
-            </Animated.View>
-
             <Animated.View entering={FadeInDown.delay(350).duration(400).springify()} style={styles.actionButtons}>
               {isEditing ? (
                 <>
@@ -1265,29 +1088,6 @@ const styles = StyleSheet.create({
   metaItem: { alignItems: 'center', flexDirection: 'row', gap: 4 },
   metaText: { fontSize: 12, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
-  statusActions: { gap: 8 },
-  statusLockRow: { alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: 4 },
-  statusLockHint: { fontSize: 11, fontWeight: '600' },
-  segmentedControl: {
-    borderRadius: 10,
-    borderWidth: 1,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    marginTop: 8,
-  },
-  segmentItem: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-    paddingVertical: 10,
-  },
-  segmentLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  segmentLabelActive: {
-    fontWeight: '800',
-  },
   actionButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   notesCard: { gap: 10 },
   notesHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
@@ -1308,11 +1108,4 @@ const styles = StyleSheet.create({
   doublesRow: { flexDirection: 'row', gap: 8 },
   doublesBtn: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flex: 1, paddingVertical: 9 },
   doublesBtnText: { fontSize: 13, fontWeight: '600' },
-  cashoutSection: { marginTop: 12 },
-  cashoutForm: { borderRadius: 14, borderWidth: 1.5, gap: 12, marginTop: 4, padding: 14 },
-  cashoutLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
-  cashoutInput: { borderBottomWidth: 2, fontSize: 22, fontWeight: '800', paddingVertical: 6 },
-  cashoutActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
-  cashoutBanner: { borderRadius: 12, borderWidth: 1, marginTop: 10, padding: 12 },
-  cashoutBannerText: { fontSize: 14, fontWeight: '800', textAlign: 'center' },
 });

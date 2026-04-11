@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { StatsBySportMarketCell } from '@betintel/shared';
 import { Card } from '../ui/Card';
+import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 
 interface SportMarketMatrixProps {
@@ -66,12 +66,10 @@ export const SportMarketMatrix = React.memo(function SportMarketMatrix({ cells, 
   return (
     <Card style={styles.container}>
       <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Desporto × Mercado</Text>
         {onInfoPress ? (
-          <Pressable hitSlop={8} onPress={onInfoPress}>
-            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
-          </Pressable>
+          <InfoButton accessibilityLabel="Mais informação sobre desporto por mercado" onPress={onInfoPress} />
         ) : null}
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Desporto × Mercado</Text>
       </View>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         ROI por combinação (cor = performance)
@@ -139,7 +137,7 @@ const styles = StyleSheet.create({
   titleRow: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 8,
   },
   title: { fontSize: 16, fontWeight: '900' },
   subtitle: { fontSize: 12, fontWeight: '600', marginBottom: 4 },

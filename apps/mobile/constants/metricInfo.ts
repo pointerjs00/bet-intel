@@ -6,6 +6,8 @@ export interface MetricInfo {
   formula?: string;
   formulaLabel?: string;
   example: string;
+  /** When a value is available, replaces the static example with a personalised one computed from that value. */
+  exampleFromValue?: (value: number) => string;
   tips: string[];
   icon: string; // Ionicons name
   /** Returns a personalised interpretation for the user's current value, or undefined if no value supplied. */
@@ -24,6 +26,12 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     formula: 'ROI = ((Retorno Total − Stake Total) ÷ Stake Total) × 100',
     example:
       'Apostaste €100 e recebeste €112. O teu ROI é ((112 − 100) ÷ 100) × 100 = +12%. Um ROI positivo significa que estás a ganhar dinheiro; negativo significa prejuízo.',
+    exampleFromValue: (v) => {
+      const sign = v >= 0 ? '+' : '';
+      const perHundred = (100 * (1 + v / 100)).toFixed(2);
+      const profitPer100 = (v).toFixed(1);
+      return `No período selecionado, o teu ROI foi de ${sign}${profitPer100}%. Por cada €100 apostados, isso corresponde a um retorno de €${perHundred} — um ${v >= 0 ? 'lucro' : 'prejuízo'} de ${sign}€${Math.abs(v).toFixed(2)}.`;
+    },
     tips: [
       'Um ROI sustentável acima de +5% a longo prazo é considerado excelente.',
       'Nunca avalie o ROI com menos de 50 apostas — a variância distorce o resultado.',
@@ -49,6 +57,11 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     formula: 'Win Rate = (Boletins Ganhos ÷ Boletins Resolvidos) × 100',
     example:
       'Tens 30 boletins ganhos e 70 perdidos (100 resolvidos). Win Rate = (30 ÷ 100) × 100 = 30%. Com odds médias de 3.5, um win rate de 29% já é suficiente para ter ROI positivo.',
+    exampleFromValue: (v) => {
+      if (v <= 0) return 'Ainda sem apostas resolvidas suficientes para calcular a taxa de vitória neste período.';
+      const breakEven = v > 0 ? (100 / v).toFixed(2) : null;
+      return `No período selecionado, ganhaste ${v.toFixed(0)}% das tuas apostas resolvidas.${breakEven ? ` Para atingires break-even com esta taxa de vitória precisas de odds médias de pelo menos ${breakEven} por aposta.` : ''}`;
+    },
     tips: [
       'O win rate ideal depende das odds que jogas. Odds baixas (1.5) requerem ~70% win rate; odds altas (3.0) apenas ~34%.',
       'Um win rate alto com ROI negativo indica que perdes nas apostas com odds grandes.',
@@ -71,6 +84,14 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
       'Regista a tua sequência atual de vitórias ou derrotas consecutivas, e as maiores séries de sempre. Ajuda a identificar períodos de boa/má forma e a controlar o "tilt" emocional.',
     example:
       'Se os teus últimos 5 boletins resolvidos foram GANHOU, GANHOU, PERDEU, GANHOU, GANHOU — a tua sequência atual é 2 vitórias consecutivas. A maior série de vitórias é 2.',
+    exampleFromValue: (v) => {
+      if (v > 0) return `Neste momento estás em sequência de ${v} vitória${v !== 1 ? 's' : ''} consecutiva${v !== 1 ? 's' : ''}. Mantém a disciplina e não aumentes o stake por euforia.`;
+      if (v < 0) {
+        const n = Math.abs(v);
+        return `Neste momento estás em sequência de ${n} derrota${n !== 1 ? 's' : ''} consecutiva${n !== 1 ? 's' : ''}. Considera reduzir o stake até inverteres o rumo — cada aposta é independente das anteriores.`;
+      }
+      return 'Sem sequência ativa registada neste período.';
+    },
     tips: [
       'Uma longa série de derrotas não significa que vais "recuperar" — cada aposta é independente.',
       'Numa série negativa, considera reduzir a stake para proteger o bankroll.',
@@ -98,6 +119,10 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
       'Mostra a evolução do teu lucro e prejuízo ao longo do tempo, agrupado por semana, mês ou dia. O modo "Acumulado" mostra o saldo corrente — quanto ganhas/perdes desde o início.',
     example:
       'Na semana de 1-7 Jan apostaste €80 e recebeste €96 (P&L = +€16). Na semana seguinte apostaste €120 e recebeste €90 (P&L = −€30). No modo acumulado, o valor final seria −€14.',
+    exampleFromValue: (v) => {
+      const sign = v >= 0 ? '+' : '';
+      return `No período selecionado, o teu saldo P&L acumulado foi de ${sign}€${Math.abs(v).toFixed(2)}. ${v >= 0 ? 'O gráfico mostra como esse lucro se distribuiu ao longo do tempo.' : 'Usa o gráfico para identificar as semanas ou meses que mais pesaram no resultado.'}`;
+    },
     tips: [
       'O modo acumulado revela tendências a longo prazo que o gráfico semanal esconde.',
       'Uma linha ascendente consistente é o sinal mais importante de um apostador sustentável.',
@@ -385,6 +410,10 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     formula: 'Eficiência = (Retorno Real Total ÷ Retorno Implícito Total) × 100\nRetorno Implícito = Stake × Odd de cada aposta',
     example:
       'Apostaste €10 a odds 2.0 (retorno implícito €20). Ganhou: retorno real €20 → eficiência 100%. Se systematicamente ganhas menos que o esperado, a eficiência fica abaixo de 100%.',
+    exampleFromValue: (v) => {
+      if (v <= 0) return 'Ainda sem dados suficientes para calcular a eficiência de odds neste período.';
+      return `No período selecionado, o teu retorno real correspondeu a ${v.toFixed(0)}% do valor implicitamente esperado pelas odds das tuas apostas. ${v >= 100 ? 'Estás a superar o retorno esperado — as tuas apostas têm valor real acima da margem da casa.' : 'Estás abaixo do retorno esperado — concentra-te em apostas onde identificas valor real e evita favoritos óbvios com margem alta.'}`;
+    },
     tips: [
       'Eficiência >100% a longo prazo indica que estás a explorar ineficiências do mercado.',
       'Eficiência de exatamente 100% seria matematicamente perfeito — muito difícil de atingir com a margem da casa.',
@@ -407,6 +436,12 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
       'Compara o valor médio apostado nas apostas que ganhaste versus nas que perdeste. Se a stake média nas perdas for sistematicamente maior do que nas vitórias, podes estar a apostar mais quando tens menos confiança justificada.',
     example:
       'Stake média ganhas: €8. Stake média perdidas: €18. Isto sugere que quando apostas mais (mais confiante ou mais impulsivo), tende a correr mal. Um sinal de viés de confiança.',
+    exampleFromValue: (v) => {
+      // v = averageWonStake - averageLostStake
+      if (v < -0.5) return `No período, a tua stake média nas derrotas foi €${Math.abs(v).toFixed(2)} maior do que nas vitórias — podes estar a apostar mais nas situações que acabam por correr mal. Considera usar uma stake fixa.`;
+      if (v > 0.5) return `No período, a tua stake média nas vitórias foi €${v.toFixed(2)} maior do que nas derrotas — apostaste mais nas seleções que acabaram por ganhar. Bom sinal de confiança calibrada.`;
+      return 'No período, a tua stake média nas apostas ganhas e perdidas foi praticamente igual — boa consistência na gestão de bankroll.';
+    },
     tips: [
       'Idealmente, a stake média deve ser semelhante em vitórias e derrotas — apostas sem enviesamento emocional.',
       'Se a stake perdida for muito maior, considera usar stakes fixas para eliminar o viés emocional.',

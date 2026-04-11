@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ItemResult, Sport } from '@betintel/shared';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { TeamBadge } from '../ui/TeamBadge';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { useTheme } from '../../theme/useTheme';
@@ -94,30 +102,36 @@ export function BoletinItem({ item, onRemove, onEdit, onResultChange }: BoletinI
           </View>
         ) : onResultChange ? (
           <View style={styles.resultButtons}>
-            <Pressable
+            <ResultToggleButton
               accessibilityLabel="Marcar como ganhou"
-              hitSlop={6}
+              active={item.result === ItemResult.WON}
+              activeBackground="rgba(0,200,81,0.18)"
+              activeColor={colors.primary}
+              icon="checkmark"
+              inactiveBackground={colors.surfaceRaised}
+              inactiveColor={colors.textMuted}
               onPress={() => onResultChange(item.result === ItemResult.WON ? ItemResult.PENDING : ItemResult.WON)}
-              style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.WON ? 'rgba(0,200,81,0.18)' : colors.surfaceRaised }]}
-            >
-              <Ionicons color={item.result === ItemResult.WON ? colors.primary : colors.textMuted} name="checkmark" size={16} />
-            </Pressable>
-            <Pressable
+            />
+            <ResultToggleButton
               accessibilityLabel="Marcar como perdeu"
-              hitSlop={6}
+              active={item.result === ItemResult.LOST}
+              activeBackground="rgba(255,59,48,0.18)"
+              activeColor={colors.danger}
+              icon="close"
+              inactiveBackground={colors.surfaceRaised}
+              inactiveColor={colors.textMuted}
               onPress={() => onResultChange(item.result === ItemResult.LOST ? ItemResult.PENDING : ItemResult.LOST)}
-              style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.LOST ? 'rgba(255,59,48,0.18)' : colors.surfaceRaised }]}
-            >
-              <Ionicons color={item.result === ItemResult.LOST ? colors.danger : colors.textMuted} name="close" size={16} />
-            </Pressable>
-            <Pressable
+            />
+            <ResultToggleButton
               accessibilityLabel="Marcar como cancelado"
-              hitSlop={6}
+              active={item.result === ItemResult.VOID}
+              activeBackground="rgba(0,122,255,0.18)"
+              activeColor={colors.info}
+              icon="remove"
+              inactiveBackground={colors.surfaceRaised}
+              inactiveColor={colors.textMuted}
               onPress={() => onResultChange(item.result === ItemResult.VOID ? ItemResult.PENDING : ItemResult.VOID)}
-              style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.VOID ? 'rgba(0,122,255,0.18)' : colors.surfaceRaised }]}
-            >
-              <Ionicons color={item.result === ItemResult.VOID ? colors.info : colors.textMuted} name="remove" size={16} />
-            </Pressable>
+            />
           </View>
         ) : (
           <View accessibilityLabel={resultMeta.a11yLabel} style={[styles.resultIcon, { backgroundColor: resultMeta.background }]}>
@@ -143,6 +157,87 @@ export function BoletinItem({ item, onRemove, onEdit, onResultChange }: BoletinI
         </View>
       </View>
     </View>
+  );
+}
+
+interface ResultToggleButtonProps {
+  accessibilityLabel: string;
+  active: boolean;
+  activeBackground: string;
+  activeColor: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  inactiveBackground: string;
+  inactiveColor: string;
+  onPress: () => void;
+}
+
+function ResultToggleButton({
+  accessibilityLabel,
+  active,
+  activeBackground,
+  activeColor,
+  icon,
+  inactiveBackground,
+  inactiveColor,
+  onPress,
+}: ResultToggleButtonProps) {
+  const scale = useSharedValue(1);
+  const glow = useSharedValue(active ? 1 : 0);
+
+  useEffect(() => {
+    if (active) {
+      glow.value = withTiming(1, { duration: 180 });
+      scale.value = withSequence(
+        withTiming(1.16, { duration: 120, easing: Easing.out(Easing.cubic) }),
+        withSpring(1, { damping: 12, stiffness: 240 }),
+      );
+      return;
+    }
+
+    glow.value = withTiming(0, { duration: 160 });
+    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+  }, [active, glow, scale]);
+
+  const wrapperStyle = useAnimatedStyle(() => ({
+    elevation: 1 + glow.value * 4,
+    shadowOpacity: 0.12 + glow.value * 0.16,
+    shadowRadius: 4 + glow.value * 6,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: glow.value * 0.75,
+    transform: [{ scale: 0.88 + glow.value * 0.14 }],
+  }));
+
+  return (
+    <Animated.View style={[styles.resultBtnWrap, { shadowColor: activeColor }, wrapperStyle]}>
+      <Pressable
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="button"
+        hitSlop={6}
+        onPress={onPress}
+        onPressIn={() => {
+          scale.value = withTiming(0.93, { duration: 70 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(active ? 1.04 : 1, { damping: 13, stiffness: 220 });
+        }}
+        style={[
+          styles.resultBtn,
+          {
+            backgroundColor: active ? activeBackground : inactiveBackground,
+            borderColor: active ? activeColor : 'transparent',
+          },
+        ]}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.resultBtnHalo, { backgroundColor: activeBackground }, haloStyle]}
+        />
+        <Ionicons color={active ? activeColor : inactiveColor} name={icon} size={18} />
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -270,6 +365,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
+  resultBtnWrap: {
+    borderRadius: 999,
+    shadowOffset: { width: 0, height: 3 },
+  },
   editRemoveRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -281,9 +380,15 @@ const styles = StyleSheet.create({
   resultBtn: {
     alignItems: 'center',
     borderRadius: 999,
-    height: 30,
+    borderWidth: 1.5,
+    height: 36,
     justifyContent: 'center',
-    width: 30,
+    overflow: 'hidden',
+    width: 36,
+  },
+  resultBtnHalo: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 999,
   },
   footerRow: {
     flexDirection: 'row',

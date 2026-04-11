@@ -88,7 +88,7 @@ export async function createBoletinRequest(payload: CreateBoletinInput): Promise
   return response.data.data;
 }
 
-/** Updates a boletin using the authenticated API session. */
+/** Updates editable boletin metadata using the authenticated API session. */
 export async function updateBoletinRequest(id: string, payload: UpdateBoletinInput): Promise<BoletinDetail> {
   const response = await apiClient.patch<ApiEnvelope<BoletinDetail>>(`/betintel/${id}`, payload);
   return response.data.data;
@@ -275,7 +275,7 @@ export function useSharedBoletins() {
   });
 }
 
-/** Mutation hook for updating boletin metadata or status. */
+/** Mutation hook for updating editable boletin metadata. */
 export function useUpdateBoletinMutation() {
   const queryClient = useQueryClient();
 

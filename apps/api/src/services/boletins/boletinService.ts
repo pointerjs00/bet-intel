@@ -133,7 +133,7 @@ export async function getBoletinDetail(userId: string, boletinId: string): Promi
   return boletin ? serializeBoletinDetail(boletin) : null;
 }
 
-/** Updates boletin metadata and optionally resolves it with a final return value. */
+/** Updates boletin metadata and keeps status derived from selection results. */
 export async function updateBoletin(
   userId: string,
   boletinId: string,
@@ -147,37 +147,40 @@ export async function updateBoletin(
     throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
   }
 
-  const nextStatus = input.status ?? existing.status;
-  const actualReturn = resolveActualReturn(existing, nextStatus, input.actualReturn, input.cashoutAmount);
+  const metadataData: Prisma.BoletinUpdateInput = {};
+  if (input.name !== undefined) {
+    metadataData.name = normalizeNullableText(input.name);
+  }
+  if (input.notes !== undefined) {
+    metadataData.notes = normalizeNullableText(input.notes);
+  }
+  if (input.isPublic !== undefined) {
+    metadataData.isPublic = input.isPublic;
+  }
+  if (input.siteSlug !== undefined) {
+    metadataData.siteSlug = input.siteSlug ?? null;
+  }
+  if (input.betDate !== undefined) {
+    metadataData.betDate = input.betDate ? new Date(input.betDate) : null;
+  }
 
-  const updated = await prisma.boletin.update({
-    where: { id: boletinId },
-    data: {
-      name: input.name !== undefined ? normalizeNullableText(input.name) : undefined,
-      notes: input.notes !== undefined ? normalizeNullableText(input.notes) : undefined,
-      status: input.status,
-      actualReturn,
-      cashoutAmount: input.cashoutAmount !== undefined
-        ? new Prisma.Decimal(input.cashoutAmount).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
-        : undefined,
-      isPublic: input.isPublic,
-      siteSlug: input.siteSlug !== undefined ? (input.siteSlug ?? null) : undefined,
-      betDate: input.betDate !== undefined ? (input.betDate ? new Date(input.betDate) : null) : undefined,
-      ...(input.stake !== undefined && {
-        stake: input.stake,
-        potentialReturn: new Prisma.Decimal(input.stake).mul(existing.totalOdds),
-      }),
-    },
-    include: BOLETIN_DETAIL_INCLUDE,
-  });
-
-  if (updated.status !== BoletinStatus.PENDING) {
-    emitBoletinResult(userId, {
-      boletinId: updated.id,
-      status: updated.status as unknown as SharedBoletinStatus,
-      actualReturn: updated.actualReturn?.toFixed(2) ?? null,
+  if (Object.keys(metadataData).length > 0) {
+    await prisma.boletin.update({
+      where: { id: boletinId },
+      data: metadataData,
     });
   }
+
+  const nextStake = input.stake !== undefined
+    ? new Prisma.Decimal(input.stake).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+    : undefined;
+
+  const updated = await syncBoletinDerivedState(
+    boletinId,
+    nextStake !== undefined ? { stake: nextStake } : undefined,
+  );
+
+  emitResolvedBoletinResult(userId, updated);
 
   void invalidateStatsCache(userId);
 
@@ -214,63 +217,9 @@ export async function updateBoletinItems(
     ),
   );
 
-  // Re-fetch items to compute new boletin status
-  const updatedItems = await prisma.boletinItem.findMany({
-    where: { boletinId },
-  });
+  const updated = await syncBoletinDerivedState(boletinId);
 
-  const allResolved = updatedItems.every((item) => item.result !== ItemResult.PENDING);
-  let newStatus: BoletinStatus | undefined;
-  let actualReturn: Prisma.Decimal | undefined;
-
-  if (allResolved) {
-    const hasLost = updatedItems.some((item) => item.result === ItemResult.LOST);
-    const hasVoid = updatedItems.some((item) => item.result === ItemResult.VOID);
-    const hasWon = updatedItems.some((item) => item.result === ItemResult.WON);
-
-    if (hasLost) {
-      newStatus = BoletinStatus.LOST;
-      actualReturn = new Prisma.Decimal(0);
-    } else if (hasVoid && hasWon) {
-      // Recalculate odds excluding void items
-      const activeOdds = updatedItems
-        .filter((item) => item.result === ItemResult.WON)
-        .reduce((acc, item) => acc.mul(item.oddValue), new Prisma.Decimal(1));
-      newStatus = BoletinStatus.PARTIAL;
-      actualReturn = existing.stake.mul(activeOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-    } else if (hasVoid && !hasWon) {
-      newStatus = BoletinStatus.VOID;
-      // Freebets have no real cash to refund on void events
-      actualReturn = existing.isFreebet ? new Prisma.Decimal(0) : existing.stake;
-    } else {
-      newStatus = BoletinStatus.WON;
-      actualReturn = existing.potentialReturn;
-    }
-  } else {
-    // At least one item is still PENDING — reset the boletin to PENDING and clear any
-    // previously recorded return so stale resolved data is not left on the record.
-    newStatus = BoletinStatus.PENDING;
-    actualReturn = undefined; // keep existing value as-is; set to null via payload below
-  }
-
-  const updated = await prisma.boletin.update({
-    where: { id: boletinId },
-    data: {
-      ...(newStatus ? {
-        status: newStatus,
-        actualReturn: newStatus === BoletinStatus.PENDING ? null : actualReturn,
-      } : {}),
-    },
-    include: BOLETIN_DETAIL_INCLUDE,
-  });
-
-  if (newStatus && newStatus !== BoletinStatus.PENDING) {
-    emitBoletinResult(userId, {
-      boletinId: updated.id,
-      status: updated.status as unknown as SharedBoletinStatus,
-      actualReturn: updated.actualReturn?.toFixed(2) ?? null,
-    });
-  }
+  emitResolvedBoletinResult(userId, updated);
 
   void invalidateStatsCache(userId);
 
@@ -426,7 +375,7 @@ export async function listSharedBoletins(userId: string): Promise<SharedBoletinF
   }));
 }
 
-/** Adds a single selection to an existing pending boletin and recalculates odds/return. */
+/** Adds a single selection to an existing boletin and recalculates odds/status. */
 export async function addBoletinItem(
   userId: string,
   boletinId: string,
@@ -449,11 +398,9 @@ export async function addBoletinItem(
   const newTotalOdds = existing.totalOdds.mul(newOddValue).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
   const newPotentialReturn = existing.stake.mul(newTotalOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 
-  const updated = await prisma.boletin.update({
+  await prisma.boletin.update({
     where: { id: boletinId },
     data: {
-      totalOdds: newTotalOdds,
-      potentialReturn: newPotentialReturn,
       items: {
         create: {
           homeTeam: input.homeTeam.trim(),
@@ -467,13 +414,17 @@ export async function addBoletinItem(
         },
       },
     },
-    include: BOLETIN_DETAIL_INCLUDE,
   });
+
+  const updated = await syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds });
+
+  emitResolvedBoletinResult(userId, updated);
+  void invalidateStatsCache(userId);
 
   return serializeBoletinDetail(updated);
 }
 
-/** Removes a single selection from an existing boletin and recalculates odds/return. */
+/** Removes a single selection from an existing boletin and recalculates odds/status. */
 export async function deleteBoletinItem(
   userId: string,
   boletinId: string,
@@ -501,20 +452,17 @@ export async function deleteBoletinItem(
   const newTotalOdds = existing.totalOdds
     .div(item.oddValue)
     .toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
-  const newPotentialReturn = existing.stake.mul(newTotalOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-
   await prisma.boletinItem.delete({ where: { id: itemId } });
 
-  const updated = await prisma.boletin.update({
-    where: { id: boletinId },
-    data: { totalOdds: newTotalOdds, potentialReturn: newPotentialReturn },
-    include: BOLETIN_DETAIL_INCLUDE,
-  });
+  const updated = await syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds });
+
+  emitResolvedBoletinResult(userId, updated);
+  void invalidateStatsCache(userId);
 
   return serializeBoletinDetail(updated);
 }
 
-/** Edits a single item's fields and recalculates boletin totals if oddValue changed. */
+/** Edits a single item's fields and recalculates boletin totals/status when needed. */
 export async function updateBoletinItem(
   userId: string,
   boletinId: string,
@@ -535,20 +483,15 @@ export async function updateBoletinItem(
     throw Object.assign(new Error('Seleção não encontrada'), { statusCode: 404 });
   }
 
-  // Recalculate boletin totals only when oddValue changes
-  let newTotalOdds = existing.totalOdds;
-  let newPotentialReturn = existing.potentialReturn;
+  // Recalculate boletin totals only when oddValue changes.
+  let newTotalOdds: Prisma.Decimal | undefined;
 
   if (input.oddValue !== undefined) {
     const newOddDecimal = new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-    // Divide out the old odd, multiply in the new odd
     newTotalOdds = existing.totalOdds
       .div(item.oddValue)
       .mul(newOddDecimal)
       .toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
-    newPotentialReturn = existing.stake
-      .mul(newTotalOdds)
-      .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
   }
 
   await prisma.boletinItem.update({
@@ -567,49 +510,127 @@ export async function updateBoletinItem(
     },
   });
 
-  const updated = await prisma.boletin.update({
-    where: { id: boletinId },
-    data: { totalOdds: newTotalOdds, potentialReturn: newPotentialReturn },
-    include: BOLETIN_DETAIL_INCLUDE,
-  });
+  const updated = await syncBoletinDerivedState(
+    boletinId,
+    newTotalOdds !== undefined ? { totalOdds: newTotalOdds } : undefined,
+  );
+
+  emitResolvedBoletinResult(userId, updated);
+  void invalidateStatsCache(userId);
 
   return serializeBoletinDetail(updated);
+}
+
+function deriveBoletinState(input: {
+  stake: Prisma.Decimal;
+  potentialReturn: Prisma.Decimal;
+  isFreebet: boolean;
+  items: Array<{ result: ItemResult; oddValue: Prisma.Decimal }>;
+}): { status: BoletinStatus; actualReturn: Prisma.Decimal | null } {
+  if (input.items.length === 0 || input.items.some((item) => item.result === ItemResult.PENDING)) {
+    return { status: BoletinStatus.PENDING, actualReturn: null };
+  }
+
+  const hasLost = input.items.some((item) => item.result === ItemResult.LOST);
+  const hasVoid = input.items.some((item) => item.result === ItemResult.VOID);
+  const hasWon = input.items.some((item) => item.result === ItemResult.WON);
+
+  if (hasLost) {
+    return { status: BoletinStatus.LOST, actualReturn: new Prisma.Decimal(0) };
+  }
+
+  if (hasVoid && hasWon) {
+    const winningOdds = input.items
+      .filter((item) => item.result === ItemResult.WON)
+      .reduce((acc, item) => acc.mul(item.oddValue), new Prisma.Decimal(1));
+
+    return {
+      status: BoletinStatus.PARTIAL,
+      actualReturn: input.stake.mul(winningOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
+    };
+  }
+
+  if (hasVoid) {
+    return {
+      status: BoletinStatus.VOID,
+      actualReturn: input.isFreebet ? new Prisma.Decimal(0) : input.stake,
+    };
+  }
+
+  return {
+    status: BoletinStatus.WON,
+    actualReturn: input.potentialReturn,
+  };
+}
+
+async function syncBoletinDerivedState(
+  boletinId: string,
+  overrides?: { stake?: Prisma.Decimal; totalOdds?: Prisma.Decimal },
+) {
+  const boletin = await prisma.boletin.findUnique({
+    where: { id: boletinId },
+    select: {
+      id: true,
+      stake: true,
+      totalOdds: true,
+      isFreebet: true,
+      items: {
+        select: {
+          result: true,
+          oddValue: true,
+        },
+      },
+    },
+  });
+
+  if (!boletin) {
+    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+  }
+
+  const nextStake = overrides?.stake ?? boletin.stake;
+  const nextTotalOdds = overrides?.totalOdds ?? boletin.totalOdds;
+  const nextPotentialReturn = nextStake.mul(nextTotalOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  const derivedState = deriveBoletinState({
+    stake: nextStake,
+    potentialReturn: nextPotentialReturn,
+    isFreebet: boletin.isFreebet,
+    items: boletin.items,
+  });
+
+  return prisma.boletin.update({
+    where: { id: boletinId },
+    data: {
+      stake: overrides?.stake,
+      totalOdds: overrides?.totalOdds,
+      potentialReturn:
+        overrides?.stake !== undefined || overrides?.totalOdds !== undefined ? nextPotentialReturn : undefined,
+      status: derivedState.status,
+      actualReturn: derivedState.actualReturn,
+      cashoutAmount: null,
+    },
+    include: BOLETIN_DETAIL_INCLUDE,
+  });
+}
+
+function emitResolvedBoletinResult(
+  userId: string,
+  boletin: { id: string; status: BoletinStatus; actualReturn: Prisma.Decimal | null },
+): void {
+  if (boletin.status === BoletinStatus.PENDING) {
+    return;
+  }
+
+  emitBoletinResult(userId, {
+    boletinId: boletin.id,
+    status: boletin.status as unknown as SharedBoletinStatus,
+    actualReturn: boletin.actualReturn?.toFixed(2) ?? null,
+  });
 }
 
 function assertUniqueSelections(items: CreateBoletinInput['items']): void {
   const keys = items.map((item) => `${item.homeTeam}:${item.awayTeam}:${item.competition}:${item.market}:${item.selection}`);
   if (new Set(keys).size !== keys.length) {
     throw Object.assign(new Error('O boletin contém seleções duplicadas'), { statusCode: 400 });
-  }
-}
-
-function resolveActualReturn(
-  boletin: { stake: Prisma.Decimal; potentialReturn: Prisma.Decimal; actualReturn: Prisma.Decimal | null; isFreebet: boolean },
-  status: BoletinStatus,
-  actualReturn?: number,
-  cashoutAmount?: number,
-): Prisma.Decimal | null | undefined {
-  if (actualReturn !== undefined) {
-    return new Prisma.Decimal(actualReturn).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-  }
-
-  switch (status) {
-    case BoletinStatus.WON:
-      return boletin.potentialReturn;
-    case BoletinStatus.LOST:
-      return new Prisma.Decimal(0);
-    case BoletinStatus.VOID:
-      // Freebets have no real cash to refund on void events
-      return boletin.isFreebet ? new Prisma.Decimal(0) : boletin.stake;
-    case BoletinStatus.CASHOUT:
-      return cashoutAmount !== undefined
-        ? new Prisma.Decimal(cashoutAmount).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
-        : boletin.actualReturn;
-    case BoletinStatus.PENDING:
-      return null;
-    case BoletinStatus.PARTIAL:
-    default:
-      return boletin.actualReturn;
   }
 }
 

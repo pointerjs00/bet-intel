@@ -77,37 +77,27 @@ export default function HomeScreen() {
   const loadMoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Read filter params pushed from the stats screen (e.g. filterTeam, filterSport, etc.)
-  const { filterSport, filterTeam, filterCompetition, filterMarket } = useLocalSearchParams<{
+  const {
+    filterSport,
+    filterTeam,
+    filterCompetition,
+    filterMarket,
+    filterSite,
+    filterWeekday,
+    filterLegCount,
+    filterStakeMin,
+    filterStakeMax,
+  } = useLocalSearchParams<{
     filterSport?: string;
     filterTeam?: string;
     filterCompetition?: string;
     filterMarket?: string;
+    filterSite?: string;
+    filterWeekday?: string;
+    filterLegCount?: string;
+    filterStakeMin?: string;
+    filterStakeMax?: string;
   }>();
-
-  // Apply incoming params to filter state every time the screen is focused with new params
-  useEffect(() => {
-    if (!filterSport && !filterTeam && !filterCompetition && !filterMarket) return;
-
-    setFilter((prev) => ({
-      ...prev,
-      sport: filterSport ? (filterSport as Sport) : prev.sport,
-      teams: filterTeam ? [filterTeam] : prev.teams,
-      competitions: filterCompetition ? [filterCompetition] : prev.competitions,
-    }));
-
-    if (filterMarket) {
-      setSearchQuery(filterMarket);
-    }
-
-    // Clear the params so navigating back doesn't re-apply them
-    router.setParams({
-      filterSport: '',
-      filterTeam: '',
-      filterCompetition: '',
-      filterMarket: '',
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterSport, filterTeam, filterCompetition, filterMarket]);
 
   const boletinsQuery = useBoletins();
   const deleteMutation = useDeleteBoletinMutation();
@@ -164,7 +154,95 @@ export default function HomeScreen() {
     competitions: [],
     teams: [],
     sites: [],
+    weekday: null,
+    legCount: null,
   });
+
+  useEffect(() => {
+    const hasRouteFilter = [
+      filterSport,
+      filterTeam,
+      filterCompetition,
+      filterMarket,
+      filterSite,
+      filterWeekday,
+      filterLegCount,
+      filterStakeMin,
+      filterStakeMax,
+    ].some((value) => value !== undefined && value !== '');
+
+    if (!hasRouteFilter) {
+      return;
+    }
+
+    const hasStakeRoute =
+      (filterStakeMin !== undefined && filterStakeMin !== '') ||
+      (filterStakeMax !== undefined && filterStakeMax !== '');
+    const parsedWeekday =
+      filterWeekday !== undefined && filterWeekday !== '' ? Number(filterWeekday) : null;
+    const parsedLegCount =
+      filterLegCount !== undefined && filterLegCount !== '' ? Number(filterLegCount) : null;
+    const parsedStakeMin =
+      filterStakeMin !== undefined && filterStakeMin !== '' ? Number(filterStakeMin) : 0;
+    const parsedStakeMax =
+      filterStakeMax === 'open' || filterStakeMax === undefined || filterStakeMax === ''
+        ? dataRanges.maxStake
+        : Number(filterStakeMax);
+
+    setFilter((prev) => ({
+      ...prev,
+      sport: filterSport ? (filterSport as Sport) : prev.sport,
+      teams: filterTeam ? [filterTeam] : prev.teams,
+      competitions: filterCompetition ? [filterCompetition] : prev.competitions,
+      sites: filterSite ? [filterSite] : prev.sites,
+      stakeRange: hasStakeRoute
+        ? [
+            Number.isFinite(parsedStakeMin) ? parsedStakeMin : 0,
+            Number.isFinite(parsedStakeMax) ? parsedStakeMax : dataRanges.maxStake,
+          ]
+        : prev.stakeRange,
+      weekday:
+        parsedWeekday !== null && Number.isInteger(parsedWeekday)
+          ? parsedWeekday
+          : filterSite || hasStakeRoute || filterSport || filterTeam || filterCompetition || filterMarket || filterLegCount
+          ? null
+          : prev.weekday,
+      legCount:
+        parsedLegCount !== null && Number.isInteger(parsedLegCount)
+          ? parsedLegCount
+          : filterSite || hasStakeRoute || filterSport || filterTeam || filterCompetition || filterMarket || filterWeekday
+          ? null
+          : prev.legCount,
+    }));
+
+    if (filterMarket) {
+      setSearchQuery(filterMarket);
+    }
+
+    router.setParams({
+      filterSport: '',
+      filterTeam: '',
+      filterCompetition: '',
+      filterMarket: '',
+      filterSite: '',
+      filterWeekday: '',
+      filterLegCount: '',
+      filterStakeMin: '',
+      filterStakeMax: '',
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    filterSport,
+    filterTeam,
+    filterCompetition,
+    filterMarket,
+    filterSite,
+    filterWeekday,
+    filterLegCount,
+    filterStakeMin,
+    filterStakeMax,
+    dataRanges.maxStake,
+  ]);
 
   // All unique competitions and teams from loaded data
   const allCompetitions = useMemo((): CompetitionEntry[] => {
@@ -199,6 +277,8 @@ export default function HomeScreen() {
     if (filter.competitions.length > 0) count++;
     if (filter.teams.length > 0) count++;
     if (filter.sites.length > 0) count++;
+    if (filter.weekday !== null) count++;
+    if (filter.legCount !== null) count++;
     return count;
   }, [filter, dataRanges]);
 
@@ -261,7 +341,26 @@ export default function HomeScreen() {
 
     // Betting site filter
     if (filter.sites.length > 0) {
-      result = result.filter((b) => b.siteSlug !== null && filter.sites.includes(b.siteSlug));
+      const includesUnknownSite = filter.sites.includes('unknown');
+      result = result.filter((b) => {
+        if (!b.siteSlug) {
+          return includesUnknownSite;
+        }
+        return filter.sites.includes(b.siteSlug);
+      });
+    }
+
+    if (filter.weekday !== null) {
+      result = result.filter(
+        (b) => new Date(b.betDate ?? b.createdAt).getDay() === filter.weekday,
+      );
+    }
+
+    if (filter.legCount !== null) {
+      // legCount === 6 is the "6+" sentinel meaning 6 or more selections
+      result = result.filter((b) =>
+        filter.legCount! >= 6 ? b.items.length >= 6 : b.items.length === filter.legCount,
+      );
     }
 
     // Sort
@@ -536,6 +635,8 @@ export default function HomeScreen() {
                     competitions: [],
                     teams: [],
                     sites: [],
+                    weekday: null,
+                    legCount: null,
                   });
                 }}
               >

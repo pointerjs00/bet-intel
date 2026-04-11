@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import type { StatsSummary } from '@betintel/shared';
+import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatPercentage } from '../../utils/formatters';
 
@@ -21,9 +21,7 @@ export const ROICard = React.memo(function ROICard({ summary, title = 'ROI', onI
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
         {onInfoPress ? (
-          <Pressable hitSlop={8} onPress={onInfoPress}>
-            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
-          </Pressable>
+          <InfoButton accessibilityLabel={`Mais informação sobre ${title}`} onPress={onInfoPress} />
         ) : null}
       </View>
       <Text style={[styles.roiValue, { color: roiPositive ? colors.primary : colors.danger }]}>

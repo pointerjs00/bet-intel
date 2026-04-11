@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet, Text, View } from 'react-native';
 import type { StatsFreebetSummary } from '@betintel/shared';
+import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -18,12 +18,10 @@ export const FreebetCard = React.memo(function FreebetCard({ summary, onInfoPres
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Freebets</Text>
         {onInfoPress ? (
-          <Pressable hitSlop={8} onPress={onInfoPress}>
-            <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
-          </Pressable>
+          <InfoButton accessibilityLabel="Mais informação sobre freebets" onPress={onInfoPress} />
         ) : null}
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Freebets</Text>
       </View>
 
       <View style={styles.metricsRow}>
@@ -62,11 +60,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
   },
-  titleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  titleRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   metricsRow: {
     flexDirection: 'row',
     gap: 12,

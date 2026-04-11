@@ -166,7 +166,7 @@ export const createBoletinSchema = z.object({
 
 export type CreateBoletinInput = z.infer<typeof createBoletinSchema>;
 
-/** Partially updates an existing boletin. */
+/** Partially updates editable boletin metadata. */
 export const updateBoletinSchema = z.object({
   name: z.string().max(100).optional(),
   notes: z.string().max(500).optional(),
@@ -174,15 +174,6 @@ export const updateBoletinSchema = z.object({
   stake: z
     .number()
     .positive('A stake deve ser positiva')
-    .optional(),
-  status: z.nativeEnum(BoletinStatus).optional(),
-  actualReturn: z
-    .number()
-    .nonnegative('O retorno não pode ser negativo')
-    .optional(),
-  cashoutAmount: z
-    .number()
-    .nonnegative('O valor do cashout não pode ser negativo')
     .optional(),
   isPublic: z.boolean().optional(),
   betDate: z.string().datetime({ offset: true }).nullable().optional(),

@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import type { StatsTimelinePoint } from '@betintel/shared';
 import { Area, CartesianChart, Line } from 'victory-native';
 import { DashPathEffect, Line as SkiaLine } from '@shopify/react-native-skia';
+import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -38,7 +38,7 @@ function toEpochSeconds(iso: string): number {
 /** Area chart for period P&L trend with optional cumulative mode. */
 export const PnLChart = React.memo(function PnLChart({ data, granularity = 'weekly', onGranularityChange, onInfoPress }: PnLChartProps) {
   const { colors } = useTheme();
-  const [cumulative, setCumulative] = useState(false);
+  const [cumulative, setCumulative] = useState(true);
 
   // Trim leading empty buckets so active data fills the chart width
   const visibleData = useMemo<StatsTimelinePoint[]>(() => {
@@ -77,8 +77,9 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
     return mapped;
   }, [visibleData, cumulative]);
 
-  const maxValue = useMemo(
-    () => Math.max(...visibleData.map((item) => Math.abs(item.profitLoss)), 0),
+  // Total P&L = sum of the buckets actually shown in the chart
+  const totalPnL = useMemo(
+    () => visibleData.reduce((sum, d) => sum + d.profitLoss, 0),
     [visibleData],
   );
 
@@ -97,7 +98,9 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
     if (min < 0) ticks.push(min);
     ticks.push(0);
     if (max > 0) ticks.push(max);
-    return ticks.map((v) => formatCurrency(v));
+    // Reverse so highest value is first → rendered at top of the Y-axis column,
+    // matching Victory Native which draws higher values at the top of the chart.
+    return ticks.map((v) => formatCurrency(v)).reverse();
   }, [yDomain]);
 
   // Sample up to MAX_AXIS_LABELS evenly distributed labels (always include first + last)
@@ -120,9 +123,7 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
           </Text>
           <View style={styles.headerActions}>
             {onInfoPress ? (
-              <Pressable hitSlop={8} onPress={onInfoPress}>
-                <Ionicons color={colors.textMuted} name="information-circle-outline" size={18} />
-              </Pressable>
+              <InfoButton accessibilityLabel="Mais informação sobre a evolução de P&L" onPress={onInfoPress} />
             ) : null}
             <Pressable
               onPress={() => setCumulative((v) => !v)}
@@ -140,7 +141,7 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
             </Pressable>
           </View>
         </View>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Amplitude: {formatCurrency(maxValue)}</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Resultado: {formatCurrency(totalPnL)}</Text>
       </View>
 
       {onGranularityChange ? (
