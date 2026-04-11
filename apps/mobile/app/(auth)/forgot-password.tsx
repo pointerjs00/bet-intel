@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link } from 'expo-router';
@@ -61,7 +61,7 @@ export default function ForgotPasswordScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeInUp.duration(500).springify()} style={styles.header}>
+        <Animated.View entering={FadeInUp.duration(180).springify()} style={styles.header}>
           <View style={[styles.iconCircle, { backgroundColor: colors.warning + '15' }]}>
             <Ionicons color={colors.warning} name="lock-open-outline" size={28} />
           </View>
@@ -69,7 +69,7 @@ export default function ForgotPasswordScreen() {
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Enviaremos um link com validade de 1 hora para redefinires a tua password.</Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(150).duration(500).springify()}>
+        <Animated.View entering={FadeInDown.delay(45).duration(180).springify()}>
           <Card style={styles.formCard}>
             <View style={styles.form}>
               <Controller
@@ -94,7 +94,7 @@ export default function ForgotPasswordScreen() {
           </Card>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(300).duration(500).springify()}>
+        <Animated.View entering={FadeInDown.delay(45).duration(180).springify()}>
           <Link href="/(auth)/login" style={[styles.backLink, { color: colors.info }]}>Voltar ao login</Link>
         </Animated.View>
       </ScrollView>

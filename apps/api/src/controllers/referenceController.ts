@@ -25,6 +25,129 @@ function fail(res: Response, err: unknown): void {
   res.status(500).json({ success: false, error: 'Erro interno do servidor' });
 }
 
+interface CompetitionFallbackSeed {
+  id: string;
+  name: string;
+  country: string;
+  sport: string;
+  tier: number;
+  teams: string[];
+}
+
+// Hotfix for environments seeded before Liga 3 was added to the reference data.
+const COMPETITION_FALLBACKS: CompetitionFallbackSeed[] = [
+  {
+    id: 'fallback:competition:football:portugal:liga-3',
+    name: 'Liga 3',
+    country: 'Portugal',
+    sport: Sport.FOOTBALL,
+    tier: 3,
+    teams: [
+      'SC Covilhã',
+      'Varzim SC',
+      'Académica de Coimbra',
+      'SC Braga B',
+      'Sporting CP B',
+      'Fafe',
+      '1º Dezembro',
+      'Amarante FC',
+      'CD Anadia',
+      'Caldas SC',
+      'Lusitânia FC',
+      'Oliveira do Hospital',
+      'AD Sanjoanense',
+      'CD Trofense',
+      'Länk Vilaverdense',
+      'Atlético CP',
+      'Lusitânia Lourosa',
+      'São João de Ver',
+      'União de Santarém',
+      'CF Os Belenenses',
+    ],
+  },
+];
+
+function normalizeReferenceValue(value: string): string {
+  return value.trim().toLocaleLowerCase('pt-PT');
+}
+
+function createFallbackSlug(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+}
+
+function mergeFallbackCompetitions(
+  competitions: Array<{ id: string; name: string; country: string; sport: string; tier: number }>,
+  sport?: string,
+): Array<{ id: string; name: string; country: string; sport: string; tier: number }> {
+  if (sport && sport !== Sport.FOOTBALL) {
+    return competitions;
+  }
+
+  const existingKeys = new Set(
+    competitions.map((competition) =>
+      normalizeReferenceValue(`${competition.sport}::${competition.country}::${competition.name}`),
+    ),
+  );
+
+  const merged = [...competitions];
+  for (const fallback of COMPETITION_FALLBACKS) {
+    const key = normalizeReferenceValue(`${fallback.sport}::${fallback.country}::${fallback.name}`);
+    if (!existingKeys.has(key)) {
+      merged.push({
+        id: fallback.id,
+        name: fallback.name,
+        country: fallback.country,
+        sport: fallback.sport,
+        tier: fallback.tier,
+      });
+    }
+  }
+
+  return merged;
+}
+
+function mergeFallbackTeams(
+  teams: Array<{ id: string; name: string; sport: string; country: string | null }>,
+  sport?: string,
+  competitionName?: string,
+): Array<{ id: string; name: string; sport: string; country: string | null }> {
+  if (!competitionName) {
+    return teams;
+  }
+
+  const fallback = COMPETITION_FALLBACKS.find(
+    (candidate) => normalizeReferenceValue(candidate.name) === normalizeReferenceValue(competitionName),
+  );
+
+  if (!fallback || (sport && sport !== fallback.sport)) {
+    return teams;
+  }
+
+  const existingNames = new Set(teams.map((team) => normalizeReferenceValue(team.name)));
+  const merged = [...teams];
+
+  for (const teamName of fallback.teams) {
+    if (existingNames.has(normalizeReferenceValue(teamName))) {
+      continue;
+    }
+
+    merged.push({
+      id: `fallback:team:${createFallbackSlug(fallback.name)}:${createFallbackSlug(teamName)}`,
+      name: teamName,
+      sport: fallback.sport,
+      country: fallback.country,
+    });
+  }
+
+  merged.sort((left, right) => left.name.localeCompare(right.name, 'pt-PT'));
+  return merged;
+}
+
 /** GET /api/reference/competitions — returns all active competitions. */
 export async function listCompetitionsHandler(req: Request, res: Response): Promise<void> {
   try {
@@ -38,7 +161,9 @@ export async function listCompetitionsHandler(req: Request, res: Response): Prom
       select: { id: true, name: true, country: true, sport: true, tier: true },
     });
 
-    const normalizedCompetitions = competitions.map((competition) => {
+    const mergedCompetitions = mergeFallbackCompetitions(competitions, sport);
+
+    const normalizedCompetitions = mergedCompetitions.map((competition) => {
       if (competition.sport !== Sport.TENNIS || !isTennisTournament(competition.name)) {
         return competition;
       }
@@ -111,8 +236,14 @@ export async function listTeamsHandler(req: Request, res: Response): Promise<voi
       select: { id: true, name: true, sport: true, country: true },
     });
 
-    if (!teams.some((team) => team.sport === Sport.TENNIS)) {
-      ok(res, teams);
+    const mergedTeams = mergeFallbackTeams(
+      teams,
+      typeof sport === 'string' ? (sport as Sport) : undefined,
+      typeof competition === 'string' ? competition : undefined,
+    );
+
+    if (!mergedTeams.some((team) => team.sport === Sport.TENNIS)) {
+      ok(res, mergedTeams);
       return;
     }
 
@@ -121,7 +252,7 @@ export async function listTeamsHandler(req: Request, res: Response): Promise<voi
     const prefix = isWtaQuery ? 'wta' : 'atp';
 
     // Consolidate 3 Redis mget calls into 1 for lower latency
-    const allEnrichmentKeys = teams.flatMap((team) => [
+    const allEnrichmentKeys = mergedTeams.flatMap((team) => [
       `${prefix}:photo:${team.name}`,
       `${prefix}:display-name:${team.name}`,
       `${prefix}:rank:${team.name}`,
@@ -131,7 +262,7 @@ export async function listTeamsHandler(req: Request, res: Response): Promise<voi
       ? await redis.mget(...allEnrichmentKeys)
       : [];
 
-    const enriched = teams.map((team, index) => {
+    const enriched = mergedTeams.map((team, index) => {
       let imageUrl = allValues[index * 3] ?? null;
       // Ensure photo URL is absolute — relative paths from WTA scraper are unusable on mobile
       if (imageUrl && imageUrl.startsWith('/')) {

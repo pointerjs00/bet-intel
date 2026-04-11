@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { memo, useMemo, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { getCompetitionBranding, getLeagueLogoUrl, getCountryFlagEmoji } from '../../utils/sportAssets';
 
@@ -9,15 +9,22 @@ interface CompetitionBadgeProps {
   country?: string;
   /** Size in logical pixels. */
   size?: number;
+  disableImage?: boolean;
   style?: object;
 }
 
 /** League logo image, falling back to a country flag emoji badge. */
-export function CompetitionBadge({ name, country, size = 18, style }: CompetitionBadgeProps) {
+function CompetitionBadgeComponent({
+  name,
+  country,
+  size = 18,
+  disableImage = false,
+  style,
+}: CompetitionBadgeProps) {
   const [imgFailed, setImgFailed] = useState(false);
-  const uri = getLeagueLogoUrl(name);
-  const showImage = uri && !imgFailed;
-  const branding = getCompetitionBranding(name);
+  const uri = useMemo(() => getLeagueLogoUrl(name), [name]);
+  const showImage = !disableImage && uri && !imgFailed;
+  const branding = useMemo(() => getCompetitionBranding(name), [name]);
 
   if (showImage) {
     const pad = Math.round(size * 0.1);
@@ -89,6 +96,9 @@ export function CompetitionBadge({ name, country, size = 18, style }: Competitio
     </Text>
   );
 }
+
+export const CompetitionBadge = memo(CompetitionBadgeComponent);
+CompetitionBadge.displayName = 'CompetitionBadge';
 
 const styles = StyleSheet.create({
   brandBadge: {

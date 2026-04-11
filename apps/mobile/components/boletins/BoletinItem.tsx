@@ -93,7 +93,7 @@ export function BoletinItem({ item, onRemove, onEdit, onResultChange }: BoletinI
           <View style={styles.editRemoveRow}>
             {onEdit ? (
               <Pressable hitSlop={10} onPress={onEdit} style={styles.editIconBtn}>
-                <Ionicons color={colors.info} name="pencil-outline" size={17} />
+                <Ionicons color={colors.info} name="create-outline" size={17} />
               </Pressable>
             ) : null}
             <Pressable hitSlop={10} onPress={onRemove}>
@@ -182,46 +182,34 @@ function ResultToggleButton({
   onPress,
 }: ResultToggleButtonProps) {
   const scale = useSharedValue(1);
-  const glow = useSharedValue(active ? 1 : 0);
 
   useEffect(() => {
     if (active) {
-      glow.value = withTiming(1, { duration: 180 });
       scale.value = withSequence(
-        withTiming(1.16, { duration: 120, easing: Easing.out(Easing.cubic) }),
-        withSpring(1, { damping: 12, stiffness: 240 }),
+        withTiming(1.16, { duration: 80, easing: Easing.out(Easing.cubic) }),
+        withSpring(1, { damping: 14, stiffness: 300 }),
       );
       return;
     }
-
-    glow.value = withTiming(0, { duration: 160 });
-    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
-  }, [active, glow, scale]);
+    scale.value = withSpring(1, { damping: 16, stiffness: 280 });
+  }, [active, scale]);
 
   const wrapperStyle = useAnimatedStyle(() => ({
-    elevation: 1 + glow.value * 4,
-    shadowOpacity: 0.12 + glow.value * 0.16,
-    shadowRadius: 4 + glow.value * 6,
     transform: [{ scale: scale.value }],
   }));
 
-  const haloStyle = useAnimatedStyle(() => ({
-    opacity: glow.value * 0.75,
-    transform: [{ scale: 0.88 + glow.value * 0.14 }],
-  }));
-
   return (
-    <Animated.View style={[styles.resultBtnWrap, { shadowColor: activeColor }, wrapperStyle]}>
+    <Animated.View style={[styles.resultBtnWrap, wrapperStyle]}>
       <Pressable
         accessibilityLabel={accessibilityLabel}
         accessibilityRole="button"
         hitSlop={6}
         onPress={onPress}
         onPressIn={() => {
-          scale.value = withTiming(0.93, { duration: 70 });
+          scale.value = withTiming(0.9, { duration: 40 });
         }}
         onPressOut={() => {
-          scale.value = withSpring(active ? 1.04 : 1, { damping: 13, stiffness: 220 });
+          scale.value = withSpring(1, { damping: 14, stiffness: 300 });
         }}
         style={[
           styles.resultBtn,
@@ -231,10 +219,6 @@ function ResultToggleButton({
           },
         ]}
       >
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.resultBtnHalo, { backgroundColor: activeBackground }, haloStyle]}
-        />
         <Ionicons color={active ? activeColor : inactiveColor} name={icon} size={18} />
       </Pressable>
     </Animated.View>

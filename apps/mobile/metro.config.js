@@ -10,6 +10,9 @@ const config = getDefaultConfig(__dirname);
 // Tell Metro to watch the root node_modules (hoisted pnpm layout)
 config.watchFolders = [repoRoot];
 
+// pnpm uses symlinks — Metro needs this to hash files resolved through symlinks
+config.resolver.unstable_enableSymlinks = true;
+
 // Look in root node_modules first, then app-local node_modules
 config.resolver.nodeModulesPaths = [
   path.resolve(repoRoot, 'node_modules'),

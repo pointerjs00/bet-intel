@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
+import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -14,8 +15,11 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { DatePickerField } from '../../components/ui/DatePickerField';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import type { DropdownSection } from '../../components/ui/SearchableDropdown';
+import { CompetitionPickerModal } from '../../components/ui/CompetitionPickerModal';
+import type { CompetitionPickerSection } from '../../components/ui/CompetitionPickerModal';
 import { InfoButton } from '../../components/ui/InfoButton';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TeamBadge } from '../../components/ui/TeamBadge';
@@ -33,7 +37,7 @@ import { useCompetitions, useTeams, useMarkets } from '../../services/referenceS
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate } from '../../utils/formatters';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
-import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
+import { BETTING_SITES, getCountryFlagEmoji } from '../../utils/sportAssets';
 
 const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
   { key: Sport.FOOTBALL, label: 'Futebol', icon: '⚽' },
@@ -68,6 +72,8 @@ export default function BoletinDetailScreen() {
   const [editItemTarget, setEditItemTarget] = useState<EditItemInitialValues | null>(null);
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingPublic, setPendingPublic] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const prevStatusRef = useRef<BoletinStatus | undefined>(undefined);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
   const updateItemsMutation = useUpdateBoletinItemsMutation();
@@ -106,6 +112,13 @@ export default function BoletinDetailScreen() {
 
   const boletin = boletinQuery.data;
 
+  // Seed prevStatusRef on first data load (no celebration on mount)
+  useEffect(() => {
+    if (boletin && prevStatusRef.current === undefined) {
+      prevStatusRef.current = boletin.status;
+    }
+  }, [boletin]);
+
   const tennisPhotoLookup = useMemo(() => {
     const lookup = new Map<string, string>();
 
@@ -123,7 +136,7 @@ export default function BoletinDetailScreen() {
     return lookup;
   }, [tennisTeamsQuery.data]);
 
-  const addCompetitionSections = useMemo<DropdownSection[]>(() => {
+  const addCompetitionSections = useMemo<CompetitionPickerSection[]>(() => {
     const comps = addCompetitionsQuery.data ?? [];
     const countryMap = new Map<string, typeof comps>();
     for (const comp of comps) {
@@ -133,12 +146,16 @@ export default function BoletinDetailScreen() {
     const sections = Array.from(countryMap.entries()).map(([country, cs]) => ({
       title: country,
       country,
-      data: cs.map((c) => ({ label: c.name, value: c.name })),
+      data: cs.map((c) => ({ label: c.name, value: c.name, tier: c.tier })),
     }));
+    const TOP_6 = ['Portugal', 'Inglaterra', 'Espanha', 'Itália', 'Alemanha', 'França'];
     sections.sort((a, b) => {
-      const ai = COMPETITION_COUNTRY_ORDER.indexOf(a.country);
-      const bi = COMPETITION_COUNTRY_ORDER.indexOf(b.country);
-      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      const ai = TOP_6.indexOf(a.country);
+      const bi = TOP_6.indexOf(b.country);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return a.country.localeCompare(b.country, 'pt');
     });
     return sections;
   }, [addCompetitionsQuery.data]);
@@ -148,8 +165,12 @@ export default function BoletinDetailScreen() {
     const source = addCompetition && !addTeamsQuery.isLoading && data.length === 0
       ? (addAllTeamsQuery.data ?? [])
       : data;
-    return source.map((t) => ({ label: t.name, value: t.name }));
-  }, [addCompetition, addTeamsQuery.isLoading, addTeamsQuery.data, addAllTeamsQuery.data]);
+    return source.map((team) => ({
+      label: team.name,
+      value: team.name,
+      imageUrl: team.imageUrl ?? tennisPhotoLookup.get(team.name) ?? null,
+    }));
+  }, [addAllTeamsQuery.data, addCompetition, addTeamsQuery.data, addTeamsQuery.isLoading, tennisPhotoLookup]);
 
   const addSportLabel = SPORT_OPTIONS.find((s) => s.key === addSport);
 
@@ -365,14 +386,13 @@ export default function BoletinDetailScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <Animated.View entering={FadeInUp.duration(400).springify()}>
+            <Animated.View entering={FadeInUp.duration(160).springify()}>
               <View style={[styles.statusBanner, { backgroundColor: bannerColor }]}>
                 <View style={styles.bannerTopRow}>
                   <StatusBadge status={boletin.status} variant="banner" />
                 </View>
                 {isEditing ? (
                   <TextInput
-                    autoFocus
                     maxLength={100}
                     onChangeText={setEditName}
                     placeholder="Nome do boletim"
@@ -387,7 +407,7 @@ export default function BoletinDetailScreen() {
               </View>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(30).duration(280).springify()}>
               {/* Stats grid */}
               <Card style={styles.statsGrid}>
                 {/* Row 1: Stake | Odd Total */}
@@ -500,7 +520,7 @@ export default function BoletinDetailScreen() {
                 ) : null}
               </View>
             </Animated.View>
-            <Animated.View entering={FadeInDown.delay(350).duration(400).springify()} style={styles.actionButtons}>
+            <Animated.View entering={FadeInDown.delay(100).duration(280).springify()} style={styles.actionButtons}>
               {isEditing ? (
                 <>
                   <Button
@@ -559,7 +579,7 @@ export default function BoletinDetailScreen() {
             </Animated.View>
 
             {(boletin.notes || isEditing) ? (
-              <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
+              <Animated.View entering={FadeInDown.delay(35).duration(280).springify()}>
                 <Card style={styles.notesCard}>
                   {isEditing ? (
                     <>
@@ -590,11 +610,11 @@ export default function BoletinDetailScreen() {
             ) : null}
 
             {isEditing ? (
-              <Animated.View entering={FadeInDown.delay(420).duration(400).springify()}>
+              <Animated.View entering={FadeInDown.delay(45).duration(280).springify()}>
                 <Card style={{ gap: 14 }}>
                   <Text style={[styles.addItemSectionTitle, { color: colors.textSecondary }]}>Site e data</Text>
                   {/* Site picker button */}
-                  <Pressable
+                  <PressableScale
                     onPress={() => setShowEditSites(true)}
                     style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
                   >
@@ -605,7 +625,7 @@ export default function BoletinDetailScreen() {
                       </Text>
                     </View>
                     <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
-                  </Pressable>
+                  </PressableScale>
                   {/* Date input */}
                   <DatePickerField
                     label="DATA DA APOSTA"
@@ -643,7 +663,7 @@ export default function BoletinDetailScreen() {
                 <Text style={[styles.addItemSectionTitle, { color: colors.textSecondary }]}>Adicionar Seleção</Text>
 
                 {/* Sport */}
-                <Pressable onPress={() => setShowAddSports(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <PressableScale onPress={() => setShowAddSports(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                   <View style={styles.fieldBtnInner}>
                     <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>DESPORTO</Text>
                     <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: colors.textPrimary }]}>
@@ -651,7 +671,7 @@ export default function BoletinDetailScreen() {
                     </Text>
                   </View>
                   <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
-                </Pressable>
+                </PressableScale>
 
                 {/* Doubles toggle — tennis only */}
                 {addSport === Sport.TENNIS && (
@@ -681,7 +701,7 @@ export default function BoletinDetailScreen() {
                 )}
 
                 {/* Competition */}
-                <Pressable onPress={() => setShowAddCompetitions(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <PressableScale onPress={() => setShowAddCompetitions(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                   <View style={styles.fieldBtnInner}>
                     <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>COMPETIÇÃO</Text>
                     <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: addCompetition ? colors.textPrimary : colors.textMuted }]}>
@@ -689,11 +709,11 @@ export default function BoletinDetailScreen() {
                     </Text>
                   </View>
                   <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
-                </Pressable>
+                </PressableScale>
 
                 {/* Home + Away Teams */}
                 <View style={styles.addItemRow}>
-                  <Pressable onPress={() => setShowAddHomeTeams(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                  <PressableScale onPress={() => setShowAddHomeTeams(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                     <View style={styles.fieldBtnInner}>
                       <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
                         {addSport === Sport.TENNIS ? (addIsDoubles ? 'JOG 1 (CASA)' : 'JOGADOR 1') : 'CASA'}
@@ -705,8 +725,8 @@ export default function BoletinDetailScreen() {
                         </Text>
                       </View>
                     </View>
-                  </Pressable>
-                  <Pressable onPress={() => setShowAddAwayTeams(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                  </PressableScale>
+                  <PressableScale onPress={() => setShowAddAwayTeams(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                     <View style={styles.fieldBtnInner}>
                       <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
                         {addSport === Sport.TENNIS ? (addIsDoubles ? 'JOG 1 (FORA)' : 'JOGADOR 2') : 'FORA'}
@@ -718,13 +738,13 @@ export default function BoletinDetailScreen() {
                         </Text>
                       </View>
                     </View>
-                  </Pressable>
+                  </PressableScale>
                 </View>
 
                 {/* Doubles extra players */}
                 {addIsDoubles && addSport === Sport.TENNIS && (
                   <View style={styles.addItemRow}>
-                    <Pressable onPress={() => setShowAddHomeTeams2(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                    <PressableScale onPress={() => setShowAddHomeTeams2(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                       <View style={styles.fieldBtnInner}>
                         <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOG 2 (CASA)</Text>
                         <View style={styles.fieldBtnRow}>
@@ -734,8 +754,8 @@ export default function BoletinDetailScreen() {
                           </Text>
                         </View>
                       </View>
-                    </Pressable>
-                    <Pressable onPress={() => setShowAddAwayTeams2(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                    </PressableScale>
+                    <PressableScale onPress={() => setShowAddAwayTeams2(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                       <View style={styles.fieldBtnInner}>
                         <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOG 2 (FORA)</Text>
                         <View style={styles.fieldBtnRow}>
@@ -745,7 +765,7 @@ export default function BoletinDetailScreen() {
                           </Text>
                         </View>
                       </View>
-                    </Pressable>
+                    </PressableScale>
                   </View>
                 )}
 
@@ -758,7 +778,7 @@ export default function BoletinDetailScreen() {
                     onChangeText={setAddMarket}
                   />
                 ) : (
-                  <Pressable
+                  <PressableScale
                     onPress={() => {
                       if (!addFinalHomeTeam || !addFinalAwayTeam) {
                         showToast('Seleciona as duas equipas primeiro.', 'error');
@@ -779,7 +799,7 @@ export default function BoletinDetailScreen() {
                       </Text>
                     </View>
                     <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
-                  </Pressable>
+                  </PressableScale>
                 )}
 
                 <Pressable
@@ -835,8 +855,7 @@ export default function BoletinDetailScreen() {
                   title="Desporto"
                   visible={showAddSports}
                 />
-                <SearchableDropdown
-                  isLoading={addCompetitionsQuery.isLoading}
+                <CompetitionPickerModal
                   onClose={() => setShowAddCompetitions(false)}
                   onSelect={(val) => {
                     setAddCompetition(val);
@@ -848,6 +867,11 @@ export default function BoletinDetailScreen() {
                     setAddAwayTeam2('');
                   }}
                   sections={addCompetitionSections}
+                  sport={addSport}
+                  performanceMode="fast"
+                  preloadWhenHidden
+                  defaultExpandedCount={addSport === Sport.FOOTBALL ? 6 : 10}
+                  allowCustomValue
                   title="Competição"
                   visible={showAddCompetitions}
                 />
@@ -856,7 +880,7 @@ export default function BoletinDetailScreen() {
                   items={addTeamItems}
                   onClose={() => setShowAddHomeTeams(false)}
                   onSelect={setAddHomeTeam}
-                  renderLeft={(val) => <TeamBadge name={val} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
+                  renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
                   title={addSport === Sport.TENNIS ? (addIsDoubles ? 'Jogador 1 (Par Casa)' : 'Jogador 1') : 'Equipa Casa'}
                   visible={showAddHomeTeams}
                   allowCustomValue
@@ -867,7 +891,7 @@ export default function BoletinDetailScreen() {
                     items={addTeamItems}
                     onClose={() => setShowAddHomeTeams2(false)}
                     onSelect={setAddHomeTeam2}
-                    renderLeft={(val) => <TeamBadge name={val} size={20} variant="player" />}
+                    renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant="player" />}
                     title="Jogador 2 (Par Casa)"
                     visible={showAddHomeTeams2}
                     allowCustomValue
@@ -878,7 +902,7 @@ export default function BoletinDetailScreen() {
                   items={addTeamItems}
                   onClose={() => setShowAddAwayTeams(false)}
                   onSelect={setAddAwayTeam}
-                  renderLeft={(val) => <TeamBadge name={val} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
+                  renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
                   title={addSport === Sport.TENNIS ? (addIsDoubles ? 'Jogador 1 (Par Fora)' : 'Jogador 2') : 'Equipa Fora'}
                   visible={showAddAwayTeams}
                   allowCustomValue
@@ -889,7 +913,7 @@ export default function BoletinDetailScreen() {
                     items={addTeamItems}
                     onClose={() => setShowAddAwayTeams2(false)}
                     onSelect={setAddAwayTeam2}
-                    renderLeft={(val) => <TeamBadge name={val} size={20} variant="player" />}
+                    renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant="player" />}
                     title="Jogador 2 (Par Fora)"
                     visible={showAddAwayTeams2}
                     allowCustomValue
@@ -908,7 +932,7 @@ export default function BoletinDetailScreen() {
           </View>
         }
         renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(450 + index * 60).duration(400).springify()}>
+          <Animated.View entering={FadeInDown.delay(450 + index * 25).duration(280).springify()}>
             <BoletinItem
               item={{
                 ...item,
@@ -937,10 +961,18 @@ export default function BoletinDetailScreen() {
               } : undefined}
               onResultChange={!isEditing ? async (result) => {
                 try {
-                  await updateItemsMutation.mutateAsync({
+                  const updated = await updateItemsMutation.mutateAsync({
                     boletinId: boletin.id,
                     items: [{ id: item.id, result }],
                   });
+                  // Trigger celebration immediately from mutation response
+                  if (
+                    prevStatusRef.current !== BoletinStatus.WON &&
+                    updated.status === BoletinStatus.WON
+                  ) {
+                    setShowCelebration(true);
+                  }
+                  prevStatusRef.current = updated.status;
                   showToast(
                     result === ItemResult.PENDING ? 'Resultado removido.' : 'Resultado atualizado.',
                     'success',
@@ -1027,6 +1059,13 @@ export default function BoletinDetailScreen() {
         }}
         onClose={() => setEditItemTarget(null)}
       />
+
+      {showCelebration && boletinStats && (
+        <WinCelebration
+          profit={boletinStats.displayProfit}
+          onDismiss={() => setShowCelebration(false)}
+        />
+      )}
     </View>
   );
 }

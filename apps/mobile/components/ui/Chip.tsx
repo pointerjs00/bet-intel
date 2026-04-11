@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -9,6 +8,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../../theme/useTheme';
 import { hapticSelection } from '../../utils/haptics';
+import { PressableScale } from './PressableScale';
 
 interface ChipProps {
   label: string;
@@ -22,19 +22,19 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
   const { colors, tokens } = useTheme();
 
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={() => {
         hapticSelection();
         onPress?.();
       }}
-      style={({ pressed }) => [
+      scaleDown={0.95}
+      style={[
         styles.base,
         {
           backgroundColor: selected ? colors.primary : colors.surfaceRaised,
           borderColor: selected ? colors.primary : colors.border,
-          opacity: pressed ? 0.8 : 1,
         },
         style,
       ]}
@@ -52,7 +52,7 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
       >
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 

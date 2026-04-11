@@ -304,7 +304,7 @@ export default function ImportReviewScreen() {
       <Stack.Screen options={{ title: 'Rever importação' }} />
 
       {/* Summary banner */}
-      <Animated.View entering={FadeInDown.duration(300)} style={[styles.summaryBanner, { backgroundColor: colors.surface }]}>
+      <Animated.View entering={FadeInDown.duration(160)} style={[styles.summaryBanner, { backgroundColor: colors.surface }]}>
         <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
           <Text style={{ fontWeight: '900' }}>{boletins.length}</Text> apostas encontradas
           {errorCount > 0 && (

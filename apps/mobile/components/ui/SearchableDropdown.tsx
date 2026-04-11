@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
 import { getCountryFlagEmoji } from '../../utils/sportAssets';
+import { PressableScale } from './PressableScale';
 
 export interface DropdownItem {
   label: string;
@@ -55,7 +56,15 @@ export interface SearchableDropdownProps {
   headerContent?: React.ReactNode;
 }
 
-export function SearchableDropdown({
+export function SearchableDropdown(props: SearchableDropdownProps) {
+  if (!props.visible) {
+    return null;
+  }
+
+  return <VisibleSearchableDropdown {...props} />;
+}
+
+function VisibleSearchableDropdown({
   visible,
   onClose,
   title,
@@ -98,6 +107,12 @@ export function SearchableDropdown({
       setFlatVisible(initialVisibleCount);
     }
   }, [isSearching, initialVisibleCount]);
+
+  useEffect(() => {
+    if (!visible) {
+      setSearch('');
+    }
+  }, [visible]);
 
   const filteredSections = useMemo(() => {
     if (!sections) return undefined;
@@ -146,7 +161,7 @@ export function SearchableDropdown({
   const renderRow = (item: DropdownItem) => {
     const isSelected = multiSelect && selectedValues?.includes(item.value);
     return (
-      <Pressable
+      <PressableScale
         key={item.value}
         onPress={() => {
           if (multiSelect && onSelectMultiple && selectedValues !== undefined) {
@@ -157,7 +172,6 @@ export function SearchableDropdown({
           } else {
             const accepted = onSelect(item.value);
             if (accepted !== false) {
-              setSearch('');
               onClose();
             }
           }
@@ -187,12 +201,19 @@ export function SearchableDropdown({
             <View style={[styles.uncheckCircle, { borderColor: colors.border }]} />
           )
         ) : null}
-      </Pressable>
+      </PressableScale>
     );
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      hardwareAccelerated
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
       <View style={[styles.modalOverlay, { paddingTop: insets.top }]}>
         <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
@@ -229,11 +250,10 @@ export function SearchableDropdown({
 
               {/* Custom value row — always shown when allowCustomValue and search has text */}
               {allowCustomValue && search.trim() ? (
-                <Pressable
+                <PressableScale
                   onPress={() => {
                     const accepted = onSelect(search.trim());
                     if (accepted !== false) {
-                      setSearch('');
                       onClose();
                     }
                   }}
@@ -243,7 +263,7 @@ export function SearchableDropdown({
                   <Text style={[styles.customValueText, { color: colors.primary }]}>
                     Usar &quot;{search.trim()}&quot;
                   </Text>
-                </Pressable>
+                </PressableScale>
               ) : null}
 
               {noResults && !allowCustomValue ? (
@@ -274,7 +294,7 @@ export function SearchableDropdown({
                     const remaining = total - initialVisibleCount;
                     if (remaining <= 0) return null;
                     return (
-                      <Pressable
+                      <PressableScale
                         onPress={() => setExpandedSections((prev) => new Set([...prev, section.title]))}
                         style={[styles.loadMoreBtn, { borderColor: colors.border }]}
                       >
@@ -282,16 +302,16 @@ export function SearchableDropdown({
                         <Text style={[styles.loadMoreText, { color: colors.primary }]}>
                           Carregar mais ({remaining} mais)
                         </Text>
-                      </Pressable>
+                      </PressableScale>
                     );
                   }}
                   renderItem={({ item }) => renderRow(item)}
-                  keyboardShouldPersistTaps="handled"
+                  keyboardShouldPersistTaps="always"
                   showsVerticalScrollIndicator={false}
                   style={{ flex: 1 }}
-                  initialNumToRender={15}
-                  maxToRenderPerBatch={15}
-                  windowSize={5}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  windowSize={4}
                 />
               ) : (
                 <FlatList
@@ -300,7 +320,7 @@ export function SearchableDropdown({
                   renderItem={({ item }) => renderRow(item)}
                   ListFooterComponent={
                     flatHasMore ? (
-                      <Pressable
+                      <PressableScale
                         onPress={() => setFlatVisible((prev) => (prev ?? 0) + (initialVisibleCount ?? 20))}
                         style={[styles.loadMoreBtn, { borderColor: colors.border }]}
                       >
@@ -308,30 +328,30 @@ export function SearchableDropdown({
                         <Text style={[styles.loadMoreText, { color: colors.primary }]}>
                           Carregar mais ({flatRemaining} mais)
                         </Text>
-                      </Pressable>
+                      </PressableScale>
                     ) : undefined
                   }
-                  keyboardShouldPersistTaps="handled"
+                  keyboardShouldPersistTaps="always"
                   showsVerticalScrollIndicator={false}
                   style={{ flex: 1 }}
-                  initialNumToRender={15}
-                  maxToRenderPerBatch={15}
-                  windowSize={5}
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  windowSize={4}
                 />
               )}
             </>
           )}
+          {multiSelect ? (
+            <PressableScale
+              onPress={onClose}
+              style={[styles.doneBtn, { backgroundColor: colors.primary, marginBottom: insets.bottom || 16 }]}
+            >
+              <Text style={styles.doneBtnText}>
+                Concluir{selectedValues && selectedValues.length > 0 ? ` (${selectedValues.length})` : ''}
+              </Text>
+            </PressableScale>
+          ) : null}
         </View>
-        {multiSelect ? (
-          <Pressable
-            onPress={() => { setSearch(''); onClose(); }}
-            style={[styles.doneBtn, { backgroundColor: colors.primary }]}
-          >
-            <Text style={styles.doneBtnText}>
-              Concluir{selectedValues && selectedValues.length > 0 ? ` (${selectedValues.length})` : ''}
-            </Text>
-          </Pressable>
-        ) : null}
       </View>
     </Modal>
   );
@@ -344,6 +364,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     flex: 1,
     marginTop: 60,
+    paddingBottom: 16,
     paddingHorizontal: 16,
     paddingTop: 16,
   },

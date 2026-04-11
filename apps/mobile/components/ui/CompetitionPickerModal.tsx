@@ -1,22 +1,34 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
+  GestureResponderEvent,
+  Image,
   LayoutAnimation,
   Modal,
   Platform,
   Pressable,
+  PressableProps,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   UIManager,
   View,
+  ViewStyle,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { FavouriteType, Sport } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
 import { CompetitionBadge } from './CompetitionBadge';
-import { getCountryFlagEmoji } from '../../utils/sportAssets';
+import { getCountryFlagEmoji, getLeagueLogoUrl } from '../../utils/sportAssets';
 import { useFavourites, useToggleFavouriteMutation } from '../../services/favouritesService';
 import { hapticLight } from '../../utils/haptics';
 
@@ -46,6 +58,8 @@ interface CompetitionPickerModalProps {
   title?: string;
   sections: CompetitionPickerSection[];
   sport?: Sport;
+  performanceMode?: 'default' | 'fast';
+  preloadWhenHidden?: boolean;
   /** Multi-select mode */
   multiSelect?: boolean;
   selectedValues?: string[];
@@ -58,6 +72,14 @@ interface CompetitionPickerModalProps {
   hideFavourites?: boolean;
   /** When true, a "Usar '{search}'" row is shown so the user can enter any free-text competition */
   allowCustomValue?: boolean;
+}
+
+export function CompetitionPickerModal(props: CompetitionPickerModalProps) {
+  if (!props.visible && !props.preloadWhenHidden) {
+    return null;
+  }
+
+  return <VisibleCompetitionPickerModal {...props} />;
 }
 
 /** Football competitions pinned to the "Top Competições" virtual section. */
@@ -77,12 +99,117 @@ const FOOTBALL_TOP_COMP_SET = new Set(FOOTBALL_TOP_COMP_NAMES);
 /** Top-10 countries to expand by default when no favourite data is available. */
 const DEFAULT_TOP_COUNTRIES = 10;
 
-export function CompetitionPickerModal({
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+interface ScalePressableProps extends PressableProps {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  pressedOpacity?: number;
+  pressedScale?: number;
+}
+
+function ScalePressable({
+  children,
+  style,
+  pressedOpacity = 0.96,
+  pressedScale = 0.985,
+  onPressIn,
+  onPressOut,
+  ...props
+}: ScalePressableProps) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = useCallback((event: GestureResponderEvent) => {
+    scale.value = withSpring(pressedScale, { damping: 20, stiffness: 320, mass: 0.7 });
+    opacity.value = withTiming(pressedOpacity, { duration: 90 });
+    onPressIn?.(event);
+  }, [onPressIn, opacity, pressedOpacity, pressedScale, scale]);
+
+  const handlePressOut = useCallback((event: GestureResponderEvent) => {
+    scale.value = withSpring(1, { damping: 18, stiffness: 260, mass: 0.7 });
+    opacity.value = withTiming(1, { duration: 120 });
+    onPressOut?.(event);
+  }, [onPressOut, opacity, scale]);
+
+  return (
+    <AnimatedPressable
+      {...props}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[style, animatedStyle]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+}
+
+interface FavouriteStarButtonProps {
+  active: boolean;
+  activeColor: string;
+  inactiveColor: string;
+  onPress: (event: GestureResponderEvent) => void;
+  size?: number;
+}
+
+function FavouriteStarButton({
+  active,
+  activeColor,
+  inactiveColor,
+  onPress,
+  size = 18,
+}: FavouriteStarButtonProps) {
+  const pop = useSharedValue(0);
+
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: 1 + pop.value * 0.28 },
+      { rotate: `${pop.value * (active ? -10 : 12)}deg` },
+    ],
+  }));
+
+  const handlePress = useCallback((event: GestureResponderEvent) => {
+    pop.value = 0;
+    pop.value = withSequence(
+      withTiming(1, { duration: 110 }),
+      withSpring(0, { damping: 11, stiffness: 220, mass: 0.7 }),
+    );
+    onPress(event);
+  }, [onPress, pop]);
+
+  return (
+    <ScalePressable
+      android_ripple={Platform.OS === 'android' ? { color: `${active ? activeColor : inactiveColor}22`, borderless: true, radius: 18 } : undefined}
+      hitSlop={8}
+      onPress={handlePress}
+      pressedOpacity={0.82}
+      pressedScale={0.84}
+      style={styles.starBtn}
+    >
+      <Animated.View style={animatedIconStyle}>
+        <Ionicons
+          color={active ? activeColor : inactiveColor}
+          name={active ? 'star' : 'star-outline'}
+          size={size}
+        />
+      </Animated.View>
+    </ScalePressable>
+  );
+}
+
+function VisibleCompetitionPickerModal({
   visible,
   onClose,
   title = 'Competição',
   sections,
   sport,
+  performanceMode = 'default',
+  preloadWhenHidden = false,
   multiSelect,
   selectedValues,
   onSelectMultiple,
@@ -95,11 +222,14 @@ export function CompetitionPickerModal({
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set());
-  const [initialised, setInitialised] = useState(false);
+  const initialisedRef = React.useRef(false);
+  const initialisedSportRef = React.useRef<Sport | string | undefined>(undefined);
+  const fastMode = performanceMode === 'fast';
+  const favouriteFeaturesEnabled = Boolean(sport) && !hideFavourites;
 
   // Favourites
   const sportKey = sport ?? undefined;
-  const favouritesQuery = useFavourites(sportKey);
+  const favouritesQuery = useFavourites(sportKey, { enabled: favouriteFeaturesEnabled });
   const toggleMutation = useToggleFavouriteMutation();
 
   const favouriteKeys = useMemo(() => {
@@ -110,31 +240,58 @@ export function CompetitionPickerModal({
     return set;
   }, [favouritesQuery.data]);
 
+  const prefetchedLogoUrisRef = React.useRef<Set<string>>(new Set());
+
   const isFavourite = useCallback(
     (type: FavouriteType, key: string) => favouriteKeys.has(`${type}::${key}`),
     [favouriteKeys],
   );
 
-  // Initialise expanded set once when sections arrive (reset when sport changes)
-  const [initialisedForSport, setInitialisedForSport] = React.useState<Sport | string | undefined>(undefined);
-  if ((!initialised || initialisedForSport !== sport) && sections.length > 0) {
+  useEffect(() => {
+    if (!visible) {
+      setSearch('');
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    const shouldPrepare = visible || preloadWhenHidden;
+
+    if (!shouldPrepare) {
+      initialisedRef.current = false;
+      initialisedSportRef.current = undefined;
+      setExpandedCountries(new Set());
+      return;
+    }
+
+    if (sections.length === 0) {
+      return;
+    }
+
+    if (initialisedRef.current && initialisedSportRef.current === sport) {
+      return;
+    }
+
     const next = new Set<string>();
     if (sport === Sport.FOOTBALL) {
       // Football: only the two virtual sections open by default; all country sections closed
       next.add('__top__');
-      next.add('__favourites__');
+      if (favouriteFeaturesEnabled) {
+        next.add('__favourites__');
+      }
     } else {
       // Other sports: open Favourites virtual section + top N countries
-      next.add('__favourites__');
-      for (const fav of favouritesQuery.data ?? []) {
-        if (fav.type === FavouriteType.COUNTRY) next.add(fav.targetKey);
-      }
-      for (const section of sections) {
-        const countryKey = section.country ?? section.title;
-        for (const item of section.data) {
-          if (isFavourite(FavouriteType.COMPETITION, item.value)) {
-            next.add(countryKey);
-            break;
+      if (favouriteFeaturesEnabled) {
+        next.add('__favourites__');
+        for (const fav of favouritesQuery.data ?? []) {
+          if (fav.type === FavouriteType.COUNTRY) next.add(fav.targetKey);
+        }
+        for (const section of sections) {
+          const countryKey = section.country ?? section.title;
+          for (const item of section.data) {
+            if (isFavourite(FavouriteType.COMPETITION, item.value)) {
+              next.add(countryKey);
+              break;
+            }
           }
         }
       }
@@ -148,10 +305,57 @@ export function CompetitionPickerModal({
         }
       }
     }
+
     setExpandedCountries(next);
-    setInitialisedForSport(sport);
-    setInitialised(true);
-  }
+    initialisedSportRef.current = sport;
+    initialisedRef.current = true;
+  }, [defaultExpandedCount, favouriteFeaturesEnabled, favouritesQuery.data, isFavourite, preloadWhenHidden, sections, sport, visible]);
+
+  const prefetchedLogoUris = useMemo(() => {
+    const names: string[] = [];
+
+    if (sport === Sport.FOOTBALL) {
+      const availableNames = new Set<string>();
+      for (const section of sections) {
+        for (const item of section.data) {
+          availableNames.add(item.value);
+        }
+      }
+
+      for (const topCompetitionName of FOOTBALL_TOP_COMP_NAMES) {
+        if (availableNames.has(topCompetitionName)) {
+          names.push(topCompetitionName);
+        }
+      }
+    } else {
+      for (const section of sections) {
+        for (const item of section.data) {
+          names.push(item.value);
+          if (names.length >= 12) {
+            break;
+          }
+        }
+        if (names.length >= 12) {
+          break;
+        }
+      }
+    }
+
+    return names
+      .map((name) => getLeagueLogoUrl(name))
+      .filter((uri): uri is string => Boolean(uri));
+  }, [sections, sport]);
+
+  useEffect(() => {
+    for (const uri of prefetchedLogoUris) {
+      if (prefetchedLogoUrisRef.current.has(uri)) {
+        continue;
+      }
+
+      prefetchedLogoUrisRef.current.add(uri);
+      void Image.prefetch(uri);
+    }
+  }, [prefetchedLogoUris]);
 
   // Filter sections by search; for football always sort A-Z (Top comps handled by virtual section)
   const filteredSections = useMemo(() => {
@@ -173,6 +377,7 @@ export function CompetitionPickerModal({
   const isSearching = search.trim().length > 0;
 
   const toggleCountry = useCallback((country: string) => {
+    hapticLight();
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedCountries((prev) => {
       const next = new Set(prev);
@@ -205,38 +410,44 @@ export function CompetitionPickerModal({
     [sport, toggleMutation, isFavourite],
   );
 
+  const handleSingleSelect = useCallback(
+    (value: string) => {
+      if (!onSelect) {
+        return;
+      }
+
+      onClose();
+      requestAnimationFrame(() => {
+        onSelect(value);
+      });
+    },
+    [onClose, onSelect],
+  );
+
   const handleSelectItem = useCallback(
     (value: string) => {
+      hapticLight();
       if (multiSelect && onSelectMultiple && selectedValues !== undefined) {
         const isSelected = selectedValues.includes(value);
         const next = isSelected
           ? selectedValues.filter((v) => v !== value)
           : [...selectedValues, value];
         onSelectMultiple(next);
-      } else if (onSelect) {
-        onSelect(value);
-        setSearch('');
-        onClose();
+      } else {
+        handleSingleSelect(value);
       }
     },
-    [multiSelect, onSelectMultiple, selectedValues, onSelect, onClose],
+    [handleSingleSelect, multiSelect, onSelectMultiple, selectedValues],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: CompetitionPickerItem & { _sectionCountry?: string; _isVirtualSection?: boolean } }) => {
       const isSelected = multiSelect && selectedValues?.includes(item.value);
-      const isFav = !hideFavourites && sport && isFavourite(FavouriteType.COMPETITION, item.value);
+      const isFav = favouriteFeaturesEnabled && isFavourite(FavouriteType.COMPETITION, item.value);
 
-      return (
-        <Pressable
-          onPress={() => handleSelectItem(item.value)}
-          style={[
-            styles.row,
-            { borderColor: colors.border },
-            isSelected && { backgroundColor: `${colors.primary}18` },
-          ]}
-        >
-          <CompetitionBadge name={item.value} size={22} />
+      const rowChildren = (
+        <>
+          <CompetitionBadge country={item._sectionCountry} name={item.value} size={22} />
           <View style={styles.rowTextWrap}>
             <Text style={[styles.rowLabel, { color: colors.textPrimary }]}>{item.label}</Text>
             {item._isVirtualSection && item._sectionCountry ? (
@@ -247,18 +458,16 @@ export function CompetitionPickerModal({
               <Text style={[styles.rowSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
             ) : null}
           </View>
-          {!hideFavourites && sport ? (
-            <Pressable
-              hitSlop={8}
-              onPress={() => handleToggleFavourite(FavouriteType.COMPETITION, item.value, item._sectionCountry)}
-              style={styles.starBtn}
-            >
-              <Ionicons
-                name={isFav ? 'star' : 'star-outline'}
-                size={18}
-                color={isFav ? colors.gold : colors.textMuted}
-              />
-            </Pressable>
+          {favouriteFeaturesEnabled ? (
+            <FavouriteStarButton
+              active={Boolean(isFav)}
+              activeColor={colors.gold}
+              inactiveColor={colors.textMuted}
+              onPress={(event) => {
+                event.stopPropagation?.();
+                handleToggleFavourite(FavouriteType.COMPETITION, item.value, item._sectionCountry);
+              }}
+            />
           ) : null}
           {multiSelect ? (
             isSelected ? (
@@ -267,10 +476,26 @@ export function CompetitionPickerModal({
               <View style={[styles.uncheckCircle, { borderColor: colors.border }]} />
             )
           ) : null}
-        </Pressable>
+        </>
+      );
+
+      return (
+        <ScalePressable
+          android_ripple={Platform.OS === 'android' ? { color: `${colors.primary}16` } : undefined}
+          onPress={() => handleSelectItem(item.value)}
+          pressedOpacity={0.92}
+          pressedScale={0.992}
+          style={[
+            styles.row,
+            { borderColor: colors.border },
+            isSelected && { backgroundColor: `${colors.primary}18` },
+          ]}
+        >
+          {rowChildren}
+        </ScalePressable>
       );
     },
-    [multiSelect, selectedValues, hideFavourites, sport, isFavourite, colors, handleSelectItem, handleToggleFavourite],
+    [colors, favouriteFeaturesEnabled, handleSelectItem, handleToggleFavourite, isFavourite, multiSelect, selectedValues],
   );
 
   // Build a flat list with section headers interspersed for better performance than SectionList
@@ -327,7 +552,7 @@ export function CompetitionPickerModal({
     }
 
     // ─── 2. FAVOURITES (starred comps not in top list, hidden during search) ───
-    if (!isSearching) {
+    if (favouriteFeaturesEnabled && !isSearching) {
       const seen = new Set<string>();
       const favItems: (CompetitionPickerItem & { sectionCountry: string })[] = [];
       for (const section of filteredSections) {
@@ -403,7 +628,7 @@ export function CompetitionPickerModal({
     }
 
     return result;
-  }, [filteredSections, expandedCountries, isSearching, isFavourite, sport]);
+  }, [expandedCountries, favouriteFeaturesEnabled, filteredSections, isSearching, isFavourite, sport]);
 
   /** All expand-keys present in the current flat list (used for toggle-all) */
   const allExpandKeys = useMemo(() => {
@@ -424,11 +649,8 @@ export function CompetitionPickerModal({
         if (hItem.headerVariant === 'top' || hItem.headerVariant === 'favourites') {
           const isTop = hItem.headerVariant === 'top';
           const accentColor = isTop ? colors.primary : colors.gold;
-          return (
-            <Pressable
-              onPress={() => toggleCountry(hItem.expandKey)}
-              style={[styles.sectionHeader, styles.virtualSectionHeader, { backgroundColor: colors.surfaceRaised }]}
-            >
+          const headerChildren = (
+            <>
               <Ionicons
                 name={isExpanded ? 'chevron-down' : 'chevron-forward'}
                 size={16}
@@ -443,24 +665,32 @@ export function CompetitionPickerModal({
                 {hItem.title}
               </Text>
               <Text style={[styles.sectionCount, { color: colors.textMuted }]}>{hItem.count}</Text>
-            </Pressable>
+            </>
+          );
+
+          return (
+            <ScalePressable
+              android_ripple={Platform.OS === 'android' ? { color: `${accentColor}22` } : undefined}
+              onPress={() => toggleCountry(hItem.expandKey)}
+              pressedOpacity={0.93}
+              pressedScale={0.988}
+              style={[styles.sectionHeader, styles.virtualSectionHeader, { backgroundColor: colors.surfaceRaised }]}
+            >
+              {headerChildren}
+            </ScalePressable>
           );
         }
 
         // ── Normal country / (Outros) section header ──
-        const countryFav =
-          !hideFavourites && sport && isFavourite(FavouriteType.COUNTRY, hItem.country);
-        return (
-          <Pressable
-            onPress={() => toggleCountry(hItem.expandKey)}
-            style={[styles.sectionHeader, { backgroundColor: colors.surfaceRaised }]}
-          >
+        const countryFav = favouriteFeaturesEnabled && isFavourite(FavouriteType.COUNTRY, hItem.country);
+        const headerChildren = (
+          <>
             <Ionicons
               name={isExpanded ? 'chevron-down' : 'chevron-forward'}
               size={16}
               color={colors.textSecondary}
             />
-            <Text style={[styles.sectionHeaderText, { color: colors.textSecondary }]}>
+            <Text style={[styles.sectionHeaderText, { color: colors.textSecondary }]}> 
               {hItem.country ? `${getCountryFlagEmoji(hItem.country)} ` : ''}
               {hItem.title}
             </Text>
@@ -470,23 +700,31 @@ export function CompetitionPickerModal({
                 {hItem.subtitle}
               </Text>
             ) : null}
-            {!hideFavourites && sport ? (
-              <Pressable
-                hitSlop={8}
-                onPress={(e) => {
-                  e.stopPropagation?.();
+            {favouriteFeaturesEnabled ? (
+              <FavouriteStarButton
+                active={Boolean(countryFav)}
+                activeColor={colors.gold}
+                inactiveColor={colors.textMuted}
+                onPress={(event) => {
+                  event.stopPropagation?.();
                   handleToggleFavourite(FavouriteType.COUNTRY, hItem.country);
                 }}
-                style={styles.starBtn}
-              >
-                <Ionicons
-                  name={countryFav ? 'star' : 'star-outline'}
-                  size={16}
-                  color={countryFav ? colors.gold : colors.textMuted}
-                />
-              </Pressable>
+                size={16}
+              />
             ) : null}
-          </Pressable>
+          </>
+        );
+
+        return (
+          <ScalePressable
+            android_ripple={Platform.OS === 'android' ? { color: `${colors.primary}18` } : undefined}
+            onPress={() => toggleCountry(hItem.expandKey)}
+            pressedOpacity={0.93}
+            pressedScale={0.988}
+            style={[styles.sectionHeader, { backgroundColor: colors.surfaceRaised }]}
+          >
+            {headerChildren}
+          </ScalePressable>
         );
       }
       return renderItem({ item });
@@ -494,12 +732,11 @@ export function CompetitionPickerModal({
     [
       expandedCountries,
       isSearching,
-      hideFavourites,
-      sport,
       isFavourite,
       colors,
       toggleCountry,
       handleToggleFavourite,
+      favouriteFeaturesEnabled,
       renderItem,
     ],
   );
@@ -507,7 +744,14 @@ export function CompetitionPickerModal({
   const keyExtractor = useCallback((item: ListItem) => item.key, []);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      hardwareAccelerated
+      statusBarTranslucent
+      transparent
+      onRequestClose={onClose}
+    >
       <View style={[styles.overlay, { paddingTop: insets.top }]}>
         <View style={[styles.content, { backgroundColor: colors.background }]}>
           {/* Header */}
@@ -543,7 +787,7 @@ export function CompetitionPickerModal({
           {/* Expand/Collapse all */}
           {!isSearching && sections.length > 1 && (
             <View style={styles.toggleAllRow}>
-              <Pressable
+              <ScalePressable
                 onPress={() => {
                   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                   if (expandedCountries.size >= allExpandKeys.length) {
@@ -552,6 +796,8 @@ export function CompetitionPickerModal({
                     setExpandedCountries(new Set(allExpandKeys));
                   }
                 }}
+                pressedOpacity={0.92}
+                pressedScale={0.97}
                 style={styles.toggleAllBtn}
               >
                 <Ionicons
@@ -566,27 +812,29 @@ export function CompetitionPickerModal({
                 <Text style={[styles.toggleAllText, { color: colors.primary }]}>
                   {expandedCountries.size >= allExpandKeys.length ? 'Recolher tudo' : 'Expandir tudo'}
                 </Text>
-              </Pressable>
+              </ScalePressable>
             </View>
           )}
 
           {/* Custom value row when allowCustomValue and search has text */}
           {allowCustomValue && search.trim() ? (
-            <Pressable
+            <ScalePressable
               onPress={() => {
-                if (onSelect) {
-                  onSelect(search.trim());
-                  setSearch('');
-                  onClose();
+                const value = search.trim();
+                if (value) {
+                  hapticLight();
+                  handleSingleSelect(value);
                 }
               }}
+              pressedOpacity={0.92}
+              pressedScale={0.982}
               style={[styles.customValueRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.primary }]}
             >
               <Ionicons color={colors.primary} name="create-outline" size={16} />
               <Text style={[styles.customValueText, { color: colors.primary }]}>
                 Usar &quot;{search.trim()}&quot;
               </Text>
-            </Pressable>
+            </ScalePressable>
           ) : null}
 
           {/* List */}
@@ -599,30 +847,34 @@ export function CompetitionPickerModal({
               data={flatData}
               keyExtractor={keyExtractor}
               renderItem={renderFlatItem}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
+              removeClippedSubviews
               showsVerticalScrollIndicator={false}
               style={{ flex: 1 }}
-              initialNumToRender={30}
-              maxToRenderPerBatch={20}
-              windowSize={7}
+              initialNumToRender={fastMode ? 8 : 10}
+              maxToRenderPerBatch={fastMode ? 8 : 10}
+              updateCellsBatchingPeriod={fastMode ? 16 : 24}
+              windowSize={4}
             />
           )}
         </View>
 
         {/* Done button for multi-select */}
         {multiSelect ? (
-          <Pressable
+          <ScalePressable
             onPress={() => {
               setSearch('');
               onClose();
             }}
+            pressedOpacity={0.92}
+            pressedScale={0.98}
             style={[styles.doneBtn, { backgroundColor: colors.primary }]}
           >
             <Text style={styles.doneBtnText}>
               Concluir
               {selectedValues && selectedValues.length > 0 ? ` (${selectedValues.length})` : ''}
             </Text>
-          </Pressable>
+          </ScalePressable>
         ) : null}
       </View>
     </Modal>

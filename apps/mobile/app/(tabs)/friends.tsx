@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,12 +65,12 @@ export default function FriendsScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.headerWrap}>
+        <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerWrap}>
           <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Social</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Segue atividade pública, gere amizades e responde a pedidos.</Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+        <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
           <Card noPadding style={styles.tabBar}>
             {TAB_LABELS.map((tab) => {
               const active = tab.key === activeTab;
@@ -98,7 +98,7 @@ export default function FriendsScreen() {
               </View>
             ) : feedQuery.data && feedQuery.data.length > 0 ? (
               feedQuery.data.map((item, index) => (
-                <Animated.View key={item.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Animated.View key={item.id} entering={FadeInDown.delay(index * 25).duration(160).springify()}>
                   <ActivityFeedItem item={item} />
                 </Animated.View>
               ))
@@ -124,7 +124,7 @@ export default function FriendsScreen() {
                   <Skeleton height={96} width="100%" />
                 ) : searchResults.length > 0 ? (
                   searchResults.map((user, index) => (
-                    <Animated.View key={user.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                    <Animated.View key={user.id} entering={FadeInDown.delay(index * 25).duration(160).springify()}>
                     <FriendCard
                       actionLabel={user.isFriend ? undefined : user.hasPendingRequest ? undefined : 'Adicionar'}
                       actionLoading={sendRequestMutation.isPending}
@@ -163,7 +163,7 @@ export default function FriendsScreen() {
               </View>
             ) : friendsQuery.data && friendsQuery.data.length > 0 ? (
               friendsQuery.data.map((friendship, index) => (
-                <Animated.View key={friendship.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Animated.View key={friendship.id} entering={FadeInDown.delay(index * 25).duration(160).springify()}>
                   <FriendCard
                     actionLabel="Remover"
                     actionLoading={removeFriendMutation.isPending}
@@ -192,7 +192,7 @@ export default function FriendsScreen() {
               <Skeleton height={96} width="100%" />
             ) : requestsQuery.data && requestsQuery.data.received.length > 0 ? (
               requestsQuery.data.received.map((request, index) => (
-                <Animated.View key={request.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Animated.View key={request.id} entering={FadeInDown.delay(index * 25).duration(160).springify()}>
                   <FriendRequestCard
                     loading={acceptRequestMutation.isPending}
                     onAccept={async () => {
@@ -223,7 +223,7 @@ export default function FriendsScreen() {
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Enviados</Text>
             {requestsQuery.data && requestsQuery.data.sent.length > 0 ? (
               requestsQuery.data.sent.map((request, index) => (
-                <Animated.View key={request.id} entering={FadeInDown.delay(index * 60).duration(400).springify()}>
+                <Animated.View key={request.id} entering={FadeInDown.delay(index * 25).duration(160).springify()}>
                   <FriendRequestCard request={request} variant="sent" />
                 </Animated.View>
               ))

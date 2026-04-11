@@ -20,11 +20,13 @@ async function fetchFavourites(sport?: string): Promise<FavouriteEntry[]> {
   return data.data;
 }
 
-export function useFavourites(sport?: string) {
+export function useFavourites(sport?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: favouritesQueryKeys.bySport(sport),
     queryFn: () => fetchFavourites(sport),
     staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 30 * 60 * 1000,
+    enabled: options?.enabled !== false,
   });
 }
 

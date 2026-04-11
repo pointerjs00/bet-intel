@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -30,6 +30,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { useBoletins, useDeleteBoletinMutation } from '../../services/boletinService';
@@ -71,6 +72,7 @@ export default function HomeScreen() {
   const [activeStatuses, setActiveStatuses] = useState<Set<BoletinStatus>>(new Set());
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [exactMarket, setExactMarket] = useState<string | null>(null);
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_BOLETINS);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -216,7 +218,7 @@ export default function HomeScreen() {
     }));
 
     if (filterMarket) {
-      setSearchQuery(filterMarket);
+      setExactMarket(filterMarket);
     }
 
     router.setParams({
@@ -279,8 +281,9 @@ export default function HomeScreen() {
     if (filter.sites.length > 0) count++;
     if (filter.weekday !== null) count++;
     if (filter.legCount !== null) count++;
+    if (exactMarket) count++;
     return count;
-  }, [filter, dataRanges]);
+  }, [filter, dataRanges, exactMarket]);
 
   const isDefaultSort = sort.by === 'date' && sort.dir === 'desc';
 
@@ -363,6 +366,11 @@ export default function HomeScreen() {
       );
     }
 
+    // Exact market filter (from stats drilldown — uses strict equality, not substring)
+    if (exactMarket) {
+      result = result.filter((b) => b.items.some((i) => i.market === exactMarket));
+    }
+
     // Sort
     return [...result].sort((a, b) => {
       let valA: number;
@@ -391,7 +399,7 @@ export default function HomeScreen() {
       }
       return sort.dir === 'asc' ? valA - valB : valB - valA;
     });
-  }, [boletins, activeStatuses, searchQuery, filter, sort]);
+  }, [boletins, activeStatuses, searchQuery, exactMarket, filter, sort]);
 
   useEffect(() => {
     if (loadMoreTimeoutRef.current) {
@@ -400,7 +408,7 @@ export default function HomeScreen() {
     }
     setIsLoadingMore(false);
     setVisibleCount(INITIAL_VISIBLE_BOLETINS);
-  }, [activeStatuses, searchQuery, filter, sort]);
+  }, [activeStatuses, searchQuery, exactMarket, filter, sort]);
 
   const visibleBoletins = useMemo(
     () => filtered.slice(0, visibleCount),
@@ -486,7 +494,7 @@ export default function HomeScreen() {
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             {/* Title row */}
-            <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.titleRow}>
+            <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.titleRow}>
               <View style={styles.titleBlock}>
                 <Text style={[styles.logo, { color: colors.textPrimary }]}>BetIntel</Text>
                 <Text style={[styles.tagline, { color: colors.textMuted }]}>O teu tracker de apostas</Text>
@@ -513,7 +521,7 @@ export default function HomeScreen() {
             </Animated.View>
 
             {/* Summary card */}
-            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
               <Pressable onPress={() => router.push('/(tabs)/stats')}>
                 <Card style={[styles.summaryCard, { borderColor: colors.border }]}>
                   <View style={styles.summaryMetric}>
@@ -536,7 +544,7 @@ export default function HomeScreen() {
             </Animated.View>
 
             {/* Search bar */}
-            <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                 <Ionicons color={colors.textMuted} name="search" size={18} />
                 <TextInput
@@ -555,9 +563,9 @@ export default function HomeScreen() {
             </Animated.View>
 
             {/* Status dropdown + advanced filter button */}
-            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.controlsRow}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()} style={styles.controlsRow}>
               {/* Status dropdown trigger */}
-              <Pressable
+              <PressableScale
                 onPress={() => { hapticLight(); setShowStatusDropdown(true); }}
                 style={[styles.statusDropdownTrigger, { backgroundColor: activeStatuses.size > 0 ? 'rgba(0,168,67,0.12)' : colors.surfaceRaised, borderColor: activeStatuses.size > 0 ? colors.primary : colors.border }]}
               >
@@ -582,7 +590,7 @@ export default function HomeScreen() {
                 ) : (
                   <Ionicons color={colors.textMuted} name="chevron-down" size={15} />
                 )}
-              </Pressable>
+              </PressableScale>
 
               <SearchableDropdown
                 visible={showStatusDropdown}
@@ -596,7 +604,7 @@ export default function HomeScreen() {
               />
 
               {/* Advanced filter button */}
-              <Pressable
+              <PressableScale
                 onPress={() => filterSheetRef.current?.expand()}
                 style={[
                   styles.filterBtn,
@@ -617,7 +625,7 @@ export default function HomeScreen() {
                     {activeFilterCount + (!isDefaultSort ? 1 : 0)}
                   </Text>
                 ) : null}
-              </Pressable>
+              </PressableScale>
             </Animated.View>
 
             {/* Active filters summary */}
@@ -625,6 +633,7 @@ export default function HomeScreen() {
               <Pressable
                 onPress={() => {
                   setSearchQuery('');
+                  setExactMarket(null);
                   setSort({ by: 'date', dir: 'desc' });
                   setActiveStatuses(new Set());
                   setFilter({
@@ -704,7 +713,7 @@ export default function HomeScreen() {
           }
 
           return (
-            <Animated.View entering={FadeInDown.delay(300 + index * 60).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(300 + index * 25).duration(160).springify()}>
               {card}
             </Animated.View>
           );

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+﻿import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ import { Button } from '../../components/ui/Button';
 import { DatePickerField } from '../../components/ui/DatePickerField';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { InfoButton } from '../../components/ui/InfoButton';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { usePersonalStats, useStatsTimeline } from '../../services/statsService';
@@ -143,7 +144,7 @@ export default function StatsScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.headerWrap}>
+        <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerWrap}>
           <View style={styles.headerTopRow}>
             <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Estatísticas</Text>
             <TouchableOpacity onPress={handleExport} style={styles.exportBtn} hitSlop={8}>
@@ -154,12 +155,12 @@ export default function StatsScreen() {
         </Animated.View>
 
         {/* Period grid (2×2) + secondary controls row */}
-        <Animated.View entering={FadeInDown.delay(100).duration(400).springify()} style={styles.filterZone}>
+        <Animated.View entering={FadeInDown.delay(30).duration(160).springify()} style={styles.filterZone}>
           <View style={styles.periodGrid}>
             {PERIOD_OPTIONS.map((option) => {
               const active = !useCustomRange && option.key === period;
               return (
-                <TouchableOpacity
+                <PressableScale
                   key={option.key}
                   onPress={() => { setPeriod(option.key); setUseCustomRange(false); }}
                   style={[
@@ -170,14 +171,14 @@ export default function StatsScreen() {
                   <Text style={[styles.periodGridBtnText, { color: active ? '#fff' : colors.textSecondary }]}>
                     {option.label}
                   </Text>
-                </TouchableOpacity>
+                </PressableScale>
               );
             })}
           </View>
 
           <View style={styles.secondaryControlRow}>
             {/* Personalizado toggle */}
-            <TouchableOpacity
+            <PressableScale
               onPress={() => setUseCustomRange((v) => !v)}
               style={[
                 styles.secondaryBtn,
@@ -188,10 +189,10 @@ export default function StatsScreen() {
               <Text style={[styles.secondaryBtnText, { color: useCustomRange ? colors.primary : colors.textSecondary }]}>
                 Personalizado
               </Text>
-            </TouchableOpacity>
+            </PressableScale>
 
             {/* Site filter button */}
-            <TouchableOpacity
+            <PressableScale
               onPress={() => setSiteDropdownOpen(true)}
               style={[
                 styles.secondaryBtn,
@@ -207,13 +208,13 @@ export default function StatsScreen() {
                   <Ionicons color={colors.primary} name="close-circle" size={15} />
                 </Pressable>
               )}
-            </TouchableOpacity>
+            </PressableScale>
           </View>
         </Animated.View>
 
         {/* Custom date range pickers */}
         {useCustomRange && (
-          <Animated.View entering={FadeInDown.duration(250)} style={styles.dateRangeRow}>
+          <Animated.View entering={FadeInDown.duration(120)} style={styles.dateRangeRow}>
             <View style={styles.datePickerCol}>
               <DatePickerField
                 label="De"
@@ -268,11 +269,11 @@ export default function StatsScreen() {
           />
         ) : (
           <View style={styles.contentStack}>
-            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
               <ROICard summary={stats.summary} title="ROI do período" onInfoPress={() => pushInfo('roi', stats.summary.roi)} />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(250).duration(400).springify()} style={styles.heroMetricsRow}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Apostado</Text>
                 <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.totalStaked)}</Text>
@@ -285,7 +286,7 @@ export default function StatsScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(275).duration(400).springify()} style={styles.heroMetricsRow}>
+            <Animated.View entering={FadeInDown.delay(80).duration(160).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média (ganhas)</Text>
                 <Text style={[styles.metricValue, { color: colors.primary }]}>{formatOdds(stats.summary.averageWonOdds)}</Text>
@@ -296,17 +297,17 @@ export default function StatsScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <WinRateRing winRate={stats.summary.winRate} onInfoPress={() => pushInfo('win-rate', stats.summary.winRate)} />
             </Animated.View>
 
             {/* Streak tracker */}
-            <Animated.View entering={FadeInDown.delay(310).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <StreakCard streaks={stats.summary.streaks} onInfoPress={() => pushInfo('streaks', stats.summary.streaks.currentType === 'WON' ? stats.summary.streaks.currentCount : stats.summary.streaks.currentType === 'LOST' ? -stats.summary.streaks.currentCount : 0)} />
             </Animated.View>
 
             {/* Average stake by outcome */}
-            <Animated.View entering={FadeInDown.delay(315).duration(400).springify()} style={styles.heroMetricsRow}>
+            <Animated.View entering={FadeInDown.delay(95).duration(160).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
                   <InfoButton
@@ -334,7 +335,7 @@ export default function StatsScreen() {
             </Animated.View>
 
             {/* Additional metrics */}
-            <Animated.View entering={FadeInDown.delay(320).duration(400).springify()} style={styles.heroMetricsRow}>
+            <Animated.View entering={FadeInDown.delay(95).duration(160).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total boletins</Text>
                 <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{stats.summary.totalBoletins}</Text>
@@ -351,7 +352,7 @@ export default function StatsScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(335).duration(400).springify()} style={styles.heroMetricsRow}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média geral</Text>
                 <Text style={[styles.metricValue, { color: colors.info }]}>{formatOdds(stats.summary.averageOdds)}</Text>
@@ -367,7 +368,7 @@ export default function StatsScreen() {
             </Animated.View>
 
             {/* Odds efficiency */}
-            <Animated.View entering={FadeInDown.delay(340).duration(400).springify()} style={styles.heroMetricsRow}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()} style={styles.heroMetricsRow}>
               <Card style={styles.metricCard}>
                 <View style={styles.metricLabelRow}>
                   <InfoButton
@@ -391,11 +392,11 @@ export default function StatsScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(350).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(100).duration(160).springify()}>
               <PnLChart data={timelineData} granularity={granularity} onGranularityChange={setGranularity} onInfoPress={() => pushInfo('pnl', stats.summary.profitLoss)} />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
               <BreakdownTable
                 rows={stats.bySport}
                 title="Por desporto"
@@ -409,7 +410,7 @@ export default function StatsScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(450).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(130).duration(160).springify()}>
               <BreakdownTable
                 rows={stats.byTeam}
                 title="Por equipa"
@@ -418,7 +419,7 @@ export default function StatsScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(475).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
               <BreakdownTable
                 rows={stats.byCompetition}
                 title="Por competição"
@@ -427,7 +428,7 @@ export default function StatsScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(500).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <BreakdownTable
                 expandLabels
                 rows={stats.byMarket}
@@ -437,12 +438,12 @@ export default function StatsScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(550).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(160).duration(160).springify()}>
               <OddsRangeBar rows={stats.byOddsRange} onInfoPress={() => pushInfo('by-odds-range', stats.byOddsRange.length)} />
             </Animated.View>
 
             {/* Site ROI with sparklines */}
-            <Animated.View entering={FadeInDown.delay(560).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
               <SiteROITable
                 rows={stats.bySite}
                 onInfoPress={() => pushInfo('by-site', stats.bySite.length)}
@@ -450,7 +451,7 @@ export default function StatsScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(575).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(170).duration(160).springify()}>
               <BreakdownTable
                 maxRows={7}
                 rows={stats.byWeekday}
@@ -460,7 +461,7 @@ export default function StatsScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(600).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(50).duration(160).springify()}>
               <BreakdownTable
                 rows={stats.byLegCount}
                 title="Por nº de seleções"
@@ -469,19 +470,19 @@ export default function StatsScreen() {
               />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(620).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <FreebetCard summary={stats.summary.freebetSummary} onInfoPress={() => pushInfo('freebet', stats.summary.freebetSummary.totalFreebets)} />
             </Animated.View>
 
             {/* Bet frequency heatmap */}
             {boletinsQuery.data && boletinsQuery.data.length > 0 && (
-              <Animated.View entering={FadeInDown.delay(630).duration(400).springify()}>
+              <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
                 <HeatmapCalendar boletins={boletinsQuery.data} onInfoPress={() => pushInfo('heatmap', (boletinsQuery.data ?? []).filter(b => b.status !== 'PENDING').length)} />
               </Animated.View>
             )}
 
             {/* Stake bracket breakdown */}
-            <Animated.View entering={FadeInDown.delay(640).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <BreakdownTable
                 rows={stats.byStakeBracket}
                 title="Por faixa de stake"
@@ -499,7 +500,7 @@ export default function StatsScreen() {
             </Animated.View>
 
             {/* Sport × Market matrix */}
-            <Animated.View entering={FadeInDown.delay(650).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(95).duration(160).springify()}>
               <SportMarketMatrix cells={stats.bySportMarket} onInfoPress={() => pushInfo('sport-market-matrix', stats.bySportMarket.length)} />
             </Animated.View>
 

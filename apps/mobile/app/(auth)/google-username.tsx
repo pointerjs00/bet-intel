@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -108,7 +108,7 @@ export default function GoogleUsernameScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeInUp.duration(500).springify()} style={styles.profileHeader}>
+        <Animated.View entering={FadeInUp.duration(180).springify()} style={styles.profileHeader}>
           {typeof picture === 'string' && picture.length > 0 ? (
             <Image source={{ uri: picture }} style={styles.avatar} />
           ) : (
@@ -122,7 +122,7 @@ export default function GoogleUsernameScreen() {
           </Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(150).duration(500).springify()}>
+        <Animated.View entering={FadeInDown.delay(45).duration(180).springify()}>
           <Card style={styles.formCard}>
             <View style={styles.form}>
               <Controller

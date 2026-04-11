@@ -52,7 +52,7 @@ export function Input({
   // animate the label upward so it doesn't overlap the text.
   useEffect(() => {
     if (value && labelProgress.value !== 1) {
-      labelProgress.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
+      labelProgress.value = withTiming(1, { duration: 80, easing: Easing.out(Easing.ease) });
     }
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -65,14 +65,14 @@ export function Input({
 
   const handleFocus = (e: Parameters<NonNullable<TextInputProps['onFocus']>>[0]) => {
     setIsFocused(true);
-    labelProgress.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.ease) });
+    labelProgress.value = withTiming(1, { duration: 80, easing: Easing.out(Easing.ease) });
     onFocus?.(e);
   };
 
   const handleBlur = (e: Parameters<NonNullable<TextInputProps['onBlur']>>[0]) => {
     setIsFocused(false);
     if (!value) {
-      labelProgress.value = withTiming(0, { duration: 200, easing: Easing.out(Easing.ease) });
+      labelProgress.value = withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) });
     }
     onBlur?.(e);
   };

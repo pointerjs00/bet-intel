@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -36,6 +36,7 @@ import { DatePickerField } from '../../components/ui/DatePickerField';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { CompetitionBadge } from '../../components/ui/CompetitionBadge';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useToast } from '../../components/ui/Toast';
 import { BoletinItem as BoletinSelectionRow } from '../../components/boletins/BoletinItem';
@@ -172,24 +173,6 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
   // Fallback pool — used only when the competition-scoped query returns nothing (cups, intl comps).
   const allTeamsQuery = useTeams({ sport: sportForApi });
   const marketsQuery = useMarkets(sportForApi);
-
-  useEffect(() => {
-    if (sport !== Sport.TENNIS) return;
-
-    const isPlayerPickerOpen = showHomeTeams || showHomeTeams2 || showAwayTeams || showAwayTeams2;
-    if (!isPlayerPickerOpen) return;
-
-    void teamsQuery.refetch();
-    void wtaTeamsQuery.refetch();
-  }, [
-    sport,
-    showHomeTeams,
-    showHomeTeams2,
-    showAwayTeams,
-    showAwayTeams2,
-    teamsQuery.refetch,
-    wtaTeamsQuery.refetch,
-  ]);
 
   const competitionSections = useMemo(() => {
     const comps = (competitionsQuery.data ?? []).map((competition) => (
@@ -578,7 +561,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         {(['ALL', 'ATP', 'WTA'] as const).map((tab) => {
           const active = playerTourTab === tab;
           return (
-            <Pressable
+            <PressableScale
               key={tab}
               onPress={() => setPlayerTourTab(tab)}
               style={{
@@ -598,13 +581,13 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
               }}>
                 {tab === 'ALL' ? 'Todos' : tab}
               </Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
       {/* Country dropdown */}
       {availablePlayerCountries.length > 0 && (
-        <Pressable
+        <PressableScale
           onPress={() => setShowCountryPicker(true)}
           style={{
             flexDirection: 'row',
@@ -642,7 +625,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           ) : (
             <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
           )}
-        </Pressable>
+        </PressableScale>
       )}
     </View>
   ) : null;
@@ -652,7 +635,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       <Text style={[styles.formTitle, { color: colors.textPrimary }]}>Adicionar seleção</Text>
 
       {/* Sport */}
-      <Pressable onPress={() => setShowSports(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+      <PressableScale onPress={() => setShowSports(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
         <View style={styles.fieldBtnInner}>
           <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>DESPORTO</Text>
           <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: colors.textPrimary }]}>
@@ -683,10 +666,10 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         ) : (
           <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
         )}
-      </Pressable>
+      </PressableScale>
 
       {/* Competition */}
-      <Pressable onPress={() => setShowCompetitions(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+      <PressableScale onPress={() => setShowCompetitions(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
         <View style={styles.fieldBtnInner}>
           <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>COMPETIÇÃO</Text>
           <View style={styles.fieldBtnRow}>
@@ -713,7 +696,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         ) : (
           <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
         )}
-      </Pressable>
+      </PressableScale>
 
       {/* Doubles toggle — shown only for Tennis */}
       {sport === Sport.TENNIS && (
@@ -743,7 +726,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       )}
 
       {/* Home Team / Player 1 */}
-      <Pressable onPress={() => setShowHomeTeams(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+      <PressableScale onPress={() => setShowHomeTeams(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
         <View style={styles.fieldBtnInner}>
           <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
             {sport === Sport.TENNIS ? (isDoubles ? 'JOGADOR 1 (PAR CASA)' : 'JOGADOR 1') : 'EQUIPA CASA'}
@@ -769,11 +752,11 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         ) : (
           <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
         )}
-      </Pressable>
+      </PressableScale>
 
       {/* Home Player 2 — doubles only */}
       {isDoubles && sport === Sport.TENNIS && (
-        <Pressable onPress={() => setShowHomeTeams2(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+        <PressableScale onPress={() => setShowHomeTeams2(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
           <View style={styles.fieldBtnInner}>
             <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOGADOR 2 (PAR CASA)</Text>
             <View style={styles.fieldBtnRow}>
@@ -792,11 +775,11 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           ) : (
             <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
           )}
-        </Pressable>
+        </PressableScale>
       )}
 
       {/* Away Team / Player 2 */}
-      <Pressable onPress={() => setShowAwayTeams(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+      <PressableScale onPress={() => setShowAwayTeams(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
         <View style={styles.fieldBtnInner}>
           <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
             {sport === Sport.TENNIS ? (isDoubles ? 'JOGADOR 1 (PAR FORA)' : 'JOGADOR 2') : 'EQUIPA FORA'}
@@ -822,11 +805,11 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         ) : (
           <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
         )}
-      </Pressable>
+      </PressableScale>
 
       {/* Away Player 2 — doubles only */}
       {isDoubles && sport === Sport.TENNIS && (
-        <Pressable onPress={() => setShowAwayTeams2(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+        <PressableScale onPress={() => setShowAwayTeams2(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
           <View style={styles.fieldBtnInner}>
             <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOGADOR 2 (PAR FORA)</Text>
             <View style={styles.fieldBtnRow}>
@@ -845,7 +828,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           ) : (
             <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
           )}
-        </Pressable>
+        </PressableScale>
       )}
 
       {/* Market — only enabled once both teams are selected */}
@@ -857,7 +840,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           onChangeText={setMarket}
         />
       ) : (
-        <Pressable
+        <PressableScale
           onPress={() => {
             if (!allPlayersComplete) {
               showToast(
@@ -885,7 +868,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           ) : (
             <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
           )}
-        </Pressable>
+        </PressableScale>
       )}
 
       <Pressable
@@ -966,6 +949,8 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         title="Competição"
         sections={visibleCompetitionSections}
         sport={sportForApi}
+        performanceMode="fast"
+        preloadWhenHidden
         defaultExpandedCount={sportForApi === Sport.FOOTBALL ? 6 : 10}
         allowCustomValue
         onSelect={(val) => {
@@ -987,6 +972,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         sections={sport === Sport.TENNIS ? homePlayerSections : undefined}
         renderItemLeft={(item) => (
           <TeamBadge
+            disableRemoteFallback
             imageUrl={item.imageUrl}
             name={item.value}
             size={30}
@@ -1014,6 +1000,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         sections={sport === Sport.TENNIS ? awayPlayerSections : undefined}
         renderItemLeft={(item) => (
           <TeamBadge
+            disableRemoteFallback
             imageUrl={item.imageUrl}
             name={item.value}
             size={30}
@@ -1041,7 +1028,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           items={undefined}
           sections={homePlayerSections2}
           renderItemLeft={(item) => (
-            <TeamBadge imageUrl={item.imageUrl} name={item.value} size={30} variant="player" />
+            <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={30} variant="player" />
           )}
           onSelect={(val) => {
             if (!rejectDuplicateSelection(val, home2ExcludedValues)) return false;
@@ -1062,7 +1049,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           items={undefined}
           sections={awayPlayerSections2}
           renderItemLeft={(item) => (
-            <TeamBadge imageUrl={item.imageUrl} name={item.value} size={30} variant="player" />
+            <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={30} variant="player" />
           )}
           onSelect={(val) => {
             if (!rejectDuplicateSelection(val, away2ExcludedValues)) return false;
@@ -1177,7 +1164,7 @@ export default function CreateBoletinScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
-            <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.topRow}>
+            <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.topRow}>
               <View style={styles.titleBlock}>
                 <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Construtor</Text>
                 <Text style={[styles.title, { color: colors.textPrimary }]}>Cria o teu boletim adicionando seleções.</Text>
@@ -1198,27 +1185,27 @@ export default function CreateBoletinScreen() {
               </Pressable>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
               <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>1. Seleção</Text>
               <AddSelectionForm onAdd={addItem} pendingBoletins={pendingBoletins} />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(150).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>2. Aposta</Text>
               <OddsCalculator potentialReturn={potentialReturn} stake={stake} totalOdds={totalOdds} />
             </Animated.View>
 
             {items.length > 0 && statsQuery.data ? (
-              <Animated.View entering={FadeInDown.delay(175).duration(400).springify()}>
+              <Animated.View entering={FadeInDown.delay(50).duration(160).springify()}>
                 <ProjectionCard items={items} stats={statsQuery.data} />
               </Animated.View>
             ) : null}
 
-            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
               <StakeInput onChange={setStake} value={stake} />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(250).duration(400).springify()} style={{ gap: tokens.spacing.lg }}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()} style={{ gap: tokens.spacing.lg }}>
               <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>3. Detalhes</Text>
               <Input label="Nome" onChangeText={setName} placeholder={defaultName || 'Liga Portugal Domingo'} value={name} />
               <Input label="Notas" multiline onChangeText={setNotes} placeholder="Notas opcionais" value={notes} />
@@ -1242,7 +1229,7 @@ export default function CreateBoletinScreen() {
                 onClear={() => setBetDate('')}
               />
               {/* Site de apostas */}
-              <Pressable
+              <PressableScale
                 onPress={() => setShowSites(true)}
                 style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
               >
@@ -1253,10 +1240,10 @@ export default function CreateBoletinScreen() {
                   </Text>
                 </View>
                 <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
-              </Pressable>
+              </PressableScale>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()} style={{ gap: tokens.spacing.sm }}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()} style={{ gap: tokens.spacing.sm }}>
               <Card style={styles.publicRow}>
                 <View style={styles.publicTextWrap}>
                   <Text style={[styles.publicTitle, { color: colors.textPrimary }]}>Tornar boletim público</Text>

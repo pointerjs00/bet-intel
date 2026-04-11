@@ -282,9 +282,33 @@ export function useUpdateBoletinMutation() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: UpdateBoletinInput }) =>
       updateBoletinRequest(id, payload),
+
+    onMutate: async ({ id, payload }) => {
+      const key = boletinQueryKeys.detail(id);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<BoletinDetail>(key);
+      if (previous) {
+        const patch: Record<string, unknown> = {};
+        if (payload.name !== undefined) patch.name = payload.name;
+        if (payload.notes !== undefined) patch.notes = payload.notes;
+        if (payload.siteSlug !== undefined) patch.siteSlug = payload.siteSlug;
+        if (payload.stake !== undefined) patch.stake = String(payload.stake);
+        if (payload.isPublic !== undefined) patch.isPublic = payload.isPublic;
+        if (payload.betDate !== undefined) patch.betDate = payload.betDate;
+        queryClient.setQueryData<BoletinDetail>(key, { ...previous, ...patch });
+      }
+      return { previous, key };
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.key, context.previous);
+      }
+    },
+
     onSuccess: (data) => {
+      queryClient.setQueryData(boletinQueryKeys.detail(data.id), data);
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
-      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
     },
   });
@@ -296,6 +320,25 @@ export function useDeleteBoletinMutation() {
 
   return useMutation({
     mutationFn: (id: string) => deleteBoletinRequest(id),
+
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: boletinQueryKeys.mine() });
+      const previousList = queryClient.getQueryData<BoletinDetail[]>(boletinQueryKeys.mine());
+      if (previousList) {
+        queryClient.setQueryData<BoletinDetail[]>(
+          boletinQueryKeys.mine(),
+          previousList.filter((b) => b.id !== id),
+        );
+      }
+      return { previousList };
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previousList) {
+        queryClient.setQueryData(boletinQueryKeys.mine(), context.previousList);
+      }
+    },
+
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
@@ -324,9 +367,35 @@ export function useUpdateBoletinItemsMutation() {
   return useMutation({
     mutationFn: ({ boletinId, items }: { boletinId: string; items: Array<{ id: string; result: ItemResult }> }) =>
       updateBoletinItemsRequest(boletinId, items),
+
+    // Optimistically update the cached detail so the button flips instantly
+    onMutate: async ({ boletinId, items }) => {
+      const key = boletinQueryKeys.detail(boletinId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<BoletinDetail>(key);
+      if (previous) {
+        const resultMap = new Map(items.map((i) => [i.id, i.result]));
+        queryClient.setQueryData<BoletinDetail>(key, {
+          ...previous,
+          items: previous.items.map((item) =>
+            resultMap.has(item.id) ? { ...item, result: resultMap.get(item.id)! } : item,
+          ),
+        });
+      }
+      return { previous, key };
+    },
+
+    onError: (_err, _vars, context) => {
+      // Roll back to previous data on failure
+      if (context?.previous) {
+        queryClient.setQueryData(context.key, context.previous);
+      }
+    },
+
     onSuccess: (data) => {
+      // Replace optimistic data with authoritative server response (includes recalculated status/odds)
+      queryClient.setQueryData(boletinQueryKeys.detail(data.id), data);
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
-      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
     },
   });
@@ -353,9 +422,33 @@ export function useDeleteBoletinItemMutation() {
   return useMutation({
     mutationFn: ({ boletinId, itemId }: { boletinId: string; itemId: string }) =>
       deleteBoletinItemRequest(boletinId, itemId),
+
+    onMutate: async ({ boletinId, itemId }) => {
+      const key = boletinQueryKeys.detail(boletinId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<BoletinDetail>(key);
+      if (previous) {
+        const remaining = previous.items.filter((i) => i.id !== itemId);
+        const totalOdds = remaining.reduce((acc, i) => acc * parseFloat(i.oddValue), 1);
+        queryClient.setQueryData<BoletinDetail>(key, {
+          ...previous,
+          items: remaining,
+          totalOdds: totalOdds.toFixed(4),
+          potentialReturn: (parseFloat(previous.stake) * totalOdds).toFixed(2),
+        });
+      }
+      return { previous, key };
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.key, context.previous);
+      }
+    },
+
     onSuccess: (data) => {
+      queryClient.setQueryData(boletinQueryKeys.detail(data.id), data);
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
-      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
     },
   });
 }
@@ -374,9 +467,45 @@ export function useUpdateBoletinItemMutation() {
       itemId: string;
       item: UpdateBoletinItemInput;
     }) => updateBoletinItemRequest(boletinId, itemId, item),
+
+    onMutate: async ({ boletinId, itemId, item }) => {
+      const key = boletinQueryKeys.detail(boletinId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<BoletinDetail>(key);
+      if (previous) {
+        const updatedItems = previous.items.map((i) => {
+          if (i.id !== itemId) return i;
+          const patched = { ...i } as Record<string, unknown>;
+          if (item.homeTeam !== undefined) patched.homeTeam = item.homeTeam;
+          if (item.awayTeam !== undefined) patched.awayTeam = item.awayTeam;
+          if (item.competition !== undefined) patched.competition = item.competition;
+          if (item.sport !== undefined) patched.sport = item.sport;
+          if (item.market !== undefined) patched.market = item.market;
+          if (item.selection !== undefined) patched.selection = item.selection;
+          if (item.oddValue !== undefined) patched.oddValue = String(item.oddValue);
+          if (item.result !== undefined) patched.result = item.result;
+          return patched as typeof i;
+        });
+        const totalOdds = updatedItems.reduce((acc, i) => acc * parseFloat(i.oddValue), 1);
+        queryClient.setQueryData<BoletinDetail>(key, {
+          ...previous,
+          items: updatedItems,
+          totalOdds: totalOdds.toFixed(4),
+          potentialReturn: (parseFloat(previous.stake) * totalOdds).toFixed(2),
+        });
+      }
+      return { previous, key };
+    },
+
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(context.key, context.previous);
+      }
+    },
+
     onSuccess: (data) => {
+      queryClient.setQueryData(boletinQueryKeys.detail(data.id), data);
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
-      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });

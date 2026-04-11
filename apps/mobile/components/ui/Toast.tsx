@@ -22,9 +22,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const showToast = useCallback((message: string, type: ToastState['type'] = 'info') => {
     setToast({ message, type });
     Animated.sequence([
-      Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
-      Animated.delay(2200),
-      Animated.timing(opacity, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 80, useNativeDriver: true }),
+      Animated.delay(1600),
+      Animated.timing(opacity, { toValue: 0, duration: 80, useNativeDriver: true }),
     ]).start(() => setToast(null));
   }, [opacity]);
 

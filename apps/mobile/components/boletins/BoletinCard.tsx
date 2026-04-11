@@ -20,6 +20,7 @@ import type { BoletinDetail, ItemResult } from '@betintel/shared';
 import { BoletinStatus, Sport } from '@betintel/shared';
 import { TeamBadge } from '../ui/TeamBadge';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
+import { PressableScale } from '../ui/PressableScale';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatOdds } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
@@ -98,15 +99,16 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
   const toggleExpand = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     chevronRotation.value = withTiming(expanded ? 0 : 180, {
-      duration: 250,
+      duration: 100,
       easing: Easing.out(Easing.ease),
     });
     setExpanded((prev) => !prev);
   };
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
+      scaleDown={0.98}
       style={[
         styles.card,
         {
@@ -313,7 +315,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
           </Animated.View>
         </Pressable>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 });
 

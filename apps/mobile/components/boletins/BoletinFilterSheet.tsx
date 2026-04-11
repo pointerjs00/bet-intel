@@ -19,6 +19,7 @@ import { Sport } from '@betintel/shared';
 import { RangeSlider } from '../ui/RangeSlider';
 import { Chip } from '../ui/Chip';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
+import { PressableScale } from '../ui/PressableScale';
 import { TeamBadge } from '../ui/TeamBadge';
 import { SearchableDropdown } from '../ui/SearchableDropdown';
 import { CompetitionPickerModal } from '../ui/CompetitionPickerModal';
@@ -323,7 +324,7 @@ export function BoletinFilterSheet({
           {allSites.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Casa de apostas</Text>
-              <Pressable
+              <PressableScale
                 onPress={() => setSitesOpen((v) => !v)}
                 style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
               >
@@ -333,13 +334,13 @@ export function BoletinFilterSheet({
                     : 'Todas as casas'}
                 </Text>
                 <Ionicons color={colors.textMuted} name={sitesOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-              </Pressable>
+              </PressableScale>
               {sitesOpen && (
                 <View style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
                   {allSites.map((site, i) => {
                     const active = draftFilter.sites.includes(site.slug);
                     return (
-                      <Pressable
+                      <PressableScale
                         key={site.slug}
                         onPress={() =>
                           setDraftFilter((prev) => ({
@@ -355,7 +356,7 @@ export function BoletinFilterSheet({
                           {site.name}
                         </Text>
                         {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
-                      </Pressable>
+                      </PressableScale>
                     );
                   })}
                 </View>
@@ -367,7 +368,7 @@ export function BoletinFilterSheet({
           {availableSports.length > 1 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Desporto</Text>
-              <Pressable
+              <PressableScale
                 onPress={() => setSportOpen((v) => !v)}
                 style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
               >
@@ -375,13 +376,13 @@ export function BoletinFilterSheet({
                   {draftFilter.sport ? (SPORT_LABELS[draftFilter.sport] ?? draftFilter.sport) : 'Todos os desportos'}
                 </Text>
                 <Ionicons color={colors.textMuted} name={sportOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-              </Pressable>
+              </PressableScale>
               {sportOpen && (
                 <View style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
                   {availableSports.map((s, i) => {
                     const active = draftFilter.sport === s;
                     return (
-                      <Pressable
+                      <PressableScale
                         key={s}
                         onPress={() => { setSport(s); setSportOpen(false); }}
                         style={[styles.dropdownItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
@@ -390,7 +391,7 @@ export function BoletinFilterSheet({
                           {SPORT_LABELS[s] ?? s}
                         </Text>
                         {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
-                      </Pressable>
+                      </PressableScale>
                     );
                   })}
                 </View>
@@ -402,7 +403,7 @@ export function BoletinFilterSheet({
           {allCompetitions.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Competição</Text>
-              <Pressable
+              <PressableScale
                 onPress={() => setShowCompModal(true)}
                 style={[styles.triggerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
               >
@@ -413,7 +414,7 @@ export function BoletinFilterSheet({
                     : 'Pesquisar competições…'}
                 </Text>
                 <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
-              </Pressable>
+              </PressableScale>
               {draftFilter.competitions.length > 0 && (
                 <View style={styles.selectedChips}>
                   {draftFilter.competitions.map((c) => (
@@ -488,7 +489,7 @@ export function BoletinFilterSheet({
           {allTeams.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Equipa</Text>
-              <Pressable
+                <PressableScale
                 onPress={() => setShowTeamModal(true)}
                 style={[styles.triggerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
               >
@@ -499,7 +500,7 @@ export function BoletinFilterSheet({
                     : 'Pesquisar equipas…'}
                 </Text>
                 <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
-              </Pressable>
+              </PressableScale>
               {draftFilter.teams.length > 0 && (
                 <View style={styles.selectedChips}>
                   {draftFilter.teams.map((t) => (
@@ -544,6 +545,8 @@ export function BoletinFilterSheet({
         title="Competição"
         sections={compSections}
         sport={draftFilter.sport ?? undefined}
+        performanceMode="fast"
+        preloadWhenHidden
         multiSelect
         selectedValues={draftFilter.competitions}
         onSelectMultiple={(vals) => setDraftFilter((p) => ({ ...p, competitions: vals }))}

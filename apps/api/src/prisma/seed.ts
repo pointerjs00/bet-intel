@@ -42,6 +42,19 @@ const FOOTBALL_COMPETITIONS: CompetitionSeed[] = [
     ],
   },
   {
+    name: 'Liga 3',
+    country: 'Portugal',
+    sport: Sport.FOOTBALL,
+    tier: 3,
+    teams: [
+      'SC Covilhã', 'Varzim SC', 'Académica de Coimbra', 'SC Braga B',
+      'Sporting CP B', 'Fafe', '1º Dezembro', 'Amarante FC', 'CD Anadia',
+      'Caldas SC', 'Lusitânia FC', 'Oliveira do Hospital', 'AD Sanjoanense',
+      'CD Trofense', 'Länk Vilaverdense', 'Atlético CP', 'Lusitânia Lourosa',
+      'São João de Ver', 'União de Santarém', 'CF Os Belenenses',
+    ],
+  },
+  {
     name: 'Taça de Portugal',
     country: 'Portugal',
     sport: Sport.FOOTBALL,
@@ -507,7 +520,7 @@ const FOOTBALL_COMPETITIONS: CompetitionSeed[] = [
     name: 'Campeonato de Portugal',
     country: 'Portugal',
     sport: Sport.FOOTBALL,
-    tier: 3,
+    tier: 4,
     teams: [
       'Académico de Viseu', 'FC Alverca', 'UD Oliveirense', 'SC Covilhã', 'CD Feirense',
       'Cova da Piedade', 'CD Nacional', 'CD Tondela', 'FC Penafiel', 'UD Leiria',

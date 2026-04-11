@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+﻿import Constants from 'expo-constants';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -237,7 +237,7 @@ export default function ProfileScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInUp.duration(400).springify()} style={styles.headerWrap}>
+        <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerWrap}>
           <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Perfil</Text>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Ajusta identidade, preferências e o resumo da tua conta.</Text>
         </Animated.View>
@@ -249,7 +249,7 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <View style={styles.sectionStack}>
-            <Animated.View entering={FadeInDown.delay(100).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
               <Card style={styles.profileCard}>
                 <Avatar name={profileQuery.data.displayName ?? profileQuery.data.username} size="lg" uri={profileQuery.data.avatarUrl ?? undefined} />
                 <View style={styles.profileInfo}>
@@ -260,13 +260,13 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.statsRow}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()} style={styles.statsRow}>
               <MetricCard label="ROI mês" value={formatPercentage(statsSummaryQuery.data?.roi ?? 0)} valueColor={(statsSummaryQuery.data?.roi ?? 0) >= 0 ? colors.primary : colors.danger} />
               <MetricCard label="Apostado" value={formatCurrency(statsSummaryQuery.data?.totalStaked ?? 0)} valueColor={colors.textPrimary} />
               <MetricCard label="Lucro" value={formatCurrency(statsSummaryQuery.data?.profitLoss ?? 0)} valueColor={(statsSummaryQuery.data?.profitLoss ?? 0) >= 0 ? colors.primary : colors.danger} />
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Perfil público</Text>
                 <Input label="Nome" onChangeText={setDisplayName} value={displayName} />
@@ -275,7 +275,7 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
               <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Preferências</Text>
                 <Input autoCapitalize="characters" label="Moeda" maxLength={3} onChangeText={(value) => setCurrency(value.toUpperCase())} value={currency} />
@@ -325,7 +325,7 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(500).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <Card style={styles.cardInner}>
                 <View style={styles.notificationsHeader}>
                   <View style={styles.notificationsTitleWrap}>
@@ -371,7 +371,7 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(600).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(50).duration(160).springify()}>
               <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Dados & Importação</Text>
                 <Pressable
@@ -388,7 +388,7 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(700).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Conta</Text>
                 <View style={styles.accountSection}>
@@ -461,7 +461,7 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(800).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
               <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Sobre</Text>
                 <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>BetIntel mobile • versão {appVersion}</Text>

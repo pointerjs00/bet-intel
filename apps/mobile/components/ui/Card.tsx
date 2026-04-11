@@ -64,10 +64,10 @@ export const Card = React.memo(function Card({
         accessibilityRole="button"
         onPress={onPress}
         onPressIn={() => {
-          scale.value = withSpring(0.98, { damping: 15, stiffness: 300 });
+          scale.value = withSpring(0.98, { damping: 18, stiffness: 600 });
         }}
         onPressOut={() => {
-          scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+          scale.value = withSpring(1, { damping: 18, stiffness: 600 });
         }}
         style={[
           styles.base,

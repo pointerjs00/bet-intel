@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CalendarPicker } from './CalendarPicker';
+import { PressableScale } from './PressableScale';
 import { useTheme } from '../../theme/useTheme';
 
 interface DatePickerFieldProps {
@@ -42,7 +43,7 @@ export function DatePickerField({
     <View style={styles.wrapper}>
       <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
 
-      <Pressable
+      <PressableScale
         onPress={() => setOpen(true)}
         style={[
           styles.field,
@@ -72,7 +73,7 @@ export function DatePickerField({
             <Ionicons color={colors.textMuted} name="close-circle" size={16} />
           </Pressable>
         )}
-      </Pressable>
+      </PressableScale>
 
       <CalendarPicker
         maxDate={maxDate}

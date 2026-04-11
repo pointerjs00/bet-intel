@@ -22,6 +22,7 @@ import type { UpdateBoletinItemInput } from '@betintel/shared';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
+import { PressableScale } from '../ui/PressableScale';
 import { TeamBadge } from '../ui/TeamBadge';
 import { CompetitionPickerModal } from '../ui/CompetitionPickerModal';
 import { SearchableDropdown } from '../ui/SearchableDropdown';
@@ -109,6 +110,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
   const [showAwayTeams, setShowAwayTeams] = useState(false);
   const [showAwayTeams2, setShowAwayTeams2] = useState(false);
   const [showMarkets, setShowMarkets] = useState(false);
+  const [playerTour, setPlayerTour] = useState<'ATP' | 'WTA' | null>(null);
 
   // ── Reference data ──────────────────────────────────────────────────────────
   const sportForApi = useMemo(
@@ -128,7 +130,16 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
   );
   const teamsQuery = useTeams(teamQueryParams);
   const allTeamsQuery = useTeams({ sport: sportForApi });
+  const wtaTeamsQuery = useTeams(
+    { sport: sportForApi, competition: 'WTA Tour' },
+    { enabled: sport === Sport.TENNIS },
+  );
   const marketsQuery = useMarkets(sportForApi);
+
+  const wtaPlayerValueSet = useMemo(
+    () => new Set((wtaTeamsQuery.data ?? []).map((t) => t.displayName ?? t.name)),
+    [wtaTeamsQuery.data],
+  );
 
   const competitionSections = useMemo(() => {
     const comps = (competitionsQuery.data ?? []).map((c) =>
@@ -179,6 +190,26 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
     });
     return sections;
   }, [competitionsQuery.data, sport]);
+
+  // Once WTA data is available, auto-detect tour from the seeded homeTeam
+  useEffect(() => {
+    if (sport !== Sport.TENNIS || !homeTeam || wtaTeamsQuery.isLoading) return;
+    if (playerTour !== null) return; // already set by user or already detected
+    setPlayerTour(wtaPlayerValueSet.has(homeTeam) ? 'WTA' : 'ATP');
+  }, [sport, homeTeam, wtaTeamsQuery.isLoading, wtaPlayerValueSet, playerTour]);
+
+  const visibleCompetitionSections = useMemo(() => {
+    if (sport !== Sport.TENNIS || !playerTour) return competitionSections;
+    const isWta = (name: string) => name.includes('WTA') || name === 'Billie Jean King Cup';
+    if (playerTour === 'WTA') {
+      return competitionSections
+        .map((s) => ({ ...s, data: s.data.filter((item) => isWta(item.value)) }))
+        .filter((s) => s.data.length > 0);
+    }
+    return competitionSections
+      .map((s) => ({ ...s, data: s.data.filter((item) => !isWta(item.value)) }))
+      .filter((s) => s.data.length > 0);
+  }, [competitionSections, sport, playerTour]);
 
   const teamItems = useMemo(() => {
     const data = teamsQuery.data ?? [];
@@ -271,6 +302,12 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
       setAwayTeam(item.awayTeam);
       setAwayTeam2('');
     }
+    // Seed playerTour for tennis — will be refined once WTA data loads
+    if (item.sport === Sport.TENNIS) {
+      setPlayerTour(null); // reset; wtaPlayerValueSet effect below will detect
+    } else {
+      setPlayerTour(null);
+    }
   }, [item, visible]);
 
   const handleSave = useCallback(() => {
@@ -339,7 +376,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
           showsVerticalScrollIndicator={false}
         >
           {/* ── Sport ──────────────────────────────────────────────────── */}
-          <Pressable
+          <PressableScale
             onPress={() => setShowSports(true)}
             style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
           >
@@ -350,7 +387,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
               </Text>
             </View>
             <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
-          </Pressable>
+          </PressableScale>
 
           {/* ── Doubles toggle (Tennis only) ───────────────────────────── */}
           {sport === Sport.TENNIS && (
@@ -383,7 +420,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
           )}
 
           {/* ── Competition ────────────────────────────────────────────── */}
-          <Pressable
+          <PressableScale
             onPress={() => setShowCompetitions(true)}
             style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
           >
@@ -403,10 +440,10 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
             ) : (
               <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
             )}
-          </Pressable>
+          </PressableScale>
 
           {/* ── Home Team / Player 1 ───────────────────────────────────── */}
-          <Pressable
+          <PressableScale
             onPress={() => setShowHomeTeams(true)}
             style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
           >
@@ -432,11 +469,11 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
             ) : (
               <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
             )}
-          </Pressable>
+          </PressableScale>
 
           {/* ── Home Player 2 (doubles only) ───────────────────────────── */}
           {isDoubles && sport === Sport.TENNIS && (
-            <Pressable
+            <PressableScale
               onPress={() => setShowHomeTeams2(true)}
               style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
             >
@@ -458,11 +495,11 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
               ) : (
                 <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
               )}
-            </Pressable>
+            </PressableScale>
           )}
 
           {/* ── Away Team / Player 1 ───────────────────────────────────── */}
-          <Pressable
+          <PressableScale
             onPress={() => setShowAwayTeams(true)}
             style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
           >
@@ -488,11 +525,11 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
             ) : (
               <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
             )}
-          </Pressable>
+          </PressableScale>
 
           {/* ── Away Player 2 (doubles only) ───────────────────────────── */}
           {isDoubles && sport === Sport.TENNIS && (
-            <Pressable
+            <PressableScale
               onPress={() => setShowAwayTeams2(true)}
               style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
             >
@@ -514,7 +551,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
               ) : (
                 <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
               )}
-            </Pressable>
+            </PressableScale>
           )}
 
           {/* ── Market ─────────────────────────────────────────────────── */}
@@ -528,7 +565,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
               onChangeText={setMarket}
             />
           ) : (
-            <Pressable
+            <PressableScale
               onPress={() => {
                 if (!finalHomeTeam || !finalAwayTeam) return;
                 setShowMarkets(true);
@@ -555,7 +592,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
               ) : (
                 <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
               )}
-            </Pressable>
+            </PressableScale>
           )}
 
           <Pressable
@@ -633,8 +670,10 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
         visible={showCompetitions}
         onClose={() => setShowCompetitions(false)}
         title="Competição"
-        sections={competitionSections}
+        sections={visibleCompetitionSections}
         sport={sportForApi}
+        performanceMode="fast"
+        preloadWhenHidden
         defaultExpandedCount={sportForApi === Sport.FOOTBALL ? 6 : 10}
         allowCustomValue
         onSelect={(val) => {
@@ -652,8 +691,13 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
         onClose={() => setShowHomeTeams(false)}
         title={sport === Sport.TENNIS ? (isDoubles ? 'Jogador 1 (Par Casa)' : 'Jogador 1') : 'Equipa Casa'}
         items={teamItems}
-        renderItemLeft={(i) => <TeamBadge imageUrl={i.imageUrl} name={i.value} size={30} variant={sport === Sport.TENNIS ? 'player' : 'team'} />}
-        onSelect={setHomeTeam}
+        renderItemLeft={(i) => <TeamBadge disableRemoteFallback imageUrl={i.imageUrl} name={i.value} size={30} variant={sport === Sport.TENNIS ? 'player' : 'team'} />}
+          onSelect={(val) => {
+            setHomeTeam(val);
+            if (sport === Sport.TENNIS) {
+              setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+            }
+          }}
         isLoading={teamsQuery.isLoading}
         allowCustomValue
         initialVisibleCount={20}
@@ -664,7 +708,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
           onClose={() => setShowHomeTeams2(false)}
           title="Jogador 2 (Par Casa)"
           items={teamItems}
-          renderItemLeft={(i) => <TeamBadge imageUrl={i.imageUrl} name={i.value} size={30} variant="player" />}
+          renderItemLeft={(i) => <TeamBadge disableRemoteFallback imageUrl={i.imageUrl} name={i.value} size={30} variant="player" />}
           onSelect={setHomeTeam2}
           isLoading={teamsQuery.isLoading}
           allowCustomValue
@@ -676,8 +720,13 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
         onClose={() => setShowAwayTeams(false)}
         title={sport === Sport.TENNIS ? (isDoubles ? 'Jogador 1 (Par Fora)' : 'Jogador 2') : 'Equipa Fora'}
         items={teamItems}
-        renderItemLeft={(i) => <TeamBadge imageUrl={i.imageUrl} name={i.value} size={30} variant={sport === Sport.TENNIS ? 'player' : 'team'} />}
-        onSelect={setAwayTeam}
+          renderItemLeft={(i) => <TeamBadge disableRemoteFallback imageUrl={i.imageUrl} name={i.value} size={30} variant={sport === Sport.TENNIS ? 'player' : 'team'} />}
+          onSelect={(val) => {
+            setAwayTeam(val);
+            if (sport === Sport.TENNIS && playerTour === null) {
+              setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+            }
+          }}
         isLoading={teamsQuery.isLoading}
         allowCustomValue
         initialVisibleCount={20}
@@ -688,7 +737,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
           onClose={() => setShowAwayTeams2(false)}
           title="Jogador 2 (Par Fora)"
           items={teamItems}
-          renderItemLeft={(i) => <TeamBadge imageUrl={i.imageUrl} name={i.value} size={30} variant="player" />}
+          renderItemLeft={(i) => <TeamBadge disableRemoteFallback imageUrl={i.imageUrl} name={i.value} size={30} variant="player" />}
           onSelect={setAwayTeam2}
           isLoading={teamsQuery.isLoading}
           allowCustomValue

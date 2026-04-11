@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';
@@ -133,12 +133,12 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         style={styles.flex}
       >
-        <Animated.View entering={FadeInUp.duration(500).springify()} style={styles.header}>
+        <Animated.View entering={FadeInUp.duration(180).springify()} style={styles.header}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>Criar conta</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Começa a acompanhar e comparar odds em segundos.</Text>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(120).duration(500).springify()}>
+        <Animated.View entering={FadeInDown.delay(35).duration(180).springify()}>
           <Card style={styles.formCard}>
             <View style={styles.form}>
               <Controller
@@ -269,13 +269,13 @@ export default function RegisterScreen() {
           </Card>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(240).duration(500).springify()} style={styles.dividerWrap}>
+        <Animated.View entering={FadeInDown.delay(35).duration(180).springify()} style={styles.dividerWrap}>
           <Divider style={styles.dividerLine} />
           <Text style={[styles.dividerText, { color: colors.textMuted }]}>ou continuar com</Text>
           <Divider style={styles.dividerLine} />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(360).duration(500).springify()}>
+        <Animated.View entering={FadeInDown.delay(50).duration(180).springify()}>
           <Button
             leftSlot={<Ionicons color="#1F1F1F" name="logo-google" size={18} />}
             loading={isGoogleLoading}
@@ -286,7 +286,7 @@ export default function RegisterScreen() {
           />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(480).duration(500).springify()} style={styles.footerRow}>
+        <Animated.View entering={FadeInDown.delay(35).duration(180).springify()} style={styles.footerRow}>
           <Text style={[styles.footerText, { color: colors.textSecondary }]}>Já tens conta?</Text>
           <Link href="/(auth)/login" style={[styles.footerLink, { color: colors.primary }]}>Entrar</Link>
         </Animated.View>
