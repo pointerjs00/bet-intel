@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   BackHandler,
   FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -39,6 +42,12 @@ import { BETTING_SITES } from '../../utils/sportAssets';
 
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
 
+const INITIAL_VISIBLE_BOLETINS = 8;
+const VISIBLE_BATCH_SIZE = 8;
+const LOAD_MORE_DELAY_MS = 120;
+const LOAD_MORE_AHEAD_PX = 220;
+const LOAD_MORE_THRESHOLD = 0.35;
+
 const STATUS_FILTERS: Array<{ key: BoletinStatus; label: string; activeColor: string; activeBorder: string }> = [
   { key: BoletinStatus.PENDING,  label: '⏳ Pendente',   activeColor: 'rgba(255,149,0,0.15)',  activeBorder: '#FF9500' },
   { key: BoletinStatus.WON,      label: '✅ Ganhou',     activeColor: 'rgba(0,168,67,0.15)',   activeBorder: '#00A843' },
@@ -63,6 +72,9 @@ export default function HomeScreen() {
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_BOLETINS);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const loadMoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Read filter params pushed from the stats screen (e.g. filterTeam, filterSport, etc.)
   const { filterSport, filterTeam, filterCompetition, filterMarket } = useLocalSearchParams<{
@@ -117,6 +129,14 @@ export default function HomeScreen() {
     });
     return () => sub.remove();
   }, [isFilterSheetOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (loadMoreTimeoutRef.current) {
+        clearTimeout(loadMoreTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -274,9 +294,56 @@ export default function HomeScreen() {
     });
   }, [boletins, activeStatuses, searchQuery, filter, sort]);
 
+  useEffect(() => {
+    if (loadMoreTimeoutRef.current) {
+      clearTimeout(loadMoreTimeoutRef.current);
+      loadMoreTimeoutRef.current = null;
+    }
+    setIsLoadingMore(false);
+    setVisibleCount(INITIAL_VISIBLE_BOLETINS);
+  }, [activeStatuses, searchQuery, filter, sort]);
+
+  const visibleBoletins = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
+
+  const remainingBoletinsCount = Math.max(filtered.length - visibleCount, 0);
+  const hasMoreBoletins = visibleCount < filtered.length;
+
+  const triggerLoadMore = useCallback(() => {
+    if (boletinsQuery.isLoading || !hasMoreBoletins || isLoadingMore) return;
+    setIsLoadingMore(true);
+    loadMoreTimeoutRef.current = setTimeout(() => {
+      setVisibleCount((current) => Math.min(current + VISIBLE_BATCH_SIZE, filtered.length));
+      setIsLoadingMore(false);
+      loadMoreTimeoutRef.current = null;
+    }, LOAD_MORE_DELAY_MS);
+  }, [boletinsQuery.isLoading, filtered.length, hasMoreBoletins, isLoadingMore]);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+
+      if (distanceFromBottom <= LOAD_MORE_AHEAD_PX) {
+        triggerLoadMore();
+      }
+    },
+    [triggerLoadMore],
+  );
+
+  const loadingMorePlaceholders = useMemo<SlipListItem[]>(() => {
+    if (!isLoadingMore) return [];
+    return Array.from({ length: Math.min(2, remainingBoletinsCount) }, (_, index) => ({
+      id: `loading-more-${index}`,
+      type: 'skeleton' as const,
+    }));
+  }, [isLoadingMore, remainingBoletinsCount]);
+
   const listData: SlipListItem[] = boletinsQuery.isLoading
     ? [{ id: 's1', type: 'skeleton' }, { id: 's2', type: 'skeleton' }, { id: 's3', type: 'skeleton' }]
-    : filtered;
+    : [...visibleBoletins, ...loadingMorePlaceholders];
 
   const summary = useMemo(() => {
     return filtered.reduce(
@@ -313,6 +380,10 @@ export default function HomeScreen() {
           hapticLight();
           void boletinsQuery.refetch();
         }}
+        onEndReached={triggerLoadMore}
+        onEndReachedThreshold={LOAD_MORE_THRESHOLD}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             {/* Title row */}
@@ -513,27 +584,41 @@ export default function HomeScreen() {
             );
           }
 
+          const card = (
+            <BoletinCard
+              boletin={item}
+              onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
+              onPress={() => router.push(`/boletins/${item.id}`)}
+              onShare={() =>
+                showToast(
+                  'A partilha para amigos fica visível quando o módulo social estiver pronto.',
+                  'info',
+                )
+              }
+            />
+          );
+
+          if (index >= INITIAL_VISIBLE_BOLETINS) {
+            return card;
+          }
+
           return (
             <Animated.View entering={FadeInDown.delay(300 + index * 60).duration(400).springify()}>
-              <BoletinCard
-                boletin={item}
-                onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
-                onPress={() => router.push(`/boletins/${item.id}`)}
-                onShare={() =>
-                  showToast(
-                    'A partilha para amigos fica visível quando o módulo social estiver pronto.',
-                    'info',
-                  )
-                }
-              />
+              {card}
             </Animated.View>
           );
         }}
         ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={
-          <View style={styles.footerBar}>
-            <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
-          </View>
+          hasMoreBoletins ? (
+            <View style={styles.loadMoreFooter}>
+              <ActivityIndicator color={colors.primary} size="small" />
+            </View>
+          ) : (
+            <View style={styles.footerBar}>
+              <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
+            </View>
+          )
         }
         showsVerticalScrollIndicator={false}
         refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
@@ -661,5 +746,7 @@ const styles = StyleSheet.create({
   filterBtnBadge: { color: '#fff', fontSize: 12, fontWeight: '800' },
   clearFilters: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   skeletonCard: { gap: 14 },
+  loadMoreFooter: { alignItems: 'center', gap: 10, marginTop: 8, paddingBottom: 8, paddingTop: 4 },
+  loadMoreText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
   footerBar: { marginTop: tokens.spacing.xl },
 });
