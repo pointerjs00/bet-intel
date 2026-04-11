@@ -8,6 +8,7 @@ import type {
   ItemResult,
   ShareBoletinInput,
   UpdateBoletinInput,
+  UpdateBoletinItemInput,
 } from '@betintel/shared';
 import { Alert, Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
@@ -125,6 +126,19 @@ export async function addBoletinItemRequest(
 /** Removes a selection from an existing boletin. */
 export async function deleteBoletinItemRequest(boletinId: string, itemId: string): Promise<BoletinDetail> {
   const response = await apiClient.delete<ApiEnvelope<BoletinDetail>>(`/betintel/${boletinId}/items/${itemId}`);
+  return response.data.data;
+}
+
+/** Edits the fields of a single selection within an existing boletin. */
+export async function updateBoletinItemRequest(
+  boletinId: string,
+  itemId: string,
+  item: UpdateBoletinItemInput,
+): Promise<BoletinDetail> {
+  const response = await apiClient.patch<ApiEnvelope<BoletinDetail>>(
+    `/betintel/${boletinId}/items/${itemId}`,
+    item,
+  );
   return response.data.data;
 }
 
@@ -342,6 +356,28 @@ export function useDeleteBoletinItemMutation() {
     onSuccess: (data) => {
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
+    },
+  });
+}
+
+/** Mutation hook for editing a single selection within a boletin. */
+export function useUpdateBoletinItemMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      boletinId,
+      itemId,
+      item,
+    }: {
+      boletinId: string;
+      itemId: string;
+      item: UpdateBoletinItemInput;
+    }) => updateBoletinItemRequest(boletinId, itemId, item),
+    onSuccess: (data) => {
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.detail(data.id) });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
     },
   });
 }

@@ -18,6 +18,7 @@ import { Sport } from '@prisma/client';
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { prisma } from '../prisma';
+import { backfillMissingPlayerCountries, getTennisCountryFromCode, TENNIS_COUNTRY_CODE_TO_NAME } from '../utils/tennisCountryBackfill';
 import { redis } from '../utils/redis';
 import { logger } from '../utils/logger';
 
@@ -47,59 +48,7 @@ interface ScrapedPlayer {
 const ATP_HEADSHOT_ALIAS = (playerCode: string) =>
   `https://www.atptour.com/-/media/alias/player-headshot/${playerCode.toLowerCase()}`;
 
-const ATP_FLAG_CODE_TO_COUNTRY: Record<string, string> = {
-  arg: 'Argentina',
-  aus: 'Austrália',
-  aut: 'Áustria',
-  bel: 'Bélgica',
-  bol: 'Bolívia',
-  bra: 'Brasil',
-  bul: 'Bulgária',
-  can: 'Canadá',
-  chi: 'Chile',
-  chn: 'China',
-  col: 'Colômbia',
-  cro: 'Croácia',
-  cze: 'Chéquia',
-  den: 'Dinamarca',
-  ecu: 'Equador',
-  esp: 'Espanha',
-  est: 'Estónia',
-  fin: 'Finlândia',
-  fra: 'França',
-  gbr: 'Inglaterra',
-  ger: 'Alemanha',
-  gre: 'Grécia',
-  hkg: 'Hong Kong',
-  hun: 'Hungria',
-  ind: 'Índia',
-  irl: 'Irlanda',
-  ita: 'Itália',
-  jpn: 'Japão',
-  kaz: 'Cazaquistão',
-  kor: 'Coreia do Sul',
-  lat: 'Letónia',
-  ltu: 'Lituânia',
-  lux: 'Luxemburgo',
-  mex: 'México',
-  mon: 'Mónaco',
-  ned: 'Holanda',
-  nzl: 'Nova Zelândia',
-  per: 'Peru',
-  pol: 'Polónia',
-  por: 'Portugal',
-  rou: 'Roménia',
-  rsa: 'África do Sul',
-  rus: 'Rússia',
-  srb: 'Sérvia',
-  sui: 'Suíça',
-  svk: 'Eslováquia',
-  swe: 'Suécia',
-  tpe: 'Taiwan',
-  ukr: 'Ucrânia',
-  uru: 'Uruguai',
-  usa: 'EUA',
-};
+const ATP_FLAG_CODE_TO_COUNTRY: Record<string, string> = TENNIS_COUNTRY_CODE_TO_NAME;
 
 function getPlayerCodeFromHref(profileHref?: string | null): string | null {
   const match = profileHref?.match(/\/players\/[^/]+\/([^/]+)\//i);
@@ -128,7 +77,7 @@ function getCountryFromFlag(root: cheerio.Cheerio<any>): string | null {
   const flagRef = root.find('svg.atp-flag use, svg[class*="flag"] use').first().attr('href')
     ?? root.find('svg.atp-flag use, svg[class*="flag"] use').first().attr('xlink:href');
   const flagCode = flagRef?.match(/flag-([a-z]+)/i)?.[1]?.toLowerCase();
-  return flagCode ? (ATP_FLAG_CODE_TO_COUNTRY[flagCode] ?? null) : null;
+  return flagCode ? (getTennisCountryFromCode(flagCode) ?? ATP_FLAG_CODE_TO_COUNTRY[flagCode] ?? null) : null;
 }
 
 function parseATPRankingsHtml(html: string, limit: number): ScrapedPlayer[] {
@@ -305,6 +254,8 @@ export async function processATPRankingsUpdate(): Promise<{ updated: number; ski
 
   logger.info(`[ATP Rankings] Scraped ${players.length} players`);
 
+  players = await backfillMissingPlayerCountries(players, 'atp');
+
   let updated = 0;
   let skipped = 0;
   const atpTourCompetition = await prisma.competition.upsert({
@@ -358,6 +309,7 @@ export async function processATPRankingsUpdate(): Promise<{ updated: number; ski
       if (player.displayName) {
         await redis.set(`atp:display-name:${player.name}`, player.displayName, 'EX', 7 * 24 * 3600);
       }
+      await redis.set(`atp:rank:${player.name}`, String(player.rank), 'EX', 7 * 24 * 3600);
 
       updated++;
     } catch {

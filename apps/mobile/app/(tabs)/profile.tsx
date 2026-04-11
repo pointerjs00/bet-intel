@@ -1,9 +1,13 @@
 import Constants from 'expo-constants';
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { AuthProvider } from '@betintel/shared';
 import {
   useChangePasswordMutation,
@@ -11,8 +15,10 @@ import {
   useSetPasswordMutation,
   useUnlinkGoogleAccountMutation,
 } from '../../services/accountService';
+import { useParseBetclicPdfMutation } from '../../services/importService';
 import { NotificationItem } from '../../components/social/NotificationItem';
 import { Avatar } from '../../components/ui/Avatar';
+import { BottomSheet } from '../../components/ui/BottomSheet';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Chip } from '../../components/ui/Chip';
@@ -78,6 +84,12 @@ export default function ProfileScreen() {
   // Confirmation modals
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
+
+  // Import
+  const router = useRouter();
+  const importSheetRef = useRef<GorhomBottomSheet>(null);
+  const [importHelpExpanded, setImportHelpExpanded] = useState(false);
+  const parsePdfMutation = useParseBetclicPdfMutation();
 
   useEffect(() => {
     if (!profileQuery.data) {
@@ -168,6 +180,50 @@ export default function ProfileScreen() {
       showToast(getApiErrorMessage(error), 'error');
     }
   }
+
+  const handleSelectPdf = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+
+      // Validate MIME type
+      if (asset.mimeType && asset.mimeType !== 'application/pdf') {
+        showToast('Seleciona um ficheiro PDF válido.', 'error');
+        return;
+      }
+
+      // Validate size (10 MB)
+      if (asset.size && asset.size > 10 * 1024 * 1024) {
+        showToast('O ficheiro é demasiado grande (máx. 10MB)', 'error');
+        return;
+      }
+
+      importSheetRef.current?.close();
+
+      // Read file as base64
+      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Send to backend for parsing
+      const parsed = await parsePdfMutation.mutateAsync(base64);
+
+      // Navigate to review screen with parsed data
+      router.push({
+        pathname: '/boletins/import-review',
+        params: { data: JSON.stringify(parsed) },
+      });
+    } catch (error) {
+      const msg = getApiErrorMessage(error);
+      showToast(msg, 'error');
+    }
+  }, [parsePdfMutation, router, showToast]);
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}> 
@@ -317,6 +373,23 @@ export default function ProfileScreen() {
 
             <Animated.View entering={FadeInDown.delay(600).duration(400).springify()}>
               <Card style={styles.cardInner}>
+                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Dados & Importação</Text>
+                <Pressable
+                  onPress={() => importSheetRef.current?.snapToIndex(0)}
+                  style={[styles.importRow, { borderColor: colors.border }]}
+                >
+                  <MaterialCommunityIcons name="file-import-outline" size={22} color={colors.primary} />
+                  <View style={styles.importRowText}>
+                    <Text style={[styles.importRowLabel, { color: colors.textPrimary }]}>Importar histórico Betclic</Text>
+                    <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Importa apostas de um PDF exportado</Text>
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+                </Pressable>
+              </Card>
+            </Animated.View>
+
+            <Animated.View entering={FadeInDown.delay(700).duration(400).springify()}>
+              <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Conta</Text>
                 <View style={styles.accountSection}>
                   <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Método atual: {authLabel}</Text>
@@ -388,7 +461,7 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(700).duration(400).springify()}>
+            <Animated.View entering={FadeInDown.delay(800).duration(400).springify()}>
               <Card style={styles.cardInner}>
                 <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Sobre</Text>
                 <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>BetIntel mobile • versão {appVersion}</Text>
@@ -421,6 +494,51 @@ export default function ProfileScreen() {
         }}
         onCancel={() => setShowUnlinkConfirm(false)}
       />
+
+      {/* Betclic Import Bottom Sheet */}
+      <BottomSheet ref={importSheetRef} snapPoints={['55%', '75%']}>
+        <View style={styles.importSheetContent}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Importar histórico Betclic</Text>
+          <Text style={[styles.importSheetDesc, { color: colors.textSecondary }]}>
+            Importa o teu histórico de apostas diretamente do Betclic. Exporta o ficheiro PDF na tua conta Betclic e seleciona-o aqui.
+          </Text>
+
+          <Pressable
+            onPress={() => setImportHelpExpanded((v) => !v)}
+            style={[styles.importHelpHeader, { borderColor: colors.border }]}
+          >
+            <Text style={[styles.importHelpTitle, { color: colors.info }]}>Como exportar do Betclic?</Text>
+            <MaterialCommunityIcons
+              name={importHelpExpanded ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={colors.info}
+            />
+          </Pressable>
+          {importHelpExpanded && (
+            <View style={styles.importHelpSteps}>
+              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>1. Acede a betclic.pt e inicia sessão</Text>
+              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>2. Vai a &quot;A minha conta&quot; → &quot;Histórico de apostas&quot;</Text>
+              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>3. Seleciona o intervalo de datas e clica em &quot;Exportar PDF&quot;</Text>
+              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>4. Guarda o ficheiro e importa-o aqui</Text>
+            </View>
+          )}
+
+          <View style={styles.importSheetActions}>
+            <Button title="Selecionar PDF" onPress={handleSelectPdf} loading={parsePdfMutation.isPending} />
+            <Button title="Cancelar" variant="ghost" onPress={() => importSheetRef.current?.close()} />
+          </View>
+        </View>
+      </BottomSheet>
+
+      {/* Loading overlay while parsing PDF */}
+      {parsePdfMutation.isPending && (
+        <View style={styles.loadingOverlay}>
+          <Card style={styles.loadingOverlayCard}>
+            <Skeleton height={24} width={200} />
+            <Text style={[styles.loadingOverlayText, { color: colors.textSecondary }]}>A ler o teu histórico Betclic...</Text>
+          </Card>
+        </View>
+      )}
     </View>
   );
 }
@@ -485,4 +603,17 @@ const styles = StyleSheet.create({
   accountSection: { gap: 10 },
   accountHeading: { fontSize: 15, fontWeight: '800' },
   accountActionsRow: { flexDirection: 'row', gap: 10 },
+  importRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  importRowText: { flex: 1, gap: 2 },
+  importRowLabel: { fontSize: 15, fontWeight: '700' },
+  importSheetContent: { gap: 16, paddingBottom: 32 },
+  importSheetDesc: { fontSize: 14, lineHeight: 20 },
+  importHelpHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  importHelpTitle: { fontSize: 14, fontWeight: '600' },
+  importHelpSteps: { gap: 6, paddingLeft: 4 },
+  importHelpStep: { fontSize: 13, lineHeight: 20 },
+  importSheetActions: { gap: 10, marginTop: 8 },
+  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
+  loadingOverlayCard: { alignItems: 'center', gap: 12, paddingHorizontal: 32, paddingVertical: 24 },
+  loadingOverlayText: { fontSize: 14, fontWeight: '600' },
 });

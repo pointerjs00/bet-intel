@@ -17,7 +17,7 @@ interface RingDatum extends Record<string, string | number> {
 }
 
 /** Donut chart for the current win rate. */
-export function WinRateRing({ winRate, onInfoPress }: WinRateRingProps) {
+export const WinRateRing = React.memo(function WinRateRing({ winRate, onInfoPress }: WinRateRingProps) {
   const { colors } = useTheme();
 
   const data = useMemo<RingDatum[]>(() => {
@@ -55,7 +55,7 @@ export function WinRateRing({ winRate, onInfoPress }: WinRateRingProps) {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

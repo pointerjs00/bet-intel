@@ -44,7 +44,7 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     subtitle: 'Percentagem de vitórias',
     icon: 'trophy-outline',
     description:
-      'A taxa de vitória mostra a percentagem de apostas resolvidas que terminaram em vitória. Não inclui apostas pendentes nem apostas anuladas (void).',
+      'A taxa de vitória mostra a percentagem de apostas resolvidas que terminaram em vitória. Não inclui apostas pendentes nem apostas canceladas.',
     formulaLabel: 'Fórmula',
     formula: 'Win Rate = (Boletins Ganhos ÷ Boletins Resolvidos) × 100',
     example:

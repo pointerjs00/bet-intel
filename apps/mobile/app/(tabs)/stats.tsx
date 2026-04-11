@@ -21,7 +21,7 @@ import { DatePickerField } from '../../components/ui/DatePickerField';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { usePersonalStats } from '../../services/statsService';
+import { usePersonalStats, useStatsTimeline } from '../../services/statsService';
 import { useBoletins, exportBoletinsToCsv, exportBoletinsToXlsx } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
@@ -64,8 +64,11 @@ export default function StatsScreen() {
   // Switch to 'all' whenever custom range mode is on, even if only one date is set
   const activePeriod: StatsPeriod = useCustomRange ? 'all' : period;
 
-  const statsQuery = usePersonalStats(activePeriod, siteSlugs, activeFrom, activeTo, granularity);
+  const statsQuery = usePersonalStats(activePeriod, siteSlugs, activeFrom, activeTo);
   const stats = statsQuery.data;
+
+  const timelineQuery = useStatsTimeline(activePeriod, siteSlugs, activeFrom, activeTo, granularity);
+  const timelineData = timelineQuery.data ?? stats?.timeline ?? [];
 
   const boletinsQuery = useBoletins();
   const betDateBounds = useMemo(() => {
@@ -379,7 +382,7 @@ export default function StatsScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(350).duration(400).springify()}>
-              <PnLChart data={stats.timeline} granularity={granularity} onGranularityChange={setGranularity} onInfoPress={() => pushInfo('pnl', stats.summary.profitLoss)} />
+              <PnLChart data={timelineData} granularity={granularity} onGranularityChange={setGranularity} onInfoPress={() => pushInfo('pnl', stats.summary.profitLoss)} />
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>

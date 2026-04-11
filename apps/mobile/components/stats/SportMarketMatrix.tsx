@@ -28,7 +28,7 @@ function formatROI(roi: number): string {
   return `${sign}${roi.toFixed(0)}%`;
 }
 
-export function SportMarketMatrix({ cells, onInfoPress }: SportMarketMatrixProps) {
+export const SportMarketMatrix = React.memo(function SportMarketMatrix({ cells, onInfoPress }: SportMarketMatrixProps) {
   const { colors, tokens } = useTheme();
 
   const { sports, markets, matrix } = useMemo(() => {
@@ -132,7 +132,7 @@ export function SportMarketMatrix({ cells, onInfoPress }: SportMarketMatrixProps
       </ScrollView>
     </Card>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { gap: 10 },

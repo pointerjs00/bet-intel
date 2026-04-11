@@ -87,55 +87,113 @@ export const COUNTRY_FLAGS: Record<string, string> = {
 
 // Fallback – flag emoji when image is not required
 export const COUNTRY_FLAG_EMOJI: Record<string, string> = {
+  // ── Iberian Peninsula / Western Europe ───────────────────────────────────────
   Portugal:      '🇵🇹',
+  Espanha:       '🇪🇸',
+  França:        '🇫🇷',
   Inglaterra:    '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
   Escócia:       '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  Espanha:       '🇪🇸',
   Itália:        '🇮🇹',
   Alemanha:      '🇩🇪',
-  França:        '🇫🇷',
   Holanda:       '🇳🇱',
   Bélgica:       '🇧🇪',
-  Turquia:       '🇹🇷',
-  Áustria:       '🇦🇹',
   Suíça:         '🇨🇭',
-  Grécia:        '🇬🇷',
-  Canadá:        '🇨🇦',
+  Áustria:       '🇦🇹',
+  Luxemburgo:    '🇱🇺',
   Mónaco:        '🇲🇨',
-  México:        '🇲🇽',
-  Chile:         '🇨🇱',
-  China:         '🇨🇳',
-  Japão:         '🇯🇵',
-  'Nova Zelândia': '🇳🇿',
-  'Emirados Árabes Unidos': '🇦🇪',
-  Qatar:         '🇶🇦',
-  Croácia:       '🇭🇷',
-  Cazaquistão:   '🇰🇿',
+  // ── Northern Europe ───────────────────────────────────────────────────────────
   Suécia:        '🇸🇪',
-  Brasil:        '🇧🇷',
-  Argentina:     '🇦🇷',
-  EUA:           '🇺🇸',
-  Austrália:     '🇦🇺',
-  Internacional: '🌍',
+  Noruega:       '🇳🇴',
+  Dinamarca:     '🇩🇰',
+  Finlândia:     '🇫🇮',
+  Irlanda:       '🇮🇪',
+  // ── Eastern Europe ────────────────────────────────────────────────────────────
   Rússia:        '🇷🇺',
   Ucrânia:       '🇺🇦',
   Polónia:       '🇵🇱',
   Roménia:       '🇷🇴',
-  Sérvia:        '🇷🇸',
   Hungria:       '🇭🇺',
-  'República Checa': '🇨🇿',
+  Sérvia:        '🇷🇸',
+  Croácia:       '🇭🇷',
   Eslováquia:    '🇸🇰',
-  Noruega:       '🇳🇴',
-  Dinamarca:     '🇩🇰',
-  Irlanda:       '🇮🇪',
+  Eslovénia:     '🇸🇮',
+  Bulgária:      '🇧🇬',
+  Bielorrússia:  '🇧🇾',
+  Moldávia:      '🇲🇩',
+  Chéquia:       '🇨🇿',
+  'República Checa': '🇨🇿',
+  'Bósnia e Herzegovina': '🇧🇦',
+  'Macedónia do Norte': '🇲🇰',
+  Montenegro:    '🇲🇪',
+  Kosovo:        '🇽🇰',
+  // ── Baltic States ─────────────────────────────────────────────────────────────
+  Estónia:       '🇪🇪',
+  Letónia:       '🇱🇻',
+  Lituânia:      '🇱🇹',
+  // ── Caucasus & Central Asia ───────────────────────────────────────────────────
+  Geórgia:       '🇬🇪',
+  Arménia:       '🇦🇲',
+  Azerbaijão:    '🇦🇿',
+  Cazaquistão:   '🇰🇿',
+  Uzbequistão:   '🇺🇿',
+  // ── Mediterranean & Balkans ───────────────────────────────────────────────────
+  Grécia:        '🇬🇷',
+  Turquia:       '🇹🇷',
+  // ── Americas ──────────────────────────────────────────────────────────────────
+  EUA:           '🇺🇸',
+  Canadá:        '🇨🇦',
+  México:        '🇲🇽',
+  Brasil:        '🇧🇷',
+  Argentina:     '🇦🇷',
+  Chile:         '🇨🇱',
   Colômbia:      '🇨🇴',
   Peru:          '🇵🇪',
+  Venezuela:     '🇻🇪',
   Uruguai:       '🇺🇾',
+  Equador:       '🇪🇨',
+  Bolívia:       '🇧🇴',
+  Paraguai:      '🇵🇾',
+  'Costa Rica':  '🇨🇷',
+  // ── Oceania ───────────────────────────────────────────────────────────────────
+  Austrália:     '🇦🇺',
+  'Nova Zelândia': '🇳🇿',
+  // ── Asia Pacific ──────────────────────────────────────────────────────────────
+  China:         '🇨🇳',
+  Japão:         '🇯🇵',
   'Coreia do Sul': '🇰🇷',
+  Taiwan:        '🇹🇼',
+  'Hong Kong':   '🇭🇰',
+  Índia:         '🇮🇳',
+  Indonésia:     '🇮🇩',
+  Filipinas:     '🇵🇭',
+  Tailândia:     '🇹🇭',
+  Malásia:       '🇲🇾',
+  Singapura:     '🇸🇬',
+  // ── Middle East ───────────────────────────────────────────────────────────────
   'Arábia Saudita': '🇸🇦',
-  Marrocos:      '🇲🇦',
+  'Emirados Árabes Unidos': '🇦🇪',
+  Qatar:         '🇶🇦',
+  Israel:        '🇮🇱',
+  // ── Africa ────────────────────────────────────────────────────────────────────
   'África do Sul': '🇿🇦',
+  Marrocos:      '🇲🇦',
+  Tunísia:       '🇹🇳',
   Nigéria:       '🇳🇬',
+  Quénia:        '🇰🇪',
+  Egito:         '🇪🇬',
+  Argélia:       '🇩🇿',
+  // ── Misc ──────────────────────────────────────────────────────────────────────
+  Internacional: '🌍',
+  // ── Raw 3-letter codes (legacy / stored before mapping was added) ─────────────
+  INA: '🇮🇩',  // Indonesia
+  PHI: '🇵🇭',  // Philippines
+  TPE: '🇹🇼',  // Chinese Taipei/Taiwan
+  HKG: '🇭🇰',  // Hong Kong
+  MDA: '🇲🇩',  // Moldova
+  GEO: '🇬🇪',  // Georgia
+  GBR: '🏴󠁧󠁢󠁥󠁮󠁧󠁿',  // Great Britain
+  SUI: '🇨🇭',  // Switzerland (IOC code)
+  NED: '🇳🇱',  // Netherlands (IOC code)
 };
 
 // ─── League / competition logos ───────────────────────────────────────────────

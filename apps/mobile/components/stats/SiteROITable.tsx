@@ -35,7 +35,7 @@ function Sparkline({ data, color }: { data: SparkDatum[]; color: string }) {
   );
 }
 
-export function SiteROITable({ rows, onInfoPress }: SiteROITableProps) {
+export const SiteROITable = React.memo(function SiteROITable({ rows, onInfoPress }: SiteROITableProps) {
   const { colors } = useTheme();
 
   if (rows.length === 0) return null;
@@ -67,7 +67,7 @@ export function SiteROITable({ rows, onInfoPress }: SiteROITableProps) {
       ))}
     </Card>
   );
-}
+});
 
 function SiteRow({ row }: { row: StatsBySiteRow }) {
   const { colors } = useTheme();

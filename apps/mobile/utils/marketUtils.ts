@@ -8,6 +8,7 @@
  */
 export function isSelfDescribing(market: string): boolean {
   return (
+    // Template forms (raw market names before humanisation)
     /Mais de \d+[.,]\d+/.test(market) ||
     /Menos de \d+[.,]\d+/.test(market) ||
     /Casa Ganha/.test(market) ||
@@ -21,7 +22,12 @@ export function isSelfDescribing(market: string): boolean {
     /^EAA:/.test(market) ||
     /^HT\/FT:/.test(market) ||
     /Cantos - Mais de \d/.test(market) ||
-    /Cartões - Mais de \d/.test(market)
+    /Cartões - Mais de \d/.test(market) ||
+    // Humanised forms (team names substituted, e.g. "FC Porto vence")
+    /\bvence\b/.test(market) ||         // "X vence", "X vence & +1.5 Golos"
+    /^[+-]\d/.test(market) ||           // "+1.5 Golos", "-2.5 Pts"
+    /: [+-]?\d/.test(market) ||         // "X: +1.5 Golos", "Cantos: +3", "Cartões: +2"
+    /^BTTS/.test(market)                // "BTTS & +X Golos"
   );
 }
 

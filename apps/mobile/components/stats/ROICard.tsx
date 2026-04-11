@@ -12,7 +12,7 @@ interface ROICardProps {
 }
 
 /** Hero card for ROI, stake, and profit/loss. */
-export function ROICard({ summary, title = 'ROI', onInfoPress }: ROICardProps) {
+export const ROICard = React.memo(function ROICard({ summary, title = 'ROI', onInfoPress }: ROICardProps) {
   const { colors } = useTheme();
   const roiPositive = summary.roi >= 0;
 
@@ -44,7 +44,7 @@ export function ROICard({ summary, title = 'ROI', onInfoPress }: ROICardProps) {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

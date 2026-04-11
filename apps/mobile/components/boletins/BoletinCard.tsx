@@ -71,14 +71,16 @@ function SiteBadge({ slug, colors }: { slug: string; colors: ReturnType<typeof u
 }
 
 /** Summary card used on the user's boletin list. */
-export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCardProps) {
+export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const chevronRotation = useSharedValue(0);
 
   // Resolve ATP player photos using the same reference data as the create screen.
   // React Query deduplicates concurrent calls and serves cached data (staleTime 24h).
-  const { data: tennisTeams } = useTeams({ sport: 'TENNIS', competition: 'ATP Tour' });
+  // Only fetch tennis teams when the boletin actually contains tennis items.
+  const hasTennis = useMemo(() => boletin.items.some((i) => i.sport === Sport.TENNIS), [boletin.items]);
+  const { data: tennisTeams } = useTeams({ sport: 'TENNIS', competition: 'ATP Tour' }, { enabled: hasTennis });
   const tennisPhotoMap = useMemo(() => {
     const map = new Map<string, string | null>();
     for (const team of tennisTeams ?? []) {
@@ -313,7 +315,7 @@ export function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCard
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

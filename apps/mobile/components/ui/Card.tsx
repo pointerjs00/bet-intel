@@ -23,7 +23,7 @@ interface CardProps {
   noPadding?: boolean;
 }
 
-export function Card({
+export const Card = React.memo(function Card({
   children,
   onPress,
   style,
@@ -88,7 +88,7 @@ export function Card({
   }
 
   return content;
-}
+});
 
 const styles = StyleSheet.create({
   base: {

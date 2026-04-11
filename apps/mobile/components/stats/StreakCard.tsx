@@ -9,7 +9,7 @@ interface StreakCardProps {
   onInfoPress?: () => void;
 }
 
-export function StreakCard({ streaks, onInfoPress }: StreakCardProps) {
+export const StreakCard = React.memo(function StreakCard({ streaks, onInfoPress }: StreakCardProps) {
   const { colors } = useTheme();
 
   const currentColor =
@@ -67,7 +67,7 @@ export function StreakCard({ streaks, onInfoPress }: StreakCardProps) {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

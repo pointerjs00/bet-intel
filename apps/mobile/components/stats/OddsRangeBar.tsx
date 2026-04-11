@@ -22,7 +22,7 @@ interface OddsRangeDatum extends Record<string, number> {
 }
 
 /** Bar chart for ROI by odds range. */
-export function OddsRangeBar({ rows, onInfoPress }: OddsRangeBarProps) {
+export const OddsRangeBar = React.memo(function OddsRangeBar({ rows, onInfoPress }: OddsRangeBarProps) {
   const { colors } = useTheme();
 
   const chartData = useMemo<OddsRangeDatum[]>(() => {
@@ -97,7 +97,7 @@ export function OddsRangeBar({ rows, onInfoPress }: OddsRangeBarProps) {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

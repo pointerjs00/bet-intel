@@ -27,7 +27,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   style?: StyleProp<ViewStyle>;
 }
 
-export function Button({
+export const Button = React.memo(function Button({
   title,
   variant = 'primary',
   size = 'md',
@@ -90,7 +90,7 @@ export function Button({
       </View>
     </AnimatedPressable>
   );
-}
+});
 
 function getBackgroundColor(variant: ButtonProps['variant'], colors: ReturnType<typeof useTheme>['colors']) {
   switch (variant) {

@@ -36,7 +36,7 @@ function toEpochSeconds(iso: string): number {
 }
 
 /** Area chart for period P&L trend with optional cumulative mode. */
-export function PnLChart({ data, granularity = 'weekly', onGranularityChange, onInfoPress }: PnLChartProps) {
+export const PnLChart = React.memo(function PnLChart({ data, granularity = 'weekly', onGranularityChange, onInfoPress }: PnLChartProps) {
   const { colors } = useTheme();
   const [cumulative, setCumulative] = useState(false);
 
@@ -232,7 +232,7 @@ export function PnLChart({ data, granularity = 'weekly', onGranularityChange, on
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

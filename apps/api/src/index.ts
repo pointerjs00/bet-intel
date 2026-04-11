@@ -20,6 +20,7 @@ import { favouritesRouter } from './routes/favouritesRoutes';
 import { defaultLimiter } from './middleware/rateLimiter';
 import { initializeSocketServer } from './sockets';
 import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
+import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankingsJob';
 import { seed as seedReferenceData } from './prisma/seed';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
@@ -47,8 +48,8 @@ app.use(
 );
 
 // Body parsing + compression
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(compression());
 
 // ─── Global rate limiter ────────────────────────────────────────────────────────
@@ -139,7 +140,16 @@ async function start(): Promise<void> {
     });
   }
 
+  try {
+    await ensureFreshWTARankings();
+  } catch (err) {
+    logger.warn('WTA rankings refresh skipped during startup', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   await scheduleATPRankingsJob();
+  await scheduleWTARankingsJob();
 
   const server = app.listen(PORT, () => {
     logger.info(`BetIntel API listening on port ${PORT}`, { env: process.env.NODE_ENV });

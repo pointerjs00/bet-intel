@@ -39,12 +39,19 @@ export function useTeams(params?: {
   sport?: string;
   competition?: string;
   search?: string;
-}) {
+}, options?: { enabled?: boolean }) {
+  const normalizedCompetition = params?.competition?.toLowerCase();
+  const isTennisRankingPool = params?.sport === 'TENNIS' && (
+    normalizedCompetition?.includes('atp tour')
+    || normalizedCompetition?.includes('wta tour')
+  );
+
   return useQuery({
     queryKey: ['reference', 'teams', params],
     queryFn: () => fetchTeams(params),
-    staleTime: 24 * 60 * 60 * 1000,
-    enabled: !params?.search || params.search.length >= 2,
+    staleTime: isTennisRankingPool ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000,
+    refetchOnMount: isTennisRankingPool ? 'always' : true,
+    enabled: (options?.enabled !== false) && (!params?.search || params.search.length >= 2),
   });
 }
 

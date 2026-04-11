@@ -7,6 +7,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
+import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -22,6 +23,7 @@ import {
   useBoletinDetail,
   useUpdateBoletinMutation,
   useUpdateBoletinItemsMutation,
+  useUpdateBoletinItemMutation,
   useAddBoletinItemMutation,
   useDeleteBoletinItemMutation,
   useDeleteBoletinMutation,
@@ -36,6 +38,7 @@ const STATUS_ACTIONS = [
   { key: BoletinStatus.PENDING, label: 'Pendente' },
   { key: BoletinStatus.WON, label: 'Ganhou' },
   { key: BoletinStatus.LOST, label: 'Perdeu' },
+  { key: BoletinStatus.VOID, label: 'Cancelado' },
 ] as const;
 
 const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
@@ -70,11 +73,14 @@ export default function BoletinDetailScreen() {
   const [cashoutValue, setCashoutValue] = useState('');
   // Target item to remove (confirmation modal)
   const [removeItemTarget, setRemoveItemTarget] = useState<{ boletinId: string; itemId: string } | null>(null);
+  // Item currently being edited
+  const [editItemTarget, setEditItemTarget] = useState<EditItemInitialValues | null>(null);
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingPublic, setPendingPublic] = useState(false);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
   const updateItemsMutation = useUpdateBoletinItemsMutation();
+  const updateItemMutation = useUpdateBoletinItemMutation();
   const addItemMutation = useAddBoletinItemMutation();
   const deleteItemMutation = useDeleteBoletinItemMutation();
   const deleteMutation = useDeleteBoletinMutation();
@@ -84,7 +90,10 @@ export default function BoletinDetailScreen() {
   const [addCompetition, setAddCompetition] = useState('');
   const [addCompetitionCountry, setAddCompetitionCountry] = useState('');
   const [addHomeTeam, setAddHomeTeam] = useState('');
+  const [addHomeTeam2, setAddHomeTeam2] = useState('');
   const [addAwayTeam, setAddAwayTeam] = useState('');
+  const [addAwayTeam2, setAddAwayTeam2] = useState('');
+  const [addIsDoubles, setAddIsDoubles] = useState(false);
   const [addMarket, setAddMarket] = useState('');
   const [addUseCustomMarket, setAddUseCustomMarket] = useState(false);
   const [addSelection, setAddSelection] = useState('');
@@ -92,7 +101,9 @@ export default function BoletinDetailScreen() {
   const [showAddSports, setShowAddSports] = useState(false);
   const [showAddCompetitions, setShowAddCompetitions] = useState(false);
   const [showAddHomeTeams, setShowAddHomeTeams] = useState(false);
+  const [showAddHomeTeams2, setShowAddHomeTeams2] = useState(false);
   const [showAddAwayTeams, setShowAddAwayTeams] = useState(false);
+  const [showAddAwayTeams2, setShowAddAwayTeams2] = useState(false);
   const [showAddMarkets, setShowAddMarkets] = useState(false);
 
   // ── Reference data for add-form ──────────────────────────────────────────
@@ -149,6 +160,11 @@ export default function BoletinDetailScreen() {
     return source.map((t) => ({ label: t.name, value: t.name }));
   }, [addCompetition, addTeamsQuery.isLoading, addTeamsQuery.data, addAllTeamsQuery.data]);
 
+  const addSportLabel = SPORT_OPTIONS.find((s) => s.key === addSport);
+
+  const addFinalHomeTeam = addIsDoubles && addSport === Sport.TENNIS ? `${addHomeTeam} / ${addHomeTeam2}` : addHomeTeam;
+  const addFinalAwayTeam = addIsDoubles && addSport === Sport.TENNIS ? `${addAwayTeam} / ${addAwayTeam2}` : addAwayTeam;
+
   const addMarketSections = useMemo<DropdownSection[]>(() => {
     const data = addMarketsQuery.data ?? [];
     const grouped = new Map<string, typeof data>();
@@ -164,15 +180,13 @@ export default function BoletinDetailScreen() {
     return sortedCats.map((cat) => ({
       title: cat,
       data: (grouped.get(cat) ?? []).map((m) => ({
-        label: addHomeTeam && addAwayTeam
-          ? humanizeMarket(m.name, addHomeTeam, addAwayTeam)
+        label: addFinalHomeTeam && addFinalAwayTeam
+          ? humanizeMarket(m.name, addFinalHomeTeam, addFinalAwayTeam)
           : m.name,
         value: m.name,
       })),
     }));
-  }, [addMarketsQuery.data, addHomeTeam, addAwayTeam]);
-
-  const addSportLabel = SPORT_OPTIONS.find((s) => s.key === addSport);
+  }, [addMarketsQuery.data, addHomeTeam, addHomeTeam2, addAwayTeam, addAwayTeam2, addIsDoubles, addSport]);
 
   // Seed edit fields whenever boletin loads or changes (also resets on cancel)
   const seedEditFields = (b: typeof boletin) => {
@@ -190,16 +204,27 @@ export default function BoletinDetailScreen() {
   // Auto-fill selection when market is self-describing (skip for custom market)
   useEffect(() => {
     if (!addUseCustomMarket && isSelfDescribing(addMarket)) {
-      setAddSelection(humanizeMarket(addMarket, addHomeTeam, addAwayTeam));
+      setAddSelection(humanizeMarket(addMarket, addFinalHomeTeam, addFinalAwayTeam));
     } else if (!addUseCustomMarket) {
       setAddSelection('');
     }
-  }, [addMarket, addHomeTeam, addAwayTeam, addUseCustomMarket]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addMarket, addHomeTeam, addHomeTeam2, addAwayTeam, addAwayTeam2, addIsDoubles, addSport, addUseCustomMarket]);
 
   const handleAddItem = useCallback(async () => {
     if (!boletin) return;
+    const fHome = addIsDoubles && addSport === Sport.TENNIS
+      ? `${addHomeTeam.trim()} / ${addHomeTeam2.trim()}`
+      : addHomeTeam.trim();
+    const fAway = addIsDoubles && addSport === Sport.TENNIS
+      ? `${addAwayTeam.trim()} / ${addAwayTeam2.trim()}`
+      : addAwayTeam.trim();
     if (!addHomeTeam.trim() || !addAwayTeam.trim()) {
       showToast('Preenche as duas equipas.', 'error');
+      return;
+    }
+    if (addIsDoubles && addSport === Sport.TENNIS && (!addHomeTeam2.trim() || !addAwayTeam2.trim())) {
+      showToast('Preenche os 4 jogadores do par.', 'error');
       return;
     }
     if (!addMarket.trim() || !addSelection.trim()) {
@@ -215,17 +240,20 @@ export default function BoletinDetailScreen() {
       await addItemMutation.mutateAsync({
         boletinId: boletin.id,
         item: {
-          homeTeam: addHomeTeam.trim(),
-          awayTeam: addAwayTeam.trim(),
+          homeTeam: fHome,
+          awayTeam: fAway,
           competition: addCompetition.trim() || 'Geral',
           sport: addSport,
-          market: humanizeMarket(addMarket, addHomeTeam, addAwayTeam),
+          market: humanizeMarket(addMarket, fHome, fAway),
           selection: addSelection.trim(),
           oddValue: odd,
         },
       });
       setAddHomeTeam('');
+      setAddHomeTeam2('');
       setAddAwayTeam('');
+      setAddAwayTeam2('');
+      setAddIsDoubles(false);
       setAddMarket('');
       setAddUseCustomMarket(false);
       setAddSelection('');
@@ -235,7 +263,7 @@ export default function BoletinDetailScreen() {
     } catch (error) {
       showToast(getErrorMessage(error), 'error');
     }
-  }, [boletin, addHomeTeam, addAwayTeam, addCompetition, addSport, addMarket, addSelection, addOddValue, addItemMutation, showToast]);
+  }, [boletin, addHomeTeam, addHomeTeam2, addAwayTeam, addAwayTeam2, addIsDoubles, addCompetition, addSport, addMarket, addSelection, addOddValue, addItemMutation, showToast]);
 
   const handleSave = async () => {
     if (!boletin) return;
@@ -330,6 +358,12 @@ export default function BoletinDetailScreen() {
     return { stake, totalOdds, potentialReturn, actualReturn, isPending, displayReturn, displayProfit, displayROI, selectionCount: boletin.items.length };
   }, [boletin]);
 
+  // All items must have a non-PENDING result before the overall status can be changed
+  const allItemsResolved = useMemo(
+    () => boletin == null || boletin.items.length === 0 || boletin.items.every((item) => item.result !== ItemResult.PENDING),
+    [boletin],
+  );
+
   if (boletinQuery.isLoading) {
     return (
       <View style={[styles.loadingScreen, { backgroundColor: colors.background, paddingTop: insets.top + tokens.spacing.lg, paddingHorizontal: tokens.spacing.lg }]}>
@@ -375,20 +409,6 @@ export default function BoletinDetailScreen() {
               <View style={[styles.statusBanner, { backgroundColor: bannerColor }]}>
                 <View style={styles.bannerTopRow}>
                   <StatusBadge status={boletin.status} variant="banner" />
-                  {isEditing ? (
-                    <View style={styles.bannerEditActions}>
-                      <Pressable hitSlop={10} onPress={handleCancelEdit} style={styles.bannerActionBtn}>
-                        <Ionicons color="rgba(255,255,255,0.9)" name="close" size={20} />
-                      </Pressable>
-                      <Pressable disabled={updateMutation.isPending} hitSlop={10} onPress={handleSave} style={[styles.bannerActionBtn, styles.bannerSaveBtn]}>
-                        <Ionicons color="#fff" name="checkmark" size={20} />
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Pressable hitSlop={12} onPress={() => setIsEditing(true)} style={styles.bannerEditBtn}>
-                      <Ionicons color="rgba(255,255,255,0.9)" name="pencil-outline" size={20} />
-                    </Pressable>
-                  )}
                 </View>
                 {isEditing ? (
                   <TextInput
@@ -552,7 +572,15 @@ export default function BoletinDetailScreen() {
 
             <Animated.View entering={FadeInDown.delay(300).duration(400).springify()}>
               <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Estado</Text>
-              <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+              {!allItemsResolved && (
+                <View style={styles.statusLockRow}>
+                  <Ionicons color={colors.textMuted} name="lock-closed-outline" size={11} />
+                  <Text style={[styles.statusLockHint, { color: colors.textMuted }]}>
+                    Resolve todas as seleções para alterar o estado
+                  </Text>
+                </View>
+              )}
+              <View style={[styles.segmentedControl, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, opacity: allItemsResolved ? 1 : 0.4 }]}>
                 {STATUS_ACTIONS.map((item) => {
                   const active = item.key === boletin.status;
                   const activeColor =
@@ -560,10 +588,13 @@ export default function BoletinDetailScreen() {
                       ? '#007A32'
                       : item.key === BoletinStatus.LOST
                       ? '#CC2F26'
+                      : item.key === BoletinStatus.VOID
+                      ? '#007AFF'
                       : '#A66000';
                   return (
                     <Pressable
                       key={item.key}
+                      disabled={!allItemsResolved}
                       onPress={async () => {
                         try {
                           await updateMutation.mutateAsync({ id: boletin.id, payload: { status: item.key } });
@@ -647,30 +678,61 @@ export default function BoletinDetailScreen() {
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(350).duration(400).springify()} style={styles.actionButtons}>
-              <Button
-                leftSlot={<Ionicons color={colors.textPrimary} name="globe-outline" size={16} />}
-                onPress={() => setPendingPublic(true)}
-                size="sm"
-                style={{ flex: 1, minWidth: 100 }}
-                title={boletin.isPublic ? 'Tornar privado' : 'Tornar público'}
-                variant="secondary"
-              />
-              <Button
-                leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
-                onPress={() => showToast('A partilha com amigos será ligada no passo social.', 'info')}
-                size="sm"
-                style={{ flex: 1, minWidth: 100 }}
-                title="Partilhar"
-                variant="secondary"
-              />
-              <Button
-                leftSlot={<Ionicons color={colors.danger} name="trash-outline" size={16} />}
-                onPress={() => setPendingDelete(true)}
-                size="sm"
-                style={{ flex: 1, minWidth: 100 }}
-                title="Apagar"
-                variant="secondary"
-              />
+              {isEditing ? (
+                <>
+                  <Button
+                    onPress={handleCancelEdit}
+                    size="sm"
+                    style={{ flex: 1 }}
+                    title="Cancelar"
+                    variant="ghost"
+                  />
+                  <Button
+                    disabled={updateMutation.isPending}
+                    loading={updateMutation.isPending}
+                    onPress={handleSave}
+                    size="sm"
+                    style={{ flex: 2 }}
+                    title="Guardar alterações"
+                    variant="primary"
+                  />
+                </>
+              ) : (
+                <>
+                  <Button
+                    leftSlot={<Ionicons color={colors.textPrimary} name="create-outline" size={16} />}
+                    onPress={() => setIsEditing(true)}
+                    size="sm"
+                    style={{ flex: 1, minWidth: 100 }}
+                    title="Editar"
+                    variant="secondary"
+                  />
+                  <Button
+                    leftSlot={<Ionicons color={colors.textPrimary} name="globe-outline" size={16} />}
+                    onPress={() => setPendingPublic(true)}
+                    size="sm"
+                    style={{ flex: 1, minWidth: 100 }}
+                    title={boletin.isPublic ? 'Tornar privado' : 'Tornar público'}
+                    variant="secondary"
+                  />
+                  <Button
+                    leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
+                    onPress={() => showToast('A partilha com amigos será ligada no passo social.', 'info')}
+                    size="sm"
+                    style={{ flex: 1, minWidth: 100 }}
+                    title="Partilhar"
+                    variant="secondary"
+                  />
+                  <Button
+                    leftSlot={<Ionicons color={colors.danger} name="trash-outline" size={16} />}
+                    onPress={() => setPendingDelete(true)}
+                    size="sm"
+                    style={{ flex: 1, minWidth: 100 }}
+                    title="Apagar"
+                    variant="secondary"
+                  />
+                </>
+              )}
             </Animated.View>
 
             {(boletin.notes || isEditing) ? (
@@ -768,6 +830,33 @@ export default function BoletinDetailScreen() {
                   <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
                 </Pressable>
 
+                {/* Doubles toggle — tennis only */}
+                {addSport === Sport.TENNIS && (
+                  <View style={styles.doublesRow}>
+                    {[{ label: 'Singulares', value: false }, { label: 'Doubles 🎾', value: true }].map((opt) => (
+                      <Pressable
+                        key={String(opt.value)}
+                        onPress={() => {
+                          setAddIsDoubles(opt.value);
+                          setAddHomeTeam2('');
+                          setAddAwayTeam2('');
+                        }}
+                        style={[
+                          styles.doublesBtn,
+                          {
+                            backgroundColor: addIsDoubles === opt.value ? colors.primary : colors.surfaceRaised,
+                            borderColor: addIsDoubles === opt.value ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.doublesBtnText, { color: addIsDoubles === opt.value ? '#fff' : colors.textSecondary }]}>
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+
                 {/* Competition */}
                 <Pressable onPress={() => setShowAddCompetitions(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                   <View style={styles.fieldBtnInner}>
@@ -783,27 +872,59 @@ export default function BoletinDetailScreen() {
                 <View style={styles.addItemRow}>
                   <Pressable onPress={() => setShowAddHomeTeams(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                     <View style={styles.fieldBtnInner}>
-                      <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>CASA</Text>
+                      <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
+                        {addSport === Sport.TENNIS ? (addIsDoubles ? 'JOG 1 (CASA)' : 'JOGADOR 1') : 'CASA'}
+                      </Text>
                       <View style={styles.fieldBtnRow}>
-                        {addHomeTeam ? <TeamBadge name={addHomeTeam} size={14} /> : null}
+                        {addHomeTeam ? <TeamBadge name={addHomeTeam} size={14} variant={addSport === Sport.TENNIS ? 'player' : 'team'} /> : null}
                         <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: addHomeTeam ? colors.textPrimary : colors.textMuted, flex: 1 }]}>
-                          {addHomeTeam || 'Equipa'}
+                          {addHomeTeam || (addSport === Sport.TENNIS ? 'Jogador' : 'Equipa')}
                         </Text>
                       </View>
                     </View>
                   </Pressable>
                   <Pressable onPress={() => setShowAddAwayTeams(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                     <View style={styles.fieldBtnInner}>
-                      <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>FORA</Text>
+                      <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
+                        {addSport === Sport.TENNIS ? (addIsDoubles ? 'JOG 1 (FORA)' : 'JOGADOR 2') : 'FORA'}
+                      </Text>
                       <View style={styles.fieldBtnRow}>
-                        {addAwayTeam ? <TeamBadge name={addAwayTeam} size={14} /> : null}
+                        {addAwayTeam ? <TeamBadge name={addAwayTeam} size={14} variant={addSport === Sport.TENNIS ? 'player' : 'team'} /> : null}
                         <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: addAwayTeam ? colors.textPrimary : colors.textMuted, flex: 1 }]}>
-                          {addAwayTeam || 'Equipa'}
+                          {addAwayTeam || (addSport === Sport.TENNIS ? 'Jogador' : 'Equipa')}
                         </Text>
                       </View>
                     </View>
                   </Pressable>
                 </View>
+
+                {/* Doubles extra players */}
+                {addIsDoubles && addSport === Sport.TENNIS && (
+                  <View style={styles.addItemRow}>
+                    <Pressable onPress={() => setShowAddHomeTeams2(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                      <View style={styles.fieldBtnInner}>
+                        <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOG 2 (CASA)</Text>
+                        <View style={styles.fieldBtnRow}>
+                          {addHomeTeam2 ? <TeamBadge name={addHomeTeam2} size={14} variant="player" /> : null}
+                          <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: addHomeTeam2 ? colors.textPrimary : colors.textMuted, flex: 1 }]}>
+                            {addHomeTeam2 || 'Jogador'}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                    <Pressable onPress={() => setShowAddAwayTeams2(true)} style={[styles.fieldBtn, styles.addItemHalf, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                      <View style={styles.fieldBtnInner}>
+                        <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOG 2 (FORA)</Text>
+                        <View style={styles.fieldBtnRow}>
+                          {addAwayTeam2 ? <TeamBadge name={addAwayTeam2} size={14} variant="player" /> : null}
+                          <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: addAwayTeam2 ? colors.textPrimary : colors.textMuted, flex: 1 }]}>
+                            {addAwayTeam2 || 'Jogador'}
+                          </Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  </View>
+                )}
 
                 {/* Market */}
                 {addUseCustomMarket ? (
@@ -816,20 +937,20 @@ export default function BoletinDetailScreen() {
                 ) : (
                   <Pressable
                     onPress={() => {
-                      if (!addHomeTeam || !addAwayTeam) {
+                      if (!addFinalHomeTeam || !addFinalAwayTeam) {
                         showToast('Seleciona as duas equipas primeiro.', 'error');
                         return;
                       }
                       setShowAddMarkets(true);
                     }}
-                    style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, opacity: addHomeTeam && addAwayTeam ? 1 : 0.45 }]}
+                    style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, opacity: addFinalHomeTeam && addFinalAwayTeam ? 1 : 0.45 }]}
                   >
                     <View style={styles.fieldBtnInner}>
                       <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>MERCADO</Text>
                       <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: addMarket ? colors.textPrimary : colors.textMuted }]}>
                         {addMarket
-                          ? addHomeTeam && addAwayTeam
-                            ? humanizeMarket(addMarket, addHomeTeam, addAwayTeam)
+                          ? addFinalHomeTeam && addFinalAwayTeam
+                            ? humanizeMarket(addMarket, addFinalHomeTeam, addFinalAwayTeam)
                             : addMarket
                           : 'Selecionar mercado'}
                       </Text>
@@ -880,10 +1001,13 @@ export default function BoletinDetailScreen() {
                   onClose={() => setShowAddSports(false)}
                   onSelect={(val) => {
                     setAddSport(val as Sport);
+                    setAddIsDoubles(false);
                     setAddCompetition('');
                     setAddCompetitionCountry('');
                     setAddHomeTeam('');
+                    setAddHomeTeam2('');
                     setAddAwayTeam('');
+                    setAddAwayTeam2('');
                   }}
                   title="Desporto"
                   visible={showAddSports}
@@ -896,7 +1020,9 @@ export default function BoletinDetailScreen() {
                     const found = addCompetitionsQuery.data?.find((c) => c.name === val);
                     setAddCompetitionCountry(found?.country ?? '');
                     setAddHomeTeam('');
+                    setAddHomeTeam2('');
                     setAddAwayTeam('');
+                    setAddAwayTeam2('');
                   }}
                   sections={addCompetitionSections}
                   title="Competição"
@@ -907,21 +1033,45 @@ export default function BoletinDetailScreen() {
                   items={addTeamItems}
                   onClose={() => setShowAddHomeTeams(false)}
                   onSelect={setAddHomeTeam}
-                  renderLeft={(val) => <TeamBadge name={val} size={20} />}
-                  title="Equipa Casa"
+                  renderLeft={(val) => <TeamBadge name={val} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
+                  title={addSport === Sport.TENNIS ? (addIsDoubles ? 'Jogador 1 (Par Casa)' : 'Jogador 1') : 'Equipa Casa'}
                   visible={showAddHomeTeams}
                   allowCustomValue
                 />
+                {addIsDoubles && addSport === Sport.TENNIS && (
+                  <SearchableDropdown
+                    isLoading={addTeamsQuery.isLoading}
+                    items={addTeamItems}
+                    onClose={() => setShowAddHomeTeams2(false)}
+                    onSelect={setAddHomeTeam2}
+                    renderLeft={(val) => <TeamBadge name={val} size={20} variant="player" />}
+                    title="Jogador 2 (Par Casa)"
+                    visible={showAddHomeTeams2}
+                    allowCustomValue
+                  />
+                )}
                 <SearchableDropdown
                   isLoading={addTeamsQuery.isLoading || (addCompetition !== '' && addAllTeamsQuery.isLoading)}
                   items={addTeamItems}
                   onClose={() => setShowAddAwayTeams(false)}
                   onSelect={setAddAwayTeam}
-                  renderLeft={(val) => <TeamBadge name={val} size={20} />}
-                  title="Equipa Fora"
+                  renderLeft={(val) => <TeamBadge name={val} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
+                  title={addSport === Sport.TENNIS ? (addIsDoubles ? 'Jogador 1 (Par Fora)' : 'Jogador 2') : 'Equipa Fora'}
                   visible={showAddAwayTeams}
                   allowCustomValue
                 />
+                {addIsDoubles && addSport === Sport.TENNIS && (
+                  <SearchableDropdown
+                    isLoading={addTeamsQuery.isLoading}
+                    items={addTeamItems}
+                    onClose={() => setShowAddAwayTeams2(false)}
+                    onSelect={setAddAwayTeam2}
+                    renderLeft={(val) => <TeamBadge name={val} size={20} variant="player" />}
+                    title="Jogador 2 (Par Fora)"
+                    visible={showAddAwayTeams2}
+                    allowCustomValue
+                  />
+                )}
                 <SearchableDropdown
                   isLoading={addMarketsQuery.isLoading}
                   onClose={() => setShowAddMarkets(false)}
@@ -948,6 +1098,19 @@ export default function BoletinDetailScreen() {
               }}
               onRemove={isEditing ? () => {
                 setRemoveItemTarget({ boletinId: boletin.id, itemId: item.id });
+              } : undefined}
+              onEdit={isEditing ? () => {
+                setEditItemTarget({
+                  id: item.id,
+                  homeTeam: item.homeTeam,
+                  awayTeam: item.awayTeam,
+                  competition: item.competition,
+                  sport: item.sport ?? Sport.FOOTBALL,
+                  market: item.market,
+                  selection: item.selection,
+                  oddValue: item.oddValue,
+                  result: item.result,
+                });
               } : undefined}
               onResultChange={!isEditing ? async (result) => {
                 try {
@@ -1025,6 +1188,22 @@ export default function BoletinDetailScreen() {
         }}
         onCancel={() => setRemoveItemTarget(null)}
       />
+      <EditItemModal
+        visible={editItemTarget !== null}
+        item={editItemTarget}
+        isSaving={updateItemMutation.isPending}
+        onSave={async (itemId, changes) => {
+          if (!boletin) return;
+          try {
+            await updateItemMutation.mutateAsync({ boletinId: boletin.id, itemId, item: changes });
+            setEditItemTarget(null);
+            showToast('Seleção atualizada.', 'success');
+          } catch (error) {
+            showToast(getErrorMessage(error), 'error');
+          }
+        }}
+        onClose={() => setEditItemTarget(null)}
+      />
     </View>
   );
 }
@@ -1087,6 +1266,8 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 12, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   statusActions: { gap: 8 },
+  statusLockRow: { alignItems: 'center', flexDirection: 'row', gap: 4, marginTop: 4 },
+  statusLockHint: { fontSize: 11, fontWeight: '600' },
   segmentedControl: {
     borderRadius: 10,
     borderWidth: 1,
@@ -1124,6 +1305,9 @@ const styles = StyleSheet.create({
   fieldBtnRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   customMarketToggle: { alignItems: 'center', flexDirection: 'row', gap: 4, paddingVertical: 4 },
   customMarketToggleText: { fontSize: 12, fontWeight: '600' },
+  doublesRow: { flexDirection: 'row', gap: 8 },
+  doublesBtn: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flex: 1, paddingVertical: 9 },
+  doublesBtnText: { fontSize: 13, fontWeight: '600' },
   cashoutSection: { marginTop: 12 },
   cashoutForm: { borderRadius: 14, borderWidth: 1.5, gap: 12, marginTop: 4, padding: 14 },
   cashoutLabel: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },

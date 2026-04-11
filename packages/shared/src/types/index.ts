@@ -141,6 +141,7 @@ export interface Team {
   country: string | null;
   imageUrl?: string | null;
   displayName?: string | null;
+  rank?: number | null;
 }
 
 export interface Market {

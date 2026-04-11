@@ -17,7 +17,7 @@ interface BreakdownTableProps<TRow extends StatsBreakdownRow> {
 }
 
 /** Generic table for sport, site, and market breakdowns. */
-export function BreakdownTable<TRow extends StatsBreakdownRow>({
+export const BreakdownTable = React.memo(function BreakdownTable<TRow extends StatsBreakdownRow>({
   title,
   rows,
   maxRows = 6,
@@ -99,7 +99,7 @@ export function BreakdownTable<TRow extends StatsBreakdownRow>({
       )}
     </View>
   );
-}
+}) as <TRow extends StatsBreakdownRow>(props: BreakdownTableProps<TRow>) => React.ReactElement;
 
 interface SiteBreakdownLabelProps {
   name: string;

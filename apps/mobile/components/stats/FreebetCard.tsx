@@ -10,7 +10,7 @@ interface FreebetCardProps {
   onInfoPress?: () => void;
 }
 
-export function FreebetCard({ summary, onInfoPress }: FreebetCardProps) {
+export const FreebetCard = React.memo(function FreebetCard({ summary, onInfoPress }: FreebetCardProps) {
   const { colors } = useTheme();
 
   if (summary.totalFreebets === 0) return null;
@@ -49,7 +49,7 @@ export function FreebetCard({ summary, onInfoPress }: FreebetCardProps) {
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

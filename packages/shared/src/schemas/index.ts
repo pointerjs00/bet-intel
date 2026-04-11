@@ -204,6 +204,20 @@ export const updateBoletinItemsSchema = z.object({
 
 export type UpdateBoletinItemsInput = z.infer<typeof updateBoletinItemsSchema>;
 
+/** Edits a single boletin item's fields (teams, market, selection, odds, result). */
+export const updateBoletinItemSchema = z.object({
+  homeTeam: z.string().min(1).max(100).optional(),
+  awayTeam: z.string().min(1).max(100).optional(),
+  competition: z.string().min(1).max(100).optional(),
+  sport: z.nativeEnum(Sport).optional(),
+  market: z.string().min(1).optional(),
+  selection: z.string().min(1).optional(),
+  oddValue: z.number().min(0).max(1000).optional(),
+  result: z.nativeEnum(ItemResult).optional(),
+});
+
+export type UpdateBoletinItemInput = z.infer<typeof updateBoletinItemSchema>;
+
 /** Share a boletin with one or more friends. */
 export const shareBoletinSchema = z.object({
   userIds: z

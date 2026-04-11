@@ -11,7 +11,7 @@ interface ActivityFeedItemProps {
 }
 
 /** Social activity row for the friend feed tab. */
-export function ActivityFeedItem({ item, onPress }: ActivityFeedItemProps) {
+export const ActivityFeedItem = React.memo(function ActivityFeedItem({ item, onPress }: ActivityFeedItemProps) {
   const { colors } = useTheme();
   const displayName = item.user.displayName ?? item.user.username;
 
@@ -37,7 +37,7 @@ export function ActivityFeedItem({ item, onPress }: ActivityFeedItemProps) {
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

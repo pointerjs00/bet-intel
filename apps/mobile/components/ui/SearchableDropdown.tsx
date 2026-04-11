@@ -3,6 +3,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -37,7 +38,7 @@ export interface SearchableDropdownProps {
   sections?: DropdownSection[];
   renderLeft?: (value: string) => React.ReactNode;
   renderItemLeft?: (item: DropdownItem) => React.ReactNode;
-  onSelect: (value: string) => void;
+  onSelect: (value: string) => void | boolean;
   isLoading?: boolean;
   /** When true, a "Usar '{search}'" row is shown so the user can confirm any free-text value */
   allowCustomValue?: boolean;
@@ -50,6 +51,8 @@ export interface SearchableDropdownProps {
    * A "Carregar mais" button reveals the rest. Search always shows all matches.
    */
   initialVisibleCount?: number;
+  /** Optional content rendered between the search bar and the list (e.g. filter chips). */
+  headerContent?: React.ReactNode;
 }
 
 export function SearchableDropdown({
@@ -67,6 +70,7 @@ export function SearchableDropdown({
   selectedValues,
   onSelectMultiple,
   initialVisibleCount,
+  headerContent,
 }: SearchableDropdownProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -151,9 +155,11 @@ export function SearchableDropdown({
               : [...selectedValues, item.value];
             onSelectMultiple(next);
           } else {
-            onSelect(item.value);
-            setSearch('');
-            onClose();
+            const accepted = onSelect(item.value);
+            if (accepted !== false) {
+              setSearch('');
+              onClose();
+            }
           }
         }}
         style={[
@@ -164,7 +170,12 @@ export function SearchableDropdown({
       >
         {renderItemLeft ? renderItemLeft(item) : renderLeft ? renderLeft(item.value) : null}
         <View style={styles.rowTextWrap}>
-          <Text style={[styles.dropdownRowText, { color: colors.textPrimary }]}>{item.label}</Text>
+          <View style={styles.rowTitleWrap}>
+            {item.country ? (
+              <Text style={styles.dropdownRowFlag}>{getCountryFlagEmoji(item.country)}</Text>
+            ) : null}
+            <Text style={[styles.dropdownRowText, { color: colors.textPrimary }]}>{item.label}</Text>
+          </View>
           {item.subtitle ? (
             <Text style={[styles.dropdownRowSubtitle, { color: colors.textSecondary }]}>{item.subtitle}</Text>
           ) : null}
@@ -213,10 +224,19 @@ export function SearchableDropdown({
             </View>
           ) : (
             <>
+              {/* Filter chips / custom header injected by caller */}
+              {headerContent ?? null}
+
               {/* Custom value row — always shown when allowCustomValue and search has text */}
               {allowCustomValue && search.trim() ? (
                 <Pressable
-                  onPress={() => { onSelect(search.trim()); setSearch(''); onClose(); }}
+                  onPress={() => {
+                    const accepted = onSelect(search.trim());
+                    if (accepted !== false) {
+                      setSearch('');
+                      onClose();
+                    }
+                  }}
                   style={[styles.customValueRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.primary }]}
                 >
                   <Ionicons color={colors.primary} name="create-outline" size={16} />
@@ -269,6 +289,9 @@ export function SearchableDropdown({
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                   style={{ flex: 1 }}
+                  initialNumToRender={15}
+                  maxToRenderPerBatch={15}
+                  windowSize={5}
                 />
               ) : (
                 <FlatList
@@ -291,6 +314,9 @@ export function SearchableDropdown({
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}
                   style={{ flex: 1 }}
+                  initialNumToRender={15}
+                  maxToRenderPerBatch={15}
+                  windowSize={5}
                 />
               )}
             </>
@@ -352,6 +378,12 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  rowTitleWrap: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dropdownRowFlag: { fontSize: 15 },
   dropdownRowText: { fontSize: 15, fontWeight: '500' },
   dropdownRowSubtitle: { fontSize: 12, fontWeight: '500' },
   uncheckCircle: {

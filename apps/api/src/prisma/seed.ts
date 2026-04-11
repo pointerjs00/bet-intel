@@ -2057,6 +2057,19 @@ const MARKETS: MarketSeed[] = [
   { name: 'Tiebreak no Encontro', category: 'Especiais', sport: Sport.TENNIS },
   { name: '1º Set Tiebreak', category: 'Sets', sport: Sport.TENNIS },
   { name: 'Par/Ímpar (Games)', category: 'Especiais', sport: Sport.TENNIS },
+  // Combo set + match markets
+  { name: 'Casa vence 1º Set e o Encontro', category: 'Sets', sport: Sport.TENNIS },
+  { name: 'Fora vence 1º Set e o Encontro', category: 'Sets', sport: Sport.TENNIS },
+  { name: 'Casa vence 2º Set e o Encontro', category: 'Sets', sport: Sport.TENNIS },
+  { name: 'Fora vence 2º Set e o Encontro', category: 'Sets', sport: Sport.TENNIS },
+  { name: '3º Set - Vencedor', category: 'Sets', sport: Sport.TENNIS },
+  { name: '2º Set - Total de Games', category: 'Sets', sport: Sport.TENNIS },
+  { name: '3º Set - Total de Games', category: 'Sets', sport: Sport.TENNIS },
+  { name: 'Resultado Correto do Encontro', category: 'Resultado', sport: Sport.TENNIS },
+  { name: 'Casa vence sem perder um set', category: 'Especiais', sport: Sport.TENNIS },
+  { name: 'Fora vence sem perder um set', category: 'Especiais', sport: Sport.TENNIS },
+  { name: 'Handicap de Games no 1º Set', category: 'Handicap', sport: Sport.TENNIS },
+  { name: 'Total de Games no 1º Set - Mais/Menos', category: 'Games', sport: Sport.TENNIS },
 
   // ── Handball ──
   { name: 'Casa vence (Andebol)', category: 'Principal', sport: Sport.HANDBALL },

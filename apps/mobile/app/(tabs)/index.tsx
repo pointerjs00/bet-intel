@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { BoletinStatus, Sport } from '@betintel/shared';
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { BoletinCard } from '../../components/boletins/BoletinCard';
 import {
   BoletinFilterSheet,
@@ -38,12 +39,18 @@ import { BETTING_SITES } from '../../utils/sportAssets';
 
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
 
-const STATUS_FILTERS: Array<{ key: BoletinStatus; label: string }> = [
-  { key: BoletinStatus.PENDING, label: '⏳ Pendente' },
-  { key: BoletinStatus.WON, label: '✅ Ganhou' },
-  { key: BoletinStatus.LOST, label: '❌ Perdeu' },
-  { key: BoletinStatus.CASHOUT, label: '💵 Cashout' },
+const STATUS_FILTERS: Array<{ key: BoletinStatus; label: string; activeColor: string; activeBorder: string }> = [
+  { key: BoletinStatus.PENDING,  label: '⏳ Pendente',   activeColor: 'rgba(255,149,0,0.15)',  activeBorder: '#FF9500' },
+  { key: BoletinStatus.WON,      label: '✅ Ganhou',     activeColor: 'rgba(0,168,67,0.15)',   activeBorder: '#00A843' },
+  { key: BoletinStatus.LOST,     label: '❌ Perdeu',     activeColor: 'rgba(255,59,48,0.15)',  activeBorder: '#FF3B30' },
+  { key: BoletinStatus.VOID,     label: '🚫 Cancelado',  activeColor: 'rgba(0,122,255,0.15)',  activeBorder: '#007AFF' },
+  { key: BoletinStatus.CASHOUT,  label: '💵 Cashout',    activeColor: 'rgba(255,215,0,0.15)',  activeBorder: '#FFD700' },
 ];
+
+const STATUS_FILTER_ITEMS = STATUS_FILTERS.map((f) => ({ label: f.label, value: f.key }));
+
+const ItemSeparator = () => <View style={{ height: 16 }} />;
+const keyExtractor = (item: SlipListItem) => item.id;
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -53,6 +60,7 @@ export default function HomeScreen() {
   const filterSheetRef = useRef<GorhomBottomSheet>(null);
 
   const [activeStatuses, setActiveStatuses] = useState<Set<BoletinStatus>>(new Set());
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
 
@@ -273,7 +281,10 @@ export default function HomeScreen() {
   const summary = useMemo(() => {
     return filtered.reduce(
       (acc, boletin) => {
-        acc.totalStaked += Number(boletin.stake);
+        if (!boletin.isFreebet) {
+          acc.totalStaked += Number(boletin.stake);
+        }
+        // Freebet returns count as pure gain (stake was free)
         acc.totalReturned += Number(boletin.actualReturn ?? 0);
         return acc;
       },
@@ -297,7 +308,7 @@ export default function HomeScreen() {
           paddingHorizontal: tokens.spacing.lg,
         }}
         data={listData}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         onRefresh={() => {
           hapticLight();
           void boletinsQuery.refetch();
@@ -373,31 +384,48 @@ export default function HomeScreen() {
               </View>
             </Animated.View>
 
-            {/* Status filter grid + advanced filter button */}
+            {/* Status dropdown + advanced filter button */}
             <Animated.View entering={FadeInDown.delay(200).duration(400).springify()} style={styles.controlsRow}>
-              <View style={styles.statusFilterGrid}>
-                {STATUS_FILTERS.map((item) => {
-                  const active = activeStatuses.has(item.key);
-                  return (
-                    <Pressable
-                      key={item.key}
-                      onPress={() => {
-                        setActiveStatuses((prev) => {
-                          const next = new Set(prev);
-                          if (next.has(item.key)) next.delete(item.key);
-                          else next.add(item.key);
-                          return next;
-                        });
-                      }}
-                      style={[styles.statusFilterBtn, { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surfaceRaised }]}
-                    >
-                      <Text style={[styles.statusFilterBtnText, { color: active ? '#fff' : colors.textSecondary }]}>
-                        {item.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+              {/* Status dropdown trigger */}
+              <Pressable
+                onPress={() => { hapticLight(); setShowStatusDropdown(true); }}
+                style={[styles.statusDropdownTrigger, { backgroundColor: activeStatuses.size > 0 ? 'rgba(0,168,67,0.12)' : colors.surfaceRaised, borderColor: activeStatuses.size > 0 ? colors.primary : colors.border }]}
+              >
+                <Ionicons color={activeStatuses.size > 0 ? colors.primary : colors.textSecondary} name="funnel-outline" size={15} />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.statusDropdownLabel, { color: activeStatuses.size > 0 ? colors.primary : colors.textSecondary }]}
+                >
+                  {activeStatuses.size === 0
+                    ? 'Estado'
+                    : activeStatuses.size === 1
+                      ? (STATUS_FILTERS.find((f) => activeStatuses.has(f.key))?.label ?? 'Estado')
+                      : `${activeStatuses.size} estados`}
+                </Text>
+                {activeStatuses.size > 0 ? (
+                  <Pressable
+                    hitSlop={8}
+                    onPress={(e) => { e.stopPropagation(); hapticLight(); setActiveStatuses(new Set()); }}
+                  >
+                    <Ionicons color={colors.primary} name="close-circle" size={15} />
+                  </Pressable>
+                ) : (
+                  <Ionicons color={colors.textMuted} name="chevron-down" size={15} />
+                )}
+              </Pressable>
+
+              <SearchableDropdown
+                visible={showStatusDropdown}
+                onClose={() => setShowStatusDropdown(false)}
+                title="Filtrar por estado"
+                items={STATUS_FILTER_ITEMS}
+                multiSelect
+                selectedValues={Array.from(activeStatuses)}
+                onSelectMultiple={(vals) => setActiveStatuses(new Set(vals as BoletinStatus[]))}
+                onSelect={() => {}}
+              />
+
+              {/* Advanced filter button */}
               <Pressable
                 onPress={() => filterSheetRef.current?.expand()}
                 style={[
@@ -501,7 +529,7 @@ export default function HomeScreen() {
             </Animated.View>
           );
         }}
-        ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.lg }} />}
+        ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={
           <View style={styles.footerBar}>
             <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
@@ -509,6 +537,10 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
         refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
+        windowSize={5}
+        maxToRenderPerBatch={8}
+        removeClippedSubviews
+        initialNumToRender={8}
       />
 
       {/* Sort & Filter bottom sheet */}
@@ -604,9 +636,17 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15, fontWeight: '500' },
   controlsRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  statusFilterGrid: { flex: 1, flexDirection: 'row', gap: 6 },
-  statusFilterBtn: { flex: 1, alignItems: 'center', borderRadius: 10, borderWidth: 1, paddingVertical: 7 },
-  statusFilterBtnText: { fontSize: 11, fontWeight: '700' },
+  statusDropdownTrigger: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 12,
+  },
+  statusDropdownLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
   filterList: { gap: 8 },
   filterBtn: {
     alignItems: 'center',

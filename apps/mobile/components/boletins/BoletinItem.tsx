@@ -21,11 +21,12 @@ interface BoletinItemProps {
     sport?: Sport;
   };
   onRemove?: () => void;
+  onEdit?: () => void;
   onResultChange?: (result: ItemResult) => void;
 }
 
 /** Renders one selection row in builder and detail contexts. */
-export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps) {
+export function BoletinItem({ item, onRemove, onEdit, onResultChange }: BoletinItemProps) {
   const { colors } = useTheme();
   const resultMeta = getResultMeta(item.result, colors);
 
@@ -81,9 +82,16 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
         </View>
 
         {onRemove ? (
-          <Pressable hitSlop={10} onPress={onRemove}>
-            <Ionicons color={colors.danger} name="trash-outline" size={18} />
-          </Pressable>
+          <View style={styles.editRemoveRow}>
+            {onEdit ? (
+              <Pressable hitSlop={10} onPress={onEdit} style={styles.editIconBtn}>
+                <Ionicons color={colors.info} name="pencil-outline" size={17} />
+              </Pressable>
+            ) : null}
+            <Pressable hitSlop={10} onPress={onRemove}>
+              <Ionicons color={colors.danger} name="trash-outline" size={18} />
+            </Pressable>
+          </View>
         ) : onResultChange ? (
           <View style={styles.resultButtons}>
             <Pressable
@@ -103,7 +111,7 @@ export function BoletinItem({ item, onRemove, onResultChange }: BoletinItemProps
               <Ionicons color={item.result === ItemResult.LOST ? colors.danger : colors.textMuted} name="close" size={16} />
             </Pressable>
             <Pressable
-              accessibilityLabel="Marcar como void"
+              accessibilityLabel="Marcar como cancelado"
               hitSlop={6}
               onPress={() => onResultChange(item.result === ItemResult.VOID ? ItemResult.PENDING : ItemResult.VOID)}
               style={[styles.resultBtn, { backgroundColor: item.result === ItemResult.VOID ? 'rgba(0,122,255,0.18)' : colors.surfaceRaised }]}
@@ -145,7 +153,7 @@ function getResultMeta(result: ItemResult, colors: ReturnType<typeof useTheme>['
     case ItemResult.LOST:
       return { icon: 'close', color: colors.danger, background: 'rgba(255, 59, 48, 0.12)', a11yLabel: 'Perdeu' } as const;
     case ItemResult.VOID:
-      return { icon: 'remove', color: colors.info, background: 'rgba(0, 122, 255, 0.12)', a11yLabel: 'Void' } as const;
+      return { icon: 'remove', color: colors.info, background: 'rgba(0, 122, 255, 0.12)', a11yLabel: 'Cancelado' } as const;
     case ItemResult.PENDING:
     default:
       return { icon: 'time-outline', color: colors.warning, background: 'rgba(255, 149, 0, 0.12)', a11yLabel: 'Pendente' } as const;
@@ -261,6 +269,14 @@ const styles = StyleSheet.create({
   resultButtons: {
     flexDirection: 'row',
     gap: 6,
+  },
+  editRemoveRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  editIconBtn: {
+    padding: 2,
   },
   resultBtn: {
     alignItems: 'center',

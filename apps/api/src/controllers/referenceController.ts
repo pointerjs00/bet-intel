@@ -11,6 +11,7 @@ import {
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
 import { triggerATPRankingsUpdate } from '../jobs/atpRankingsJob';
+import { triggerWTARankingsUpdate } from '../jobs/wtaRankingsJob';
 import { redis } from '../utils/redis';
 
 function ok<T>(res: Response, data: T): void {
@@ -115,15 +116,58 @@ export async function listTeamsHandler(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const photoKeys = teams.map((team) => `atp:photo:${team.name}`);
-    const displayNameKeys = teams.map((team) => `atp:display-name:${team.name}`);
-    const photoUrls = photoKeys.length > 0 ? await redis.mget(...photoKeys) : [];
-    const displayNames = displayNameKeys.length > 0 ? await redis.mget(...displayNameKeys) : [];
-    ok(res, teams.map((team, index) => ({
-      ...team,
-      displayName: displayNames[index] ?? null,
-      imageUrl: photoUrls[index] ?? null,
-    })));
+    // Determine Redis prefix: WTA Tour competition → wta:, otherwise atp:
+    const isWtaQuery = typeof competition === 'string' && competition.toLowerCase().includes('wta');
+    const prefix = isWtaQuery ? 'wta' : 'atp';
+
+    // Consolidate 3 Redis mget calls into 1 for lower latency
+    const allEnrichmentKeys = teams.flatMap((team) => [
+      `${prefix}:photo:${team.name}`,
+      `${prefix}:display-name:${team.name}`,
+      `${prefix}:rank:${team.name}`,
+    ]);
+
+    const allValues = allEnrichmentKeys.length > 0
+      ? await redis.mget(...allEnrichmentKeys)
+      : [];
+
+    const enriched = teams.map((team, index) => {
+      let imageUrl = allValues[index * 3] ?? null;
+      // Ensure photo URL is absolute — relative paths from WTA scraper are unusable on mobile
+      if (imageUrl && imageUrl.startsWith('/')) {
+        imageUrl = `https://www.wtatennis.com${imageUrl}`;
+      }
+      const normalizedImageUrl = imageUrl?.toLowerCase() ?? null;
+      // Discard flag/resource paths and generic WTA branding assets that are not player faces.
+      if (normalizedImageUrl && (
+        normalizedImageUrl.includes('/flags/')
+        || normalizedImageUrl.includes('/resources/')
+        || normalizedImageUrl.endsWith('.svg')
+        || normalizedImageUrl.includes('wta_web_quick-links_')
+        || normalizedImageUrl.includes('home-share_')
+        || normalizedImageUrl.includes('pif-rankings-logo')
+        || normalizedImageUrl.includes('wta_logo')
+        || normalizedImageUrl.includes('star_joint-logo')
+      )) {
+        imageUrl = null;
+      }
+      return {
+        ...team,
+        displayName: allValues[index * 3 + 1] ?? null,
+        imageUrl,
+        rank: allValues[index * 3 + 2] ? parseInt(allValues[index * 3 + 2]!, 10) : null,
+      };
+    });
+
+    // Sort tennis players by ranking (nulls at the end)
+    enriched.sort((a, b) => {
+      if (a.rank != null && b.rank != null) return a.rank - b.rank;
+      if (a.rank != null) return -1;
+      if (b.rank != null) return 1;
+      return a.name.localeCompare(b.name, 'pt');
+    });
+
+    ok(res, enriched);
   } catch (err) {
     fail(res, err);
   }
@@ -154,6 +198,16 @@ export async function refreshATPRankingsHandler(_req: Request, res: Response): P
   try {
     const job = await triggerATPRankingsUpdate();
     ok(res, { jobId: job.id, message: 'ATP rankings update enqueued' });
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** POST /api/reference/wta-rankings/refresh — enqueues an immediate WTA rankings update. */
+export async function refreshWTARankingsHandler(_req: Request, res: Response): Promise<void> {
+  try {
+    const job = await triggerWTARankingsUpdate();
+    ok(res, { jobId: job.id, message: 'WTA rankings update enqueued' });
   } catch (err) {
     fail(res, err);
   }

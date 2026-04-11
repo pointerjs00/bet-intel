@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -88,10 +88,11 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 export default function TabsLayout() {
   const { colors } = useTheme();
   const unreadCount = useUnreadNotificationsCount().data ?? 0;
+  const renderTabBar = useCallback((props: BottomTabBarProps) => <FloatingTabBar {...props} />, []);
 
   return (
     <Tabs
-      tabBar={(props) => <FloatingTabBar {...props} />}
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.primary,

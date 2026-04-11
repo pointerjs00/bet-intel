@@ -36,6 +36,8 @@ The app is built as a monorepo (`pnpm workspaces`) with a React Native mobile cl
 - Stake input with automatic total odds, potential return, and ROI calculation
 - Status tracking: **Pending → Won / Lost / Cashout / Void**
 - Swipe-to-delete and swipe-to-share actions on the list
+- Optional **bet date** field — log a bet retroactively with the actual date it was placed
+- **Journal view** (`app/boletins/journal.tsx`): shows only boletins that have notes, sorted by bet date, for narrative review of betting decisions
 - Export your full betting history to **CSV** or **XLSX**
 - Favourite (star) individual boletins for quick access
 - Advanced filter & sort: by status, sport, competition, team, site, market, date range, odds range
@@ -112,8 +114,9 @@ Token security: 15-min access tokens (HS256 JWT) + 30-day refresh tokens stored 
 | Stats | `app/(tabs)/stats.tsx` | Full analytics dashboard with charts and tables |
 | Friends | `app/(tabs)/friends.tsx` | Feed / Friends list / Requests tabs |
 | Profile & Settings | `app/(tabs)/profile.tsx` | User profile, account security, notifications, theme |
-| Create Boletin | `app/boletins/create.tsx` | Step-by-step builder to add selections, set stake, name/notes |
-| Boletin Detail | `app/boletins/[id].tsx` | Full detail view with per-pick results, share, edit |
+| Create Boletin | `app/boletins/create.tsx` | Step-by-step builder to add selections, set stake, name/notes/bet date |
+| Boletin Detail | `app/boletins/[id].tsx` | Full detail view with 6-stat grid (Stake, Total Odds, Return, Profit, ROI, Selections — each with ⓘ info link), per-pick results with implied probability bar, share, edit |
+| Boletin Journal | `app/boletins/journal.tsx` | Filtered list of boletins with notes, sorted by bet date, for narrative betting review |
 | Metric Info | `app/metric-info.tsx` | In-app tooltip explaining a stat formula |
 | Login | `app/(auth)/login.tsx` | Email+password login + Google Sign-In |
 | Register | `app/(auth)/register.tsx` | Account creation + real-time username availability check |
@@ -245,7 +248,7 @@ Weights: `400 / 500 / 600 / 700 / 900`
 | `CompetitionPickerModal` | `components/ui/CompetitionPickerModal.tsx` | Sectioned competition picker by country |
 | `RangeSlider` | `components/ui/RangeSlider.tsx` | Dual-handle slider for odds/date range filters |
 | `BoletinCard` | `components/boletins/BoletinCard.tsx` | Compact boletin summary card |
-| `BoletinItem` | `components/boletins/BoletinItem.tsx` | Single pick row in detail view |
+| `BoletinItem` | `components/boletins/BoletinItem.tsx` | Single pick row in detail view; includes inline **ImpliedProbability** bar: `(1 / odds) × 100 %`, color-coded green ≥60% / amber 35–59% / red <35% |
 | `BoletinFilterSheet` | `components/boletins/BoletinFilterSheet.tsx` | Advanced filter bottom sheet |
 | `OddsCalculator` | `components/boletins/OddsCalculator.tsx` | Live total odds + return display |
 | `StakeInput` | `components/boletins/StakeInput.tsx` | Currency-formatted stake field |
@@ -394,6 +397,7 @@ Server state (boletins list, stats, friends, competitions, teams, markets) is al
 
 ### Per Boletin
 - Name (optional), creation date, status
+- **Bet date** (optional) — the actual date the bet was placed; used for journal sorting and retroactive logging
 - Stake (€), total odds, potential return, actual return (when resolved)
 - Notes (free text)
 - Is public (for friend sharing)
@@ -485,7 +489,7 @@ Fetched from the Sofascore CDN (`img.sofascore.com/api/v1/unique-tournament/{id}
 **API** (`.github/workflows/build-api.yml`):
 1. Push to `main` with changes in `apps/api/` or `packages/shared/`
 2. Build Docker image → push to GitHub Container Registry (`ghcr.io`)
-3. SSH into Hetzner → `docker pull` → `docker-compose up -d --no-deps api`
+3. SSH into Hetzner → `docker pull` → run `prisma migrate deploy` in a temporary container → run `node dist/prisma/seed.js` (idempotent upserts of all reference data: competitions, teams, markets) → `docker-compose up -d --no-deps api`
 
 **Mobile** (`.github/workflows/build-mobile.yml`):
 1. Push to `main` with changes in `apps/mobile/`

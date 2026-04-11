@@ -21,6 +21,9 @@ import type {
   StatsTopBoletin,
 } from '@betintel/shared';
 import { prisma } from '../../prisma';
+import { redis } from '../../utils/redis';
+
+const STATS_CACHE_TTL = 120; // 2 minutes
 
 const STATS_BOLETIN_INCLUDE = {
   items: {
@@ -70,8 +73,23 @@ export interface StatsOptions {
 /** Returns the full statistics bundle for the authenticated user. */
 export async function getPersonalStats(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<PersonalStats> {
   const options = normaliseOpts(opts, siteSlug);
+
+  // Try Redis cache first
+  const cacheKey = `stats:${userId}:${JSON.stringify(options)}`;
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch {
+    // Cache miss or Redis error — proceed to compute
+  }
+
   const boletins = await getBoletinsForPeriod(userId, options);
-  return buildStatsBundle(boletins, options.period, options.granularity);
+  const result = buildStatsBundle(boletins, options.period, options.granularity);
+
+  // Cache the result asynchronously — don't block the response
+  redis.set(cacheKey, JSON.stringify(result), 'EX', STATS_CACHE_TTL).catch(() => {});
+
+  return result;
 }
 
 /** Returns the summary-only stats payload. */
@@ -293,8 +311,18 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
   // Odds efficiency: sum of actual returns vs implied returns (stake × odds)
   let impliedReturnSum = 0;
   let actualReturnSum = 0;
+  // Count of non-cancelled boletins for averages (VOID/Cancelado excluded)
+  let nonVoidCount = 0;
 
   for (const boletin of boletins) {
+    // Cancelado (VOID) boletins are excluded from all financial and performance stats.
+    // They only increment voidBoletins for display purposes.
+    if (boletin.status === BoletinStatus.VOID) {
+      voidBoletins += 1;
+      continue;
+    }
+
+    nonVoidCount += 1;
     const stake = decimalToNumber(boletin.stake);
     // Freebet stakes are not real money — exclude from financial totals so P&L and ROI
     // reflect only money the user actually put in.
@@ -341,12 +369,6 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
         lostOddsSum += odds;
         lostOddsCount += 1;
         lostStakeSum += effectiveStake;
-        break;
-      case BoletinStatus.VOID:
-        settledBoletins += 1;
-        voidBoletins += 1;
-        settledStake += effectiveStake;
-        totalReturned += getEffectiveReturn(boletin);
         break;
       case BoletinStatus.PARTIAL:
         settledBoletins += 1;
@@ -399,10 +421,10 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
     profitLoss: round(profitLoss),
     roi: settledStake > 0 ? round((profitLoss / settledStake) * 100) : 0,
     winRate: decisiveBoletins > 0 ? round(((wonBoletins + partialBoletins) / decisiveBoletins) * 100) : 0,
-    averageOdds: boletins.length > 0 ? round(totalOdds / boletins.length, 2) : 0,
+    averageOdds: nonVoidCount > 0 ? round(totalOdds / nonVoidCount, 2) : 0,
     averageWonOdds: wonOddsCount > 0 ? round(wonOddsSum / wonOddsCount, 2) : 0,
     averageLostOdds: lostOddsCount > 0 ? round(lostOddsSum / lostOddsCount, 2) : 0,
-    averageStake: boletins.length > 0 ? round(totalStaked / boletins.length) : 0,
+    averageStake: nonVoidCount > 0 ? round(totalStaked / nonVoidCount) : 0,
     averageReturn: settledBoletins > 0 ? round(totalReturned / settledBoletins) : 0,
     averageWonStake: wonBoletins + partialBoletins > 0 ? round(wonStakeSum / (wonBoletins + partialBoletins)) : 0,
     averageLostStake: lostBoletins > 0 ? round(lostStakeSum / lostBoletins) : 0,

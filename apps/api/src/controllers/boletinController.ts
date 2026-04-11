@@ -3,6 +3,7 @@ import {
   createBoletinItemSchema,
   createBoletinSchema,
   shareBoletinSchema,
+  updateBoletinItemSchema,
   updateBoletinItemsSchema,
   updateBoletinSchema,
 } from '@betintel/shared';
@@ -16,6 +17,7 @@ import {
   listUserBoletins,
   shareBoletin,
   updateBoletin,
+  updateBoletinItem,
   updateBoletinItems,
 } from '../services/boletins/boletinService';
 import { logger } from '../utils/logger';
@@ -201,6 +203,32 @@ export async function deleteBoletinItemHandler(req: Request, res: Response): Pro
 
   try {
     const boletin = await deleteBoletinItem(requireUserId(req), id, itemId);
+    ok(res, boletin);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles PATCH /api/betintel/:id/items/:itemId — edit a single selection's fields. */
+export async function updateBoletinItemHandler(req: Request, res: Response): Promise<void> {
+  const { id, itemId } = req.params;
+  if (!id || !itemId) {
+    res.status(400).json({ success: false, error: 'IDs em falta' });
+    return;
+  }
+
+  const parsed = updateBoletinItemSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(422).json({
+      success: false,
+      error: 'Dados da seleção inválidos',
+      details: parsed.error.flatten().fieldErrors,
+    });
+    return;
+  }
+
+  try {
+    const boletin = await updateBoletinItem(requireUserId(req), id, itemId, parsed.data);
     ok(res, boletin);
   } catch (err) {
     fail(res, err);

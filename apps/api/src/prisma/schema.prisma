@@ -130,6 +130,7 @@ model Competition {
   teams     TeamCompetition[]
 
   @@unique([name, country, sport])
+  @@index([sport])
 }
 
 model Team {
@@ -159,6 +160,8 @@ model Market {
   category    String?
   sport       Sport?
   createdAt   DateTime @default(now())
+
+  @@index([sport])
 }
 
 model Boletin {
@@ -211,6 +214,8 @@ model Friendship {
   createdAt DateTime @default(now())
 
   @@unique([userId, friendId])
+  @@index([userId])
+  @@index([friendId])
 }
 
 model FriendRequest {
@@ -224,6 +229,8 @@ model FriendRequest {
   updatedAt  DateTime      @updatedAt
 
   @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+  @@index([senderId, status])
 }
 
 model SharedBoletin {
@@ -238,6 +245,7 @@ model SharedBoletin {
   createdAt  DateTime @default(now())
 
   @@unique([boletinId, sharedWithId])
+  @@index([sharedWithId, createdAt])
 }
 
 model Notification {

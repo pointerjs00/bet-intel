@@ -43,13 +43,13 @@ import { OddsCalculator } from '../../components/boletins/OddsCalculator';
 import { ProjectionCard } from '../../components/boletins/ProjectionCard';
 import { StakeInput } from '../../components/boletins/StakeInput';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
-import type { DropdownSection } from '../../components/ui/SearchableDropdown';
+import type { DropdownItem, DropdownSection } from '../../components/ui/SearchableDropdown';
 import { CompetitionPickerModal } from '../../components/ui/CompetitionPickerModal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { boletinQueryKeys, useBoletins } from '../../services/boletinService';
 import { usePersonalStats } from '../../services/statsService';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
-import { BETTING_SITES, COMPETITION_COUNTRY_ORDER } from '../../utils/sportAssets';
+import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { useBoletinBuilderStore, type BoletinBuilderItem } from '../../stores/boletinBuilderStore';
 import { useTheme } from '../../theme/useTheme';
@@ -69,6 +69,36 @@ const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
   { key: Sport.OTHER, label: 'Outro', icon: '🏅' },
 ];
 
+function normalizeSelectionValue(value: string): string {
+  return value.trim().toLocaleLowerCase('pt-PT');
+}
+
+function createExcludedValueSet(...values: Array<string | null | undefined>): Set<string> {
+  return new Set(
+    values
+      .map((value) => (value ? normalizeSelectionValue(value) : ''))
+      .filter(Boolean),
+  );
+}
+
+function filterDropdownItems(items: DropdownItem[], excludedValues: Set<string>): DropdownItem[] {
+  if (excludedValues.size === 0) return items;
+  return items.filter((item) => !excludedValues.has(normalizeSelectionValue(item.value)));
+}
+
+function filterDropdownSections(
+  sections: DropdownSection[] | undefined,
+  excludedValues: Set<string>,
+): DropdownSection[] | undefined {
+  if (!sections || excludedValues.size === 0) return sections;
+  return sections
+    .map((section) => ({
+      ...section,
+      data: section.data.filter((item) => !excludedValues.has(normalizeSelectionValue(item.value))),
+    }))
+    .filter((section) => section.data.length > 0);
+}
+
 // ─── Add Selection Form ──────────────────────────────────────────────────────
 interface AddSelectionFormProps {
   onAdd: (item: BoletinBuilderItem) => void;
@@ -82,27 +112,42 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
   const [sport, setSport] = useState<string>(Sport.FOOTBALL);
   const [competition, setCompetition] = useState('');
   const [homeTeam, setHomeTeam] = useState('');
+  const [homeTeam2, setHomeTeam2] = useState('');
   const [awayTeam, setAwayTeam] = useState('');
+  const [awayTeam2, setAwayTeam2] = useState('');
+  const [isDoubles, setIsDoubles] = useState(false);
   const [market, setMarket] = useState('');
   const [useCustomMarket, setUseCustomMarket] = useState(false);
   const [selection, setSelection] = useState('');
 
   // Auto-fill selection when the market is self-describing, updating when teams change too
   useEffect(() => {
+    const fHome = isDoubles && sport === Sport.TENNIS ? `${homeTeam} / ${homeTeam2}` : homeTeam;
+    const fAway = isDoubles && sport === Sport.TENNIS ? `${awayTeam} / ${awayTeam2}` : awayTeam;
     if (!useCustomMarket && isSelfDescribing(market)) {
-      setSelection(humanizeMarket(market, homeTeam, awayTeam));
+      setSelection(humanizeMarket(market, fHome, fAway));
     } else if (!useCustomMarket) {
       setSelection('');
     }
-  }, [market, homeTeam, awayTeam, useCustomMarket]);
+  }, [market, homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport, useCustomMarket]);
   const [oddValue, setOddValue] = useState('');
 
   const [showCompetitions, setShowCompetitions] = useState(false);
   const [showHomeTeams, setShowHomeTeams] = useState(false);
+  const [showHomeTeams2, setShowHomeTeams2] = useState(false);
   const [showAwayTeams, setShowAwayTeams] = useState(false);
+  const [showAwayTeams2, setShowAwayTeams2] = useState(false);
   const [showMarkets, setShowMarkets] = useState(false);
   const [showSports, setShowSports] = useState(false);
   const [competitionCountry, setCompetitionCountry] = useState('');
+
+  // Tennis player filters
+  const [playerCountryFilter, setPlayerCountryFilter] = useState<string | null>(null);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  // Whether any currently selected player is from the WTA (drives competition list filter)
+  const [playerTour, setPlayerTour] = useState<'ATP' | 'WTA' | null>(null);
+  // Tab selection for the player search header (ALL shows both sections)
+  const [playerTourTab, setPlayerTourTab] = useState<'ALL' | 'ATP' | 'WTA'>('ALL');
 
   // Map custom-typed sport strings to Sport.OTHER for API queries
   const sportForApi = useMemo(
@@ -117,11 +162,34 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       : (competition ? { sport: sportForApi, competition } : { sport: sportForApi })),
     [competition, sport, sportForApi],
   );
-  // Tennis selections should always come from the ATP rankings pool, regardless of tournament.
+  // Tennis ATP singles rankings pool
   const teamsQuery = useTeams(teamQueryParams);
+  // Tennis WTA singles rankings pool
+  const wtaTeamsQuery = useTeams(
+    { sport: sportForApi, competition: 'WTA Tour' },
+    { enabled: sport === Sport.TENNIS },
+  );
   // Fallback pool — used only when the competition-scoped query returns nothing (cups, intl comps).
   const allTeamsQuery = useTeams({ sport: sportForApi });
   const marketsQuery = useMarkets(sportForApi);
+
+  useEffect(() => {
+    if (sport !== Sport.TENNIS) return;
+
+    const isPlayerPickerOpen = showHomeTeams || showHomeTeams2 || showAwayTeams || showAwayTeams2;
+    if (!isPlayerPickerOpen) return;
+
+    void teamsQuery.refetch();
+    void wtaTeamsQuery.refetch();
+  }, [
+    sport,
+    showHomeTeams,
+    showHomeTeams2,
+    showAwayTeams,
+    showAwayTeams2,
+    teamsQuery.refetch,
+    wtaTeamsQuery.refetch,
+  ]);
 
   const competitionSections = useMemo(() => {
     const comps = (competitionsQuery.data ?? []).map((competition) => (
@@ -194,6 +262,22 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
     return sections;
   }, [competitionsQuery.data]);
 
+  // Filter competition list to WTA-only when a WTA player is selected, and vice-versa
+  const visibleCompetitionSections = useMemo(() => {
+    if (sport !== Sport.TENNIS || !playerTour) return competitionSections;
+    const isWta = (name: string) =>
+      name.includes('WTA') || name === 'Billie Jean King Cup';
+    if (playerTour === 'WTA') {
+      return competitionSections
+        .map((s) => ({ ...s, data: s.data.filter((item) => isWta(item.value)) }))
+        .filter((s) => s.data.length > 0);
+    }
+    // ATP: hide WTA-named competitions
+    return competitionSections
+      .map((s) => ({ ...s, data: s.data.filter((item) => !isWta(item.value)) }))
+      .filter((s) => s.data.length > 0);
+  }, [competitionSections, sport, playerTour]);
+
   // Resolve display label for sport (handles both enum and custom string)
   const sportLabelObj = useMemo(
     () => SPORT_OPTIONS.find((s) => s.key === sport) ?? (sport ? { icon: '🏅', label: sport } : null),
@@ -201,30 +285,160 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
   );
 
   const teamItems = useMemo(() => {
+    if (sport === Sport.TENNIS) return []; // Tennis uses separate ATP/WTA queries below
     const data = teamsQuery.data ?? [];
     // If competition-scoped query finished but returned nothing, fall back to all teams for the sport.
-    // Tennis intentionally stays pinned to the ATP rankings pool instead of broad sport fallbacks.
     const source =
-      sport !== Sport.TENNIS && competition && !teamsQuery.isLoading && data.length === 0
+      competition && !teamsQuery.isLoading && data.length === 0
         ? (allTeamsQuery.data ?? [])
         : data;
     return source.map((team) => ({
       label: team.displayName ?? team.name,
       value: team.displayName ?? team.name,
-      subtitle: sport === Sport.TENNIS && team.country ? team.country : undefined,
+      subtitle: undefined as string | undefined,
       imageUrl: team.imageUrl ?? null,
     }));
   }, [competition, sport, teamsQuery.isLoading, teamsQuery.data, allTeamsQuery.data]);
 
-  const teamItemsByName = useMemo(
-    () => new Map(teamItems.map((item) => [item.value, item])),
-    [teamItems],
+  // ATP player items (tennis only)
+  const atpPlayerItems = useMemo(() => {
+    if (sport !== Sport.TENNIS) return [];
+    return (teamsQuery.data ?? [])
+      .filter((team) => !playerCountryFilter || team.country === playerCountryFilter)
+      .map((team) => ({
+        label: team.displayName ?? team.name,
+        value: team.displayName ?? team.name,
+        country: team.country ?? undefined,
+        subtitle: [team.country, team.rank ? `ATP Nº${team.rank}` : null].filter(Boolean).join(' · ') || undefined,
+        imageUrl: team.imageUrl ?? null,
+      }));
+  }, [sport, teamsQuery.data, playerCountryFilter]);
+
+  // WTA player items (tennis only)
+  const wtaPlayerItems = useMemo(() => {
+    if (sport !== Sport.TENNIS) return [];
+    return (wtaTeamsQuery.data ?? [])
+      .filter((team) => !playerCountryFilter || team.country === playerCountryFilter)
+      .map((team) => ({
+        label: team.displayName ?? team.name,
+        value: team.displayName ?? team.name,
+        country: team.country ?? undefined,
+        subtitle: [team.country, team.rank ? `WTA Nº${team.rank}` : null].filter(Boolean).join(' · ') || undefined,
+        imageUrl: team.imageUrl ?? null,
+      }));
+  }, [sport, wtaTeamsQuery.data, playerCountryFilter]);
+
+  // Player sections shown in SearchableDropdown for tennis
+  const playerSections = useMemo(() => {
+    if (sport !== Sport.TENNIS) return undefined;
+    const sections = [];
+    if (playerTourTab !== 'WTA' && atpPlayerItems.length > 0) sections.push({ title: 'ATP', data: atpPlayerItems });
+    if (playerTourTab !== 'ATP' && wtaPlayerItems.length > 0) sections.push({ title: 'WTA', data: wtaPlayerItems });
+    return sections.length > 0 ? sections : undefined;
+  }, [sport, atpPlayerItems, wtaPlayerItems, playerTourTab]);
+
+  const homeExcludedValues = useMemo(
+    () => createExcludedValueSet(
+      awayTeam,
+      sport === Sport.TENNIS && isDoubles ? homeTeam2 : undefined,
+      sport === Sport.TENNIS && isDoubles ? awayTeam2 : undefined,
+    ),
+    [awayTeam, sport, isDoubles, homeTeam2, awayTeam2],
   );
 
+  const awayExcludedValues = useMemo(
+    () => createExcludedValueSet(
+      homeTeam,
+      sport === Sport.TENNIS && isDoubles ? homeTeam2 : undefined,
+      sport === Sport.TENNIS && isDoubles ? awayTeam2 : undefined,
+    ),
+    [homeTeam, sport, isDoubles, homeTeam2, awayTeam2],
+  );
+
+  const home2ExcludedValues = useMemo(
+    () => createExcludedValueSet(homeTeam, awayTeam, awayTeam2),
+    [homeTeam, awayTeam, awayTeam2],
+  );
+
+  const away2ExcludedValues = useMemo(
+    () => createExcludedValueSet(homeTeam, homeTeam2, awayTeam),
+    [homeTeam, homeTeam2, awayTeam],
+  );
+
+  const homeTeamItems = useMemo(
+    () => filterDropdownItems(teamItems, homeExcludedValues),
+    [teamItems, homeExcludedValues],
+  );
+
+  const awayTeamItems = useMemo(
+    () => filterDropdownItems(teamItems, awayExcludedValues),
+    [teamItems, awayExcludedValues],
+  );
+
+  const homePlayerSections = useMemo(
+    () => filterDropdownSections(playerSections, homeExcludedValues),
+    [playerSections, homeExcludedValues],
+  );
+
+  const awayPlayerSections = useMemo(
+    () => filterDropdownSections(playerSections, awayExcludedValues),
+    [playerSections, awayExcludedValues],
+  );
+
+  const homePlayerSections2 = useMemo(
+    () => filterDropdownSections(playerSections, home2ExcludedValues),
+    [playerSections, home2ExcludedValues],
+  );
+
+  const awayPlayerSections2 = useMemo(
+    () => filterDropdownSections(playerSections, away2ExcludedValues),
+    [playerSections, away2ExcludedValues],
+  );
+
+  // Set of WTA player values — used to detect tour when a player is selected
+  const wtaPlayerValueSet = useMemo(
+    () => new Set((wtaTeamsQuery.data ?? []).map((t) => t.displayName ?? t.name)),
+    [wtaTeamsQuery.data],
+  );
+
+  // Available countries for the player country filter (union of ATP + WTA)
+  const availablePlayerCountries = useMemo(() => {
+    if (sport !== Sport.TENNIS) return [];
+    const countries = new Set([
+      ...(teamsQuery.data ?? []).map((t) => t.country),
+      ...(wtaTeamsQuery.data ?? []).map((t) => t.country),
+    ].filter((c): c is string => Boolean(c)));
+    return [...countries].sort((a, b) => a.localeCompare(b, 'pt'));
+  }, [sport, teamsQuery.data, wtaTeamsQuery.data]);
+
+  const teamItemsByName = useMemo(() => {
+    if (sport === Sport.TENNIS) {
+      const allItems = [...atpPlayerItems, ...wtaPlayerItems];
+      return new Map(allItems.map((item) => [item.value, item]));
+    }
+    return new Map(teamItems.map((item) => [item.value, item]));
+  }, [sport, teamItems, atpPlayerItems, wtaPlayerItems]);
+
   const homeTeamItem = teamItemsByName.get(homeTeam);
+  const homeTeamItem2 = teamItemsByName.get(homeTeam2);
   const awayTeamItem = teamItemsByName.get(awayTeam);
+  const awayTeamItem2 = teamItemsByName.get(awayTeam2);
+
+  const finalHomeTeam = isDoubles && sport === Sport.TENNIS ? `${homeTeam} / ${homeTeam2}` : homeTeam;
+  const finalAwayTeam = isDoubles && sport === Sport.TENNIS ? `${awayTeam} / ${awayTeam2}` : awayTeam;
+
+  // True only when every required player/team field is filled.
+  // For doubles, all 4 slots must be non-empty before the market can be picked.
+  const allPlayersComplete = useMemo(() => {
+    if (isDoubles && sport === Sport.TENNIS) {
+      return !!homeTeam.trim() && !!homeTeam2.trim() && !!awayTeam.trim() && !!awayTeam2.trim();
+    }
+    return !!homeTeam.trim() && !!awayTeam.trim();
+  }, [homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport]);
 
   const marketSections = useMemo(() => {
+    const fHome = isDoubles && sport === Sport.TENNIS ? `${homeTeam} / ${homeTeam2}` : homeTeam;
+    const fAway = isDoubles && sport === Sport.TENNIS ? `${awayTeam} / ${awayTeam2}` : awayTeam;
     const data = marketsQuery.data ?? [];
     // Group by category
     const grouped = new Map<string, typeof data>();
@@ -242,20 +456,44 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       title: cat,
       data: (grouped.get(cat) ?? []).map((m) => ({
         label:
-          homeTeam && awayTeam
-            ? humanizeMarket(m.name, homeTeam, awayTeam)
+          fHome && fAway
+            ? humanizeMarket(m.name, fHome, fAway)
             : m.name,
         value: m.name,
       })),
     }));
-  }, [marketsQuery.data, homeTeam, awayTeam]);
+  }, [marketsQuery.data, homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport]);
 
   // sportLabel is now derived above as sportLabelObj; keep alias for compatibility
   const sportLabel = sportLabelObj;
 
   const handleAdd = useCallback(() => {
+    const fHome = isDoubles && sport === Sport.TENNIS ? `${homeTeam.trim()} / ${homeTeam2.trim()}` : homeTeam.trim();
+    const fAway = isDoubles && sport === Sport.TENNIS ? `${awayTeam.trim()} / ${awayTeam2.trim()}` : awayTeam.trim();
+    const participantValues = isDoubles && sport === Sport.TENNIS
+      ? [homeTeam.trim(), homeTeam2.trim(), awayTeam.trim(), awayTeam2.trim()]
+      : [homeTeam.trim(), awayTeam.trim()];
+    const uniqueParticipantCount = new Set(
+      participantValues
+        .map((value) => normalizeSelectionValue(value))
+        .filter(Boolean),
+    ).size;
+
     if (!homeTeam.trim() || !awayTeam.trim()) {
       showToast('Preenche as duas equipas.', 'error');
+      return;
+    }
+    if (isDoubles && sport === Sport.TENNIS && (!homeTeam2.trim() || !awayTeam2.trim())) {
+      showToast('Preenche os 4 jogadores do par.', 'error');
+      return;
+    }
+    if (uniqueParticipantCount !== participantValues.filter((value) => value.trim()).length) {
+      showToast(
+        sport === Sport.TENNIS
+          ? 'Escolhe jogadores diferentes em todos os campos.'
+          : 'Escolhe equipas diferentes.',
+        'error',
+      );
       return;
     }
     if (!market.trim() || !selection.trim()) {
@@ -268,12 +506,12 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       return;
     }
 
-    const humanized = humanizeMarket(market, homeTeam, awayTeam);
-    const id = `${homeTeam}:${awayTeam}:${competition}:${humanized}:${selection}`;
+    const humanized = humanizeMarket(market, fHome, fAway);
+    const id = `${fHome}:${fAway}:${competition}:${humanized}:${selection}`;
 
     // Duplicate detection — check against items in all PENDING boletins
-    const normH = homeTeam.trim().toLowerCase();
-    const normA = awayTeam.trim().toLowerCase();
+    const normH = fHome.toLowerCase();
+    const normA = fAway.toLowerCase();
     const normM = humanized.toLowerCase();
     const duplicate = pendingBoletins.some((b) =>
       b.items.some(
@@ -289,14 +527,12 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
 
     onAdd({
       id,
-      homeTeam: homeTeam.trim(),
+      homeTeam: fHome,
       homeTeamImageUrl: homeTeamItem?.imageUrl ?? null,
-      awayTeam: awayTeam.trim(),
+      awayTeam: fAway,
       awayTeamImageUrl: awayTeamItem?.imageUrl ?? null,
       competition: competition.trim() || 'Geral',
       sport: sportForApi,
-      // For self-describing markets, store the humanized name so market === selection
-      // and BoletinItem can display it just once.
       market: humanized,
       selection: selection.trim(),
       oddValue: parsedOdd,
@@ -304,15 +540,112 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
 
     // Reset selection fields but keep sport/competition for rapid multi-entry
     setHomeTeam('');
+    setHomeTeam2('');
     setAwayTeam('');
+    setAwayTeam2('');
+    setIsDoubles(false);
     setMarket('');
     setUseCustomMarket(false);
     setSelection('');
     setOddValue('');
+    setPlayerTour(null);
+    setPlayerTourTab('ALL');
     Keyboard.dismiss();
     hapticLight();
     showToast('Seleção adicionada.', 'success');
-  }, [homeTeam, homeTeamItem?.imageUrl, awayTeam, awayTeamItem?.imageUrl, competition, sport, sportForApi, market, selection, oddValue, onAdd, showToast]);
+  }, [homeTeam, homeTeam2, homeTeamItem?.imageUrl, awayTeam, awayTeam2, awayTeamItem?.imageUrl, isDoubles, competition, sport, sportForApi, market, selection, oddValue, onAdd, showToast]);
+
+  const rejectDuplicateSelection = useCallback((value: string, excludedValues: Set<string>) => {
+    if (!excludedValues.has(normalizeSelectionValue(value))) {
+      return true;
+    }
+
+    showToast(
+      sport === Sport.TENNIS
+        ? 'Esse jogador já está selecionado noutro campo.'
+        : 'Essa equipa já está selecionada no outro campo.',
+      'error',
+    );
+    return false;
+  }, [showToast, sport]);
+
+  // ── Player filter header (tennis only) ──────────────────────────────────────
+
+  const playerSearchHeader = sport === Sport.TENNIS ? (
+    <View style={{ paddingBottom: 6, gap: 8 }}>
+      {/* ATP / WTA tab row */}
+      <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+        {(['ALL', 'ATP', 'WTA'] as const).map((tab) => {
+          const active = playerTourTab === tab;
+          return (
+            <Pressable
+              key={tab}
+              onPress={() => setPlayerTourTab(tab)}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                alignItems: 'center',
+                backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                borderRightWidth: tab !== 'WTA' ? 1 : 0,
+                borderRightColor: colors.border,
+              }}
+            >
+              <Text style={{
+                fontSize: 13,
+                fontWeight: '700',
+                color: active ? '#fff' : colors.textSecondary,
+                letterSpacing: 0.5,
+              }}>
+                {tab === 'ALL' ? 'Todos' : tab}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {/* Country dropdown */}
+      {availablePlayerCountries.length > 0 && (
+        <Pressable
+          onPress={() => setShowCountryPicker(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 10,
+            backgroundColor: colors.surfaceRaised,
+            borderWidth: 1,
+            borderColor: playerCountryFilter ? colors.primary : colors.border,
+            gap: 8,
+          }}
+        >
+          <Ionicons
+            name="flag-outline"
+            size={16}
+            color={playerCountryFilter ? colors.primary : colors.textMuted}
+          />
+          <Text style={{
+            flex: 1,
+            fontSize: 13,
+            color: playerCountryFilter ? colors.textPrimary : colors.textMuted,
+          }}>
+            {playerCountryFilter
+              ? `${getCountryFlagEmoji(playerCountryFilter)} ${playerCountryFilter}`
+              : 'Filtrar por país'}
+          </Text>
+          {playerCountryFilter ? (
+            <Pressable
+              hitSlop={8}
+              onPress={(e) => { e.stopPropagation(); setPlayerCountryFilter(null); }}
+            >
+              <Ionicons color={colors.textMuted} name="close-circle" size={16} />
+            </Pressable>
+          ) : (
+            <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
+          )}
+        </Pressable>
+      )}
+    </View>
+  ) : null;
 
   return (
     <Card style={[styles.addForm, { borderColor: colors.border }]}>
@@ -331,12 +664,18 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             hitSlop={8}
             onPress={() => {
               setSport(Sport.FOOTBALL);
+              setIsDoubles(false);
               setCompetition('');
               setCompetitionCountry('');
               setHomeTeam('');
+              setHomeTeam2('');
               setAwayTeam('');
+              setAwayTeam2('');
               setMarket('');
               setSelection('');
+              setPlayerTour(null);
+              setPlayerTourTab('ALL');
+              setPlayerCountryFilter(null);
             }}
           >
             <Ionicons color={colors.textMuted} name="close-circle" size={18} />
@@ -364,7 +703,9 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
               setCompetition('');
               setCompetitionCountry('');
               setHomeTeam('');
+              setHomeTeam2('');
               setAwayTeam('');
+              setAwayTeam2('');
             }}
           >
             <Ionicons color={colors.textMuted} name="close-circle" size={18} />
@@ -374,11 +715,38 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         )}
       </Pressable>
 
+      {/* Doubles toggle — shown only for Tennis */}
+      {sport === Sport.TENNIS && (
+        <View style={styles.doublesRow}>
+          {[{ label: 'Singulares', value: false }, { label: 'Doubles 🎾', value: true }].map((opt) => (
+            <Pressable
+              key={String(opt.value)}
+              onPress={() => {
+                setIsDoubles(opt.value);
+                setHomeTeam2('');
+                setAwayTeam2('');
+              }}
+              style={[
+                styles.doublesBtn,
+                {
+                  backgroundColor: isDoubles === opt.value ? colors.primary : colors.surfaceRaised,
+                  borderColor: isDoubles === opt.value ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.doublesBtnText, { color: isDoubles === opt.value ? '#fff' : colors.textSecondary }]}>
+                {opt.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
       {/* Home Team / Player 1 */}
       <Pressable onPress={() => setShowHomeTeams(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
         <View style={styles.fieldBtnInner}>
           <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
-            {sport === Sport.TENNIS ? 'JOGADOR 1' : 'EQUIPA CASA'}
+            {sport === Sport.TENNIS ? (isDoubles ? 'JOGADOR 1 (PAR CASA)' : 'JOGADOR 1') : 'EQUIPA CASA'}
           </Text>
           <View style={styles.fieldBtnRow}>
             {homeTeam ? (
@@ -403,11 +771,35 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         )}
       </Pressable>
 
+      {/* Home Player 2 — doubles only */}
+      {isDoubles && sport === Sport.TENNIS && (
+        <Pressable onPress={() => setShowHomeTeams2(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <View style={styles.fieldBtnInner}>
+            <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOGADOR 2 (PAR CASA)</Text>
+            <View style={styles.fieldBtnRow}>
+              {homeTeam2 ? (
+                <TeamBadge imageUrl={homeTeamItem2?.imageUrl} name={homeTeam2} size={16} variant="player" />
+              ) : null}
+              <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: homeTeam2 ? colors.textPrimary : colors.textMuted, flex: 1 }]}>
+                {homeTeam2 || 'Selecionar jogador'}
+              </Text>
+            </View>
+          </View>
+          {homeTeam2 ? (
+            <Pressable hitSlop={8} onPress={() => setHomeTeam2('')}>
+              <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+            </Pressable>
+          ) : (
+            <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+          )}
+        </Pressable>
+      )}
+
       {/* Away Team / Player 2 */}
       <Pressable onPress={() => setShowAwayTeams(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
         <View style={styles.fieldBtnInner}>
           <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>
-            {sport === Sport.TENNIS ? 'JOGADOR 2' : 'EQUIPA FORA'}
+            {sport === Sport.TENNIS ? (isDoubles ? 'JOGADOR 1 (PAR FORA)' : 'JOGADOR 2') : 'EQUIPA FORA'}
           </Text>
           <View style={styles.fieldBtnRow}>
             {awayTeam ? (
@@ -432,6 +824,30 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         )}
       </Pressable>
 
+      {/* Away Player 2 — doubles only */}
+      {isDoubles && sport === Sport.TENNIS && (
+        <Pressable onPress={() => setShowAwayTeams2(true)} style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <View style={styles.fieldBtnInner}>
+            <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>JOGADOR 2 (PAR FORA)</Text>
+            <View style={styles.fieldBtnRow}>
+              {awayTeam2 ? (
+                <TeamBadge imageUrl={awayTeamItem2?.imageUrl} name={awayTeam2} size={16} variant="player" />
+              ) : null}
+              <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: awayTeam2 ? colors.textPrimary : colors.textMuted, flex: 1 }]}>
+                {awayTeam2 || 'Selecionar jogador'}
+              </Text>
+            </View>
+          </View>
+          {awayTeam2 ? (
+            <Pressable hitSlop={8} onPress={() => setAwayTeam2('')}>
+              <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+            </Pressable>
+          ) : (
+            <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
+          )}
+        </Pressable>
+      )}
+
       {/* Market — only enabled once both teams are selected */}
       {useCustomMarket ? (
         <Input
@@ -443,18 +859,23 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       ) : (
         <Pressable
           onPress={() => {
-            if (!homeTeam || !awayTeam) {
-              showToast('Seleciona as duas equipas primeiro.', 'error');
+            if (!allPlayersComplete) {
+              showToast(
+                isDoubles && sport === Sport.TENNIS
+                  ? 'Preenche os 4 jogadores primeiro.'
+                  : 'Seleciona as duas equipas primeiro.',
+                'error',
+              );
               return;
             }
             setShowMarkets(true);
           }}
-          style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, opacity: homeTeam && awayTeam ? 1 : 0.45 }]}
+              style={[styles.fieldBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, opacity: allPlayersComplete ? 1 : 0.45 }]}
         >
           <View style={styles.fieldBtnInner}>
             <Text style={[styles.fieldBtnLabel, { color: colors.textSecondary }]}>MERCADO</Text>
             <Text numberOfLines={1} style={[styles.fieldBtnValue, { color: market ? colors.textPrimary : colors.textMuted }]}>
-              {market ? (homeTeam && awayTeam ? humanizeMarket(market, homeTeam, awayTeam) : market) : 'Selecionar mercado'}
+              {market ? (finalHomeTeam && finalAwayTeam ? humanizeMarket(market, finalHomeTeam, finalAwayTeam) : market) : 'Selecionar mercado'}
             </Text>
           </View>
           {market ? (
@@ -524,12 +945,18 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         items={SPORT_OPTIONS.map((s) => ({ label: `${s.icon} ${s.label}`, value: s.key }))}
         onSelect={(val) => {
           setSport(val);
+          setIsDoubles(false);
           setCompetition('');
           setCompetitionCountry('');
           setHomeTeam('');
+          setHomeTeam2('');
           setAwayTeam('');
+          setAwayTeam2('');
           setMarket('');
           setSelection('');
+          setPlayerTour(null);
+          setPlayerTourTab('ALL');
+          setPlayerCountryFilter(null);
         }}
         allowCustomValue
       />
@@ -537,7 +964,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         visible={showCompetitions}
         onClose={() => setShowCompetitions(false)}
         title="Competição"
-        sections={competitionSections}
+        sections={visibleCompetitionSections}
         sport={sportForApi}
         defaultExpandedCount={sportForApi === Sport.FOOTBALL ? 6 : 10}
         allowCustomValue
@@ -547,14 +974,17 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           setCompetitionCountry(found ? getTennisTournamentCountry(found.name, found.country) : '');
           // Clear teams so the user re-picks from the filtered list
           setHomeTeam('');
+          setHomeTeam2('');
           setAwayTeam('');
+          setAwayTeam2('');
         }}
       />
       <SearchableDropdown
         visible={showHomeTeams}
         onClose={() => setShowHomeTeams(false)}
-        title={sport === Sport.TENNIS ? 'Jogador 1' : 'Equipa Casa'}
-        items={teamItems}
+        title={sport === Sport.TENNIS ? (isDoubles ? 'Jogador 1 (Par Casa)' : 'Jogador 1') : 'Equipa Casa'}
+        items={sport === Sport.TENNIS ? undefined : homeTeamItems}
+        sections={sport === Sport.TENNIS ? homePlayerSections : undefined}
         renderItemLeft={(item) => (
           <TeamBadge
             imageUrl={item.imageUrl}
@@ -563,16 +993,25 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             variant={sport === Sport.TENNIS ? 'player' : 'team'}
           />
         )}
-        onSelect={setHomeTeam}
-        isLoading={teamsQuery.isLoading || (competition !== '' && allTeamsQuery.isLoading)}
+        onSelect={(val) => {
+          if (!rejectDuplicateSelection(val, homeExcludedValues)) return false;
+          setHomeTeam(val);
+          if (sport === Sport.TENNIS) {
+            setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+          }
+          return true;
+        }}
+        isLoading={teamsQuery.isLoading || wtaTeamsQuery.isLoading || (competition !== '' && allTeamsQuery.isLoading)}
         allowCustomValue
         initialVisibleCount={20}
+        headerContent={playerSearchHeader}
       />
       <SearchableDropdown
         visible={showAwayTeams}
         onClose={() => setShowAwayTeams(false)}
-        title={sport === Sport.TENNIS ? 'Jogador 2' : 'Equipa Fora'}
-        items={teamItems}
+        title={sport === Sport.TENNIS ? (isDoubles ? 'Jogador 1 (Par Fora)' : 'Jogador 2') : 'Equipa Fora'}
+        items={sport === Sport.TENNIS ? undefined : awayTeamItems}
+        sections={sport === Sport.TENNIS ? awayPlayerSections : undefined}
         renderItemLeft={(item) => (
           <TeamBadge
             imageUrl={item.imageUrl}
@@ -581,11 +1020,61 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             variant={sport === Sport.TENNIS ? 'player' : 'team'}
           />
         )}
-        onSelect={setAwayTeam}
-        isLoading={teamsQuery.isLoading || (competition !== '' && allTeamsQuery.isLoading)}
+        onSelect={(val) => {
+          if (!rejectDuplicateSelection(val, awayExcludedValues)) return false;
+          setAwayTeam(val);
+          if (sport === Sport.TENNIS && !homeTeam) {
+            setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+          }
+          return true;
+        }}
+        isLoading={teamsQuery.isLoading || wtaTeamsQuery.isLoading || (competition !== '' && allTeamsQuery.isLoading)}
         allowCustomValue
         initialVisibleCount={20}
+        headerContent={playerSearchHeader}
       />
+      {isDoubles && sport === Sport.TENNIS && (
+        <SearchableDropdown
+          visible={showHomeTeams2}
+          onClose={() => setShowHomeTeams2(false)}
+          title="Jogador 2 (Par Casa)"
+          items={undefined}
+          sections={homePlayerSections2}
+          renderItemLeft={(item) => (
+            <TeamBadge imageUrl={item.imageUrl} name={item.value} size={30} variant="player" />
+          )}
+          onSelect={(val) => {
+            if (!rejectDuplicateSelection(val, home2ExcludedValues)) return false;
+            setHomeTeam2(val);
+            return true;
+          }}
+          isLoading={teamsQuery.isLoading || wtaTeamsQuery.isLoading}
+          allowCustomValue
+          initialVisibleCount={20}
+          headerContent={playerSearchHeader}
+        />
+      )}
+      {isDoubles && sport === Sport.TENNIS && (
+        <SearchableDropdown
+          visible={showAwayTeams2}
+          onClose={() => setShowAwayTeams2(false)}
+          title="Jogador 2 (Par Fora)"
+          items={undefined}
+          sections={awayPlayerSections2}
+          renderItemLeft={(item) => (
+            <TeamBadge imageUrl={item.imageUrl} name={item.value} size={30} variant="player" />
+          )}
+          onSelect={(val) => {
+            if (!rejectDuplicateSelection(val, away2ExcludedValues)) return false;
+            setAwayTeam2(val);
+            return true;
+          }}
+          isLoading={teamsQuery.isLoading || wtaTeamsQuery.isLoading}
+          allowCustomValue
+          initialVisibleCount={20}
+          headerContent={playerSearchHeader}
+        />
+      )}
       <SearchableDropdown
         visible={showMarkets}
         onClose={() => setShowMarkets(false)}
@@ -594,6 +1083,20 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         onSelect={setMarket}
         isLoading={marketsQuery.isLoading}
         initialVisibleCount={8}
+      />
+      {/* Country picker for tennis player filter */}
+      <SearchableDropdown
+        visible={showCountryPicker}
+        onClose={() => setShowCountryPicker(false)}
+        title="Filtrar por país"
+        items={[
+          { label: '🌍  Todos os países', value: '__ALL__' },
+          ...availablePlayerCountries.map((c) => ({
+            label: `${getCountryFlagEmoji(c)}  ${c}`,
+            value: c,
+          })),
+        ]}
+        onSelect={(val) => setPlayerCountryFilter(val === '__ALL__' ? null : val)}
       />
     </Card>
   );
@@ -963,6 +1466,9 @@ const styles = StyleSheet.create({
   sectionHeaderText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
   customMarketToggle: { alignItems: 'center', flexDirection: 'row', gap: 4, paddingVertical: 4 },
   customMarketToggleText: { fontSize: 12, fontWeight: '600' },
+  doublesRow: { flexDirection: 'row', gap: 8 },
+  doublesBtn: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flex: 1, paddingVertical: 9 },
+  doublesBtnText: { fontSize: 13, fontWeight: '600' },
   siteLogo: { borderRadius: 6, height: 28, width: 28 },
   siteLogoFallback: { alignItems: 'center', borderRadius: 6, height: 28, justifyContent: 'center', width: 28 },
   siteLogoFallbackText: { fontSize: 9, fontWeight: '800' },

@@ -29,7 +29,7 @@ function parseActualReturn(boletin: BoletinDetail): number {
   return 0; // PENDING
 }
 
-export function HeatmapCalendar({ boletins, onInfoPress }: HeatmapCalendarProps) {
+export const HeatmapCalendar = React.memo(function HeatmapCalendar({ boletins, onInfoPress }: HeatmapCalendarProps) {
   const { colors } = useTheme();
   const scrollRef = useRef<ScrollView>(null);
 
@@ -187,7 +187,7 @@ export function HeatmapCalendar({ boletins, onInfoPress }: HeatmapCalendarProps)
       </View>
     </View>
   );
-}
+});
 
 const CELL_SIZE = 14;
 const CELL_GAP = 3;

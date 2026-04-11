@@ -28,7 +28,7 @@ function getLabel(status: BoletinStatus): string {
     case BoletinStatus.LOST:
       return 'Perdeu';
     case BoletinStatus.VOID:
-      return 'Void';
+      return 'Cancelado';
     case BoletinStatus.PARTIAL:
       return 'Parcial';
     case BoletinStatus.CASHOUT:
