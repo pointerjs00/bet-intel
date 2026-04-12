@@ -100,6 +100,7 @@ module.exports = ({ config }) => ({
     'expo-router',
     'expo-secure-store',
     'expo-notifications',
+    'expo-image-picker',
     '@react-native-firebase/app',
     [
       '@react-native-google-signin/google-signin',

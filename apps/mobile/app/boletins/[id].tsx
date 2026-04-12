@@ -4,11 +4,13 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
+import { ShareBoletinSheet } from '../../components/social/ShareBoletinSheet';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -75,6 +77,7 @@ export default function BoletinDetailScreen() {
   const [pendingPublic, setPendingPublic] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const prevStatusRef = useRef<BoletinStatus | undefined>(undefined);
+  const shareSheetRef = useRef<GorhomBottomSheet>(null);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
   const updateItemsMutation = useUpdateBoletinItemsMutation();
@@ -569,7 +572,7 @@ export default function BoletinDetailScreen() {
                   />
                   <Button
                     leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
-                    onPress={() => showToast('A partilha com amigos será ligada no passo social.', 'info')}
+                    onPress={() => shareSheetRef.current?.snapToIndex(0)}
                     size="sm"
                     style={{ flex: 1, minWidth: 100 }}
                     title="Partilhar"
@@ -1086,6 +1089,12 @@ export default function BoletinDetailScreen() {
           onDismiss={() => setShowCelebration(false)}
         />
       )}
+
+      <ShareBoletinSheet
+        ref={shareSheetRef}
+        boletinId={id}
+        boletinName={boletin?.name}
+      />
     </View>
   );
 }

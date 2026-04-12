@@ -257,6 +257,11 @@ export default function ProfileScreen() {
                 ) : (
                   <EmptyState icon="bell-off-outline" title="Sem notificações" message="Ainda não tens notificações." />
                 )}
+
+                <Pressable onPress={() => router.push('/notifications')} style={styles.viewAllRow}>
+                  <Text style={[styles.viewAllText, { color: colors.primary }]}>Ver todas as notificações</Text>
+                  <Ionicons color={colors.primary} name="chevron-forward" size={16} />
+                </Pressable>
               </Card>
             </Animated.View>
 
@@ -415,6 +420,8 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   unreadBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  viewAllRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingTop: 8 },
+  viewAllText: { fontSize: 13, fontWeight: '700' },
 
   /* Quick links */
   quickLink: {

@@ -120,6 +120,8 @@ export default function RootLayout() {
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen name="settings" options={{ headerShown: true, presentation: 'card' }} />
+                  <Stack.Screen name="notifications" options={{ headerShown: false, presentation: 'card' }} />
+                  <Stack.Screen name="user/[username]" options={{ headerShown: false, presentation: 'card' }} />
                 </Stack>
               </View>
             </AuthGate>

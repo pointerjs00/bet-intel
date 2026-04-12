@@ -1,6 +1,6 @@
 ﻿import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { ActivityFeedItem } from '../../components/social/ActivityFeedItem';
@@ -37,6 +37,7 @@ export default function FriendsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<FriendsTab>('feed');
   const [search, setSearch] = useState('');
 
@@ -63,6 +64,16 @@ export default function FriendsScreen() {
           paddingBottom: insets.bottom + 100,
           paddingHorizontal: tokens.spacing.lg,
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={feedQuery.isRefetching || friendsQuery.isRefetching || requestsQuery.isRefetching}
+            onRefresh={() => {
+              void feedQuery.refetch();
+              void friendsQuery.refetch();
+              void requestsQuery.refetch();
+            }}
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerWrap}>
@@ -99,7 +110,7 @@ export default function FriendsScreen() {
             ) : feedQuery.data && feedQuery.data.length > 0 ? (
               feedQuery.data.map((item, index) => (
                 <Animated.View key={item.id} entering={FadeInDown.delay(index * 25).duration(160).springify()}>
-                  <ActivityFeedItem item={item} />
+                  <ActivityFeedItem item={item} onPress={() => router.push(`/boletins/${item.boletin.id}`)} />
                 </Animated.View>
               ))
             ) : (
@@ -137,6 +148,7 @@ export default function FriendsScreen() {
                               ? 'Este utilizador já te enviou um pedido.'
                               : user.bio ?? undefined
                       }
+                      onPress={() => router.push(`/user/${user.username}`)}
                       onAction={async () => {
                         try {
                           await sendRequestMutation.mutateAsync(user.id);
@@ -167,6 +179,7 @@ export default function FriendsScreen() {
                   <FriendCard
                     actionLabel="Remover"
                     actionLoading={removeFriendMutation.isPending}
+                    onPress={() => router.push(`/user/${friendship.friend.username}`)}
                     onAction={async () => {
                       try {
                         await removeFriendMutation.mutateAsync(friendship.friend.id);
