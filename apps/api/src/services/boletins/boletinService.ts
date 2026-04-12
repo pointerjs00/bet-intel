@@ -157,6 +157,9 @@ export async function updateBoletin(
   if (input.isPublic !== undefined) {
     metadataData.isPublic = input.isPublic;
   }
+  if (input.isFreebet !== undefined) {
+    metadataData.isFreebet = input.isFreebet;
+  }
   if (input.siteSlug !== undefined) {
     metadataData.siteSlug = input.siteSlug ?? null;
   }

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Image, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Image, Keyboard, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,6 +64,7 @@ export default function BoletinDetailScreen() {
   const [editStake, setEditStake] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editSiteSlug, setEditSiteSlug] = useState('');
+  const [editIsFreebet, setEditIsFreebet] = useState(false);
   const [showEditSites, setShowEditSites] = useState(false);
   const [editBetDate, setEditBetDate] = useState(''); // DD/MM/YYYY display string
   // Target item to remove (confirmation modal)
@@ -207,6 +208,7 @@ export default function BoletinDetailScreen() {
     setEditStake(String(Number(b.stake)));
     setEditNotes(b.notes ?? '');
     setEditSiteSlug(b.siteSlug ?? '');
+    setEditIsFreebet(b.isFreebet);
     setEditBetDate(formatDateToDDMMYYYY(b.betDate));
   };
 
@@ -288,6 +290,7 @@ export default function BoletinDetailScreen() {
       notes: editNotes.trim() || undefined,
       stake: stakeNum,
       siteSlug: editSiteSlug.trim() || null,
+      isFreebet: editIsFreebet,
       betDate: editBetDate.length === 10 ? (parseDDMMYYYYToISO(editBetDate) ?? null) : null,
     };
     try {
@@ -510,6 +513,12 @@ export default function BoletinDetailScreen() {
                   <Ionicons color={colors.textMuted} name={boletin.isPublic ? 'eye-outline' : 'eye-off-outline'} size={13} />
                   <Text style={[styles.metaText, { color: colors.textMuted }]}>{boletin.isPublic ? 'Público' : 'Privado'}</Text>
                 </View>
+                {boletin.isFreebet ? (
+                  <View style={styles.metaItem}>
+                    <Ionicons color={colors.textMuted} name="gift-outline" size={13} />
+                    <Text style={[styles.metaText, { color: colors.textMuted }]}>Freebet</Text>
+                  </View>
+                ) : null}
                 {boletin.siteSlug ? (
                   <View style={styles.metaItem}>
                     <Ionicons color={colors.textMuted} name="business-outline" size={13} />
@@ -633,6 +642,17 @@ export default function BoletinDetailScreen() {
                     onChange={(date) => setEditBetDate(formatDateToDDMMYYYY(date.toISOString()))}
                     onClear={() => setEditBetDate('')}
                   />
+                  <View style={[styles.toggleRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                    <View style={styles.toggleTextWrap}>
+                      <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>Aposta gratuita (freebet)</Text>
+                      <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>Marca esta opção se a stake foi uma freebet para manter os teus cálculos de lucro e prejuízo corretos.</Text>
+                    </View>
+                    <Switch
+                      onValueChange={setEditIsFreebet}
+                      trackColor={{ false: undefined, true: '#FFB300' }}
+                      value={editIsFreebet}
+                    />
+                  </View>
                   <SearchableDropdown
                     items={BETTING_SITES.map((s) => ({ label: s.name, value: s.slug }))}
                     onClose={() => setShowEditSites(false)}
@@ -1133,6 +1153,10 @@ const styles = StyleSheet.create({
   notesTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
   notesBody: { fontSize: 14, lineHeight: 22 },
   notesInput: { borderRadius: 8, borderWidth: 1, fontSize: 14, lineHeight: 22, minHeight: 90, padding: 10 },
+  toggleRow: { alignItems: 'center', borderRadius: 10, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 12 },
+  toggleTextWrap: { flex: 1, gap: 4 },
+  toggleTitle: { fontSize: 14, fontWeight: '700' },
+  toggleSubtitle: { fontSize: 12, lineHeight: 18 },
   addItemCard: { gap: 12 },
   addItemSectionTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },
   addItemRow: { flexDirection: 'row', gap: 10 },

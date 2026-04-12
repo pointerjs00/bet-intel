@@ -176,6 +176,7 @@ export const updateBoletinSchema = z.object({
     .positive('A stake deve ser positiva')
     .optional(),
   isPublic: z.boolean().optional(),
+  isFreebet: z.boolean().optional(),
   betDate: z.string().datetime({ offset: true }).nullable().optional(),
 });
 

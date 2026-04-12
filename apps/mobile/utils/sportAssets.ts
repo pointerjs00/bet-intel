@@ -962,7 +962,8 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Eldense':                TEAM_CDN(20880),
   'Amorebieta':             TEAM_CDN(7906),
   'Andorra CF':             TEAM_CDN(20881),
-  'RCD Espanyol':           TEAM_CDN(535),
+  'RCD Espanyol':           TEAM_CDN(540),
+  Espanyol:                 TEAM_CDN(540),
   // ── Serie A ───────────────────────────────────────────────────────────────
   'Inter Milan':            TEAM_CDN(505),
   'AC Milan':               TEAM_CDN(489),
