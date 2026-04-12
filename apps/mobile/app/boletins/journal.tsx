@@ -119,7 +119,7 @@ export default function JournalScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <Stack.Screen options={{ title: 'Diário de Apostas', headerShown: true }} />
+      <Stack.Screen options={{ title: 'Diário de Apostas', headerShown: true, headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.textPrimary, headerTitleStyle: { color: colors.textPrimary } }} />
       <FlatList
         data={journalEntries}
         renderItem={renderItem}
