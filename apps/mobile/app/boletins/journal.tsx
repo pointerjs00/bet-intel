@@ -4,7 +4,6 @@ import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BoletinDetail } from '@betintel/shared';
-import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { useBoletins } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
@@ -15,14 +14,27 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-const STATUS_EMOJI: Record<string, string> = {
-  WON: '✅',
-  LOST: '❌',
-  PENDING: '⏳',
-  VOID: '🚫',
-  PARTIAL: '⚠️',
-  CASHOUT: '💵',
+type StatusKey = 'WON' | 'LOST' | 'PENDING' | 'VOID' | 'PARTIAL' | 'CASHOUT';
+
+const STATUS_CONFIG: Record<StatusKey, { label: string; icon: string; colorKey: 'primary' | 'danger' | 'warning' | 'textMuted' }> = {
+  WON:     { label: 'Ganhou',   icon: 'checkmark-circle', colorKey: 'primary' },
+  LOST:    { label: 'Perdeu',   icon: 'close-circle',     colorKey: 'danger' },
+  PENDING: { label: 'Pendente', icon: 'time',             colorKey: 'warning' },
+  VOID:    { label: 'Void',     icon: 'ban',              colorKey: 'textMuted' },
+  PARTIAL: { label: 'Parcial',  icon: 'alert-circle',     colorKey: 'warning' },
+  CASHOUT: { label: 'Cashout',  icon: 'cash',             colorKey: 'primary' },
 };
+
+function StatusChip({ status, colors }: { status: string; colors: Record<string, string> }) {
+  const cfg = STATUS_CONFIG[status as StatusKey] ?? { label: status, icon: 'help-circle', colorKey: 'textMuted' };
+  const color = colors[cfg.colorKey];
+  return (
+    <View style={[styles.statusChip, { backgroundColor: color + '18', borderColor: color + '40' }]}>
+      <Ionicons name={cfg.icon as never} size={12} color={color} />
+      <Text style={[styles.statusLabel, { color }]}>{cfg.label}</Text>
+    </View>
+  );
+}
 
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
@@ -41,36 +53,69 @@ export default function JournalScreen() {
       });
   }, [boletinsQuery.data]);
 
-  const renderItem = ({ item }: { item: BoletinDetail }) => (
-    <Pressable onPress={() => router.push(`/boletins/${item.id}`)}>
-      <Card style={styles.entryCard}>
-        <View style={styles.entryHeader}>
-          <Text style={[styles.entryDate, { color: colors.textSecondary }]}>
-            {formatDate(item.betDate ?? item.createdAt)}
-          </Text>
-          <Text style={styles.statusEmoji}>{STATUS_EMOJI[item.status] ?? '❓'}</Text>
-        </View>
-        {item.name ? (
-          <Text style={[styles.entryName, { color: colors.textPrimary }]}>{item.name}</Text>
-        ) : null}
-        <Text style={[styles.entryMeta, { color: colors.textSecondary }]}>
-          {formatCurrency(parseFloat(item.stake))} × {parseFloat(item.totalOdds).toFixed(2)}
-          {item.status !== 'PENDING' && (
-            <Text style={{ color: parseFloat(item.actualReturn ?? '0') - parseFloat(item.stake) >= 0 ? colors.primary : colors.danger }}>
-              {' → '}{formatCurrency(parseFloat(item.actualReturn ?? item.potentialReturn))}
+  const renderItem = ({ item }: { item: BoletinDetail }) => {
+    const stake = parseFloat(item.stake);
+    const odds = parseFloat(item.totalOdds);
+    const returnVal = parseFloat(item.actualReturn ?? item.potentialReturn);
+    const profit = returnVal - stake;
+    const isPending = item.status === 'PENDING';
+    const isWon = profit >= 0 && !isPending;
+
+    return (
+      <Pressable
+        onPress={() => router.push(`/boletins/${item.id}`)}
+        style={({ pressed }) => [styles.pressable, { opacity: pressed ? 0.85 : 1 }]}
+      >
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* Top row: date + status */}
+          <View style={styles.topRow}>
+            <Text style={[styles.entryDate, { color: colors.textMuted }]}>
+              {formatDate(item.betDate ?? item.createdAt)}
+            </Text>
+            <StatusChip status={item.status} colors={colors} />
+          </View>
+
+          {/* Name */}
+          {item.name ? (
+            <Text style={[styles.entryName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {item.name}
+            </Text>
+          ) : null}
+
+          {/* Stake / odds / return */}
+          <View style={styles.metaRow}>
+            <Text style={[styles.metaStake, { color: colors.textSecondary }]}>
+              {formatCurrency(stake)}
+            </Text>
+            <Text style={[styles.metaOdds, { color: colors.textMuted }]}>× {odds.toFixed(2)}</Text>
+            {!isPending && (
+              <>
+                <Ionicons name="arrow-forward" size={12} color={colors.textMuted} />
+                <Text style={[styles.metaReturn, { color: isWon ? colors.primary : colors.danger }]}>
+                  {formatCurrency(returnVal)}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {/* Notes */}
+          <View style={[styles.notesBorder, { borderLeftColor: colors.primary }]}>
+            <Text style={[styles.notesText, { color: colors.textSecondary }]} numberOfLines={3}>
+              {item.notes}
+            </Text>
+          </View>
+
+          {/* Selections preview */}
+          {item.items.length > 0 && (
+            <Text style={[styles.selectionsPreview, { color: colors.textMuted }]} numberOfLines={2}>
+              {item.items.slice(0, 3).map((i) => `${i.homeTeam} vs ${i.awayTeam}`).join(' · ')}
+              {item.items.length > 3 ? ` +${item.items.length - 3}` : ''}
             </Text>
           )}
-        </Text>
-        <View style={[styles.notesBorder, { borderLeftColor: colors.primary }]}>
-          <Text style={[styles.notesText, { color: colors.textPrimary }]}>{item.notes}</Text>
         </View>
-        <Text style={[styles.selectionsPreview, { color: colors.textMuted }]}>
-          {item.items.slice(0, 3).map((i) => `${i.homeTeam} vs ${i.awayTeam}`).join(' · ')}
-          {item.items.length > 3 ? ` +${item.items.length - 3}` : ''}
-        </Text>
-      </Card>
-    </Pressable>
-  );
+      </Pressable>
+    );
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -83,7 +128,7 @@ export default function JournalScreen() {
           paddingTop: t.spacing.md,
           paddingBottom: insets.bottom + 100,
           paddingHorizontal: t.spacing.lg,
-          gap: 14,
+          gap: 12,
         }}
         ListEmptyComponent={
           <EmptyState
@@ -99,13 +144,70 @@ export default function JournalScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  entryCard: { gap: 8 },
-  entryHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  entryDate: { fontSize: 12, fontWeight: '700' },
-  statusEmoji: { fontSize: 16 },
-  entryName: { fontSize: 16, fontWeight: '900' },
-  entryMeta: { fontSize: 13, fontWeight: '600' },
-  notesBorder: { borderLeftWidth: 3, paddingLeft: 10, paddingVertical: 4 },
-  notesText: { fontSize: 14, fontWeight: '500', lineHeight: 20 },
-  selectionsPreview: { fontSize: 11, fontWeight: '600' },
+  pressable: {},
+  card: {
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+    padding: 16,
+  },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  entryDate: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  statusChip: {
+    alignItems: 'center',
+    borderRadius: 99,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  statusLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  entryName: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  metaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  metaStake: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  metaOdds: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  metaReturn: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  notesBorder: {
+    borderLeftWidth: 3,
+    paddingLeft: 10,
+    paddingVertical: 2,
+  },
+  notesText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  selectionsPreview: {
+    fontSize: 11,
+    fontWeight: '500',
+    lineHeight: 16,
+  },
 });

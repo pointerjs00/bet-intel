@@ -11,12 +11,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, FadeIn, FadeOut, SlideInDown, SlideInUp, useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS, interpolate, Extrapolation } from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import type GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { BoletinStatus, Sport } from '@betintel/shared';
+import type { Notification } from '@betintel/shared';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { BoletinCard } from '../../components/boletins/BoletinCard';
 import {
@@ -34,10 +36,15 @@ import { PressableScale } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
 import { useBoletins, useDeleteBoletinMutation } from '../../services/boletinService';
-import { useUnreadNotificationsCount } from '../../services/socialService';
+import {
+  useNotifications,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+  useUnreadNotificationsCount,
+} from '../../services/socialService';
 import { tokens } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 
@@ -62,8 +69,136 @@ const STATUS_FILTER_ITEMS = STATUS_FILTERS.map((f) => ({ label: f.label, value: 
 const ItemSeparator = () => <View style={{ height: 16 }} />;
 const keyExtractor = (item: SlipListItem) => item.id;
 
+const NOTIF_ICONS: Record<string, { name: string; color: string }> = {
+  FRIEND_REQUEST: { name: 'account-plus-outline', color: 'info' },
+  FRIEND_ACCEPTED: { name: 'account-check-outline', color: 'primary' },
+  BOLETIN_SHARED: { name: 'share-variant-outline', color: 'gold' },
+  BOLETIN_RESULT: { name: 'trophy-outline', color: 'warning' },
+  SYSTEM: { name: 'bell-outline', color: 'info' },
+};
+
+const DISMISS_THRESHOLD = -70;
+const AUTO_DISMISS_THRESHOLD = -160;
+
+function SwipeableNotifRow({
+  notif,
+  colors,
+  onDismiss,
+  onPress,
+  onNavigate,
+}: {
+  notif: Notification;
+  colors: Record<string, string>;
+  onDismiss: () => void;
+  onPress: () => void;
+  onNavigate?: () => void;
+}) {
+  const iconConfig = NOTIF_ICONS[notif.type] ?? NOTIF_ICONS.SYSTEM;
+  const iconColor = (colors[iconConfig.color] ?? colors.info) as string;
+  const translateX = useSharedValue(0);
+  const offset = useSharedValue(0);
+  const scale = useSharedValue(1);
+
+  const pan = Gesture.Pan()
+    .activeOffsetX([-8, 8])
+    .failOffsetY([-8, 8])
+    .onBegin(() => {
+      offset.value = translateX.value;
+    })
+    .onUpdate((e) => {
+      translateX.value = Math.min(0, offset.value + e.translationX);
+    })
+    .onEnd((e) => {
+      const total = offset.value + e.translationX;
+      if (total < AUTO_DISMISS_THRESHOLD) {
+        translateX.value = withTiming(-400, { duration: 200 }, () => runOnJS(onDismiss)());
+      } else if (total < DISMISS_THRESHOLD) {
+        translateX.value = withSpring(DISMISS_THRESHOLD, { damping: 20, stiffness: 200 });
+        offset.value = DISMISS_THRESHOLD;
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+        offset.value = 0;
+      }
+    });
+
+  const tap = Gesture.Tap()
+    .onBegin(() => { scale.value = withTiming(0.96, { duration: 80 }); })
+    .onFinalize(() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); })
+    .onEnd(() => {
+      if (translateX.value < -5) {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
+        offset.value = 0;
+      } else {
+        runOnJS(onPress)();
+      }
+    });
+  const gesture = Gesture.Exclusive(pan, tap);
+
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }, { scale: scale.value }],
+  }));
+
+  const revealOpacity = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, DISMISS_THRESHOLD], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  return (
+    <View style={{ overflow: 'hidden' }}>
+      {/* Red dismiss background */}
+      <Animated.View
+        style={[
+          { position: 'absolute', right: 0, top: 0, bottom: 0, width: 70, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FF3B3020', borderRadius: 8 },
+          revealOpacity,
+        ]}
+      >
+        <MaterialCommunityIcons name="delete-outline" size={20} color="#FF3B30" />
+      </Animated.View>
+      <GestureDetector gesture={gesture}>
+        <Animated.View
+          style={[
+            swipeableRowStyles.row,
+            { borderBottomColor: colors.border as string },
+            !notif.isRead && { backgroundColor: `${colors.primary}08` },
+            rowStyle,
+          ]}
+        >
+          <View style={[swipeableRowStyles.icon, { backgroundColor: `${iconColor}18` }]}>
+            <MaterialCommunityIcons color={iconColor} name={iconConfig.name as keyof typeof MaterialCommunityIcons.glyphMap} size={16} />
+          </View>
+          <View style={swipeableRowStyles.content}>
+            <Text numberOfLines={1} style={[swipeableRowStyles.title, { color: colors.textPrimary as string }]}>{notif.title}</Text>
+            <Text numberOfLines={1} style={[swipeableRowStyles.body, { color: colors.textSecondary as string }]}>{notif.body}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            <Text style={[swipeableRowStyles.time, { color: colors.textMuted as string }]}>{formatRelativeTime(notif.createdAt)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {!notif.isRead && <View style={[swipeableRowStyles.dot, { backgroundColor: colors.primary as string }]} />}
+              {onNavigate && (
+                <Pressable hitSlop={10} onPress={onNavigate}>
+                  <MaterialCommunityIcons name="chevron-right" size={16} color={colors.textMuted as string} />
+                </Pressable>
+              )}
+            </View>
+          </View>
+        </Animated.View>
+      </GestureDetector>
+    </View>
+  );
+}
+
+const swipeableRowStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, gap: 10, backgroundColor: 'transparent' },
+  icon: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  content: { flex: 1, gap: 2 },
+  title: { fontSize: 13, fontWeight: '700' },
+  body: { fontSize: 11, lineHeight: 15 },
+  time: { fontSize: 10, fontWeight: '600' },
+  dot: { borderRadius: 4, height: 8, width: 8 },
+});
+
 export default function HomeScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
@@ -104,12 +239,24 @@ export default function HomeScreen() {
   const boletinsQuery = useBoletins();
   const deleteMutation = useDeleteBoletinMutation();
   const unreadCount = useUnreadNotificationsCount().data ?? 0;
+  const notificationsQuery = useNotifications(1, 8);
+  const markReadMutation = useMarkNotificationReadMutation();
+  const markAllMutation = useMarkAllNotificationsReadMutation();
+  const [showNotifBubble, setShowNotifBubble] = useState(false);
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<Set<string>>(new Set());
 
   // Track whether the filter sheet is open so the back gesture dismisses it
   // instead of doing default OS back handling (which exits the app on a root tab).
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   // State for the delete-boletin confirmation modal.
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
+  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
+  const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
+
+  // Hide the tab bar when the notification detail popup is open
+  useEffect(() => {
+    navigation.setOptions({ tabBarStyle: selectedNotif ? { display: 'none' } : undefined });
+  }, [selectedNotif, navigation]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -500,23 +647,32 @@ export default function HomeScreen() {
                 <Text style={[styles.tagline, { color: colors.textMuted }]}>O teu tracker de apostas</Text>
               </View>
               <View style={styles.topActions}>
-                {unreadCount > 0 ? (
-                  <View style={[styles.notifBadge, { backgroundColor: colors.danger }]}>
-                    <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                  </View>
-                ) : null}
-                <Pressable
+                <PressableScale
+                  scaleDown={0.88}
+                  onPress={() => { hapticLight(); setShowNotifBubble((v) => !v); }}
+                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
+                >
+                  <Ionicons color={colors.textSecondary} name="notifications-outline" size={20} />
+                  {unreadCount > 0 ? (
+                    <View style={[styles.notifBadge, { backgroundColor: colors.danger }]}>
+                      <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                    </View>
+                  ) : null}
+                </PressableScale>
+                <PressableScale
+                  scaleDown={0.88}
                   onPress={() => router.push('/boletins/journal')}
                   style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
                 >
                   <Ionicons color={colors.textSecondary} name="journal-outline" size={20} />
-                </Pressable>
-                <Pressable
+                </PressableScale>
+                <PressableScale
+                  scaleDown={0.88}
                   onPress={() => router.push('/boletins/create')}
                   style={[styles.iconButton, { backgroundColor: colors.primary }]}
                 >
                   <Ionicons color="#FFFFFF" name="add" size={20} />
-                </Pressable>
+                </PressableScale>
               </View>
             </Animated.View>
 
@@ -738,6 +894,95 @@ export default function HomeScreen() {
         initialNumToRender={8}
       />
 
+      {/* Notification bubble overlay */}
+      {showNotifBubble ? (
+        <>
+          <Pressable
+            onPress={() => setShowNotifBubble(false)}
+            style={StyleSheet.absoluteFill}
+          />
+          <Animated.View
+            entering={FadeIn.duration(200).springify().damping(18).stiffness(260)}
+            exiting={FadeOut.duration(120)}
+            style={[
+              styles.notifBubble,
+              {
+                top: insets.top + 60,
+                right: tokens.spacing.lg,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.notifBubbleHeader}>
+              <Text style={[styles.notifBubbleTitle, { color: colors.textPrimary }]}>Notificações</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {(notificationsQuery.data?.items ?? []).some((n: Notification) => !n.isRead) && (
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => setShowMarkAllConfirm(true)}
+                    disabled={markAllMutation.isPending}
+                  >
+                    <Text style={[styles.notifBubbleMarkAll, { color: colors.textSecondary }]}>Marcar todas</Text>
+                  </Pressable>
+                )}
+                <Pressable hitSlop={8} onPress={() => { setShowNotifBubble(false); router.push('/notifications'); }}>
+                  <Text style={[styles.notifBubbleSeeAll, { color: colors.primary }]}>Ver todas</Text>
+                </Pressable>
+              </View>
+            </View>
+            {notificationsQuery.isLoading ? (
+              <View style={styles.notifBubbleLoading}>
+                <ActivityIndicator color={colors.primary} size="small" />
+              </View>
+            ) : (() => {
+              const visibleItems = (notificationsQuery.data?.items ?? []).filter((n: Notification) => !dismissedNotifIds.has(n.id));
+              if (visibleItems.length === 0) {
+                return (
+                  <View style={styles.notifBubbleEmpty}>
+                    <MaterialCommunityIcons color={colors.textMuted} name="bell-off-outline" size={28} />
+                    <Text style={[styles.notifBubbleEmptyText, { color: colors.textMuted }]}>Sem notificações</Text>
+                  </View>
+                );
+              }
+              return visibleItems.map((notif: Notification) => {
+                const data = notif.data as Record<string, string> | null;
+                return (
+                  <SwipeableNotifRow
+                    key={notif.id}
+                    notif={notif}
+                    colors={colors as Record<string, string>}
+                    onDismiss={() => {
+                      if (!notif.isRead) markReadMutation.mutate(notif.id);
+                      setDismissedNotifIds((prev) => new Set([...prev, notif.id]));
+                    }}
+                    onPress={() => {
+                      if (!notif.isRead) markReadMutation.mutate(notif.id);
+                      setSelectedNotif(notif);
+                      setShowNotifBubble(false);
+                    }}
+                    onNavigate={
+                      (notif.type === 'FRIEND_REQUEST' || notif.type === 'FRIEND_ACCEPTED' ||
+                       ((notif.type === 'BOLETIN_SHARED' || notif.type === 'BOLETIN_RESULT') && data?.boletinId))
+                        ? () => {
+                            if (!notif.isRead) markReadMutation.mutate(notif.id);
+                            setShowNotifBubble(false);
+                            if (notif.type === 'FRIEND_REQUEST' || notif.type === 'FRIEND_ACCEPTED') {
+                              router.push('/(tabs)/friends');
+                            } else if ((notif.type === 'BOLETIN_SHARED' || notif.type === 'BOLETIN_RESULT') && data?.boletinId) {
+                              router.push(`/boletins/${data.boletinId}`);
+                            }
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              });
+            })()}
+          </Animated.View>
+        </>
+      ) : null}
+
       {/* Sort & Filter bottom sheet */}
       <BoletinFilterSheet
         sheetRef={filterSheetRef}
@@ -755,6 +1000,66 @@ export default function HomeScreen() {
         }}
         onIndexChange={(idx) => setIsFilterSheetOpen(idx >= 0)}
       />
+
+      {/* Notification detail popup */}
+      {selectedNotif && (() => {
+        const n = selectedNotif;
+        const nIconConfig = NOTIF_ICONS[n.type] ?? NOTIF_ICONS.SYSTEM;
+        const nIconColor = colors[nIconConfig.color as keyof typeof colors] ?? colors.info;
+        const nData = n.data as Record<string, string> | null;
+        const hasNavTarget =
+          n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPTED' ||
+          ((n.type === 'BOLETIN_SHARED' || n.type === 'BOLETIN_RESULT') && nData?.boletinId);
+
+        return (
+          <>
+            <Pressable onPress={() => setSelectedNotif(null)} style={StyleSheet.absoluteFill} />
+            <Animated.View
+              entering={SlideInDown.springify().damping(22).stiffness(280)}
+              exiting={FadeOut.duration(120)}
+              style={[
+                styles.notifDetailPopup,
+                {
+                  bottom: 0,
+                  paddingBottom: 28,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <View style={styles.notifDetailHeader}>
+                <View style={[styles.notifDetailIcon, { backgroundColor: `${nIconColor}18` }]}>
+                  <MaterialCommunityIcons color={nIconColor} name={nIconConfig.name as keyof typeof MaterialCommunityIcons.glyphMap} size={22} />
+                </View>
+                <Pressable hitSlop={8} onPress={() => setSelectedNotif(null)}>
+                  <MaterialCommunityIcons name="close" size={20} color={colors.textMuted} />
+                </Pressable>
+              </View>
+              <Text style={[styles.notifDetailTitle, { color: colors.textPrimary }]}>{n.title}</Text>
+              <Text style={[styles.notifDetailBody, { color: colors.textSecondary }]}>{n.body}</Text>
+              <Text style={[styles.notifDetailTime, { color: colors.textMuted }]}>{formatRelativeTime(n.createdAt)}</Text>
+              {hasNavTarget && (
+                <Pressable
+                  onPress={() => {
+                    setSelectedNotif(null);
+                    if (n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPTED') {
+                      router.push('/(tabs)/friends');
+                    } else if ((n.type === 'BOLETIN_SHARED' || n.type === 'BOLETIN_RESULT') && nData?.boletinId) {
+                      router.push(`/boletins/${nData.boletinId}`);
+                    }
+                  }}
+                  style={[styles.notifDetailButton, { backgroundColor: colors.primary }]}
+                >
+                  <Text style={styles.notifDetailButtonText}>
+                    {n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPTED' ? 'Ver amigos' : 'Ver boletin'}
+                  </Text>
+                  <MaterialCommunityIcons name="arrow-right" size={16} color="#fff" />
+                </Pressable>
+              )}
+            </Animated.View>
+          </>
+        );
+      })()}
 
       <ConfirmModal
         visible={deleteTarget !== null}
@@ -774,6 +1079,19 @@ export default function HomeScreen() {
           }
         }}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmModal
+        visible={showMarkAllConfirm}
+        title="Marcar todas como lidas"
+        message="Tens a certeza que queres marcar todas as notificações como lidas?"
+        confirmLabel="Marcar todas"
+        confirmVariant="primary"
+        onConfirm={() => {
+          setShowMarkAllConfirm(false);
+          markAllMutation.mutate();
+        }}
+        onCancel={() => setShowMarkAllConfirm(false)}
       />
     </View>
   );
@@ -813,8 +1131,99 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minWidth: 20,
     paddingHorizontal: 4,
+    position: 'absolute',
+    top: -4,
+    right: -4,
   },
   notifBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  notifBubble: {
+    position: 'absolute',
+    width: 320,
+    maxHeight: 420,
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+    elevation: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    zIndex: 100,
+  },
+  notifBubbleHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+  notifBubbleTitle: { fontSize: 16, fontWeight: '800' },
+  notifBubbleSeeAll: { fontSize: 13, fontWeight: '700' },
+  notifBubbleLoading: { alignItems: 'center', paddingVertical: 32 },
+  notifBubbleEmpty: { alignItems: 'center', gap: 8, paddingVertical: 28 },
+  notifBubbleEmptyText: { fontSize: 13, fontWeight: '600' },
+  notifBubbleRow: {
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  notifBubbleIcon: {
+    alignItems: 'center',
+    borderRadius: 10,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  notifBubbleContent: { flex: 1, gap: 2 },
+  notifBubbleRowTitle: { fontSize: 13, fontWeight: '700' },
+  notifBubbleRowBody: { fontSize: 11, lineHeight: 15 },
+  notifBubbleTime: { fontSize: 10, fontWeight: '600' },
+  notifBubbleDot: { borderRadius: 4, height: 8, width: 8 },
+  notifBubbleMarkAll: { fontSize: 12, fontWeight: '600' },
+  notifDetailPopup: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 0,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    zIndex: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  notifDetailHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  notifDetailIcon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  notifDetailTitle: { fontSize: 17, fontWeight: '800', marginBottom: 6 },
+  notifDetailBody: { fontSize: 14, lineHeight: 20, marginBottom: 8 },
+  notifDetailTime: { fontSize: 12, fontWeight: '600', marginBottom: 14 },
+  notifDetailButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  notifDetailButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   summaryCard: { flexDirection: 'row', gap: 12, alignItems: 'center', borderWidth: 1 },
   summaryMetric: { flex: 1, gap: 6 },
   summaryChevron: { justifyContent: 'center', paddingLeft: 4 },

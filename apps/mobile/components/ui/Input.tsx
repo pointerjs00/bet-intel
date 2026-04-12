@@ -33,6 +33,7 @@ export function Input({
   icon,
   rightSlot,
   secureTextEntry,
+  multiline,
   maxLength,
   showCharCount = false,
   value,
@@ -58,7 +59,7 @@ export function Input({
 
   const labelAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: interpolate(labelProgress.value, [0, 1], [0, -26]) },
+      { translateY: interpolate(labelProgress.value, [0, 1], [0, -10]) },
       { scale: interpolate(labelProgress.value, [0, 1], [1, 0.8]) },
     ],
   }));
@@ -91,14 +92,23 @@ export function Input({
           {
             backgroundColor: colors.surface,
             borderColor,
+            alignItems: multiline ? 'flex-start' : 'center',
+            paddingVertical: multiline ? 14 : 0,
           },
         ]}
       >
-        {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
+        {icon ? (
+          <View style={[styles.iconWrap, multiline && styles.iconWrapMultiline]}>
+            {icon}
+          </View>
+        ) : null}
 
         <View style={styles.inputArea}>
           {label ? (
-            <View pointerEvents="none" style={styles.labelContainer}>
+            <View
+              pointerEvents="none"
+              style={multiline ? styles.labelContainerMultiline : styles.labelContainer}
+            >
               <Animated.Text
                 style={[
                   styles.floatingLabel,
@@ -106,7 +116,7 @@ export function Input({
                     color: isFocused ? colors.primary : colors.textMuted,
                     fontSize: tokens.font.sizes.md,
                   },
-                  labelAnimatedStyle,
+                  multiline ? undefined : labelAnimatedStyle,
                 ]}
               >
                 {label}
@@ -116,6 +126,7 @@ export function Input({
           <TextInput
             placeholderTextColor={colors.textMuted}
             secureTextEntry={isSecure}
+            multiline={multiline}
             value={value}
             maxLength={maxLength}
             onFocus={handleFocus}
@@ -125,7 +136,7 @@ export function Input({
               {
                 color: colors.textPrimary,
                 fontSize: tokens.font.sizes.md,
-                paddingTop: label ? 22 : 16,
+                paddingTop: multiline ? (label ? 20 : 0) : (label ? 24 : 14),
               },
               style,
             ]}
@@ -203,6 +214,13 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     justifyContent: 'center',
+  },
+  labelContainerMultiline: {
+    left: 2,
+    marginBottom: 4,
+  },
+  iconWrapMultiline: {
+    marginTop: 2,
   },
   floatingLabel: {
     fontWeight: '500',

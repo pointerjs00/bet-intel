@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -93,7 +94,7 @@ export default function LoginScreen() {
     >
       <ScrollView
         contentContainerStyle={{
-          paddingTop: insets.top + tokens.spacing.xxl,
+          paddingTop: insets.top + 24,
           paddingBottom: insets.bottom + tokens.spacing.xl,
           paddingHorizontal: tokens.spacing.xl,
         }}
@@ -101,11 +102,17 @@ export default function LoginScreen() {
         style={styles.flex}
       >
         <Animated.View entering={FadeInUp.duration(180).springify()} style={styles.header}>
-          <View style={[styles.logoMark, { backgroundColor: colors.primary + '15' }]}>
-            <Ionicons color={colors.primary} name="flash" size={28} />
-          </View>
+          <Image
+            source={require('../../assets/logo-no-bg.png')}
+            style={styles.logoMark}
+            resizeMode="contain"
+          />
           <Text style={[styles.logo, { color: colors.textPrimary }]}>BetIntel</Text>
-          <Text style={[styles.tagline, { color: colors.textSecondary }]}>Acompanha odds. Cria boletins. Decide melhor.</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(20).duration(180).springify()} style={styles.welcomeWrap}>
+          <Text style={[styles.welcomeTitle, { color: colors.textPrimary }]}>Bem-vindo de volta</Text>
+          <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>Inicia sessão para continuar</Text>
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(35).duration(180).springify()}>
@@ -167,6 +174,7 @@ export default function LoginScreen() {
             loading={isGoogleLoading}
             onPress={handleGooglePress}
             style={styles.googleButton}
+            textColor="#1F1F1F"
             title="Continuar com Google"
             variant="secondary"
           />
@@ -207,26 +215,31 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 32,
+    gap: 6,
+    marginBottom: 16,
   },
   logoMark: {
-    alignItems: 'center',
-    borderRadius: 20,
-    height: 56,
-    justifyContent: 'center',
-    marginBottom: 4,
-    width: 56,
+    height: 120,
+    marginBottom: 0,
+    width: 120,
   },
   logo: {
-    fontSize: 36,
+    fontSize: 26,
     fontWeight: '900',
-    letterSpacing: -1,
+    letterSpacing: -0.6,
   },
-  tagline: {
+  welcomeWrap: {
+    gap: 6,
+    marginBottom: 24,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  welcomeSubtitle: {
     fontSize: 15,
     lineHeight: 22,
-    textAlign: 'center',
   },
   formCard: {
     gap: 0,

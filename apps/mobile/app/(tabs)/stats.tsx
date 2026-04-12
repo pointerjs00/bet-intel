@@ -151,7 +151,7 @@ export default function StatsScreen() {
               <Ionicons color={colors.textSecondary} name="download-outline" size={20} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Encontra onde tens vantagem no teu histórico</Text>
+          {/* <Text style={[styles.title, { color: colors.textPrimary }]}>Encontra onde tens vantagem no teu histórico</Text> */}
         </Animated.View>
 
         {/* Period grid (2×2) + secondary controls row */}

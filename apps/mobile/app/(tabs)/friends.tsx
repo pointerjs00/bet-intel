@@ -78,7 +78,7 @@ export default function FriendsScreen() {
       >
         <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerWrap}>
           <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Social</Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Segue atividade pública, gere amizades e responde a pedidos.</Text>
+          {/* <Text style={[styles.title, { color: colors.textPrimary }]}>Segue atividade pública, gere amizades e responde a pedidos</Text> */}
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>

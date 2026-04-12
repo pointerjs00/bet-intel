@@ -1,0 +1,816 @@
+{
+  "espn": [
+    {
+      "name": "Arizona Diamondbacks",
+      "line": "  'Arizona Diamondbacks': 'https://a.espncdn.com/i/teamlogos/mlb/500/ari.png',// ESPN MLB"
+    },
+    {
+      "name": "Atlanta Braves",
+      "line": "  'Atlanta Braves': 'https://a.espncdn.com/i/teamlogos/mlb/500/atl.png',// ESPN MLB"
+    },
+    {
+      "name": "Baltimore Orioles",
+      "line": "  'Baltimore Orioles': 'https://a.espncdn.com/i/teamlogos/mlb/500/bal.png',// ESPN MLB"
+    },
+    {
+      "name": "Baltimore Ravens",
+      "line": "  'Baltimore Ravens': 'https://a.espncdn.com/i/teamlogos/nfl/500/bal.png',// ESPN NFL"
+    },
+    {
+      "name": "Boston Bruins",
+      "line": "  'Boston Bruins': 'https://a.espncdn.com/i/teamlogos/nhl/500/bos.png',// ESPN NHL"
+    },
+    {
+      "name": "Buffalo Bills",
+      "line": "  'Buffalo Bills': 'https://a.espncdn.com/i/teamlogos/nfl/500/buf.png',// ESPN NFL"
+    },
+    {
+      "name": "Carolina Hurricanes",
+      "line": "  'Carolina Hurricanes': 'https://a.espncdn.com/i/teamlogos/nhl/500/car.png',// ESPN NHL"
+    },
+    {
+      "name": "Cincinnati Bengals",
+      "line": "  'Cincinnati Bengals': 'https://a.espncdn.com/i/teamlogos/nfl/500/cin.png',// ESPN NFL"
+    },
+    {
+      "name": "Cleveland Browns",
+      "line": "  'Cleveland Browns': 'https://a.espncdn.com/i/teamlogos/nfl/500/cle.png',// ESPN NFL"
+    },
+    {
+      "name": "Colorado Avalanche",
+      "line": "  'Colorado Avalanche': 'https://a.espncdn.com/i/teamlogos/nhl/500/col.png',// ESPN NHL"
+    },
+    {
+      "name": "Dallas Cowboys",
+      "line": "  'Dallas Cowboys': 'https://a.espncdn.com/i/teamlogos/nfl/500/dal.png',// ESPN NFL"
+    },
+    {
+      "name": "Dallas Stars",
+      "line": "  'Dallas Stars': 'https://a.espncdn.com/i/teamlogos/nhl/500/dal.png',// ESPN NHL"
+    },
+    {
+      "name": "Detroit Lions",
+      "line": "  'Detroit Lions': 'https://a.espncdn.com/i/teamlogos/nfl/500/det.png',// ESPN NFL"
+    },
+    {
+      "name": "Edmonton Oilers",
+      "line": "  'Edmonton Oilers': 'https://a.espncdn.com/i/teamlogos/nhl/500/edm.png',// ESPN NHL"
+    },
+    {
+      "name": "Florida Panthers",
+      "line": "  'Florida Panthers': 'https://a.espncdn.com/i/teamlogos/nhl/500/fla.png',// ESPN NHL"
+    },
+    {
+      "name": "Green Bay Packers",
+      "line": "  'Green Bay Packers': 'https://a.espncdn.com/i/teamlogos/nfl/500/gb.png',// ESPN NFL"
+    },
+    {
+      "name": "Houston Astros",
+      "line": "  'Houston Astros': 'https://a.espncdn.com/i/teamlogos/mlb/500/hou.png',// ESPN MLB"
+    },
+    {
+      "name": "Houston Texans",
+      "line": "  'Houston Texans': 'https://a.espncdn.com/i/teamlogos/nfl/500/hou.png',// ESPN NFL"
+    },
+    {
+      "name": "Jacksonville Jaguars",
+      "line": "  'Jacksonville Jaguars': 'https://a.espncdn.com/i/teamlogos/nfl/500/jax.png',// ESPN NFL"
+    },
+    {
+      "name": "Kansas City Chiefs",
+      "line": "  'Kansas City Chiefs': 'https://a.espncdn.com/i/teamlogos/nfl/500/kc.png',// ESPN NFL"
+    },
+    {
+      "name": "Los Angeles Dodgers",
+      "line": "  'Los Angeles Dodgers': 'https://a.espncdn.com/i/teamlogos/mlb/500/lad.png',// ESPN MLB"
+    },
+    {
+      "name": "Los Angeles Rams",
+      "line": "  'Los Angeles Rams': 'https://a.espncdn.com/i/teamlogos/nfl/500/lar.png',// ESPN NFL"
+    },
+    {
+      "name": "Miami Dolphins",
+      "line": "  'Miami Dolphins': 'https://a.espncdn.com/i/teamlogos/nfl/500/mia.png',// ESPN NFL"
+    },
+    {
+      "name": "Milwaukee Brewers",
+      "line": "  'Milwaukee Brewers': 'https://a.espncdn.com/i/teamlogos/mlb/500/mil.png',// ESPN MLB"
+    },
+    {
+      "name": "Minnesota Twins",
+      "line": "  'Minnesota Twins': 'https://a.espncdn.com/i/teamlogos/mlb/500/min.png',// ESPN MLB"
+    },
+    {
+      "name": "New York Yankees",
+      "line": "  'New York Yankees': 'https://a.espncdn.com/i/teamlogos/mlb/500/nyy.png',// ESPN MLB"
+    },
+    {
+      "name": "Philadelphia Eagles",
+      "line": "  'Philadelphia Eagles': 'https://a.espncdn.com/i/teamlogos/nfl/500/phi.png',// ESPN NFL"
+    },
+    {
+      "name": "Philadelphia Phillies",
+      "line": "  'Philadelphia Phillies': 'https://a.espncdn.com/i/teamlogos/mlb/500/phi.png',// ESPN MLB"
+    },
+    {
+      "name": "Pittsburgh Steelers",
+      "line": "  'Pittsburgh Steelers': 'https://a.espncdn.com/i/teamlogos/nfl/500/pit.png',// ESPN NFL"
+    },
+    {
+      "name": "San Francisco 49ers",
+      "line": "  'San Francisco 49ers': 'https://a.espncdn.com/i/teamlogos/nfl/500/sf.png',// ESPN NFL"
+    },
+    {
+      "name": "Tampa Bay Buccaneers",
+      "line": "  'Tampa Bay Buccaneers': 'https://a.espncdn.com/i/teamlogos/nfl/500/tb.png',// ESPN NFL"
+    },
+    {
+      "name": "Tampa Bay Lightning",
+      "line": "  'Tampa Bay Lightning': 'https://a.espncdn.com/i/teamlogos/nhl/500/tb.png',// ESPN NHL"
+    },
+    {
+      "name": "Tampa Bay Rays",
+      "line": "  'Tampa Bay Rays': 'https://a.espncdn.com/i/teamlogos/mlb/500/tb.png',// ESPN MLB"
+    },
+    {
+      "name": "Toronto Blue Jays",
+      "line": "  'Toronto Blue Jays': 'https://a.espncdn.com/i/teamlogos/mlb/500/tor.png',// ESPN MLB"
+    },
+    {
+      "name": "Toronto Maple Leafs",
+      "line": "  'Toronto Maple Leafs': 'https://a.espncdn.com/i/teamlogos/nhl/500/tor.png',// ESPN NHL"
+    },
+    {
+      "name": "Vancouver Canucks",
+      "line": "  'Vancouver Canucks': 'https://a.espncdn.com/i/teamlogos/nhl/500/van.png',// ESPN NHL"
+    },
+    {
+      "name": "Vegas Golden Knights",
+      "line": "  'Vegas Golden Knights': 'https://a.espncdn.com/i/teamlogos/nhl/500/vgk.png',// ESPN NHL"
+    },
+    {
+      "name": "Winnipeg Jets",
+      "line": "  'Winnipeg Jets': 'https://a.espncdn.com/i/teamlogos/nhl/500/wpg.png',// ESPN NHL"
+    }
+  ],
+  "football": [
+    {
+      "name": "AmaZulu FC",
+      "line": "  'AmaZulu FC': TEAM_CDN(2669), // API: Amazulu"
+    },
+    {
+      "name": "Åsane FK",
+      "line": "  'Åsane FK': TEAM_CDN(2148), // API: Asane"
+    },
+    {
+      "name": "Bryne FK",
+      "line": "  'Bryne FK': TEAM_CDN(2142), // API: Bryne"
+    },
+    {
+      "name": "Cape Town City",
+      "line": "  'Cape Town City': TEAM_CDN(2697),"
+    },
+    {
+      "name": "Chippa United",
+      "line": "  'Chippa United': TEAM_CDN(2698),"
+    },
+    {
+      "name": "FK Krasnodar",
+      "line": "  'FK Krasnodar': TEAM_CDN(621), // API: FC Krasnodar"
+    },
+    {
+      "name": "FK Rostov",
+      "line": "  'FK Rostov': TEAM_CDN(779), // API: FC Rostov"
+    },
+    {
+      "name": "Golden Arrows",
+      "line": "  'Golden Arrows': TEAM_CDN(2690),"
+    },
+    {
+      "name": "Kaizer Chiefs",
+      "line": "  'Kaizer Chiefs': TEAM_CDN(2691),"
+    },
+    {
+      "name": "Magesi FC",
+      "line": "  'Magesi FC': TEAM_CDN(19999), // API: Magesi"
+    },
+    {
+      "name": "Mamelodi Sundowns",
+      "line": "  'Mamelodi Sundowns': TEAM_CDN(2699),"
+    },
+    {
+      "name": "Oliveirense",
+      "line": "  'Oliveirense': TEAM_CDN(4221),// UD Oliveirense football badge"
+    },
+    {
+      "name": "Orenburg",
+      "line": "  'Orenburg': TEAM_CDN(1080), // API: FC Orenburg"
+    },
+    {
+      "name": "Orlando Pirates",
+      "line": "  'Orlando Pirates': TEAM_CDN(2700),"
+    },
+    {
+      "name": "Polokwane City",
+      "line": "  'Polokwane City': TEAM_CDN(2693),"
+    },
+    {
+      "name": "Richards Bay FC",
+      "line": "  'Richards Bay FC': TEAM_CDN(10567), // API: Richards Bay"
+    },
+    {
+      "name": "Sandnes Ulf",
+      "line": "  'Sandnes Ulf': TEAM_CDN(2146),"
+    },
+    {
+      "name": "Sekhukhune United",
+      "line": "  'Sekhukhune United': TEAM_CDN(15537),"
+    },
+    {
+      "name": "Sogndal",
+      "line": "  'Sogndal': TEAM_CDN(758),"
+    },
+    {
+      "name": "Spartak Moscow",
+      "line": "  'Spartak Moscow': TEAM_CDN(558),"
+    },
+    {
+      "name": "Stellenbosch FC",
+      "line": "  'Stellenbosch FC': TEAM_CDN(4905), // API: Stellenbosch"
+    },
+    {
+      "name": "SuperSport United",
+      "line": "  'SuperSport United': TEAM_CDN(2694),"
+    },
+    {
+      "name": "TS Galaxy",
+      "line": "  'TS Galaxy': TEAM_CDN(8074),"
+    },
+    {
+      "name": "Zenit",
+      "line": "  'Zenit': TEAM_CDN(596),"
+    },
+    {
+      "name": "Zulte Waregem",
+      "line": "  'Zulte Waregem': TEAM_CDN(600),"
+    }
+  ],
+  "basketball": [
+    {
+      "name": "ALBA Berlin",
+      "line": "  'ALBA Berlin': 'https://api.sofascore.com/api/v1/team/3458/image',// Sofascore basketball"
+    },
+    {
+      "name": "Anadolu Efes",
+      "line": "  'Anadolu Efes': 'https://api.sofascore.com/api/v1/team/3433/image',// Sofascore basketball"
+    },
+    {
+      "name": "Baskonia",
+      "line": "  'Baskonia': 'https://api.sofascore.com/api/v1/team/3438/image',// Sofascore basketball"
+    },
+    {
+      "name": "Bayern München Basketball",
+      "line": "  'Bayern München Basketball': 'https://api.sofascore.com/api/v1/team/3459/image',// Sofascore basketball"
+    },
+    {
+      "name": "Crvena Zvezda",
+      "line": "  'Crvena Zvezda': 'https://api.sofascore.com/api/v1/team/3448/image',// Sofascore basketball"
+    },
+    {
+      "name": "CSKA Moscow",
+      "line": "  'CSKA Moscow': 'https://api.sofascore.com/api/v1/team/3440/image',// Sofascore basketball"
+    },
+    {
+      "name": "Gran Canaria",
+      "line": "  'Gran Canaria': 'https://api.sofascore.com/api/v1/team/3455/image',// Sofascore basketball"
+    },
+    {
+      "name": "Joventut Badalona",
+      "line": "  'Joventut Badalona': 'https://api.sofascore.com/api/v1/team/3453/image',// Sofascore basketball"
+    },
+    {
+      "name": "Maccabi Tel Aviv",
+      "line": "  'Maccabi Tel Aviv': 'https://api.sofascore.com/api/v1/team/3439/image',// Sofascore basketball"
+    },
+    {
+      "name": "Monaco Basket",
+      "line": "  'Monaco Basket': 'https://api.sofascore.com/api/v1/team/117832/image',// Sofascore basketball"
+    },
+    {
+      "name": "MoraBanc Andorra",
+      "line": "  'MoraBanc Andorra': 'https://api.sofascore.com/api/v1/team/36388/image',// Sofascore basketball"
+    },
+    {
+      "name": "Murcia",
+      "line": "  'Murcia': 'https://api.sofascore.com/api/v1/team/3457/image',// Sofascore basketball"
+    },
+    {
+      "name": "Panathinaikos BC",
+      "line": "  'Panathinaikos BC': 'https://api.sofascore.com/api/v1/team/3442/image',// Sofascore basketball"
+    },
+    {
+      "name": "Partizan Belgrade",
+      "line": "  'Partizan Belgrade': 'https://api.sofascore.com/api/v1/team/3441/image',// Sofascore basketball"
+    },
+    {
+      "name": "Unicaja",
+      "line": "  'Unicaja': 'https://api.sofascore.com/api/v1/team/3451/image',// Sofascore basketball"
+    },
+    {
+      "name": "Valencia Basket",
+      "line": "  'Valencia Basket': 'https://api.sofascore.com/api/v1/team/3449/image',// Sofascore basketball"
+    },
+    {
+      "name": "Virtus Bologna",
+      "line": "  'Virtus Bologna': 'https://api.sofascore.com/api/v1/team/3436/image',// Sofascore basketball"
+    },
+    {
+      "name": "Žalgiris Kaunas",
+      "line": "  'Žalgiris Kaunas': 'https://api.sofascore.com/api/v1/team/3443/image',// Sofascore basketball"
+    }
+  ],
+  "other": [],
+  "notFound": [
+    ",\r\n      ",
+    ", ",
+    "ABC Braga",
+    "ABC FC",
+    "AC Horsens",
+    "AC-Bellinzona",
+    "ADO Den Haag",
+    "AFC Eskilstuna",
+    "AFC Tubize Braine",
+    "AOK Kerkyra",
+    "Abia Warriors",
+    "Académico de Viseu",
+    "Adanaspor",
+    "Agropecuario CF",
+    "Aimoré",
+    "Airdrieonians",
+    "Akhmat Grozny",
+    "Akwa United",
+    "Al Orouba",
+    "Al-Dhafra",
+    "Al-Orubah",
+    "All Boys",
+    "Almagro",
+    "Almere City FC",
+    "Almirante Brown",
+    "Altay",
+    "Altınordu",
+    "Anagennisi Karditsa",
+    "Ankara Demirspor",
+    "Ansan Greeners",
+    "Aparecidense",
+    "Arka Gdynia",
+    "Athletic Club B",
+    "Athletic Club MG",
+    "Atlanta",
+    "Atlanta United 2",
+    "Atlético Goianiense",
+    "Atlético Ottawa",
+    "Atlético Rafaela",
+    "Atlético de Madrid B",
+    "Atlético-CE",
+    "Austria Lustenau",
+    "Ayacucho FC",
+    "Azul Claro Numazu",
+    "B93",
+    "BK Fremad Amager",
+    "Baltika Kaliningrad",
+    "Bandırmaspor",
+    "Bangu AC",
+    "Barakaldo CF",
+    "Bayern Munich II",
+    "Bendel Insurance",
+    "Bergerac Périgord FC",
+    "Birmingham Legion FC",
+    "Blau-Weiß Linz",
+    "Blaublitz Akita",
+    "Boa Esporte Clube",
+    "Boluspor",
+    "Boreham Wood",
+    "Botafogo-PB",
+    "Brasil de Pelotas",
+    "Brown de Adrogué",
+    "Brøndby IF",
+    "Bucheon FC 1995",
+    "Busan IPark",
+    "CAB Madeira",
+    "CD Badajoz",
+    "CD Castellón",
+    "CD Feirense",
+    "CD Lugo",
+    "CD Numancia",
+    "CD Toledo",
+    "CF Montréal II",
+    "CF Riba d\\",
+    "Caldense",
+    "Cape Town Spurs",
+    "Cavalry FC",
+    "Caxias do Sul",
+    "Celta B",
+    "Cerrito",
+    "Chabab Mohammedia",
+    "Chabab Rif Al-Hoceima",
+    "Chaco For Ever",
+    "Chambly Oise",
+    "Chamois Niortais",
+    "Chania FC",
+    "Charleston Battery",
+    "Cherkaskyi Dnipro",
+    "Chicago Fire II",
+    "Chungbuk Cheongju FC",
+    "Chungnam Asan FC",
+    "Châteauroux",
+    "Cobaltore Onagawa",
+    "Colorado Springs Switchbacks FC",
+    "Columbus Crew 2",
+    "Confiança",
+    "Cova da Piedade",
+    "Crawley Town",
+    "Crewe Alexandra",
+    "Cultural Leonesa",
+    "D.C. United 2",
+    "DHJ Jadida",
+    "De Graafschap",
+    "Debreceni VSC",
+    "Defensores de Belgrano",
+    "Degerfors IF",
+    "Democrata-GV",
+    "Dender EH",
+    "Deportivo Morón",
+    "Deportivo Municipal",
+    "Deportivo de La Coruña",
+    "Detroit City FC",
+    "Dibba Al-Fujairah",
+    "Diósgyőri VTK",
+    "Doma United",
+    "Dynamo Dresden",
+    "Dynamo Moscow",
+    "EC Novo Hamburgo",
+    "EC Pelotas",
+    "Ehime FC",
+    "El Paso Locomotive FC",
+    "El Tanque Sisley",
+    "Enyimba FC",
+    "Erzurumspor FK",
+    "Esbjerg fB",
+    "Esportivo de Bento Gonçalves",
+    "Estudiantes de Buenos Aires",
+    "FAC Wien",
+    "FAR Rabat",
+    "FC Aarau",
+    "FC Admira Wacker Mödling",
+    "FC Alverca",
+    "FC Anyang",
+    "FC Arminia Bielefeld",
+    "FC Barcelona B",
+    "FC Cincinnati 2",
+    "FC Den Bosch",
+    "FC Dordrecht",
+    "FC Dornbirn",
+    "FC Edmonton",
+    "FC Eindhoven",
+    "FC Energie Cottbus",
+    "FC Erzgebirge Aue",
+    "FC Gifu",
+    "FC Helsingør",
+    "FC Ifeanyi Ubah",
+    "FC Imabari",
+    "FC Ingolstadt 04",
+    "FC Lausanne-Sport",
+    "FC Liefering",
+    "FC Machida Zelvia",
+    "FC Nitra",
+    "FC Nordsjælland",
+    "FC Osaka",
+    "FC Roskilde",
+    "FC Rouen",
+    "FC Ryukyu",
+    "FC Sion",
+    "FC Stade Lausanne-Ouchy",
+    "FC Thun",
+    "FC Tiamo Hirakata",
+    "FC Tulsa",
+    "FC Vaduz",
+    "FC Wil 1900",
+    "FC Zbrojovka Brno",
+    "FK Borac Čačak",
+    "FK Jablonec nad Nisou",
+    "FK Kolubara",
+    "FK Mjøndalen",
+    "FK Mladi Radnik",
+    "FK Pirmasens",
+    "FK Pohroní",
+    "FK Radnik Bijeljina",
+    "FK Vojvodina Novi Sad",
+    "FUS Rabat",
+    "Fagiano Okayama",
+    "Fakel Voronezh",
+    "Ferencváros TC",
+    "Ferro Carril Oeste",
+    "Ferroviária",
+    "First Vienna FC",
+    "Floridsdorfer AC",
+    "Florø SK",
+    "Fokikos",
+    "Follo FK",
+    "Forge FC",
+    "Fredericia BK",
+    "Fujieda MYFC",
+    "GAIS",
+    "GD Bragança",
+    "GFA Rumilly",
+    "GIF Sundsvall",
+    "GKS Bełchatów",
+    "GKS Jastrzębie",
+    "GKS Tychy",
+    "Gainare Tottori",
+    "Gençlerbirliği",
+    "Getafe CF B",
+    "Gimpo FC",
+    "Giravanz Kitakyushu",
+    "Gloria Buzău",
+    "Gloucester City",
+    "Grulla Morioka",
+    "Guarani FB",
+    "Gyeongnam FC",
+    "Górnik Łęczna",
+    "Güemes",
+    "HB Køge",
+    "Hallescher FC",
+    "HamKam",
+    "Hartford Athletic",
+    "Hassania Agadir",
+    "Heartland FC",
+    "Helmond Sport",
+    "Helsingborgs IF",
+    "Honvéd",
+    "Hvidovre IF",
+    "Hwaseong FC",
+    "Hødd IL",
+    "IF Sylvia",
+    "IFK Värnamo",
+    "IK Brage",
+    "IK Sirius",
+    "IRT Tanger",
+    "Imortal",
+    "Indy Eleven",
+    "Inter Miami II",
+    "Intercity",
+    "Ionikos Nikaia",
+    "Ipatinga FC",
+    "Ittihad Kalba",
+    "Iwate Grulla Morioka",
+    "JEF United Chiba",
+    "Jagiellonia Białystok",
+    "Jammerbugt FC",
+    "Jong AZ",
+    "Jong Ajax",
+    "Jong FC Twente",
+    "Jong PSV",
+    "Jong Sparta Rotterdam",
+    "Jong Utrecht",
+    "Kagoshima United FC",
+    "Kalamata",
+    "Kallithea",
+    "Kano Pillars",
+    "Kataller Toyama",
+    "Kawkab Marrakech",
+    "Kecskemét TE",
+    "Keçiörengücü",
+    "Khorfakkan Club",
+    "Kisvárda Master Good",
+    "Kocaelispor",
+    "Kolding IF",
+    "Kongsvinger IL",
+    "Krylya Sovetov Samara",
+    "Kwara United",
+    "Kyoto Sanga",
+    "LA Galaxy II",
+    "LAFC 2",
+    "La Equidad",
+    "Landskrona BoIS",
+    "Le Mans FC",
+    "Levadiakos",
+    "Lierse Kempenzonen",
+    "Lillestrøm SK",
+    "Linares Deportivo",
+    "Lobi Stars",
+    "Lokomotiv Moscow",
+    "Lommel SK",
+    "Londrina",
+    "Louisville City FC",
+    "Lusitânia",
+    "MFK Dukla Banská Bystrica",
+    "MFK Skalica",
+    "MFK Tatran Liptovský Mikuláš",
+    "MK Dons",
+    "MOL Fehérvár FC",
+    "MVV Maastricht",
+    "Machida Zelvia",
+    "Madureira EC",
+    "Manisa FK",
+    "Mansfield Town",
+    "Matsumoto Yamaga FC",
+    "Memphis 901 FC",
+    "Miami FC",
+    "Miedź Legnica",
+    "Minnesota United 2",
+    "Mito HollyHock",
+    "Mitre",
+    "Moghreb Tétouan",
+    "Montedio Yamagata",
+    "Mouloudia Oujda",
+    "Nara Club",
+    "Nasarawa United",
+    "Nashville SC 2",
+    "Neuchâtel Xamax",
+    "New England Revolution II",
+    "New Mexico United",
+    "New York City FC II",
+    "New York Red Bulls II",
+    "Niger Tornadoes",
+    "Norrby IF",
+    "Notodden FK",
+    "Nova Iguaçu",
+    "Nykøbing FC",
+    "Náutico",
+    "Næstved BK",
+    "OC Khouribga",
+    "Oakland Roots SC",
+    "Odra Opole",
+    "Olympic Safi",
+    "Operário",
+    "Orange County SC",
+    "Orlando City B",
+    "Ovarense",
+    "PAE Veria",
+    "PFC Sochi",
+    "Pacific FC",
+    "Paks FC",
+    "Panachaiki",
+    "Panetolikos",
+    "Patrocinense",
+    "Philadelphia Union II",
+    "Phoenix Rising FC",
+    "Pittsburgh Riverhounds SC",
+    "Plateau United",
+    "Pontevedra CF",
+    "Portland Timbers 2",
+    "Pouso Alegre FC",
+    "Preußen Münster",
+    "Puskás Akadémia FC",
+    "Puszcza Niepołomice",
+    "RE Virton",
+    "RS Berkane",
+    "RWDM Brussels FC",
+    "Racing de Ferrol",
+    "Raja Casablanca",
+    "Ranheim IL",
+    "Raufoss IL",
+    "Rayo Majadahonda",
+    "Real Betis Deportivo",
+    "Real Madrid Castilla",
+    "Real Salt Lake Monarchs",
+    "Real Sociedad B",
+    "Remo",
+    "Remo Stars",
+    "Renofa Yamaguichi",
+    "Resende FC",
+    "Resovia Rzeszów",
+    "Rio Grande Valley FC",
+    "Rivers United",
+    "Roasso Kumamoto",
+    "Roda JC",
+    "Rodez AF",
+    "Rodos FC",
+    "Rot-Weiss Essen",
+    "Rubin Kazan",
+    "SC Braga B",
+    "SC Covilhã",
+    "SC Freiburg II",
+    "SC Kriens",
+    "SC Sagamihara",
+    "SC Verl",
+    "SD Amorebieta",
+    "SD Logroñés",
+    "SK Beveren",
+    "SKN St. Pölten",
+    "SKU Amstetten",
+    "SSV Ulm 1846",
+    "SV Horn",
+    "SV Lafnitz",
+    "SV Ried",
+    "SV Sandhausen",
+    "SV Wehen Wiesbaden",
+    "Sacramento Republic FC",
+    "Sakaryaspor",
+    "Sampaio Corrêa",
+    "Sampaio Corrêa-RJ",
+    "San Antonio FC",
+    "San Jose Earthquakes 2",
+    "San Martín de San Juan",
+    "San Martín de Tucumán",
+    "San Telmo",
+    "Sandecja Nowy Sącz",
+    "Santa Cruz",
+    "Seattle Sounders FC 2",
+    "Seoul E-Land FC",
+    "Sevilla FC B",
+    "Shooting Stars",
+    "Sirius FK",
+    "SpVgg Unterhaching",
+    "Sporting KC 2",
+    "Sporting Lagos",
+    "Sporting Lokeren-Temse",
+    "Stade Briochin",
+    "Stal Mielec",
+    "Stjørdals-Blink",
+    "Stockport County",
+    "Stomil Olsztyn",
+    "Strømsgodset IF",
+    "Sunshine Stars",
+    "Swallows FC",
+    "São José-RS",
+    "São Luiz",
+    "SønderjyskE",
+    "TOP Oss",
+    "TSV 1860 München",
+    "Talavera de la Reina",
+    "Tampa Bay Rowdies",
+    "Tegevajaro Miyazaki",
+    "Telstar",
+    "Temperley",
+    "Thespakusatsu Gunma",
+    "Thisted FC",
+    "Thrasivoulos FC",
+    "Tochigi SC",
+    "Tokushima Vortis",
+    "Tombense",
+    "Toronto FC II",
+    "Torpedo Moscow",
+    "Torque",
+    "Trelleborgs FF",
+    "Tromsdalen UIL",
+    "Tuzlaspor",
+    "UD Leiria",
+    "US Avranches",
+    "US Orléans",
+    "US Schaffhausen",
+    "Ull/Kisa",
+    "Ural Yekaterinburg",
+    "Utsiktens BK",
+    "Valencia B",
+    "Valenciennes",
+    "Valour FC",
+    "Vancouver Whitecaps 2",
+    "Vanraure Hachinohe",
+    "Varzim SC",
+    "Vasalunds IF",
+    "Vasas FC",
+    "Vegalta Sendai",
+    "Viktoria Köln",
+    "Villa Nova AC",
+    "Villarreal B",
+    "Villefranche-Beaujolais",
+    "Volta Redonda",
+    "Västerås SK",
+    "Wacker Innsbruck",
+    "Waldhof Mannheim",
+    "Welling United",
+    "Widzew Łódź",
+    "Wikki Tourists",
+    "Wisła Kraków",
+    "Wrexham",
+    "Wydad AC",
+    "Xanthi FC",
+    "York City",
+    "York United FC",
+    "Youssoufia Berrechid",
+    "Ypiranga FC",
+    "Zagłębie Lubin",
+    "Zagłębie Sosnowiec",
+    "Zalaegerszeg TC",
+    "Zweigen Kanazawa",
+    "Águas Santas",
+    "Çorum FK",
+    "Örgryte IS",
+    "Öster IF",
+    "Újpest FC",
+    "Ümraniyespor",
+    "ŁKS Łódź",
+    "śląsk Wrocław",
+    "Şanlıurfaspor"
+  ],
+  "stats": {
+    "totalFound": 81,
+    "espn": 38,
+    "football": 25,
+    "basketball": 18,
+    "other": 0,
+    "notFound": 472,
+    "apiRequests": 70
+  }
+}

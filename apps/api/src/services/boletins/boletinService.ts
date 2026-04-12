@@ -617,7 +617,7 @@ async function syncBoletinDerivedState(
 
 function emitResolvedBoletinResult(
   userId: string,
-  boletin: { id: string; status: BoletinStatus; actualReturn: Prisma.Decimal | null },
+  boletin: { id: string; name?: string | null; status: BoletinStatus; actualReturn: Prisma.Decimal | null },
 ): void {
   if (boletin.status === BoletinStatus.PENDING) {
     return;

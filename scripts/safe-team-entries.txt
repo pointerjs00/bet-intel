@@ -1,0 +1,95 @@
+  'ADT': TEAM_CDN(10492),
+  'AFC Fylde': TEAM_CDN(1839),
+  'AFC Wimbledon': TEAM_CDN(1333),
+  'Agua Santa': TEAM_CDN(10018),
+  'Águilas Doradas': TEAM_CDN(1144),
+  'Albion Rovers': TEAM_CDN(6756),
+  'Alianza Atlético': TEAM_CDN(2560),
+  'Alianza Lima': TEAM_CDN(2553),
+  'Alloa Athletic': TEAM_CDN(1391),
+  'Altrincham': TEAM_CDN(4700),
+  'Annan Athletic': TEAM_CDN(6757),
+  'Arbroath': TEAM_CDN(4249),
+  'Atlético Grau': TEAM_CDN(2564),
+  'Barracas Central': TEAM_CDN(2432),
+  'Barrow AFC': TEAM_CDN(1819), // API: Barrow
+  'Bodrumspor': TEAM_CDN(3583), // API: Bodrum FK
+  'Bonnyrigg Rose': TEAM_CDN(7431), // API: Bonnyrigg Rose Athletic
+  'Boston River': TEAM_CDN(2361),
+  'Braintree Town': TEAM_CDN(1831), // API: Braintree
+  'Bromley': TEAM_CDN(1832),
+  'Brusque': TEAM_CDN(1211),
+  'Cerro Largo': TEAM_CDN(2369),
+  'César Vallejo': TEAM_CDN(2541),
+  'Cheltenham Town': TEAM_CDN(1372), // API: Cheltenham
+  'Chesterfield FC': TEAM_CDN(1345), // API: Chesterfield
+  'Cienciano': TEAM_CDN(2562),
+  'Club Puebla': TEAM_CDN(2291), // API: Puebla
+  'Clyde': TEAM_CDN(6762),
+  'Cove Rangers': TEAM_CDN(6763),
+  'Cowdenbeath': TEAM_CDN(4667),
+  'Cusco FC': TEAM_CDN(10013), // API: Cusco
+  'Dagenham & Redbridge': TEAM_CDN(1821),
+  'Deportes Iquique': TEAM_CDN(2319),
+  'Deportivo Pasto': TEAM_CDN(1126),
+  'Deportivo Pereira': TEAM_CDN(1462),
+  'Dumbarton': TEAM_CDN(1382),
+  'Dunfermline Athletic': TEAM_CDN(1388), // API: Dunfermline
+  'East Fife': TEAM_CDN(6764),
+  'East Stirlingshire': TEAM_CDN(7439),
+  'Eastleigh': TEAM_CDN(1822),
+  'Ebbsfleet United': TEAM_CDN(1840),
+  'EC Santo André': TEAM_CDN(10003), // API: Santo André
+  'Edinburgh City': TEAM_CDN(6766),
+  'Elgin City': TEAM_CDN(6767),
+  'Envigado FC': TEAM_CDN(1129), // API: Envigado
+  'Eyüpspor': TEAM_CDN(3588),
+  'FBC Melgar': TEAM_CDN(2554),
+  'FC Halifax Town': TEAM_CDN(1841),
+  'FC Martigues': TEAM_CDN(3200), // API: Martigues
+  'Fénix': TEAM_CDN(2357),
+  'Fleetwood Town': TEAM_CDN(1336),
+  'Forfar Athletic': TEAM_CDN(4250),
+  'Gateshead': TEAM_CDN(1823),
+  'Greenock Morton': TEAM_CDN(1383), // API: Morton
+  'Grenoble Foot 38': TEAM_CDN(101), // API: Grenoble
+  'Harrogate Town': TEAM_CDN(1842),
+  'Inter de Limeira': TEAM_CDN(1201),
+  'Inverness CT': TEAM_CDN(903),
+  'Ituano': TEAM_CDN(7779),
+  'Ituano FC': TEAM_CDN(7779), // API: Ituano
+  'Joinville EC': TEAM_CDN(795), // API: Joinville
+  'Kasımpaşa': TEAM_CDN(1004),
+  'Kelty Hearts': TEAM_CDN(6773),
+  'Los Chankas': TEAM_CDN(2572), // API: Club Deportivo Los Chankas
+  'Maidenhead United': TEAM_CDN(1838), // API: Maidenhead
+  'Mirassol FC': TEAM_CDN(7848), // API: Mirassol
+  'Montrose': TEAM_CDN(4251),
+  'Newell\': TEAM_CDN(457), // API: Newells Old Boys
+  'Novorizontino': TEAM_CDN(7834),
+  'Oldham Athletic': TEAM_CDN(1349), // API: Oldham
+  'Once Caldas': TEAM_CDN(1136),
+  'Partick Thistle': TEAM_CDN(901), // API: Partick
+  'Peterhead': TEAM_CDN(6777),
+  'Port Vale': TEAM_CDN(1351),
+  'Queen of the South': TEAM_CDN(1384),
+  'Raith Rovers': TEAM_CDN(1385),
+  'Riestra': TEAM_CDN(476), // API: Deportivo Riestra
+  'Salford City': TEAM_CDN(1844),
+  'São Bernardo FC': TEAM_CDN(7865), // API: São Bernardo
+  'Solihull Moors': TEAM_CDN(1834),
+  'Southend United': TEAM_CDN(1341), // API: Southend
+  'Spartans FC': TEAM_CDN(6781), // API: Spartans
+  'Sport Boys': TEAM_CDN(2544),
+  'Sporting Cristal': TEAM_CDN(2546),
+  'Stenhousemuir': TEAM_CDN(6784),
+  'Stirling Albion': TEAM_CDN(4669),
+  'Stranraer': TEAM_CDN(6785),
+  'Swindon Town': TEAM_CDN(1353),
+  'Tigre': TEAM_CDN(452),
+  'Unión Comercio': TEAM_CDN(2552),
+  'Universitario': TEAM_CDN(2540),
+  'US Dunkerque': TEAM_CDN(1304), // API: Dunkerque
+  'UTC Cajamarca': TEAM_CDN(2539),
+  'Wealdstone': TEAM_CDN(8663),
+  'Woking': TEAM_CDN(1836),

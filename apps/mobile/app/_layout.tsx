@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../stores/authStore';
 import { useTheme } from '../theme/useTheme';
 import { ToastProvider, useToast } from '../components/ui/Toast';
@@ -76,7 +78,15 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   if (isHydrating) {
     return (
       <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContent}>
+          <View style={[styles.loadingLogoMark, { backgroundColor: colors.primary + '15' }]}>
+            <Ionicons color={colors.primary} name="flash" size={36} />
+          </View>
+          <Text style={[styles.loadingTitle, { color: colors.textPrimary }]}>BetIntel</Text>
+        </Animated.View>
+        <Animated.View entering={FadeInDown.delay(200).duration(300)}>
+          <ActivityIndicator color={colors.primary} size="small" />
+        </Animated.View>
       </View>
     );
   }
@@ -183,5 +193,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+    gap: 40,
+  },
+  loadingContent: {
+    alignItems: 'center',
+    gap: 14,
+  },
+  loadingLogoMark: {
+    alignItems: 'center',
+    borderRadius: 24,
+    height: 72,
+    justifyContent: 'center',
+    width: 72,
+  },
+  loadingTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: -0.8,
   },
 });

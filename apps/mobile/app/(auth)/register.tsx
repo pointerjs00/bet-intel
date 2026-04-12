@@ -84,6 +84,13 @@ export default function RegisterScreen() {
     return { label: 'Forte', color: colors.primary, width: '100%' as const };
   }, [colors.danger, colors.primary, colors.warning, password]);
 
+  const passwordChecks = useMemo(() => [
+    { label: 'Mínimo 8 caracteres', met: password.length >= 8 },
+    { label: 'Uma letra maiúscula', met: /[A-Z]/.test(password) },
+    { label: 'Um número', met: /[0-9]/.test(password) },
+    { label: 'Um carácter especial', met: /[^A-Za-z0-9]/.test(password) },
+  ], [password]);
+
   const onSubmit = handleSubmit(async (values) => {
     try {
       setIsSubmitting(true);
@@ -225,6 +232,28 @@ export default function RegisterScreen() {
                 </Text>
               </View>
 
+              {password.length > 0 ? (
+                <View style={styles.passwordChecks}>
+                  {passwordChecks.map((check) => (
+                    <View key={check.label} style={styles.passwordCheckRow}>
+                      <Ionicons
+                        color={check.met ? colors.primary : colors.textMuted}
+                        name={check.met ? 'checkmark-circle' : 'ellipse-outline'}
+                        size={15}
+                      />
+                      <Text
+                        style={[
+                          styles.passwordCheckText,
+                          { color: check.met ? colors.textSecondary : colors.textMuted },
+                        ]}
+                      >
+                        {check.label}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+
               <Controller
                 control={control}
                 name="confirmPassword"
@@ -281,6 +310,7 @@ export default function RegisterScreen() {
             loading={isGoogleLoading}
             onPress={handleGoogle}
             style={styles.googleButton}
+            textColor="#1F1F1F"
             title="Continuar com Google"
             variant="secondary"
           />
@@ -354,6 +384,19 @@ const styles = StyleSheet.create({
   passwordMeterLabel: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  passwordChecks: {
+    gap: 6,
+    marginTop: -4,
+  },
+  passwordCheckRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  passwordCheckText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   termsRow: {
     alignItems: 'center',

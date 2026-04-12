@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               backgroundColor: colors.surfaceRaised,
               borderColor: getToastAccentColor(toast.type, colors),
               opacity,
-              bottom: tokens.spacing.xxl,
+              top: 50,
             },
           ]}
         >

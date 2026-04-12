@@ -21,29 +21,39 @@ export function formatPercentage(value: number): string {
 }
 
 /** Formats an ISO date as a compact relative time in pt-PT style. */
-export function formatRelativeTime(value: string): string {
+export function formatRelativeTime(value: string | undefined | null): string {
+  if (!value) return '';
   const timestamp = new Date(value).getTime();
-  const deltaMs = timestamp - Date.now();
+  if (isNaN(timestamp)) return '';
+  const deltaMs = Date.now() - timestamp;
   const seconds = Math.round(deltaMs / 1000);
+  const absSeconds = Math.abs(seconds);
 
-  const formatter = new Intl.RelativeTimeFormat('pt-PT', { numeric: 'auto' });
+  const past = seconds >= 0;
 
-  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-    ['year', 60 * 60 * 24 * 365],
-    ['month', 60 * 60 * 24 * 30],
-    ['week', 60 * 60 * 24 * 7],
-    ['day', 60 * 60 * 24],
-    ['hour', 60 * 60],
-    ['minute', 60],
-  ];
-
-  for (const [unit, unitSeconds] of units) {
-    if (Math.abs(seconds) >= unitSeconds) {
-      return formatter.format(Math.round(seconds / unitSeconds), unit);
-    }
+  if (absSeconds < 60) return past ? 'agora mesmo' : 'em breve';
+  if (absSeconds < 3600) {
+    const m = Math.round(absSeconds / 60);
+    return past ? `há ${m} min` : `em ${m} min`;
   }
-
-  return formatter.format(seconds, 'second');
+  if (absSeconds < 86400) {
+    const h = Math.round(absSeconds / 3600);
+    return past ? `há ${h}h` : `em ${h}h`;
+  }
+  if (absSeconds < 86400 * 7) {
+    const d = Math.round(absSeconds / 86400);
+    return past ? `há ${d} dia${d !== 1 ? 's' : ''}` : `em ${d} dia${d !== 1 ? 's' : ''}`;
+  }
+  if (absSeconds < 86400 * 30) {
+    const w = Math.round(absSeconds / (86400 * 7));
+    return past ? `há ${w} sem.` : `em ${w} sem.`;
+  }
+  if (absSeconds < 86400 * 365) {
+    const mo = Math.round(absSeconds / (86400 * 30));
+    return past ? `há ${mo} mês` : `em ${mo} mês`;
+  }
+  const y = Math.round(absSeconds / (86400 * 365));
+  return past ? `há ${y} ano${y !== 1 ? 's' : ''}` : `em ${y} ano${y !== 1 ? 's' : ''}`;
 }
 
 /** Formats a date string with pt-PT date and time. */

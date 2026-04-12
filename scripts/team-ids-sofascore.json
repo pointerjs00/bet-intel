@@ -1,0 +1,3664 @@
+{
+  "highConfidence": [
+    {
+      "name": "ABC Braga",
+      "line": "  'ABC Braga': SOFA_TEAM(405406),",
+      "id": 405406,
+      "sofascoreName": "ABC Braga",
+      "sport": "Handball",
+      "country": "?",
+      "matchScore": 100.0072441504
+    },
+    {
+      "name": "Abia Warriors",
+      "line": "  'Abia Warriors': SOFA_TEAM(190742),",
+      "id": 190742,
+      "sofascoreName": "Abia Warriors",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.20230742
+    },
+    {
+      "name": "AC Horsens",
+      "line": "  'AC Horsens': SOFA_TEAM(1297),",
+      "id": 1297,
+      "sofascoreName": "AC Horsens",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.28988928
+    },
+    {
+      "name": "AC-Bellinzona",
+      "line": "  'AC-Bellinzona': SOFA_TEAM(2459),",
+      "id": 2459,
+      "sofascoreName": "AC Bellinzona",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.2118455
+    },
+    {
+      "name": "Académico de Viseu",
+      "line": "  'Académico de Viseu': SOFA_TEAM(369677),",
+      "id": 369677,
+      "sofascoreName": "Académico de Viseu",
+      "sport": "Handball",
+      "country": "Portugal",
+      "matchScore": 100.036754676
+    },
+    {
+      "name": "Adanaspor",
+      "line": "  'Adanaspor': SOFA_TEAM(3069),",
+      "id": 3069,
+      "sofascoreName": "Adanaspor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.18297503
+    },
+    {
+      "name": "ADO Den Haag",
+      "line": "  'ADO Den Haag': SOFA_TEAM(2966),",
+      "id": 2966,
+      "sofascoreName": "ADO Den Haag",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.6503713
+    },
+    {
+      "name": "AFC Eskilstuna",
+      "line": "  'AFC Eskilstuna': SOFA_TEAM(5954),",
+      "id": 5954,
+      "sofascoreName": "AFC Eskilstuna",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.1669712
+    },
+    {
+      "name": "Águas Santas",
+      "line": "  'Águas Santas': SOFA_TEAM(373125),",
+      "id": 373125,
+      "sofascoreName": "GD Águas Santas",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 91.032234715
+    },
+    {
+      "name": "Aimoré",
+      "line": "  'Aimoré': SOFA_TEAM(480383),",
+      "id": 480383,
+      "sofascoreName": "Aimoré",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.12214718
+    },
+    {
+      "name": "Airdrieonians",
+      "line": "  'Airdrieonians': SOFA_TEAM(2367),",
+      "id": 2367,
+      "sofascoreName": "Airdrieonians",
+      "sport": "Football",
+      "country": "Scotland",
+      "matchScore": 105.16463456
+    },
+    {
+      "name": "Akhmat Grozny",
+      "line": "  'Akhmat Grozny': SOFA_TEAM(5131),",
+      "id": 5131,
+      "sofascoreName": "Akhmat Grozny",
+      "sport": "Football",
+      "country": "Russia",
+      "matchScore": 105.3584177
+    },
+    {
+      "name": "Akwa United",
+      "line": "  'Akwa United': SOFA_TEAM(190735),",
+      "id": 190735,
+      "sofascoreName": "Akwa United",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.12221272
+    },
+    {
+      "name": "Al Orouba",
+      "line": "  'Al Orouba': SOFA_TEAM(47698),",
+      "id": 47698,
+      "sofascoreName": "Al-Orouba",
+      "sport": "Football",
+      "country": "Oman",
+      "matchScore": 105.050493953
+    },
+    {
+      "name": "Al-Dhafra",
+      "line": "  'Al-Dhafra': SOFA_TEAM(81305),",
+      "id": 81305,
+      "sofascoreName": "Al-Dhafra",
+      "sport": "Football",
+      "country": "United Arab Emirates",
+      "matchScore": 105.25506861
+    },
+    {
+      "name": "Al-Orubah",
+      "line": "  'Al-Orubah': SOFA_TEAM(246510),",
+      "id": 246510,
+      "sofascoreName": "Al-Orubah",
+      "sport": "Handball",
+      "country": "Saudi Arabia",
+      "matchScore": 100.031015396
+    },
+    {
+      "name": "All Boys",
+      "line": "  'All Boys': SOFA_TEAM(36834),",
+      "id": 36834,
+      "sofascoreName": "All Boys",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.22236016
+    },
+    {
+      "name": "Almagro",
+      "line": "  'Almagro': SOFA_TEAM(4938),",
+      "id": 4938,
+      "sofascoreName": "Almagro",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.1320279
+    },
+    {
+      "name": "Almere City FC",
+      "line": "  'Almere City FC': SOFA_TEAM(2990),",
+      "id": 2990,
+      "sofascoreName": "Almere City FC",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.45712762
+    },
+    {
+      "name": "Almirante Brown",
+      "line": "  'Almirante Brown': SOFA_TEAM(43740),",
+      "id": 43740,
+      "sofascoreName": "Almirante Brown",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.25625153
+    },
+    {
+      "name": "Altay",
+      "line": "  'Altay': SOFA_TEAM(3070),",
+      "id": 3070,
+      "sofascoreName": "Altay",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.13299094
+    },
+    {
+      "name": "Altınordu",
+      "line": "  'Altınordu': SOFA_TEAM(24749),",
+      "id": 24749,
+      "sofascoreName": "Altınordu",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.17030988
+    },
+    {
+      "name": "Anagennisi Karditsa",
+      "line": "  'Anagennisi Karditsa': SOFA_TEAM(244337),",
+      "id": 244337,
+      "sofascoreName": "Anagennisi Karditsas U19",
+      "sport": "Football",
+      "country": "Greece",
+      "matchScore": 90.84819417733333
+    },
+    {
+      "name": "Ankara Demirspor",
+      "line": "  'Ankara Demirspor': SOFA_TEAM(35191),",
+      "id": 35191,
+      "sofascoreName": "Ankara Demirspor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.15426952
+    },
+    {
+      "name": "Ansan Greeners",
+      "line": "  'Ansan Greeners': SOFA_TEAM(248375),",
+      "id": 248375,
+      "sofascoreName": "Ansan Greeners FC",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 95.2349065
+    },
+    {
+      "name": "AOK Kerkyra",
+      "line": "  'AOK Kerkyra': SOFA_TEAM(120626),",
+      "id": 120626,
+      "sofascoreName": "AOK Kerkyra",
+      "sport": "Football",
+      "country": "Greece",
+      "matchScore": 105.047333008
+    },
+    {
+      "name": "Aparecidense",
+      "line": "  'Aparecidense': SOFA_TEAM(32794),",
+      "id": 32794,
+      "sofascoreName": "AA Aparecidense",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 91.2069251
+    },
+    {
+      "name": "Arka Gdynia",
+      "line": "  'Arka Gdynia': SOFA_TEAM(6665),",
+      "id": 6665,
+      "sofascoreName": "Arka Gdynia",
+      "sport": "Basketball",
+      "country": "Poland",
+      "matchScore": 100.09337386
+    },
+    {
+      "name": "Athletic Club B",
+      "line": "  'Athletic Club B': SOFA_TEAM(298126),",
+      "id": 298126,
+      "sofascoreName": "Athletic Club B",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.05856067
+    },
+    {
+      "name": "Athletic Club MG",
+      "line": "  'Athletic Club MG': SOFA_TEAM(342775),",
+      "id": 342775,
+      "sofascoreName": "Athletic Club",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 91.39306878
+    },
+    {
+      "name": "Atlanta",
+      "line": "  'Atlanta': SOFA_TEAM(53799),",
+      "id": 53799,
+      "sofascoreName": "Atlanta",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.18779953
+    },
+    {
+      "name": "Atlanta United 2",
+      "line": "  'Atlanta United 2': SOFA_TEAM(277127),",
+      "id": 277127,
+      "sofascoreName": "Atlanta United 2",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.14310528
+    },
+    {
+      "name": "Atlético Goianiense",
+      "line": "  'Atlético Goianiense': SOFA_TEAM(7314),",
+      "id": 7314,
+      "sofascoreName": "Atlético Goianiense",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.75419
+    },
+    {
+      "name": "Atlético Ottawa",
+      "line": "  'Atlético Ottawa': SOFA_TEAM(342076),",
+      "id": 342076,
+      "sofascoreName": "Atlético Ottawa",
+      "sport": "Football",
+      "country": "Canada",
+      "matchScore": 105.25679108
+    },
+    {
+      "name": "Atlético Rafaela",
+      "line": "  'Atlético Rafaela': SOFA_TEAM(1078907),",
+      "id": 1078907,
+      "sofascoreName": "Atlético Rafaela U6",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 91.84960755015788
+    },
+    {
+      "name": "Austria Lustenau",
+      "line": "  'Austria Lustenau': SOFA_TEAM(2062),",
+      "id": 2062,
+      "sofascoreName": "SC Austria Lustenau",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 95.29587325
+    },
+    {
+      "name": "Ayacucho FC",
+      "line": "  'Ayacucho FC': SOFA_TEAM(414080),",
+      "id": 414080,
+      "sofascoreName": "Ayacucho FC",
+      "sport": "Football",
+      "country": "Peru",
+      "matchScore": 105.053707188
+    },
+    {
+      "name": "Azul Claro Numazu",
+      "line": "  'Azul Claro Numazu': SOFA_TEAM(245290),",
+      "id": 245290,
+      "sofascoreName": "Azul Claro Numazu",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.21163047
+    },
+    {
+      "name": "Baltika Kaliningrad",
+      "line": "  'Baltika Kaliningrad': SOFA_TEAM(7517),",
+      "id": 7517,
+      "sofascoreName": "Baltika Kaliningrad",
+      "sport": "Football",
+      "country": "Russia",
+      "matchScore": 105.49107128
+    },
+    {
+      "name": "Bandırmaspor",
+      "line": "  'Bandırmaspor': SOFA_TEAM(44320),",
+      "id": 44320,
+      "sofascoreName": "Bandırmaspor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.32311444
+    },
+    {
+      "name": "Bangu AC",
+      "line": "  'Bangu AC': SOFA_TEAM(1993),",
+      "id": 1993,
+      "sofascoreName": "Bangu",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 95.22192402
+    },
+    {
+      "name": "Barakaldo CF",
+      "line": "  'Barakaldo CF': SOFA_TEAM(2879),",
+      "id": 2879,
+      "sofascoreName": "Barakaldo CF",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.20941911
+    },
+    {
+      "name": "Bendel Insurance",
+      "line": "  'Bendel Insurance': SOFA_TEAM(307998),",
+      "id": 307998,
+      "sofascoreName": "Bendel Insurance FC",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 95.24313369
+    },
+    {
+      "name": "Bergerac Périgord FC",
+      "line": "  'Bergerac Périgord FC': SOFA_TEAM(238319),",
+      "id": 238319,
+      "sofascoreName": "Bergerac Perigord FC",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.14373589
+    },
+    {
+      "name": "Birmingham Legion FC",
+      "line": "  'Birmingham Legion FC': SOFA_TEAM(310967),",
+      "id": 310967,
+      "sofascoreName": "Birmingham Legion FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.21564022
+    },
+    {
+      "name": "BK Fremad Amager",
+      "line": "  'BK Fremad Amager': SOFA_TEAM(35412),",
+      "id": 35412,
+      "sofascoreName": "Fremad Amager",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 95.21318523
+    },
+    {
+      "name": "Blaublitz Akita",
+      "line": "  'Blaublitz Akita': SOFA_TEAM(44523),",
+      "id": 44523,
+      "sofascoreName": "Blaublitz Akita",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.23340917
+    },
+    {
+      "name": "Boluspor",
+      "line": "  'Boluspor': SOFA_TEAM(6414),",
+      "id": 6414,
+      "sofascoreName": "Boluspor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.28889912
+    },
+    {
+      "name": "Boreham Wood",
+      "line": "  'Boreham Wood': SOFA_TEAM(36467),",
+      "id": 36467,
+      "sofascoreName": "Boreham Wood",
+      "sport": "Football",
+      "country": "England",
+      "matchScore": 105.38549488
+    },
+    {
+      "name": "Botafogo-PB",
+      "line": "  'Botafogo-PB': SOFA_TEAM(49196),",
+      "id": 49196,
+      "sofascoreName": "Botafogo-PB",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.42895097
+    },
+    {
+      "name": "Brøndby IF",
+      "line": "  'Brøndby IF': SOFA_TEAM(1281),",
+      "id": 1281,
+      "sofascoreName": "Brøndby IF",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.9172935
+    },
+    {
+      "name": "Brown de Adrogué",
+      "line": "  'Brown de Adrogué': SOFA_TEAM(107201),",
+      "id": 107201,
+      "sofascoreName": "Brown de Adrogué",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.21474156
+    },
+    {
+      "name": "Bucheon FC 1995",
+      "line": "  'Bucheon FC 1995': SOFA_TEAM(92539),",
+      "id": 92539,
+      "sofascoreName": "Bucheon FC 1995",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 105.3117947
+    },
+    {
+      "name": "CAB Madeira",
+      "line": "  'CAB Madeira': SOFA_TEAM(177440),",
+      "id": 177440,
+      "sofascoreName": "CAB Madeira",
+      "sport": "Basketball",
+      "country": "Portugal",
+      "matchScore": 100.051242707
+    },
+    {
+      "name": "Caldense",
+      "line": "  'Caldense': SOFA_TEAM(39621),",
+      "id": 39621,
+      "sofascoreName": "Caldense",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.09514143
+    },
+    {
+      "name": "Cape Town Spurs",
+      "line": "  'Cape Town Spurs': SOFA_TEAM(7654),",
+      "id": 7654,
+      "sofascoreName": "Cape Town Spurs FC",
+      "sport": "Football",
+      "country": "South Africa",
+      "matchScore": 95.16659012
+    },
+    {
+      "name": "Cavalry FC",
+      "line": "  'Cavalry FC': SOFA_TEAM(309889),",
+      "id": 309889,
+      "sofascoreName": "Cavalry FC",
+      "sport": "Football",
+      "country": "Canada",
+      "matchScore": 105.27401494
+    },
+    {
+      "name": "Caxias do Sul",
+      "line": "  'Caxias do Sul': SOFA_TEAM(207004),",
+      "id": 207004,
+      "sofascoreName": "Caxias do Sul",
+      "sport": "Basketball",
+      "country": "Brazil",
+      "matchScore": 100.126801016
+    },
+    {
+      "name": "CD Badajoz",
+      "line": "  'CD Badajoz': SOFA_TEAM(2853),",
+      "id": 2853,
+      "sofascoreName": "CD Badajoz",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.16777655
+    },
+    {
+      "name": "CD Castellón",
+      "line": "  'CD Castellón': SOFA_TEAM(5067),",
+      "id": 5067,
+      "sofascoreName": "CD Castellón",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.550537
+    },
+    {
+      "name": "CD Feirense",
+      "line": "  'CD Feirense': SOFA_TEAM(327999),",
+      "id": 327999,
+      "sofascoreName": "CD Feirense",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 105.019687805
+    },
+    {
+      "name": "CD Lugo",
+      "line": "  'CD Lugo': SOFA_TEAM(24332),",
+      "id": 24332,
+      "sofascoreName": "CD Lugo",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.21002595
+    },
+    {
+      "name": "CD Numancia",
+      "line": "  'CD Numancia': SOFA_TEAM(2855),",
+      "id": 2855,
+      "sofascoreName": "Numancia",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 95.2543113
+    },
+    {
+      "name": "CD Toledo",
+      "line": "  'CD Toledo': SOFA_TEAM(25401),",
+      "id": 25401,
+      "sofascoreName": "CD Toledo",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.13960961
+    },
+    {
+      "name": "Cerrito",
+      "line": "  'Cerrito': SOFA_TEAM(6877),",
+      "id": 6877,
+      "sofascoreName": "Cerrito",
+      "sport": "Football",
+      "country": "Uruguay",
+      "matchScore": 105.134536
+    },
+    {
+      "name": "Chabab Mohammedia",
+      "line": "  'Chabab Mohammedia': SOFA_TEAM(451370),",
+      "id": 451370,
+      "sofascoreName": "Chabab Mohammedia",
+      "sport": "Futsal",
+      "country": "Morocco",
+      "matchScore": 100.028412494
+    },
+    {
+      "name": "Chabab Rif Al-Hoceima",
+      "line": "  'Chabab Rif Al-Hoceima': SOFA_TEAM(55041),",
+      "id": 55041,
+      "sofascoreName": "Chabab Rif Al-Hoceima",
+      "sport": "Football",
+      "country": "Morocco",
+      "matchScore": 105.1334216
+    },
+    {
+      "name": "Chaco For Ever",
+      "line": "  'Chaco For Ever': SOFA_TEAM(252726),",
+      "id": 252726,
+      "sofascoreName": "Chaco For Ever",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.32316675
+    },
+    {
+      "name": "Chambly Oise",
+      "line": "  'Chambly Oise': SOFA_TEAM(61612),",
+      "id": 61612,
+      "sofascoreName": "FC Chambly Oise",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 95.12112879
+    },
+    {
+      "name": "Chamois Niortais",
+      "line": "  'Chamois Niortais': SOFA_TEAM(1665),",
+      "id": 1665,
+      "sofascoreName": "Chamois Niortais",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.24245092
+    },
+    {
+      "name": "Chania FC",
+      "line": "  'Chania FC': SOFA_TEAM(44332),",
+      "id": 44332,
+      "sofascoreName": "Chania",
+      "sport": "Football",
+      "country": "Greece",
+      "matchScore": 95.014422481
+    },
+    {
+      "name": "Charleston Battery",
+      "line": "  'Charleston Battery': SOFA_TEAM(22004),",
+      "id": 22004,
+      "sofascoreName": "Charleston Battery",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.27105103
+    },
+    {
+      "name": "Châteauroux",
+      "line": "  'Châteauroux': SOFA_TEAM(1666),",
+      "id": 1666,
+      "sofascoreName": "Châteauroux",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.2532954
+    },
+    {
+      "name": "Cherkaskyi Dnipro",
+      "line": "  'Cherkaskyi Dnipro': SOFA_TEAM(167744),",
+      "id": 167744,
+      "sofascoreName": "Cherkaskyi Dnipro",
+      "sport": "Football",
+      "country": "Ukraine",
+      "matchScore": 105.016829322
+    },
+    {
+      "name": "Chicago Fire II",
+      "line": "  'Chicago Fire II': SOFA_TEAM(411363),",
+      "id": 411363,
+      "sofascoreName": "Chicago Fire FC II",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 95.053385855
+    },
+    {
+      "name": "Chungnam Asan FC",
+      "line": "  'Chungnam Asan FC': SOFA_TEAM(339827),",
+      "id": 339827,
+      "sofascoreName": "Chungnam Asan FC",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 105.20733753
+    },
+    {
+      "name": "Cobaltore Onagawa",
+      "line": "  'Cobaltore Onagawa': SOFA_TEAM(289878),",
+      "id": 289878,
+      "sofascoreName": "Cobaltore Onagawa FC",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 95.04964799
+    },
+    {
+      "name": "Colorado Springs Switchbacks FC",
+      "line": "  'Colorado Springs Switchbacks FC': SOFA_TEAM(197065),",
+      "id": 197065,
+      "sofascoreName": "Colorado Springs Switchbacks FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.22421806
+    },
+    {
+      "name": "Columbus Crew 2",
+      "line": "  'Columbus Crew 2': SOFA_TEAM(411365),",
+      "id": 411365,
+      "sofascoreName": "Columbus Crew 2",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.24221312
+    },
+    {
+      "name": "Confiança",
+      "line": "  'Confiança': SOFA_TEAM(2017),",
+      "id": 2017,
+      "sofascoreName": "Confiança",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.34155134
+    },
+    {
+      "name": "Çorum FK",
+      "line": "  'Çorum FK': SOFA_TEAM(77629),",
+      "id": 77629,
+      "sofascoreName": "Çorum FK",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.25625833
+    },
+    {
+      "name": "Cova da Piedade",
+      "line": "  'Cova da Piedade': SOFA_TEAM(35184),",
+      "id": 35184,
+      "sofascoreName": "CD Cova da Piedade",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 95.10010774
+    },
+    {
+      "name": "Crawley Town",
+      "line": "  'Crawley Town': SOFA_TEAM(4875),",
+      "id": 4875,
+      "sofascoreName": "Crawley Town",
+      "sport": "Football",
+      "country": "England",
+      "matchScore": 105.33047422
+    },
+    {
+      "name": "Crewe Alexandra",
+      "line": "  'Crewe Alexandra': SOFA_TEAM(19),",
+      "id": 19,
+      "sofascoreName": "Crewe Alexandra",
+      "sport": "Football",
+      "country": "England",
+      "matchScore": 105.34936012
+    },
+    {
+      "name": "Cultural Leonesa",
+      "line": "  'Cultural Leonesa': SOFA_TEAM(2868),",
+      "id": 2868,
+      "sofascoreName": "Cultural Leonesa",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.5794923
+    },
+    {
+      "name": "De Graafschap",
+      "line": "  'De Graafschap': SOFA_TEAM(2949),",
+      "id": 2949,
+      "sofascoreName": "De Graafschap",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.433716
+    },
+    {
+      "name": "Debreceni VSC",
+      "line": "  'Debreceni VSC': SOFA_TEAM(1921),",
+      "id": 1921,
+      "sofascoreName": "Debreceni VSC",
+      "sport": "Football",
+      "country": "Hungary",
+      "matchScore": 105.3720947
+    },
+    {
+      "name": "Defensores de Belgrano",
+      "line": "  'Defensores de Belgrano': SOFA_TEAM(52215),",
+      "id": 52215,
+      "sofascoreName": "Defensores de Belgrano",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.3203107
+    },
+    {
+      "name": "Degerfors IF",
+      "line": "  'Degerfors IF': SOFA_TEAM(1807),",
+      "id": 1807,
+      "sofascoreName": "Degerfors IF",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.34705628
+    },
+    {
+      "name": "Deportivo Morón",
+      "line": "  'Deportivo Morón': SOFA_TEAM(93109),",
+      "id": 93109,
+      "sofascoreName": "Deportivo Morón",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.26202178
+    },
+    {
+      "name": "Deportivo Municipal",
+      "line": "  'Deportivo Municipal': SOFA_TEAM(7031),",
+      "id": 7031,
+      "sofascoreName": "Deportivo Municipal",
+      "sport": "Football",
+      "country": "Peru",
+      "matchScore": 105.15294067
+    },
+    {
+      "name": "Detroit City FC",
+      "line": "  'Detroit City FC': SOFA_TEAM(285642),",
+      "id": 285642,
+      "sofascoreName": "Detroit City FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.19135838
+    },
+    {
+      "name": "Dibba Al-Fujairah",
+      "line": "  'Dibba Al-Fujairah': SOFA_TEAM(81309),",
+      "id": 81309,
+      "sofascoreName": "Dibba Al-Fujairah",
+      "sport": "Football",
+      "country": "United Arab Emirates",
+      "matchScore": 105.32091488
+    },
+    {
+      "name": "Diósgyőri VTK",
+      "line": "  'Diósgyőri VTK': SOFA_TEAM(5121),",
+      "id": 5121,
+      "sofascoreName": "Diósgyőri VTK",
+      "sport": "Football",
+      "country": "Hungary",
+      "matchScore": 105.3474914
+    },
+    {
+      "name": "Doma United",
+      "line": "  'Doma United': SOFA_TEAM(372928),",
+      "id": 372928,
+      "sofascoreName": "Doma United",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 105.020871703
+    },
+    {
+      "name": "Dynamo Dresden",
+      "line": "  'Dynamo Dresden': SOFA_TEAM(2595),",
+      "id": 2595,
+      "sofascoreName": "SG Dynamo Dresden",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 92.05031198529412
+    },
+    {
+      "name": "Dynamo Moscow",
+      "line": "  'Dynamo Moscow': SOFA_TEAM(2315),",
+      "id": 2315,
+      "sofascoreName": "Dynamo Moscow",
+      "sport": "Football",
+      "country": "Russia",
+      "matchScore": 105.35852256
+    },
+    {
+      "name": "EC Pelotas",
+      "line": "  'EC Pelotas': SOFA_TEAM(480375),",
+      "id": 480375,
+      "sofascoreName": "EC Pelotas",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.16327206
+    },
+    {
+      "name": "Ehime FC",
+      "line": "  'Ehime FC': SOFA_TEAM(8060),",
+      "id": 8060,
+      "sofascoreName": "Ehime FC",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.17189006
+    },
+    {
+      "name": "El Paso Locomotive FC",
+      "line": "  'El Paso Locomotive FC': SOFA_TEAM(310532),",
+      "id": 310532,
+      "sofascoreName": "El Paso Locomotive FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.22331973
+    },
+    {
+      "name": "El Tanque Sisley",
+      "line": "  'El Tanque Sisley': SOFA_TEAM(43976),",
+      "id": 43976,
+      "sofascoreName": "El Tanque Sisley",
+      "sport": "Football",
+      "country": "Uruguay",
+      "matchScore": 105.033357566
+    },
+    {
+      "name": "Enyimba FC",
+      "line": "  'Enyimba FC': SOFA_TEAM(42371),",
+      "id": 42371,
+      "sofascoreName": "Enyimba",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 95.15588412
+    },
+    {
+      "name": "Erzurumspor FK",
+      "line": "  'Erzurumspor FK': SOFA_TEAM(55603),",
+      "id": 55603,
+      "sofascoreName": "Erzurumspor FK",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.24976877
+    },
+    {
+      "name": "Esbjerg fB",
+      "line": "  'Esbjerg fB': SOFA_TEAM(1287),",
+      "id": 1287,
+      "sofascoreName": "Esbjerg FB",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.39167078
+    },
+    {
+      "name": "Estudiantes de Buenos Aires",
+      "line": "  'Estudiantes de Buenos Aires': SOFA_TEAM(93107),",
+      "id": 93107,
+      "sofascoreName": "Estudiantes de Buenos Aires",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.25635027
+    },
+    {
+      "name": "Fagiano Okayama",
+      "line": "  'Fagiano Okayama': SOFA_TEAM(34034),",
+      "id": 34034,
+      "sofascoreName": "Fagiano Okayama",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.32190197
+    },
+    {
+      "name": "Fakel Voronezh",
+      "line": "  'Fakel Voronezh': SOFA_TEAM(2317),",
+      "id": 2317,
+      "sofascoreName": "Fakel Voronezh",
+      "sport": "Football",
+      "country": "Russia",
+      "matchScore": 105.31861297
+    },
+    {
+      "name": "FAR Rabat",
+      "line": "  'FAR Rabat': SOFA_TEAM(285715),",
+      "id": 285715,
+      "sofascoreName": "FAR Rabat",
+      "sport": "Basketball",
+      "country": "?",
+      "matchScore": 100.021164936
+    },
+    {
+      "name": "FC Aarau",
+      "line": "  'FC Aarau': SOFA_TEAM(2447),",
+      "id": 2447,
+      "sofascoreName": "FC Aarau",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.33085822
+    },
+    {
+      "name": "FC Alverca",
+      "line": "  'FC Alverca': SOFA_TEAM(190328),",
+      "id": 190328,
+      "sofascoreName": "FC Alverca",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 105.36637047
+    },
+    {
+      "name": "FC Anyang",
+      "line": "  'FC Anyang': SOFA_TEAM(32675),",
+      "id": 32675,
+      "sofascoreName": "FC Anyang",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 105.26916862
+    },
+    {
+      "name": "FC Barcelona B",
+      "line": "  'FC Barcelona B': SOFA_TEAM(297676),",
+      "id": 297676,
+      "sofascoreName": "FC Barcelona B",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.3034588
+    },
+    {
+      "name": "FC Cincinnati 2",
+      "line": "  'FC Cincinnati 2': SOFA_TEAM(411367),",
+      "id": 411367,
+      "sofascoreName": "FC Cincinnati 2",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.17723094
+    },
+    {
+      "name": "FC Den Bosch",
+      "line": "  'FC Den Bosch': SOFA_TEAM(2963),",
+      "id": 2963,
+      "sofascoreName": "FC Den Bosch",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.38157403
+    },
+    {
+      "name": "FC Dordrecht",
+      "line": "  'FC Dordrecht': SOFA_TEAM(2973),",
+      "id": 2973,
+      "sofascoreName": "FC Dordrecht",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.36896462
+    },
+    {
+      "name": "FC Dornbirn",
+      "line": "  'FC Dornbirn': SOFA_TEAM(2178),",
+      "id": 2178,
+      "sofascoreName": "FC Dornbirn",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.09505851
+    },
+    {
+      "name": "FC Edmonton",
+      "line": "  'FC Edmonton': SOFA_TEAM(50396),",
+      "id": 50396,
+      "sofascoreName": "FC Edmonton",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.044829797
+    },
+    {
+      "name": "FC Eindhoven",
+      "line": "  'FC Eindhoven': SOFA_TEAM(2994),",
+      "id": 2994,
+      "sofascoreName": "FC Eindhoven",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.31295922
+    },
+    {
+      "name": "FC Energie Cottbus",
+      "line": "  'FC Energie Cottbus': SOFA_TEAM(2532),",
+      "id": 2532,
+      "sofascoreName": "Energie Cottbus",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 95.32710416
+    },
+    {
+      "name": "FC Erzgebirge Aue",
+      "line": "  'FC Erzgebirge Aue': SOFA_TEAM(164540),",
+      "id": 164540,
+      "sofascoreName": "FC Erzgebirge Aue",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.015513208
+    },
+    {
+      "name": "FC Gifu",
+      "line": "  'FC Gifu': SOFA_TEAM(21900),",
+      "id": 21900,
+      "sofascoreName": "FC Gifu",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.13889602
+    },
+    {
+      "name": "FC Helsingør",
+      "line": "  'FC Helsingør': SOFA_TEAM(6392),",
+      "id": 6392,
+      "sofascoreName": "FC Helsingør",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.2085364
+    },
+    {
+      "name": "FC Ifeanyi Ubah",
+      "line": "  'FC Ifeanyi Ubah': SOFA_TEAM(190744),",
+      "id": 190744,
+      "sofascoreName": "Ifeanyi Ubah",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 95.03358631
+    },
+    {
+      "name": "FC Imabari",
+      "line": "  'FC Imabari': SOFA_TEAM(79907),",
+      "id": 79907,
+      "sofascoreName": "FC Imabari",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.14891064
+    },
+    {
+      "name": "FC Ingolstadt 04",
+      "line": "  'FC Ingolstadt 04': SOFA_TEAM(5880),",
+      "id": 5880,
+      "sofascoreName": "FC Ingolstadt 04",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.32630803
+    },
+    {
+      "name": "FC Lausanne-Sport",
+      "line": "  'FC Lausanne-Sport': SOFA_TEAM(2446),",
+      "id": 2446,
+      "sofascoreName": "FC Lausanne-Sport",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.5054216
+    },
+    {
+      "name": "FC Liefering",
+      "line": "  'FC Liefering': SOFA_TEAM(7790),",
+      "id": 7790,
+      "sofascoreName": "FC Liefering",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.28860672
+    },
+    {
+      "name": "FC Machida Zelvia",
+      "line": "  'FC Machida Zelvia': SOFA_TEAM(44409),",
+      "id": 44409,
+      "sofascoreName": "Machida Zelvia",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 95.40679734
+    },
+    {
+      "name": "FC Nitra",
+      "line": "  'FC Nitra': SOFA_TEAM(1105150),",
+      "id": 1105150,
+      "sofascoreName": "FC Nitra",
+      "sport": "Football",
+      "country": "Slovakia",
+      "matchScore": 105.064942242
+    },
+    {
+      "name": "FC Nordsjælland",
+      "line": "  'FC Nordsjælland': SOFA_TEAM(1292),",
+      "id": 1292,
+      "sofascoreName": "FC Nordsjælland",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.756784
+    },
+    {
+      "name": "FC Osaka",
+      "line": "  'FC Osaka': SOFA_TEAM(205600),",
+      "id": 205600,
+      "sofascoreName": "FC Osaka",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.21760273
+    },
+    {
+      "name": "FC Roskilde",
+      "line": "  'FC Roskilde': SOFA_TEAM(4873),",
+      "id": 4873,
+      "sofascoreName": "FC Roskilde",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.23759456
+    },
+    {
+      "name": "FC Rouen",
+      "line": "  'FC Rouen': SOFA_TEAM(4493),",
+      "id": 4493,
+      "sofascoreName": "FC Rouen",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.20920752
+    },
+    {
+      "name": "FC Ryukyu",
+      "line": "  'FC Ryukyu': SOFA_TEAM(44528),",
+      "id": 44528,
+      "sofascoreName": "FC Ryukyu",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.1438753
+    },
+    {
+      "name": "FC Sion",
+      "line": "  'FC Sion': SOFA_TEAM(2452),",
+      "id": 2452,
+      "sofascoreName": "FC Sion",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.36927178
+    },
+    {
+      "name": "FC Stade Lausanne-Ouchy",
+      "line": "  'FC Stade Lausanne-Ouchy': SOFA_TEAM(35162),",
+      "id": 35162,
+      "sofascoreName": "FC Stade-Lausanne-Ouchy",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.2636423
+    },
+    {
+      "name": "FC Thun",
+      "line": "  'FC Thun': SOFA_TEAM(2454),",
+      "id": 2454,
+      "sofascoreName": "FC Thun",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.50065084
+    },
+    {
+      "name": "FC Tiamo Hirakata",
+      "line": "  'FC Tiamo Hirakata': SOFA_TEAM(363016),",
+      "id": 363016,
+      "sofascoreName": "FC Tiamo Hirakata",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.16769284
+    },
+    {
+      "name": "FC Tulsa",
+      "line": "  'FC Tulsa': SOFA_TEAM(197071),",
+      "id": 197071,
+      "sofascoreName": "FC Tulsa",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.15352127
+    },
+    {
+      "name": "FC Vaduz",
+      "line": "  'FC Vaduz': SOFA_TEAM(2463),",
+      "id": 2463,
+      "sofascoreName": "FC Vaduz",
+      "sport": "Football",
+      "country": "Liechtenstein",
+      "matchScore": 105.31044025
+    },
+    {
+      "name": "FC Wil 1900",
+      "line": "  'FC Wil 1900': SOFA_TEAM(2455),",
+      "id": 2455,
+      "sofascoreName": "FC Wil 1900",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.25141175
+    },
+    {
+      "name": "FC Zbrojovka Brno",
+      "line": "  'FC Zbrojovka Brno': SOFA_TEAM(2210),",
+      "id": 2210,
+      "sofascoreName": "FC Zbrojovka Brno",
+      "sport": "Football",
+      "country": "Czechia",
+      "matchScore": 105.3414854
+    },
+    {
+      "name": "Ferencváros TC",
+      "line": "  'Ferencváros TC': SOFA_TEAM(1925),",
+      "id": 1925,
+      "sofascoreName": "Ferencváros TC",
+      "sport": "Football",
+      "country": "Hungary",
+      "matchScore": 105.961607
+    },
+    {
+      "name": "Ferro Carril Oeste",
+      "line": "  'Ferro Carril Oeste': SOFA_TEAM(409179),",
+      "id": 409179,
+      "sofascoreName": "Ferro Carril Oeste",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.12155107
+    },
+    {
+      "name": "Ferroviária",
+      "line": "  'Ferroviária': SOFA_TEAM(35285),",
+      "id": 35285,
+      "sofascoreName": "Ferroviária",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.39313734
+    },
+    {
+      "name": "First Vienna FC",
+      "line": "  'First Vienna FC': SOFA_TEAM(2054),",
+      "id": 2054,
+      "sofascoreName": "First Vienna FC",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.22919414
+    },
+    {
+      "name": "FK Borac Čačak",
+      "line": "  'FK Borac Čačak': SOFA_TEAM(505362),",
+      "id": 505362,
+      "sofascoreName": "FK Borac Čačak",
+      "sport": "Football",
+      "country": "Serbia",
+      "matchScore": 105.01604887
+    },
+    {
+      "name": "FK Pirmasens",
+      "line": "  'FK Pirmasens': SOFA_TEAM(5825),",
+      "id": 5825,
+      "sofascoreName": "FK Pirmasens",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.09658692
+    },
+    {
+      "name": "FK Pohroní",
+      "line": "  'FK Pohroní': SOFA_TEAM(77981),",
+      "id": 77981,
+      "sofascoreName": "FK Pohronie",
+      "sport": "Football",
+      "country": "Slovakia",
+      "matchScore": 93.22678075581818
+    },
+    {
+      "name": "FK Radnik Bijeljina",
+      "line": "  'FK Radnik Bijeljina': SOFA_TEAM(6149),",
+      "id": 6149,
+      "sofascoreName": "FK Radnik Bijeljina",
+      "sport": "Football",
+      "country": "Bosnia & Herzegovina",
+      "matchScore": 105.23516881
+    },
+    {
+      "name": "Floridsdorfer AC",
+      "line": "  'Floridsdorfer AC': SOFA_TEAM(7785),",
+      "id": 7785,
+      "sofascoreName": "Floridsdorfer AC",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.20375786
+    },
+    {
+      "name": "Florø SK",
+      "line": "  'Florø SK': SOFA_TEAM(704),",
+      "id": 704,
+      "sofascoreName": "Florø",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 95.06627338
+    },
+    {
+      "name": "Follo FK",
+      "line": "  'Follo FK': SOFA_TEAM(855),",
+      "id": 855,
+      "sofascoreName": "Follo",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 95.110126086
+    },
+    {
+      "name": "Forge FC",
+      "line": "  'Forge FC': SOFA_TEAM(313716),",
+      "id": 313716,
+      "sofascoreName": "Forge FC",
+      "sport": "Football",
+      "country": "Canada",
+      "matchScore": 105.22223225
+    },
+    {
+      "name": "Fujieda MYFC",
+      "line": "  'Fujieda MYFC': SOFA_TEAM(118500),",
+      "id": 118500,
+      "sofascoreName": "Fujieda MYFC",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.24238112
+    },
+    {
+      "name": "FUS Rabat",
+      "line": "  'FUS Rabat': SOFA_TEAM(460232),",
+      "id": 460232,
+      "sofascoreName": "FUS Rabat",
+      "sport": "Football",
+      "country": "Morocco",
+      "matchScore": 105.07104222
+    },
+    {
+      "name": "Gainare Tottori",
+      "line": "  'Gainare Tottori': SOFA_TEAM(38141),",
+      "id": 38141,
+      "sofascoreName": "Gainare Tottori",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.17012767
+    },
+    {
+      "name": "GAIS",
+      "line": "  'GAIS': SOFA_TEAM(1786),",
+      "id": 1786,
+      "sofascoreName": "GAIS",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.3349574
+    },
+    {
+      "name": "Gençlerbirliği",
+      "line": "  'Gençlerbirliği': SOFA_TEAM(7802),",
+      "id": 7802,
+      "sofascoreName": "Gençlerbirliği",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.40464078
+    },
+    {
+      "name": "Getafe CF B",
+      "line": "  'Getafe CF B': SOFA_TEAM(43753),",
+      "id": 43753,
+      "sofascoreName": "Getafe B",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 95.128707516
+    },
+    {
+      "name": "GIF Sundsvall",
+      "line": "  'GIF Sundsvall': SOFA_TEAM(1763),",
+      "id": 1763,
+      "sofascoreName": "GIF Sundsvall",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.3135415
+    },
+    {
+      "name": "Gimpo FC",
+      "line": "  'Gimpo FC': SOFA_TEAM(195172),",
+      "id": 195172,
+      "sofascoreName": "Gimpo FC",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 105.10952344
+    },
+    {
+      "name": "Giravanz Kitakyushu",
+      "line": "  'Giravanz Kitakyushu': SOFA_TEAM(40029),",
+      "id": 40029,
+      "sofascoreName": "Giravanz Kitakyushu",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.19594812
+    },
+    {
+      "name": "GKS Bełchatów",
+      "line": "  'GKS Bełchatów': SOFA_TEAM(3128),",
+      "id": 3128,
+      "sofascoreName": "GKS Bełchatów",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.13229719
+    },
+    {
+      "name": "GKS Jastrzębie",
+      "line": "  'GKS Jastrzębie': SOFA_TEAM(7911),",
+      "id": 7911,
+      "sofascoreName": "GKS Jastrzębie",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.21848475
+    },
+    {
+      "name": "GKS Tychy",
+      "line": "  'GKS Tychy': SOFA_TEAM(35272),",
+      "id": 35272,
+      "sofascoreName": "GKS Tychy",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.26874994
+    },
+    {
+      "name": "Gloria Buzău",
+      "line": "  'Gloria Buzău': SOFA_TEAM(7732),",
+      "id": 7732,
+      "sofascoreName": "FC Gloria Buzău",
+      "sport": "Football",
+      "country": "Romania",
+      "matchScore": 95.24471198
+    },
+    {
+      "name": "Gloucester City",
+      "line": "  'Gloucester City': SOFA_TEAM(260),",
+      "id": 260,
+      "sofascoreName": "Gloucester City",
+      "sport": "Football",
+      "country": "England",
+      "matchScore": 105.21706445
+    },
+    {
+      "name": "Górnik Łęczna",
+      "line": "  'Górnik Łęczna': SOFA_TEAM(3125),",
+      "id": 3125,
+      "sofascoreName": "Górnik Łęczna",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.2830109
+    },
+    {
+      "name": "Güemes",
+      "line": "  'Güemes': SOFA_TEAM(224646),",
+      "id": 224646,
+      "sofascoreName": "Güemes",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.13777628
+    },
+    {
+      "name": "Gyeongnam FC",
+      "line": "  'Gyeongnam FC': SOFA_TEAM(22020),",
+      "id": 22020,
+      "sofascoreName": "Gyeongnam FC",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 105.17282294
+    },
+    {
+      "name": "Hallescher FC",
+      "line": "  'Hallescher FC': SOFA_TEAM(2582),",
+      "id": 2582,
+      "sofascoreName": "Hallescher FC",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.22633269
+    },
+    {
+      "name": "HamKam",
+      "line": "  'HamKam': SOFA_TEAM(666),",
+      "id": 666,
+      "sofascoreName": "HamKam",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 105.21771067
+    },
+    {
+      "name": "Hartford Athletic",
+      "line": "  'Hartford Athletic': SOFA_TEAM(310968),",
+      "id": 310968,
+      "sofascoreName": "Hartford Athletic",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.22315789
+    },
+    {
+      "name": "HB Køge",
+      "line": "  'HB Køge': SOFA_TEAM(36095),",
+      "id": 36095,
+      "sofascoreName": "HB Køge",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.28424784
+    },
+    {
+      "name": "Helmond Sport",
+      "line": "  'Helmond Sport': SOFA_TEAM(2974),",
+      "id": 2974,
+      "sofascoreName": "Helmond Sport",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.38300694
+    },
+    {
+      "name": "Helsingborgs IF",
+      "line": "  'Helsingborgs IF': SOFA_TEAM(1890),",
+      "id": 1890,
+      "sofascoreName": "Helsingborgs IF",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.2820307
+    },
+    {
+      "name": "Hødd IL",
+      "line": "  'Hødd IL': SOFA_TEAM(680),",
+      "id": 680,
+      "sofascoreName": "Hødd IL",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 105.24506508
+    },
+    {
+      "name": "Honvéd",
+      "line": "  'Honvéd': SOFA_TEAM(380545),",
+      "id": 380545,
+      "sofascoreName": "Honvéd",
+      "sport": "E-sports",
+      "country": "?",
+      "matchScore": 100.0047818774
+    },
+    {
+      "name": "Hvidovre IF",
+      "line": "  'Hvidovre IF': SOFA_TEAM(109717),",
+      "id": 109717,
+      "sofascoreName": "Hvidovre IF",
+      "sport": "Handball",
+      "country": "Denmark",
+      "matchScore": 100.016992668
+    },
+    {
+      "name": "Hwaseong FC",
+      "line": "  'Hwaseong FC': SOFA_TEAM(195174),",
+      "id": 195174,
+      "sofascoreName": "Hwaseong FC",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 105.16156539
+    },
+    {
+      "name": "IF Sylvia",
+      "line": "  'IF Sylvia': SOFA_TEAM(1776),",
+      "id": 1776,
+      "sofascoreName": "IF Sylvia",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.07876605
+    },
+    {
+      "name": "IFK Värnamo",
+      "line": "  'IFK Värnamo': SOFA_TEAM(1842),",
+      "id": 1842,
+      "sofascoreName": "IFK Värnamo",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.43115362
+    },
+    {
+      "name": "IK Brage",
+      "line": "  'IK Brage': SOFA_TEAM(1777),",
+      "id": 1777,
+      "sofascoreName": "IK Brage",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.23733234
+    },
+    {
+      "name": "IK Sirius",
+      "line": "  'IK Sirius': SOFA_TEAM(1793),",
+      "id": 1793,
+      "sofascoreName": "IK Sirius",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.39815556
+    },
+    {
+      "name": "Indy Eleven",
+      "line": "  'Indy Eleven': SOFA_TEAM(148992),",
+      "id": 148992,
+      "sofascoreName": "Indy Eleven",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.20407186
+    },
+    {
+      "name": "Inter Miami II",
+      "line": "  'Inter Miami II': SOFA_TEAM(411364),",
+      "id": 411364,
+      "sofascoreName": "Inter Miami CF II",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 95.06918952
+    },
+    {
+      "name": "Intercity",
+      "line": "  'Intercity': SOFA_TEAM(291903),",
+      "id": 291903,
+      "sofascoreName": "CF Intercity",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 95.14970477
+    },
+    {
+      "name": "Ittihad Kalba",
+      "line": "  'Ittihad Kalba': SOFA_TEAM(55705),",
+      "id": 55705,
+      "sofascoreName": "Al-Ittihad Kalba",
+      "sport": "Football",
+      "country": "United Arab Emirates",
+      "matchScore": 91.56220156
+    },
+    {
+      "name": "Iwate Grulla Morioka",
+      "line": "  'Iwate Grulla Morioka': SOFA_TEAM(44519),",
+      "id": 44519,
+      "sofascoreName": "Iwate Grulla Morioka",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.15835852
+    },
+    {
+      "name": "Jagiellonia Białystok",
+      "line": "  'Jagiellonia Białystok': SOFA_TEAM(7691),",
+      "id": 7691,
+      "sofascoreName": "Jagiellonia Białystok",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 106.1067445
+    },
+    {
+      "name": "Jammerbugt FC",
+      "line": "  'Jammerbugt FC': SOFA_TEAM(1322),",
+      "id": 1322,
+      "sofascoreName": "Jammerbugt FC",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.06881322
+    },
+    {
+      "name": "JEF United Chiba",
+      "line": "  'JEF United Chiba': SOFA_TEAM(3144),",
+      "id": 3144,
+      "sofascoreName": "JEF United Chiba",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.13347594
+    },
+    {
+      "name": "Jong Ajax",
+      "line": "  'Jong Ajax': SOFA_TEAM(46160),",
+      "id": 46160,
+      "sofascoreName": "Jong Ajax",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.46736044
+    },
+    {
+      "name": "Jong FC Twente",
+      "line": "  'Jong FC Twente': SOFA_TEAM(1043120),",
+      "id": 1043120,
+      "sofascoreName": "Jong FC Twente",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.030776697
+    },
+    {
+      "name": "Jong Sparta Rotterdam",
+      "line": "  'Jong Sparta Rotterdam': SOFA_TEAM(46170),",
+      "id": 46170,
+      "sofascoreName": "Jong Sparta Rotterdam",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.16707839
+    },
+    {
+      "name": "Jong Utrecht",
+      "line": "  'Jong Utrecht': SOFA_TEAM(53067),",
+      "id": 53067,
+      "sofascoreName": "Jong FC Utrecht",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 95.14736386
+    },
+    {
+      "name": "Kagoshima United FC",
+      "line": "  'Kagoshima United FC': SOFA_TEAM(162632),",
+      "id": 162632,
+      "sofascoreName": "Kagoshima United",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 95.15263166
+    },
+    {
+      "name": "Kano Pillars",
+      "line": "  'Kano Pillars': SOFA_TEAM(134276),",
+      "id": 134276,
+      "sofascoreName": "Kano Pillars",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.2747108
+    },
+    {
+      "name": "Kataller Toyama",
+      "line": "  'Kataller Toyama': SOFA_TEAM(34035),",
+      "id": 34035,
+      "sofascoreName": "Kataller Toyama",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.22855255
+    },
+    {
+      "name": "Kawkab Marrakech",
+      "line": "  'Kawkab Marrakech': SOFA_TEAM(1153096),",
+      "id": 1153096,
+      "sofascoreName": "Kawkab Marrakech U17",
+      "sport": "Football",
+      "country": "Morocco",
+      "matchScore": 91.016541713
+    },
+    {
+      "name": "Keçiörengücü",
+      "line": "  'Keçiörengücü': SOFA_TEAM(6366),",
+      "id": 6366,
+      "sofascoreName": "Keçiörengücü",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.33727347
+    },
+    {
+      "name": "Kecskemét TE",
+      "line": "  'Kecskemét TE': SOFA_TEAM(23956),",
+      "id": 23956,
+      "sofascoreName": "Kecskemét TE",
+      "sport": "Football",
+      "country": "Hungary",
+      "matchScore": 105.19237525
+    },
+    {
+      "name": "Kisvárda Master Good",
+      "line": "  'Kisvárda Master Good': SOFA_TEAM(262312),",
+      "id": 262312,
+      "sofascoreName": "Kisvárda Master Good SE",
+      "sport": "Handball",
+      "country": "Hungary",
+      "matchScore": 90.035465824
+    },
+    {
+      "name": "Kocaelispor",
+      "line": "  'Kocaelispor': SOFA_TEAM(3065),",
+      "id": 3065,
+      "sofascoreName": "Kocaelispor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.4669441
+    },
+    {
+      "name": "Kolding IF",
+      "line": "  'Kolding IF': SOFA_TEAM(22162),",
+      "id": 22162,
+      "sofascoreName": "Kolding IF",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.2705315
+    },
+    {
+      "name": "Kongsvinger IL",
+      "line": "  'Kongsvinger IL': SOFA_TEAM(22018),",
+      "id": 22018,
+      "sofascoreName": "Kongsvinger IL",
+      "sport": "Ice hockey",
+      "country": "Norway",
+      "matchScore": 100.040320113
+    },
+    {
+      "name": "Krylya Sovetov Samara",
+      "line": "  'Krylya Sovetov Samara': SOFA_TEAM(2322),",
+      "id": 2322,
+      "sofascoreName": "Krylya Sovetov Samara",
+      "sport": "Football",
+      "country": "Russia",
+      "matchScore": 105.32835634
+    },
+    {
+      "name": "Kwara United",
+      "line": "  'Kwara United': SOFA_TEAM(190737),",
+      "id": 190737,
+      "sofascoreName": "Kwara United",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.14537952
+    },
+    {
+      "name": "Kyoto Sanga",
+      "line": "  'Kyoto Sanga': SOFA_TEAM(3149),",
+      "id": 3149,
+      "sofascoreName": "Kyoto Sanga FC",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 95.39919678
+    },
+    {
+      "name": "La Equidad",
+      "line": "  'La Equidad': SOFA_TEAM(391641),",
+      "id": 391641,
+      "sofascoreName": "CD La Equidad",
+      "sport": "Football",
+      "country": "Colombia",
+      "matchScore": 95.1088233
+    },
+    {
+      "name": "Landskrona BoIS",
+      "line": "  'Landskrona BoIS': SOFA_TEAM(1772),",
+      "id": 1772,
+      "sofascoreName": "Landskrona BoIS",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.40391722
+    },
+    {
+      "name": "Le Mans FC",
+      "line": "  'Le Mans FC': SOFA_TEAM(337998),",
+      "id": 337998,
+      "sofascoreName": "Le Mans FC",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.08179506
+    },
+    {
+      "name": "Lillestrøm SK",
+      "line": "  'Lillestrøm SK': SOFA_TEAM(664),",
+      "id": 664,
+      "sofascoreName": "Lillestrøm SK",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 105.7284683
+    },
+    {
+      "name": "Linares Deportivo",
+      "line": "  'Linares Deportivo': SOFA_TEAM(2880),",
+      "id": 2880,
+      "sofascoreName": "Linares Deportivo",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.1935281
+    },
+    {
+      "name": "ŁKS Łódź",
+      "line": "  'ŁKS Łódź': SOFA_TEAM(3123),",
+      "id": 3123,
+      "sofascoreName": "ŁKS Łódź",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.32176594
+    },
+    {
+      "name": "Lobi Stars",
+      "line": "  'Lobi Stars': SOFA_TEAM(190731),",
+      "id": 190731,
+      "sofascoreName": "Lobi Stars",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.10608624
+    },
+    {
+      "name": "Lokomotiv Moscow",
+      "line": "  'Lokomotiv Moscow': SOFA_TEAM(2320),",
+      "id": 2320,
+      "sofascoreName": "Lokomotiv Moscow",
+      "sport": "Football",
+      "country": "Russia",
+      "matchScore": 105.4619095
+    },
+    {
+      "name": "Lommel SK",
+      "line": "  'Lommel SK': SOFA_TEAM(5046),",
+      "id": 5046,
+      "sofascoreName": "Lommel SK",
+      "sport": "Football",
+      "country": "Belgium",
+      "matchScore": 105.29758025
+    },
+    {
+      "name": "Londrina",
+      "line": "  'Londrina': SOFA_TEAM(2022),",
+      "id": 2022,
+      "sofascoreName": "Londrina",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.38154597
+    },
+    {
+      "name": "Louisville City FC",
+      "line": "  'Louisville City FC': SOFA_TEAM(197070),",
+      "id": 197070,
+      "sofascoreName": "Louisville City FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.23973072
+    },
+    {
+      "name": "Lusitânia",
+      "line": "  'Lusitânia': SOFA_TEAM(241932),",
+      "id": 241932,
+      "sofascoreName": "SC Lusitânia",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 95.10687366
+    },
+    {
+      "name": "Machida Zelvia",
+      "line": "  'Machida Zelvia': SOFA_TEAM(44409),",
+      "id": 44409,
+      "sofascoreName": "Machida Zelvia",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.6281865
+    },
+    {
+      "name": "Madureira EC",
+      "line": "  'Madureira EC': SOFA_TEAM(296074),",
+      "id": 296074,
+      "sofascoreName": "Madureira EC",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 105.012265139
+    },
+    {
+      "name": "Manisa FK",
+      "line": "  'Manisa FK': SOFA_TEAM(202391),",
+      "id": 202391,
+      "sofascoreName": "Manisa FK",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.18858198
+    },
+    {
+      "name": "Mansfield Town",
+      "line": "  'Mansfield Town': SOFA_TEAM(70),",
+      "id": 70,
+      "sofascoreName": "Mansfield Town",
+      "sport": "Football",
+      "country": "England",
+      "matchScore": 105.47110394
+    },
+    {
+      "name": "Matsumoto Yamaga FC",
+      "line": "  'Matsumoto Yamaga FC': SOFA_TEAM(26011),",
+      "id": 26011,
+      "sofascoreName": "Matsumoto Yamaga FC",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.20686452
+    },
+    {
+      "name": "Memphis 901 FC",
+      "line": "  'Memphis 901 FC': SOFA_TEAM(310970),",
+      "id": 310970,
+      "sofascoreName": "Memphis 901 FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.15079027
+    },
+    {
+      "name": "MFK Dukla Banská Bystrica",
+      "line": "  'MFK Dukla Banská Bystrica': SOFA_TEAM(1107405),",
+      "id": 1107405,
+      "sofascoreName": "MFK Dukla Banská Bystrica B",
+      "sport": "Football",
+      "country": "Slovakia",
+      "matchScore": 93.60612082351852
+    },
+    {
+      "name": "MFK Skalica",
+      "line": "  'MFK Skalica': SOFA_TEAM(111061),",
+      "id": 111061,
+      "sofascoreName": "MFK Skalica",
+      "sport": "Football",
+      "country": "Slovakia",
+      "matchScore": 105.23107734
+    },
+    {
+      "name": "MFK Tatran Liptovský Mikuláš",
+      "line": "  'MFK Tatran Liptovský Mikuláš': SOFA_TEAM(25488),",
+      "id": 25488,
+      "sofascoreName": "MFK Tatran Liptovský Mikuláš",
+      "sport": "Football",
+      "country": "Slovakia",
+      "matchScore": 105.32565675
+    },
+    {
+      "name": "Miami FC",
+      "line": "  'Miami FC': SOFA_TEAM(218106),",
+      "id": 218106,
+      "sofascoreName": "Miami FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.15838573
+    },
+    {
+      "name": "Miedź Legnica",
+      "line": "  'Miedź Legnica': SOFA_TEAM(35330),",
+      "id": 35330,
+      "sofascoreName": "Miedź Legnica",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.3764942
+    },
+    {
+      "name": "Minnesota United 2",
+      "line": "  'Minnesota United 2': SOFA_TEAM(411366),",
+      "id": 411366,
+      "sofascoreName": "Minnesota United FC 2",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 95.04879291
+    },
+    {
+      "name": "Mito HollyHock",
+      "line": "  'Mito HollyHock': SOFA_TEAM(21901),",
+      "id": 21901,
+      "sofascoreName": "Mito Hollyhock",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.41076534
+    },
+    {
+      "name": "Mitre",
+      "line": "  'Mitre': SOFA_TEAM(255425),",
+      "id": 255425,
+      "sofascoreName": "CA Mitre",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 95.08614728
+    },
+    {
+      "name": "Montedio Yamagata",
+      "line": "  'Montedio Yamagata': SOFA_TEAM(21902),",
+      "id": 21902,
+      "sofascoreName": "Montedio Yamagata",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.27048594
+    },
+    {
+      "name": "MVV Maastricht",
+      "line": "  'MVV Maastricht': SOFA_TEAM(2976),",
+      "id": 2976,
+      "sofascoreName": "MVV Maastricht",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.39989128
+    },
+    {
+      "name": "Nara Club",
+      "line": "  'Nara Club': SOFA_TEAM(38148),",
+      "id": 38148,
+      "sofascoreName": "Nara Club",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.110022914
+    },
+    {
+      "name": "Nasarawa United",
+      "line": "  'Nasarawa United': SOFA_TEAM(190736),",
+      "id": 190736,
+      "sofascoreName": "Nasarawa United",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.14662672
+    },
+    {
+      "name": "Náutico",
+      "line": "  'Náutico': SOFA_TEAM(2011),",
+      "id": 2011,
+      "sofascoreName": "Náutico",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.3929394
+    },
+    {
+      "name": "Neuchâtel Xamax",
+      "line": "  'Neuchâtel Xamax': SOFA_TEAM(2451),",
+      "id": 2451,
+      "sofascoreName": "Neuchâtel Xamax",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.41532412
+    },
+    {
+      "name": "New England Revolution II",
+      "line": "  'New England Revolution II': SOFA_TEAM(338005),",
+      "id": 338005,
+      "sofascoreName": "New England Revolution II",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.2355042
+    },
+    {
+      "name": "New Mexico United",
+      "line": "  'New Mexico United': SOFA_TEAM(310531),",
+      "id": 310531,
+      "sofascoreName": "New Mexico United",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.22658839
+    },
+    {
+      "name": "New York City FC II",
+      "line": "  'New York City FC II': SOFA_TEAM(411368),",
+      "id": 411368,
+      "sofascoreName": "New York City FC II",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.19495808
+    },
+    {
+      "name": "New York Red Bulls II",
+      "line": "  'New York Red Bulls II': SOFA_TEAM(220949),",
+      "id": 220949,
+      "sofascoreName": "New York Red Bulls II",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.30779853
+    },
+    {
+      "name": "Niger Tornadoes",
+      "line": "  'Niger Tornadoes': SOFA_TEAM(214302),",
+      "id": 214302,
+      "sofascoreName": "Niger Tornadoes",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.24785948
+    },
+    {
+      "name": "Norrby IF",
+      "line": "  'Norrby IF': SOFA_TEAM(1849),",
+      "id": 1849,
+      "sofascoreName": "Norrby IF",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.20202136
+    },
+    {
+      "name": "Notodden FK",
+      "line": "  'Notodden FK': SOFA_TEAM(833),",
+      "id": 833,
+      "sofascoreName": "Notodden FK",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 105.16201702
+    },
+    {
+      "name": "Nova Iguaçu",
+      "line": "  'Nova Iguaçu': SOFA_TEAM(6981),",
+      "id": 6981,
+      "sofascoreName": "Nova Iguaçu",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.3943537
+    },
+    {
+      "name": "Nykøbing FC",
+      "line": "  'Nykøbing FC': SOFA_TEAM(1323),",
+      "id": 1323,
+      "sofascoreName": "Nykøbing FC",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.17406452
+    },
+    {
+      "name": "Oakland Roots SC",
+      "line": "  'Oakland Roots SC': SOFA_TEAM(325107),",
+      "id": 325107,
+      "sofascoreName": "Oakland Roots SC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.18738277
+    },
+    {
+      "name": "OC Khouribga",
+      "line": "  'OC Khouribga': SOFA_TEAM(380644),",
+      "id": 380644,
+      "sofascoreName": "OC Khouribga",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 105.022112906
+    },
+    {
+      "name": "Olympic Safi",
+      "line": "  'Olympic Safi': SOFA_TEAM(55037),",
+      "id": 55037,
+      "sofascoreName": "Olympic Safi",
+      "sport": "Football",
+      "country": "Morocco",
+      "matchScore": 105.23712892
+    },
+    {
+      "name": "Operário",
+      "line": "  'Operário': SOFA_TEAM(54251),",
+      "id": 54251,
+      "sofascoreName": "Operario",
+      "sport": "Futsal",
+      "country": "Portugal",
+      "matchScore": 100.016675785
+    },
+    {
+      "name": "Orange County SC",
+      "line": "  'Orange County SC': SOFA_TEAM(217781),",
+      "id": 217781,
+      "sofascoreName": "Orange County SC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.22822725
+    },
+    {
+      "name": "Örgryte IS",
+      "line": "  'Örgryte IS': SOFA_TEAM(1766),",
+      "id": 1766,
+      "sofascoreName": "Örgryte IS",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.40960647
+    },
+    {
+      "name": "Orlando City B",
+      "line": "  'Orlando City B': SOFA_TEAM(220945),",
+      "id": 220945,
+      "sofascoreName": "Orlando City B",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.1305044
+    },
+    {
+      "name": "Ovarense",
+      "line": "  'Ovarense': SOFA_TEAM(34993),",
+      "id": 34993,
+      "sofascoreName": "Ovarense",
+      "sport": "Basketball",
+      "country": "Portugal",
+      "matchScore": 100.08083768
+    },
+    {
+      "name": "Pacific FC",
+      "line": "  'Pacific FC': SOFA_TEAM(309888),",
+      "id": 309888,
+      "sofascoreName": "Pacific FC",
+      "sport": "Football",
+      "country": "Canada",
+      "matchScore": 105.16166452
+    },
+    {
+      "name": "Panachaiki",
+      "line": "  'Panachaiki': SOFA_TEAM(299484),",
+      "id": 299484,
+      "sofascoreName": "Panachaiki",
+      "sport": "Volleyball",
+      "country": "?",
+      "matchScore": 100.0076869126
+    },
+    {
+      "name": "Panetolikos",
+      "line": "  'Panetolikos': SOFA_TEAM(1161315),",
+      "id": 1161315,
+      "sofascoreName": "Panetolikos",
+      "sport": "Waterpolo",
+      "country": "Greece",
+      "matchScore": 100.016175092
+    },
+    {
+      "name": "Patrocinense",
+      "line": "  'Patrocinense': SOFA_TEAM(274036),",
+      "id": 274036,
+      "sofascoreName": "Patrocinense",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.11857411
+    },
+    {
+      "name": "Philadelphia Union II",
+      "line": "  'Philadelphia Union II': SOFA_TEAM(221835),",
+      "id": 221835,
+      "sofascoreName": "Philadelphia Union II",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.20164753
+    },
+    {
+      "name": "Phoenix Rising FC",
+      "line": "  'Phoenix Rising FC': SOFA_TEAM(154018),",
+      "id": 154018,
+      "sofascoreName": "Phoenix Rising FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.18430473
+    },
+    {
+      "name": "Plateau United",
+      "line": "  'Plateau United': SOFA_TEAM(214301),",
+      "id": 214301,
+      "sofascoreName": "Plateau United",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.15868431
+    },
+    {
+      "name": "Pontevedra CF",
+      "line": "  'Pontevedra CF': SOFA_TEAM(4941),",
+      "id": 4941,
+      "sofascoreName": "Pontevedra CF",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.2765544
+    },
+    {
+      "name": "Pouso Alegre FC",
+      "line": "  'Pouso Alegre FC': SOFA_TEAM(343540),",
+      "id": 343540,
+      "sofascoreName": "Pouso Alegre FC",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.22108355
+    },
+    {
+      "name": "Preußen Münster",
+      "line": "  'Preußen Münster': SOFA_TEAM(2590),",
+      "id": 2590,
+      "sofascoreName": "Preußen Münster",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.5096438
+    },
+    {
+      "name": "Puskás Akadémia FC",
+      "line": "  'Puskás Akadémia FC': SOFA_TEAM(25596),",
+      "id": 25596,
+      "sofascoreName": "Puskás Akadémia",
+      "sport": "Football",
+      "country": "Hungary",
+      "matchScore": 95.55146425
+    },
+    {
+      "name": "Puszcza Niepołomice",
+      "line": "  'Puszcza Niepołomice': SOFA_TEAM(38729),",
+      "id": 38729,
+      "sofascoreName": "Puszcza Niepołomice",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.46623375
+    },
+    {
+      "name": "Racing de Ferrol",
+      "line": "  'Racing de Ferrol': SOFA_TEAM(2843),",
+      "id": 2843,
+      "sofascoreName": "Racing de Ferrol",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.44937734
+    },
+    {
+      "name": "Raja Casablanca",
+      "line": "  'Raja Casablanca': SOFA_TEAM(458813),",
+      "id": 458813,
+      "sofascoreName": "Raja Casablanca",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 105.063300625
+    },
+    {
+      "name": "Ranheim IL",
+      "line": "  'Ranheim IL': SOFA_TEAM(708),",
+      "id": 708,
+      "sofascoreName": "Ranheim IL",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 105.27901178
+    },
+    {
+      "name": "Raufoss IL",
+      "line": "  'Raufoss IL': SOFA_TEAM(99235),",
+      "id": 99235,
+      "sofascoreName": "Raufoss IL",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 105.039194793
+    },
+    {
+      "name": "Rayo Majadahonda",
+      "line": "  'Rayo Majadahonda': SOFA_TEAM(202074),",
+      "id": 202074,
+      "sofascoreName": "Rayo Majadahonda",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.23902006
+    },
+    {
+      "name": "Real Madrid Castilla",
+      "line": "  'Real Madrid Castilla': SOFA_TEAM(5069),",
+      "id": 5069,
+      "sofascoreName": "Real Madrid Castilla U21",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 92.65501796666668
+    },
+    {
+      "name": "Real Sociedad B",
+      "line": "  'Real Sociedad B': SOFA_TEAM(467785),",
+      "id": 467785,
+      "sofascoreName": "Real Sociedad B",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 105.083816766
+    },
+    {
+      "name": "Remo",
+      "line": "  'Remo': SOFA_TEAM(2012),",
+      "id": 2012,
+      "sofascoreName": "Remo",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.59139725
+    },
+    {
+      "name": "Remo Stars",
+      "line": "  'Remo Stars': SOFA_TEAM(239062),",
+      "id": 239062,
+      "sofascoreName": "Remo Stars",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.27527475
+    },
+    {
+      "name": "Resende FC",
+      "line": "  'Resende FC': SOFA_TEAM(32878),",
+      "id": 32878,
+      "sofascoreName": "Resende",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 95.07781534
+    },
+    {
+      "name": "Resovia Rzeszów",
+      "line": "  'Resovia Rzeszów': SOFA_TEAM(37204),",
+      "id": 37204,
+      "sofascoreName": "Resovia Rzeszów",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.16832523
+    },
+    {
+      "name": "Rio Grande Valley FC",
+      "line": "  'Rio Grande Valley FC': SOFA_TEAM(221859),",
+      "id": 221859,
+      "sofascoreName": "Rio Grande Valley FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.09271746
+    },
+    {
+      "name": "Rivers United",
+      "line": "  'Rivers United': SOFA_TEAM(215270),",
+      "id": 215270,
+      "sofascoreName": "Rivers United",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.3222263
+    },
+    {
+      "name": "Roasso Kumamoto",
+      "line": "  'Roasso Kumamoto': SOFA_TEAM(21903),",
+      "id": 21903,
+      "sofascoreName": "Roasso Kumamoto",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.25435403
+    },
+    {
+      "name": "Rodez AF",
+      "line": "  'Rodez AF': SOFA_TEAM(6925),",
+      "id": 6925,
+      "sofascoreName": "Rodez AF",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.30406444
+    },
+    {
+      "name": "Rot-Weiss Essen",
+      "line": "  'Rot-Weiss Essen': SOFA_TEAM(2562),",
+      "id": 2562,
+      "sofascoreName": "Rot-Weiss Essen",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.38727166
+    },
+    {
+      "name": "RS Berkane",
+      "line": "  'RS Berkane': SOFA_TEAM(80395),",
+      "id": 80395,
+      "sofascoreName": "RS Berkane",
+      "sport": "Football",
+      "country": "Morocco",
+      "matchScore": 105.87287775
+    },
+    {
+      "name": "Rubin Kazan",
+      "line": "  'Rubin Kazan': SOFA_TEAM(2333),",
+      "id": 2333,
+      "sofascoreName": "Rubin Kazan",
+      "sport": "Football",
+      "country": "Russia",
+      "matchScore": 105.3755504
+    },
+    {
+      "name": "Sacramento Republic FC",
+      "line": "  'Sacramento Republic FC': SOFA_TEAM(153498),",
+      "id": 153498,
+      "sofascoreName": "Sacramento Republic FC",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 105.20027483
+    },
+    {
+      "name": "Sakaryaspor",
+      "line": "  'Sakaryaspor': SOFA_TEAM(3080),",
+      "id": 3080,
+      "sofascoreName": "Sakaryaspor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.24777872
+    },
+    {
+      "name": "Sampaio Corrêa",
+      "line": "  'Sampaio Corrêa': SOFA_TEAM(2005),",
+      "id": 2005,
+      "sofascoreName": "Sampaio Corrêa",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.4393012
+    },
+    {
+      "name": "Sampaio Corrêa-RJ",
+      "line": "  'Sampaio Corrêa-RJ': SOFA_TEAM(257632),",
+      "id": 257632,
+      "sofascoreName": "Sampaio Corrêa-RJ",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.37243366
+    },
+    {
+      "name": "San Antonio FC",
+      "line": "  'San Antonio FC': SOFA_TEAM(508382),",
+      "id": 508382,
+      "sofascoreName": "San Antonio FC",
+      "sport": "Football",
+      "country": "Ecuador",
+      "matchScore": 105.14382055
+    },
+    {
+      "name": "San Martín de San Juan",
+      "line": "  'San Martín de San Juan': SOFA_TEAM(7772),",
+      "id": 7772,
+      "sofascoreName": "San Martín de San Juan",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.3871902
+    },
+    {
+      "name": "San Martín de Tucumán",
+      "line": "  'San Martín de Tucumán': SOFA_TEAM(23950),",
+      "id": 23950,
+      "sofascoreName": "San Martín de Tucumán",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.31367478
+    },
+    {
+      "name": "San Telmo",
+      "line": "  'San Telmo': SOFA_TEAM(213361),",
+      "id": 213361,
+      "sofascoreName": "San Telmo",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.19954253
+    },
+    {
+      "name": "Sandecja Nowy Sącz",
+      "line": "  'Sandecja Nowy Sącz': SOFA_TEAM(36766),",
+      "id": 36766,
+      "sofascoreName": "Sandecja Nowy Sącz",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.36892153
+    },
+    {
+      "name": "Şanlıurfaspor",
+      "line": "  'Şanlıurfaspor': SOFA_TEAM(3090),",
+      "id": 3090,
+      "sofascoreName": "Şanlıurfaspor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.22272153
+    },
+    {
+      "name": "Santa Cruz",
+      "line": "  'Santa Cruz': SOFA_TEAM(1976),",
+      "id": 1976,
+      "sofascoreName": "Santa Cruz",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.50406628
+    },
+    {
+      "name": "São Luiz",
+      "line": "  'São Luiz': SOFA_TEAM(32768),",
+      "id": 32768,
+      "sofascoreName": "São Luiz",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.1761442
+    },
+    {
+      "name": "SC Braga B",
+      "line": "  'SC Braga B': SOFA_TEAM(74473),",
+      "id": 74473,
+      "sofascoreName": "SC Braga B",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 105.13939878
+    },
+    {
+      "name": "SC Covilhã",
+      "line": "  'SC Covilhã': SOFA_TEAM(3037),",
+      "id": 3037,
+      "sofascoreName": "SC Covilhã",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 105.18729972
+    },
+    {
+      "name": "SC Freiburg II",
+      "line": "  'SC Freiburg II': SOFA_TEAM(261844),",
+      "id": 261844,
+      "sofascoreName": "SC Freiburg II",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.058824258
+    },
+    {
+      "name": "SC Kriens",
+      "line": "  'SC Kriens': SOFA_TEAM(2464),",
+      "id": 2464,
+      "sofascoreName": "SC Kriens",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 105.18639661
+    },
+    {
+      "name": "SC Sagamihara",
+      "line": "  'SC Sagamihara': SOFA_TEAM(189234),",
+      "id": 189234,
+      "sofascoreName": "SC Sagamihara",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.20492369
+    },
+    {
+      "name": "SC Verl",
+      "line": "  'SC Verl': SOFA_TEAM(2593),",
+      "id": 2593,
+      "sofascoreName": "SC Verl",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.24028195
+    },
+    {
+      "name": "SD Amorebieta",
+      "line": "  'SD Amorebieta': SOFA_TEAM(54103),",
+      "id": 54103,
+      "sofascoreName": "SD Amorebieta",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.2411224
+    },
+    {
+      "name": "SD Logroñés",
+      "line": "  'SD Logroñés': SOFA_TEAM(77267),",
+      "id": 77267,
+      "sofascoreName": "SD Logroñés",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.18180483
+    },
+    {
+      "name": "Seoul E-Land FC",
+      "line": "  'Seoul E-Land FC': SOFA_TEAM(189422),",
+      "id": 189422,
+      "sofascoreName": "Seoul E-Land FC",
+      "sport": "Football",
+      "country": "South Korea",
+      "matchScore": 105.25973577
+    },
+    {
+      "name": "Sevilla FC B",
+      "line": "  'Sevilla FC B': SOFA_TEAM(1113761),",
+      "id": 1113761,
+      "sofascoreName": "Sevilla FC B",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.013382849
+    },
+    {
+      "name": "Shooting Stars",
+      "line": "  'Shooting Stars': SOFA_TEAM(190739),",
+      "id": 190739,
+      "sofascoreName": "Shooting Stars",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.29271647
+    },
+    {
+      "name": "Sirius FK",
+      "line": "  'Sirius FK': SOFA_TEAM(254164),",
+      "id": 254164,
+      "sofascoreName": "FK Sirius",
+      "sport": "Football",
+      "country": "Latvia",
+      "matchScore": 95.0019296023
+    },
+    {
+      "name": "SK Beveren",
+      "line": "  'SK Beveren': SOFA_TEAM(4859),",
+      "id": 4859,
+      "sofascoreName": "SK Beveren",
+      "sport": "Football",
+      "country": "Belgium",
+      "matchScore": 105.22087669
+    },
+    {
+      "name": "SKN St. Pölten",
+      "line": "  'SKN St. Pölten': SOFA_TEAM(2119),",
+      "id": 2119,
+      "sofascoreName": "SKN St. Pölten",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.4701922
+    },
+    {
+      "name": "SKU Amstetten",
+      "line": "  'SKU Amstetten': SOFA_TEAM(6281),",
+      "id": 6281,
+      "sofascoreName": "SKU Amstetten",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.28812797
+    },
+    {
+      "name": "śląsk Wrocław",
+      "line": "  'śląsk Wrocław': SOFA_TEAM(3108),",
+      "id": 3108,
+      "sofascoreName": "Śląsk Wrocław",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.56321506
+    },
+    {
+      "name": "SønderjyskE",
+      "line": "  'SønderjyskE': SOFA_TEAM(251404),",
+      "id": 251404,
+      "sofascoreName": "Sønderjyske",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 105.013782535
+    },
+    {
+      "name": "Sporting Lagos",
+      "line": "  'Sporting Lagos': SOFA_TEAM(1177063),",
+      "id": 1177063,
+      "sofascoreName": "Sporting Lagos",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.0050088184
+    },
+    {
+      "name": "SpVgg Unterhaching",
+      "line": "  'SpVgg Unterhaching': SOFA_TEAM(2555),",
+      "id": 2555,
+      "sofascoreName": "SpVgg Unterhaching",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.33306906
+    },
+    {
+      "name": "SSV Ulm 1846",
+      "line": "  'SSV Ulm 1846': SOFA_TEAM(2580),",
+      "id": 2580,
+      "sofascoreName": "SSV Ulm 1846",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.39373456
+    },
+    {
+      "name": "Stade Briochin",
+      "line": "  'Stade Briochin': SOFA_TEAM(211608),",
+      "id": 211608,
+      "sofascoreName": "Stade Briochin",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.26321153
+    },
+    {
+      "name": "Stal Mielec",
+      "line": "  'Stal Mielec': SOFA_TEAM(38732),",
+      "id": 38732,
+      "sofascoreName": "Stal Mielec",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.30546347
+    },
+    {
+      "name": "Stjørdals-Blink",
+      "line": "  'Stjørdals-Blink': SOFA_TEAM(727),",
+      "id": 727,
+      "sofascoreName": "Stjørdals/Blink",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 105.2243862
+    },
+    {
+      "name": "Stomil Olsztyn",
+      "line": "  'Stomil Olsztyn': SOFA_TEAM(34810),",
+      "id": 34810,
+      "sofascoreName": "OKS Stomil Olsztyn",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 90.73775213555555
+    },
+    {
+      "name": "Strømsgodset IF",
+      "line": "  'Strømsgodset IF': SOFA_TEAM(1163),",
+      "id": 1163,
+      "sofascoreName": "Strømsgodset",
+      "sport": "Football",
+      "country": "Norway",
+      "matchScore": 95.36012125
+    },
+    {
+      "name": "Sunshine Stars",
+      "line": "  'Sunshine Stars': SOFA_TEAM(42584),",
+      "id": 42584,
+      "sofascoreName": "Sunshine Stars",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 105.13797611
+    },
+    {
+      "name": "SV Horn",
+      "line": "  'SV Horn': SOFA_TEAM(2111),",
+      "id": 2111,
+      "sofascoreName": "SV Horn",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.17541077
+    },
+    {
+      "name": "SV Lafnitz",
+      "line": "  'SV Lafnitz': SOFA_TEAM(258912),",
+      "id": 258912,
+      "sofascoreName": "SV Lafnitz II",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 90.45449147061538
+    },
+    {
+      "name": "SV Ried",
+      "line": "  'SV Ried': SOFA_TEAM(2049),",
+      "id": 2049,
+      "sofascoreName": "SV Ried",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 105.26595078
+    },
+    {
+      "name": "SV Sandhausen",
+      "line": "  'SV Sandhausen': SOFA_TEAM(6157),",
+      "id": 6157,
+      "sofascoreName": "SV Sandhausen",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.20797698
+    },
+    {
+      "name": "SV Wehen Wiesbaden",
+      "line": "  'SV Wehen Wiesbaden': SOFA_TEAM(2597),",
+      "id": 2597,
+      "sofascoreName": "SV Wehen Wiesbaden",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.3767404
+    },
+    {
+      "name": "Talavera de la Reina",
+      "line": "  'Talavera de la Reina': SOFA_TEAM(1113657),",
+      "id": 1113657,
+      "sofascoreName": "CF Talavera de la Reina",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 95.030610215
+    },
+    {
+      "name": "Tampa Bay Rowdies",
+      "line": "  'Tampa Bay Rowdies': SOFA_TEAM(41617),",
+      "id": 41617,
+      "sofascoreName": "FC Tampa Bay Rowdies",
+      "sport": "Football",
+      "country": "USA",
+      "matchScore": 95.24733994
+    },
+    {
+      "name": "Tegevajaro Miyazaki",
+      "line": "  'Tegevajaro Miyazaki': SOFA_TEAM(287058),",
+      "id": 287058,
+      "sofascoreName": "Tegevajaro Miyazaki",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.14775742
+    },
+    {
+      "name": "Telstar",
+      "line": "  'Telstar': SOFA_TEAM(2972),",
+      "id": 2972,
+      "sofascoreName": "SC Telstar",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 95.4970646
+    },
+    {
+      "name": "Temperley",
+      "line": "  'Temperley': SOFA_TEAM(112499),",
+      "id": 112499,
+      "sofascoreName": "Temperley",
+      "sport": "Football",
+      "country": "Argentina",
+      "matchScore": 105.23237217
+    },
+    {
+      "name": "Thisted FC",
+      "line": "  'Thisted FC': SOFA_TEAM(1403),",
+      "id": 1403,
+      "sofascoreName": "Thisted",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 95.12826374
+    },
+    {
+      "name": "Tochigi SC",
+      "line": "  'Tochigi SC': SOFA_TEAM(26009),",
+      "id": 26009,
+      "sofascoreName": "Tochigi SC",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.17433933
+    },
+    {
+      "name": "TOP Oss",
+      "line": "  'TOP Oss': SOFA_TEAM(2978),",
+      "id": 2978,
+      "sofascoreName": "TOP Oss",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 105.47292738
+    },
+    {
+      "name": "Torque",
+      "line": "  'Torque': SOFA_TEAM(481975),",
+      "id": 481975,
+      "sofascoreName": "Torque",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 105.026461746
+    },
+    {
+      "name": "Trelleborgs FF",
+      "line": "  'Trelleborgs FF': SOFA_TEAM(1771),",
+      "id": 1771,
+      "sofascoreName": "Trelleborgs FF",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.2436275
+    },
+    {
+      "name": "TSV 1860 München",
+      "line": "  'TSV 1860 München': SOFA_TEAM(2536),",
+      "id": 2536,
+      "sofascoreName": "TSV 1860 München",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 105.47229797
+    },
+    {
+      "name": "Tuzlaspor",
+      "line": "  'Tuzlaspor': SOFA_TEAM(1170795),",
+      "id": 1170795,
+      "sofascoreName": "Tuzlaspor",
+      "sport": "Football",
+      "country": "Cyprus",
+      "matchScore": 105.009124899
+    },
+    {
+      "name": "UD Leiria",
+      "line": "  'UD Leiria': SOFA_TEAM(938224),",
+      "id": 938224,
+      "sofascoreName": "UD Leiria",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 105.040068137
+    },
+    {
+      "name": "Újpest FC",
+      "line": "  'Újpest FC': SOFA_TEAM(277503),",
+      "id": 277503,
+      "sofascoreName": "Újpest FC",
+      "sport": "Football",
+      "country": "Hungary",
+      "matchScore": 105.07007092
+    },
+    {
+      "name": "Ümraniyespor",
+      "line": "  'Ümraniyespor': SOFA_TEAM(55625),",
+      "id": 55625,
+      "sofascoreName": "Ümraniyespor",
+      "sport": "Football",
+      "country": "Türkiye",
+      "matchScore": 105.28649838
+    },
+    {
+      "name": "US Avranches",
+      "line": "  'US Avranches': SOFA_TEAM(35066),",
+      "id": 35066,
+      "sofascoreName": "Avranches",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 95.16189522
+    },
+    {
+      "name": "US Orléans",
+      "line": "  'US Orléans': SOFA_TEAM(6921),",
+      "id": 6921,
+      "sofascoreName": "US Orléans",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 105.29639797
+    },
+    {
+      "name": "Utsiktens BK",
+      "line": "  'Utsiktens BK': SOFA_TEAM(7536),",
+      "id": 7536,
+      "sofascoreName": "Utsiktens BK",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.21905923
+    },
+    {
+      "name": "Valencia B",
+      "line": "  'Valencia B': SOFA_TEAM(305032),",
+      "id": 305032,
+      "sofascoreName": "Valencia B",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 105.038918176
+    },
+    {
+      "name": "Valour FC",
+      "line": "  'Valour FC': SOFA_TEAM(313717),",
+      "id": 313717,
+      "sofascoreName": "Valour FC",
+      "sport": "Football",
+      "country": "Canada",
+      "matchScore": 105.16668812
+    },
+    {
+      "name": "Varzim SC",
+      "line": "  'Varzim SC': SOFA_TEAM(3005),",
+      "id": 3005,
+      "sofascoreName": "Varzim SC",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 105.19075745
+    },
+    {
+      "name": "Vasalunds IF",
+      "line": "  'Vasalunds IF': SOFA_TEAM(5950),",
+      "id": 5950,
+      "sofascoreName": "Vasalunds IF",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.19732795
+    },
+    {
+      "name": "Vasas FC",
+      "line": "  'Vasas FC': SOFA_TEAM(1919),",
+      "id": 1919,
+      "sofascoreName": "Vasas",
+      "sport": "Football",
+      "country": "Hungary",
+      "matchScore": 95.17358975
+    },
+    {
+      "name": "Västerås SK",
+      "line": "  'Västerås SK': SOFA_TEAM(1775),",
+      "id": 1775,
+      "sofascoreName": "Västerås SK",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 105.41145172
+    },
+    {
+      "name": "Villa Nova AC",
+      "line": "  'Villa Nova AC': SOFA_TEAM(7316),",
+      "id": 7316,
+      "sofascoreName": "Villa Nova AC",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.08313644
+    },
+    {
+      "name": "Villefranche-Beaujolais",
+      "line": "  'Villefranche-Beaujolais': SOFA_TEAM(32934),",
+      "id": 32934,
+      "sofascoreName": "FC Villefranche Beaujolais",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 95.30309312
+    },
+    {
+      "name": "Wacker Innsbruck",
+      "line": "  'Wacker Innsbruck': SOFA_TEAM(2088),",
+      "id": 2088,
+      "sofascoreName": "FC Wacker Innsbruck",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 95.2248965
+    },
+    {
+      "name": "Waldhof Mannheim",
+      "line": "  'Waldhof Mannheim': SOFA_TEAM(2680),",
+      "id": 2680,
+      "sofascoreName": "SV Waldhof Mannheim",
+      "sport": "Football",
+      "country": "Germany",
+      "matchScore": 92.23151354315789
+    },
+    {
+      "name": "Welling United",
+      "line": "  'Welling United': SOFA_TEAM(98),",
+      "id": 98,
+      "sofascoreName": "Welling United",
+      "sport": "Football",
+      "country": "England",
+      "matchScore": 105.13852503
+    },
+    {
+      "name": "Widzew Łódź",
+      "line": "  'Widzew Łódź': SOFA_TEAM(3115),",
+      "id": 3115,
+      "sofascoreName": "Widzew Łódź",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.60082275
+    },
+    {
+      "name": "Wikki Tourists",
+      "line": "  'Wikki Tourists': SOFA_TEAM(190730),",
+      "id": 190730,
+      "sofascoreName": "Wikki Tourists FC",
+      "sport": "Football",
+      "country": "Nigeria",
+      "matchScore": 95.17717622
+    },
+    {
+      "name": "Wisła Kraków",
+      "line": "  'Wisła Kraków': SOFA_TEAM(3111),",
+      "id": 3111,
+      "sofascoreName": "Wisła Kraków",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.6148057
+    },
+    {
+      "name": "Wrexham",
+      "line": "  'Wrexham': SOFA_TEAM(64),",
+      "id": 64,
+      "sofascoreName": "Wrexham",
+      "sport": "Football",
+      "country": "Wales",
+      "matchScore": 106.2182719
+    },
+    {
+      "name": "Wydad AC",
+      "line": "  'Wydad AC': SOFA_TEAM(285648),",
+      "id": 285648,
+      "sofascoreName": "Wydad AC",
+      "sport": "Basketball",
+      "country": "Morocco",
+      "matchScore": 100.10164494
+    },
+    {
+      "name": "York City",
+      "line": "  'York City': SOFA_TEAM(73),",
+      "id": 73,
+      "sofascoreName": "York City",
+      "sport": "Football",
+      "country": "England",
+      "matchScore": 105.33649384
+    },
+    {
+      "name": "Youssoufia Berrechid",
+      "line": "  'Youssoufia Berrechid': SOFA_TEAM(118830),",
+      "id": 118830,
+      "sofascoreName": "CA Youssoufia Berrechid",
+      "sport": "Football",
+      "country": "Morocco",
+      "matchScore": 95.20389625
+    },
+    {
+      "name": "Ypiranga FC",
+      "line": "  'Ypiranga FC': SOFA_TEAM(32766),",
+      "id": 32766,
+      "sofascoreName": "Ypiranga FC",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 105.24034177
+    },
+    {
+      "name": "Zagłębie Lubin",
+      "line": "  'Zagłębie Lubin': SOFA_TEAM(3113),",
+      "id": 3113,
+      "sofascoreName": "Zagłębie Lubin",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.49942184
+    },
+    {
+      "name": "Zagłębie Sosnowiec",
+      "line": "  'Zagłębie Sosnowiec': SOFA_TEAM(7693),",
+      "id": 7693,
+      "sofascoreName": "Zagłębie Sosnowiec",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 105.30410266
+    },
+    {
+      "name": "Zweigen Kanazawa",
+      "line": "  'Zweigen Kanazawa': SOFA_TEAM(38138),",
+      "id": 38138,
+      "sofascoreName": "Zweigen Kanazawa",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 105.21976702
+    }
+  ],
+  "mediumConfidence": [
+    {
+      "name": "Atlético-CE",
+      "line": "  'Atlético-CE': SOFA_TEAM(394850),",
+      "id": 394850,
+      "sofascoreName": "Atlético Central",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 88.758129008
+    },
+    {
+      "name": "Democrata-GV",
+      "line": "  'Democrata-GV': SOFA_TEAM(21848),",
+      "id": 21848,
+      "sofascoreName": "EC Democrata",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 70.12854783
+    },
+    {
+      "name": "Dender EH",
+      "line": "  'Dender EH': SOFA_TEAM(446427),",
+      "id": 446427,
+      "sofascoreName": "FCV Dender EH U21",
+      "sport": "Football",
+      "country": "Belgium",
+      "matchScore": 85.64468117411765
+    },
+    {
+      "name": "Deportivo de La Coruña",
+      "line": "  'Deportivo de La Coruña': SOFA_TEAM(262253),",
+      "id": 262253,
+      "sofascoreName": "Real Club Deportivo de la Coruña",
+      "sport": "Football",
+      "country": "Spain",
+      "matchScore": 88.93899445
+    },
+    {
+      "name": "FC Admira Wacker Mödling",
+      "line": "  'FC Admira Wacker Mödling': SOFA_TEAM(2050),",
+      "id": 2050,
+      "sofascoreName": "Admira Wacker",
+      "sport": "Football",
+      "country": "Austria",
+      "matchScore": 86.27744267333333
+    },
+    {
+      "name": "FK Kolubara",
+      "line": "  'FK Kolubara': SOFA_TEAM(378534),",
+      "id": 378534,
+      "sofascoreName": "FK Kolubara Jabučje",
+      "sport": "Football",
+      "country": "Serbia",
+      "matchScore": 86.58598381912105
+    },
+    {
+      "name": "FK Mladi Radnik",
+      "line": "  'FK Mladi Radnik': SOFA_TEAM(507400),",
+      "id": 507400,
+      "sofascoreName": "FK Mladi Radnik Dragušica",
+      "sport": "Football",
+      "country": "Serbia",
+      "matchScore": 87.00538167
+    },
+    {
+      "name": "FK Vojvodina Novi Sad",
+      "line": "  'FK Vojvodina Novi Sad': SOFA_TEAM(5150),",
+      "id": 5150,
+      "sofascoreName": "FK Vojvodina",
+      "sport": "Football",
+      "country": "Serbia",
+      "matchScore": 86.88002620857144
+    },
+    {
+      "name": "GD Bragança",
+      "line": "  'GD Bragança': SOFA_TEAM(311699),",
+      "id": 311699,
+      "sofascoreName": "GD Braganca  U19",
+      "sport": "Football",
+      "country": "?",
+      "matchScore": 89.68165233866667
+    },
+    {
+      "name": "GFA Rumilly",
+      "line": "  'GFA Rumilly': SOFA_TEAM(38762),",
+      "id": 38762,
+      "sofascoreName": "GFA Rumilly-Vallières",
+      "sport": "Football",
+      "country": "France",
+      "matchScore": 85.58844303619048
+    },
+    {
+      "name": "Grulla Morioka",
+      "line": "  'Grulla Morioka': SOFA_TEAM(44519),",
+      "id": 44519,
+      "sofascoreName": "Iwate Grulla Morioka",
+      "sport": "Football",
+      "country": "Japan",
+      "matchScore": 89.14961678
+    },
+    {
+      "name": "Guarani FB",
+      "line": "  'Guarani FB': SOFA_TEAM(1972),",
+      "id": 1972,
+      "sofascoreName": "Guarani",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 89.23488447
+    },
+    {
+      "name": "Hassania Agadir",
+      "line": "  'Hassania Agadir': SOFA_TEAM(1166564),",
+      "id": 1166564,
+      "sofascoreName": "Hassania Agadir Basket",
+      "sport": "Basketball",
+      "country": "Morocco",
+      "matchScore": 83.65221577736364
+    },
+    {
+      "name": "Imortal",
+      "line": "  'Imortal': SOFA_TEAM(491404),",
+      "id": 491404,
+      "sofascoreName": "Imortal DC B",
+      "sport": "Football",
+      "country": "Portugal",
+      "matchScore": 86.67484050566667
+    },
+    {
+      "name": "Ionikos Nikaia",
+      "line": "  'Ionikos Nikaia': SOFA_TEAM(854387),",
+      "id": 854387,
+      "sofascoreName": "Ionikos Nikaias U23",
+      "sport": "Basketball",
+      "country": "Greece",
+      "matchScore": 84.74071578126315
+    },
+    {
+      "name": "Kalamata",
+      "line": "  'Kalamata': SOFA_TEAM(412056),",
+      "id": 412056,
+      "sofascoreName": "PS Kalamata",
+      "sport": "Football",
+      "country": "Greece",
+      "matchScore": 89.72025894545455
+    },
+    {
+      "name": "Kallithea",
+      "line": "  'Kallithea': SOFA_TEAM(244287),",
+      "id": 244287,
+      "sofascoreName": "Kallithea U19",
+      "sport": "Football",
+      "country": "Greece",
+      "matchScore": 88.91548029115384
+    },
+    {
+      "name": "Levadiakos",
+      "line": "  'Levadiakos': SOFA_TEAM(5063),",
+      "id": 5063,
+      "sofascoreName": "APO Levadiakos",
+      "sport": "Football",
+      "country": "Greece",
+      "matchScore": 89.71948131571429
+    },
+    {
+      "name": "Næstved BK",
+      "line": "  'Næstved BK': SOFA_TEAM(1097931),",
+      "id": 1097931,
+      "sofascoreName": "Næstved BK U17",
+      "sport": "Football",
+      "country": "Denmark",
+      "matchScore": 89.2947749847143
+    },
+    {
+      "name": "Odra Opole",
+      "line": "  'Odra Opole': SOFA_TEAM(7916),",
+      "id": 7916,
+      "sofascoreName": "OKS Odra Opole",
+      "sport": "Football",
+      "country": "Poland",
+      "matchScore": 89.60565958571429
+    },
+    {
+      "name": "Öster IF",
+      "line": "  'Öster IF': SOFA_TEAM(1781),",
+      "id": 1781,
+      "sofascoreName": "Östers IF",
+      "sport": "Football",
+      "country": "Sweden",
+      "matchScore": 71.73571026666667
+    },
+    {
+      "name": "Roda JC",
+      "line": "  'Roda JC': SOFA_TEAM(1089127),",
+      "id": 1089127,
+      "sofascoreName": "Roda JC U14",
+      "sport": "Football",
+      "country": "Netherlands",
+      "matchScore": 87.74585134727272
+    },
+    {
+      "name": "São José-RS",
+      "line": "  'São José-RS': SOFA_TEAM(255944),",
+      "id": 255944,
+      "sofascoreName": "São José-RS U20",
+      "sport": "Football",
+      "country": "Brazil",
+      "matchScore": 89.77517276666667
+    },
+    {
+      "name": "Swallows FC",
+      "line": "  'Swallows FC': SOFA_TEAM(33571),",
+      "id": 33571,
+      "sofascoreName": "Dingli Swallows FC",
+      "sport": "Football",
+      "country": "Malta",
+      "matchScore": 87.23562461822223
+    },
+    {
+      "name": "US Schaffhausen",
+      "line": "  'US Schaffhausen': SOFA_TEAM(1127077),",
+      "id": 1127077,
+      "sofascoreName": "FC Schaffhausen U18",
+      "sport": "Football",
+      "country": "Switzerland",
+      "matchScore": 70.0055142314
+    }
+  ],
+  "notFound": [
+    ",\r\n      ",
+    ", ",
+    "ABC FC",
+    "AFC Tubize Braine",
+    "Agropecuario CF",
+    "Atlético de Madrid B",
+    "B93",
+    "Bayern Munich II",
+    "Blau-Weiß Linz",
+    "Boa Esporte Clube",
+    "Brasil de Pelotas",
+    "Busan IPark",
+    "CF Montréal II",
+    "CF Riba d\\",
+    "Celta B",
+    "Chungbuk Cheongju FC",
+    "D.C. United 2",
+    "DHJ Jadida",
+    "EC Novo Hamburgo",
+    "Esportivo de Bento Gonçalves",
+    "FAC Wien",
+    "FC Arminia Bielefeld",
+    "FK Jablonec nad Nisou",
+    "FK Mjøndalen",
+    "Fokikos",
+    "Fredericia BK",
+    "Heartland FC",
+    "IRT Tanger",
+    "Ipatinga FC",
+    "Jong AZ",
+    "Jong PSV",
+    "Khorfakkan Club",
+    "LA Galaxy II",
+    "LAFC 2",
+    "Lierse Kempenzonen",
+    "MK Dons",
+    "MOL Fehérvár FC",
+    "Moghreb Tétouan",
+    "Mouloudia Oujda",
+    "Nashville SC 2",
+    "PAE Veria",
+    "PFC Sochi",
+    "Paks FC",
+    "Pittsburgh Riverhounds SC",
+    "Portland Timbers 2",
+    "RE Virton",
+    "RWDM Brussels FC",
+    "Real Betis Deportivo",
+    "Real Salt Lake Monarchs",
+    "Renofa Yamaguichi",
+    "Rodos FC",
+    "San Jose Earthquakes 2",
+    "Seattle Sounders FC 2",
+    "Sporting KC 2",
+    "Sporting Lokeren-Temse",
+    "Thespakusatsu Gunma",
+    "Thrasivoulos FC",
+    "Vancouver Whitecaps 2",
+    "Xanthi FC",
+    "York United FC",
+    "Zalaegerszeg TC"
+  ],
+  "dupes": [
+    {
+      "id": 44409,
+      "names": [
+        "FC Machida Zelvia",
+        "Machida Zelvia"
+      ]
+    },
+    {
+      "id": 44519,
+      "names": [
+        "Grulla Morioka",
+        "Iwate Grulla Morioka"
+      ]
+    }
+  ],
+  "stats": {
+    "total": 458,
+    "foundHigh": 372,
+    "foundMedium": 25,
+    "notFound": 61
+  }
+}

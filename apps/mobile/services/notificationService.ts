@@ -5,9 +5,9 @@ import { apiClient } from './apiClient';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowAlert: false,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowAlert: true,
   }),
 });
 

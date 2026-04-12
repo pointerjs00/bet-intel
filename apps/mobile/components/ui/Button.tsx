@@ -24,6 +24,7 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   leftSlot?: React.ReactNode;
+  textColor?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -33,6 +34,7 @@ export const Button = React.memo(function Button({
   size = 'md',
   loading = false,
   leftSlot,
+  textColor,
   disabled,
   style,
   ...props
@@ -80,7 +82,7 @@ export const Button = React.memo(function Button({
           style={[
             styles.label,
             {
-              color: getTextColor(variant, colors),
+              color: textColor ?? getTextColor(variant, colors),
               fontSize: size === 'lg' ? tokens.font.sizes.lg : tokens.font.sizes.md,
             },
           ]}

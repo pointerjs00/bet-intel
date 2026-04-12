@@ -1,19 +1,84 @@
 import React, { useCallback } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../theme/useTheme';
 import { useUnreadNotificationsCount } from '../../services/socialService';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const TAB_BAR_HEIGHT = 64;
 const TAB_BAR_MARGIN = 16;
+
+function TabItemButton({
+  onPress,
+  icon,
+  label,
+  focused,
+  tintColor,
+  badge,
+  dangerColor,
+}: {
+  onPress: () => void;
+  icon: React.ReactNode;
+  label: string;
+  focused: boolean;
+  tintColor: string;
+  badge: string | number | undefined;
+  dangerColor: string;
+}) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <AnimatedPressable
+      style={[styles.tabItem, animatedStyle]}
+      onPressIn={() => {
+        scale.value = withTiming(0.85, { duration: 100 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 15, stiffness: 300 });
+      }}
+      onPress={onPress}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: focused }}
+    >
+      <View style={styles.iconWrap}>
+        {icon}
+        {badge != null && Number(badge) > 0 ? (
+          <View style={[styles.badge, { backgroundColor: dangerColor }]}>
+            <Text style={styles.badgeText}>
+              {Number(badge) > 9 ? '9+' : badge}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <Text
+        style={[
+          styles.tabLabel,
+          { color: tintColor, fontWeight: focused ? '700' : '500' },
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </AnimatedPressable>
+  );
+}
 
 function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
 
+  // Hide when the active screen requests it via tabBarStyle: { display: 'none' }
+  const activeDescriptor = descriptors[state.routes[state.index].key];
+  const tabBarStyle = activeDescriptor?.options?.tabBarStyle as Record<string, unknown> | undefined;
+  if (tabBarStyle?.display === 'none') return null;
   return (
     <View
       style={[
@@ -50,34 +115,16 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           const badge = descriptor.options.tabBarBadge;
 
           return (
-            <View key={route.key} style={styles.tabItem}>
-              <View
-                style={styles.tabTouchable}
-                onTouchEnd={onPress}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: focused }}
-              >
-                <View style={styles.iconWrap}>
-                  {icon}
-                  {badge != null && Number(badge) > 0 ? (
-                    <View style={[styles.badge, { backgroundColor: colors.danger }]}>
-                      <Text style={styles.badgeText}>
-                        {Number(badge) > 9 ? '9+' : badge}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    { color: tintColor, fontWeight: focused ? '700' : '500' },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {descriptor.options.title ?? route.name}
-                </Text>
-              </View>
-            </View>
+            <TabItemButton
+              key={route.key}
+              onPress={onPress}
+              icon={icon}
+              label={descriptor.options.title ?? route.name}
+              focused={focused}
+              tintColor={tintColor}
+              badge={badge}
+              dangerColor={colors.danger}
+            />
           );
         })}
       </View>
@@ -168,10 +215,6 @@ const styles = StyleSheet.create({
   },
   tabItem: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabTouchable: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
