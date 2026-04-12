@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+﻿import { Request, Response } from 'express';
 import {
   createBoletinItemSchema,
   createBoletinSchema,
@@ -36,7 +36,7 @@ function fail(res: Response, err: unknown): void {
     return;
   }
 
-  logger.error('Unknown boletin controller error', { error: err });
+  logger.error('Unknown boletim controller error', { error: err });
   res.status(500).json({ success: false, error: 'Erro interno do servidor' });
 }
 
@@ -64,7 +64,7 @@ export async function createBoletinHandler(req: Request, res: Response): Promise
   if (!parsed.success) {
     res.status(422).json({
       success: false,
-      error: 'Dados do boletin inválidos',
+      error: 'Dados do boletim inválidos',
       details: parsed.error.flatten().fieldErrors,
     });
     return;
@@ -82,14 +82,14 @@ export async function createBoletinHandler(req: Request, res: Response): Promise
 export async function getBoletinHandler(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (!id) {
-    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    res.status(400).json({ success: false, error: 'ID do boletim em falta' });
     return;
   }
 
   try {
     const boletin = await getBoletinDetail(requireUserId(req), id);
     if (!boletin) {
-      res.status(404).json({ success: false, error: 'Boletin não encontrado' });
+      res.status(404).json({ success: false, error: 'Boletim não encontrado' });
       return;
     }
 
@@ -103,7 +103,7 @@ export async function getBoletinHandler(req: Request, res: Response): Promise<vo
 export async function updateBoletinHandler(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (!id) {
-    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    res.status(400).json({ success: false, error: 'ID do boletim em falta' });
     return;
   }
 
@@ -129,7 +129,7 @@ export async function updateBoletinHandler(req: Request, res: Response): Promise
 export async function deleteBoletinHandler(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (!id) {
-    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    res.status(400).json({ success: false, error: 'ID do boletim em falta' });
     return;
   }
 
@@ -141,11 +141,11 @@ export async function deleteBoletinHandler(req: Request, res: Response): Promise
   }
 }
 
-/** Handles PATCH /api/betintel/:id/items — update individual item results (won/lost). */
+/** Handles PATCH /api/betintel/:id/items - update individual item results (won/lost). */
 export async function updateBoletinItemsHandler(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (!id) {
-    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    res.status(400).json({ success: false, error: 'ID do boletim em falta' });
     return;
   }
 
@@ -167,11 +167,11 @@ export async function updateBoletinItemsHandler(req: Request, res: Response): Pr
   }
 }
 
-/** Handles POST /api/betintel/:id/items — add a selection to an existing boletin. */
+/** Handles POST /api/betintel/:id/items - add a selection to an existing boletim. */
 export async function addBoletinItemHandler(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (!id) {
-    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    res.status(400).json({ success: false, error: 'ID do boletim em falta' });
     return;
   }
 
@@ -193,7 +193,7 @@ export async function addBoletinItemHandler(req: Request, res: Response): Promis
   }
 }
 
-/** Handles DELETE /api/betintel/:id/items/:itemId — remove a selection from an existing boletin. */
+/** Handles DELETE /api/betintel/:id/items/:itemId - remove a selection from an existing boletim. */
 export async function deleteBoletinItemHandler(req: Request, res: Response): Promise<void> {
   const { id, itemId } = req.params;
   if (!id || !itemId) {
@@ -209,7 +209,7 @@ export async function deleteBoletinItemHandler(req: Request, res: Response): Pro
   }
 }
 
-/** Handles PATCH /api/betintel/:id/items/:itemId — edit a single selection's fields. */
+/** Handles PATCH /api/betintel/:id/items/:itemId - edit a single selection's fields. */
 export async function updateBoletinItemHandler(req: Request, res: Response): Promise<void> {
   const { id, itemId } = req.params;
   if (!id || !itemId) {
@@ -239,7 +239,7 @@ export async function updateBoletinItemHandler(req: Request, res: Response): Pro
 export async function shareBoletinHandler(req: Request, res: Response): Promise<void> {
   const { id } = req.params;
   if (!id) {
-    res.status(400).json({ success: false, error: 'ID do boletin em falta' });
+    res.status(400).json({ success: false, error: 'ID do boletim em falta' });
     return;
   }
 

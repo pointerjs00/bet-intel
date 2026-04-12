@@ -13,6 +13,7 @@ import {
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
@@ -76,6 +77,8 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const chevronRotation = useSharedValue(0);
+  const shareScale = useSharedValue(1);
+  const deleteScale = useSharedValue(1);
 
   // Resolve ATP player photos using the same reference data as the create screen.
   // React Query deduplicates concurrent calls and serves cached data (staleTime 24h).
@@ -94,6 +97,14 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
 
   const chevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${chevronRotation.value}deg` }],
+  }));
+
+  const shareButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: shareScale.value }],
+  }));
+
+  const deleteButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: deleteScale.value }],
   }));
 
   const toggleExpand = () => {
@@ -285,20 +296,36 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
       <View style={styles.actionRow}>
         {/* Icon-only action buttons */}
         <View style={styles.iconActions}>
-          <Pressable
-            hitSlop={10}
-            onPress={(e) => { e.stopPropagation(); onShare?.(); }}
-            style={[styles.iconBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-          >
-            <Ionicons color={colors.textSecondary} name="share-social-outline" size={20} />
-          </Pressable>
-          <Pressable
-            hitSlop={10}
-            onPress={(e) => { e.stopPropagation(); onDelete?.(); }}
-            style={[styles.iconBtn, { backgroundColor: 'rgba(255,59,48,0.10)', borderColor: 'rgba(255,59,48,0.25)' }]}
-          >
-            <Ionicons color="#FF3B30" name="trash-outline" size={20} />
-          </Pressable>
+          <Animated.View style={shareButtonStyle}>
+            <Pressable
+              hitSlop={10}
+              onPress={(e) => { e.stopPropagation(); onShare?.(); }}
+              onPressIn={() => {
+                shareScale.value = withTiming(0.9, { duration: 90 });
+              }}
+              onPressOut={() => {
+                shareScale.value = withSpring(1, { damping: 12, stiffness: 260 });
+              }}
+              style={[styles.iconBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+            >
+              <Ionicons color={colors.textSecondary} name="share-social-outline" size={20} />
+            </Pressable>
+          </Animated.View>
+          <Animated.View style={deleteButtonStyle}>
+            <Pressable
+              hitSlop={10}
+              onPress={(e) => { e.stopPropagation(); onDelete?.(); }}
+              onPressIn={() => {
+                deleteScale.value = withTiming(0.9, { duration: 90 });
+              }}
+              onPressOut={() => {
+                deleteScale.value = withSpring(1, { damping: 12, stiffness: 260 });
+              }}
+              style={[styles.iconBtn, { backgroundColor: 'rgba(255,59,48,0.10)', borderColor: 'rgba(255,59,48,0.25)' }]}
+            >
+              <Ionicons color="#FF3B30" name="trash-outline" size={20} />
+            </Pressable>
+          </Animated.View>
         </View>
 
         {/* Expand/collapse chevron */}

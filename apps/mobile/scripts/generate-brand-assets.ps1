@@ -148,10 +148,14 @@ function New-SplashArt([int]$width, [int]$height, [string]$path) {
     $goldGlow.Dispose()
     $greenGlow.Dispose()
 
-    $markSize = 340.0
-    $markX = ($width - $markSize) / 2
-    $markY = 200.0
-    Draw-BrandMark $graphics ($markSize / 256.0) $markX $markY
+    $markSize = [int]340
+    $markX = [int](($width - $markSize) / 2)
+    $markY = [int]200
+    $iconPath = Join-Path $assetDir 'logo-no-bg.png'
+    $iconImg = [System.Drawing.Image]::FromFile($iconPath)
+    $destRect = New-Object System.Drawing.Rectangle($markX, $markY, $markSize, $markSize)
+    $graphics.DrawImage($iconImg, $destRect)
+    $iconImg.Dispose()
 
     $titleFont = New-Object System.Drawing.Font -ArgumentList @('Segoe UI', [float]56, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
     $taglineFont = New-Object System.Drawing.Font -ArgumentList @('Segoe UI', [float]24, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
@@ -181,9 +185,6 @@ function New-SplashArt([int]$width, [int]$height, [string]$path) {
   Save-Png $bitmap $path
 }
 
-New-IconArt 1024 (Join-Path $assetDir 'icon.png')
-New-IconArt 1024 (Join-Path $assetDir 'adaptive-icon.png')
-New-IconArt 256 (Join-Path $assetDir 'favicon.png')
 New-SplashArt 1242 2436 (Join-Path $assetDir 'splash.png')
 
 Get-ChildItem $assetDir | Select-Object Name, Length

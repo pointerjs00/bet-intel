@@ -144,7 +144,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         const state = get();
 
         if (state.items.length === 0) {
-          throw new Error('Adiciona pelo menos uma seleção ao boletin.');
+          throw new Error('Adiciona pelo menos uma seleção ao boletim.');
         }
 
         if (state.stake <= 0) {
@@ -157,7 +157,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
       },
     }),
     {
-      name: 'betintel-boletin-builder',
+      name: 'betintel-boletim-builder',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         items: state.items,

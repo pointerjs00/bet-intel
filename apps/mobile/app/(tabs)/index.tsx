@@ -21,6 +21,7 @@ import { BoletinStatus, Sport } from '@betintel/shared';
 import type { Notification } from '@betintel/shared';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { BoletinCard } from '../../components/boletins/BoletinCard';
+import { useShareBoletinSheet } from '../../components/social/ShareBoletinProvider';
 import {
   BoletinFilterSheet,
   type BoletinFilter,
@@ -200,6 +201,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { openShareBoletinSheet } = useShareBoletinSheet();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
   const filterSheetRef = useRef<GorhomBottomSheet>(null);
@@ -253,9 +255,11 @@ export default function HomeScreen() {
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
 
-  // Hide the tab bar when the notification detail popup is open
+  // Hide the tab bar when the notification detail popup is open.
   useEffect(() => {
-    navigation.setOptions({ tabBarStyle: selectedNotif ? { display: 'none' } : undefined });
+    navigation.setOptions({
+      tabBarStyle: selectedNotif ? { display: 'none' } : undefined,
+    });
   }, [selectedNotif, navigation]);
 
   useEffect(() => {
@@ -855,12 +859,7 @@ export default function HomeScreen() {
               boletin={item}
               onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
               onPress={() => router.push(`/boletins/${item.id}`)}
-              onShare={() =>
-                showToast(
-                  'A partilha para amigos fica visível quando o módulo social estiver pronto.',
-                  'info',
-                )
-              }
+              onShare={() => openShareBoletinSheet({ boletinId: item.id, boletinName: item.name ?? undefined })}
             />
           );
 
@@ -1051,7 +1050,7 @@ export default function HomeScreen() {
                   style={[styles.notifDetailButton, { backgroundColor: colors.primary }]}
                 >
                   <Text style={styles.notifDetailButtonText}>
-                    {n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPTED' ? 'Ver amigos' : 'Ver boletin'}
+                    {n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPTED' ? 'Ver amigos' : 'Ver boletim'}
                   </Text>
                   <MaterialCommunityIcons name="arrow-right" size={16} color="#fff" />
                 </Pressable>
@@ -1066,7 +1065,7 @@ export default function HomeScreen() {
         title="Eliminar boletim"
         message={`Tens a certeza que queres eliminar "${deleteTarget?.name ?? 'este boletim'}"? Esta ação não pode ser revertida.`}
         confirmLabel="Eliminar"
-        storageKey="delete-boletin"
+        storageKey="delete-boletim"
         onConfirm={async () => {
           if (!deleteTarget) return;
           const id = deleteTarget.id;

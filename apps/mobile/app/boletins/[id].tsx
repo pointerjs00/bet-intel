@@ -1,16 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Keyboard, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
-import { ShareBoletinSheet } from '../../components/social/ShareBoletinSheet';
+import { useShareBoletinSheet } from '../../components/social/ShareBoletinProvider';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -60,6 +59,7 @@ export default function BoletinDetailScreen() {
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
+  const { openShareBoletinSheet } = useShareBoletinSheet();
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -77,7 +77,6 @@ export default function BoletinDetailScreen() {
   const [pendingPublic, setPendingPublic] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const prevStatusRef = useRef<BoletinStatus | undefined>(undefined);
-  const shareSheetRef = useRef<GorhomBottomSheet>(null);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
   const updateItemsMutation = useUpdateBoletinItemsMutation();
@@ -421,7 +420,7 @@ export default function BoletinDetailScreen() {
                   <View style={styles.statCell}>
                     <View style={styles.statLabelRow}>
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Stake</Text>
-                      <InfoButton accessibilityLabel="O que é a stake" onPress={() => pushInfo('boletin-stake', boletinStats?.stake)} showLabel={false} size="sm" />
+                      <InfoButton accessibilityLabel="O que é a stake" onPress={() => pushInfo('boletim-stake', boletinStats?.stake)} showLabel={false} size="sm" />
                     </View>
                     {isEditing ? (
                       <View style={styles.statEditRow}>
@@ -445,7 +444,7 @@ export default function BoletinDetailScreen() {
                   <View style={styles.statCell}>
                     <View style={styles.statLabelRow}>
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Odd Total</Text>
-                      <InfoButton accessibilityLabel="O que é a odd total" onPress={() => pushInfo('boletin-odds', boletinStats?.totalOdds)} showLabel={false} size="sm" />
+                      <InfoButton accessibilityLabel="O que é a odd total" onPress={() => pushInfo('boletim-odds', boletinStats?.totalOdds)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: colors.textPrimary }]}>
                       {(boletinStats?.totalOdds ?? 1).toFixed(2)}
@@ -462,7 +461,7 @@ export default function BoletinDetailScreen() {
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                         {boletinStats?.isPending ? 'Retorno Potencial' : 'Retorno'}
                       </Text>
-                      <InfoButton accessibilityLabel="O que é o retorno" onPress={() => pushInfo('boletin-potential-return', boletinStats?.displayReturn)} showLabel={false} size="sm" />
+                      <InfoButton accessibilityLabel="O que é o retorno" onPress={() => pushInfo('boletim-potential-return', boletinStats?.displayReturn)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: colors.primary }]}>
                       {formatCurrency(boletinStats?.displayReturn ?? boletin.potentialReturn)}
@@ -474,7 +473,7 @@ export default function BoletinDetailScreen() {
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                         {boletinStats?.isPending ? 'Lucro Potencial' : 'Lucro / Prejuízo'}
                       </Text>
-                      <InfoButton accessibilityLabel="O que é lucro ou prejuízo" onPress={() => pushInfo('boletin-profit', boletinStats?.displayProfit)} showLabel={false} size="sm" />
+                      <InfoButton accessibilityLabel="O que é lucro ou prejuízo" onPress={() => pushInfo('boletim-profit', boletinStats?.displayProfit)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: (boletinStats?.displayProfit ?? 0) >= 0 ? colors.primary : colors.danger }]}>
                       {(boletinStats?.displayProfit ?? 0) >= 0 ? '+' : ''}{formatCurrency(boletinStats?.displayProfit ?? 0)}
@@ -491,7 +490,7 @@ export default function BoletinDetailScreen() {
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
                         {boletinStats?.isPending ? 'ROI Potencial' : 'ROI'}
                       </Text>
-                      <InfoButton accessibilityLabel="O que é o ROI" onPress={() => pushInfo('boletin-roi', boletinStats?.displayROI)} showLabel={false} size="sm" />
+                      <InfoButton accessibilityLabel="O que é o ROI" onPress={() => pushInfo('boletim-roi', boletinStats?.displayROI)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: (boletinStats?.displayROI ?? 0) >= 0 ? colors.primary : colors.danger }]}>
                       {(boletinStats?.displayROI ?? 0) >= 0 ? '+' : ''}{(boletinStats?.displayROI ?? 0).toFixed(1)}%
@@ -501,7 +500,7 @@ export default function BoletinDetailScreen() {
                   <View style={styles.statCell}>
                     <View style={styles.statLabelRow}>
                       <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Seleções</Text>
-                      <InfoButton accessibilityLabel="Número de seleções" onPress={() => pushInfo('boletin-selections', boletinStats?.selectionCount)} showLabel={false} size="sm" />
+                      <InfoButton accessibilityLabel="Número de seleções" onPress={() => pushInfo('boletim-selections', boletinStats?.selectionCount)} showLabel={false} size="sm" />
                     </View>
                     <Text style={[styles.statValue, { color: colors.textPrimary }]}>
                       {boletinStats?.selectionCount ?? 0}
@@ -572,7 +571,13 @@ export default function BoletinDetailScreen() {
                   />
                   <Button
                     leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
-                    onPress={() => shareSheetRef.current?.snapToIndex(0)}
+                    onPress={() => {
+                      if (!id) {
+                        return;
+                      }
+
+                      openShareBoletinSheet({ boletinId: id, boletinName: boletin?.name });
+                    }}
                     size="sm"
                     style={{ flex: 1, minWidth: 100 }}
                     title="Partilhar"
@@ -1089,12 +1094,6 @@ export default function BoletinDetailScreen() {
           onDismiss={() => setShowCelebration(false)}
         />
       )}
-
-      <ShareBoletinSheet
-        ref={shareSheetRef}
-        boletinId={id}
-        boletinName={boletin?.name}
-      />
     </View>
   );
 }

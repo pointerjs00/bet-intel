@@ -679,7 +679,7 @@ function buildBoletin(reference: string, rows: RawBetRow[]): ParsedBetclicBoleti
   );
 
   if (suspiciousGroup || parseError) {
-    logger.debug('[BetclicPDF] Suspicious boletin build', {
+    logger.debug('[BetclicPDF] Suspicious boletim build', {
       reference,
       rowCount: rows.length,
       rowWinTotals: rows.map((row) => row.winTotal),

@@ -1,4 +1,4 @@
-import { Prisma, BoletinStatus, NotificationType, ItemResult, Sport } from '@prisma/client';
+﻿import { Prisma, BoletinStatus, NotificationType, ItemResult, Sport } from '@prisma/client';
 import type {
   BoletinDetail,
   BoletinItemDetail,
@@ -144,7 +144,7 @@ export async function updateBoletin(
   });
 
   if (!existing) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   const metadataData: Prisma.BoletinUpdateInput = {};
@@ -202,13 +202,13 @@ export async function updateBoletinItems(
   });
 
   if (!existing) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   const existingItemIds = new Set(existing.items.map((item) => item.id));
   const invalidItems = input.items.filter((item) => !existingItemIds.has(item.id));
   if (invalidItems.length > 0) {
-    throw Object.assign(new Error('Um ou mais itens não pertencem a este boletin'), { statusCode: 400 });
+    throw Object.assign(new Error('Um ou mais itens não pertencem a este boletim'), { statusCode: 400 });
   }
 
   await prisma.$transaction(
@@ -229,19 +229,19 @@ export async function updateBoletinItems(
   return serializeBoletinDetail(updated);
 }
 
-/** Deletes a boletin owned by the authenticated user. */
+/** Deletes a boletim owned by the authenticated user. */
 export async function deleteBoletin(userId: string, boletinId: string): Promise<void> {
   const existing = await prisma.boletin.findFirst({ where: { id: boletinId, userId } });
 
   if (!existing) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   await prisma.boletin.delete({ where: { id: boletinId } });
   void invalidateStatsCache(userId);
 }
 
-/** Shares a boletin with one or more friends and emits notifications for each recipient. */
+/** Shares a boletim with one or more friends and emits notifications for each recipient. */
 export async function shareBoletin(
   userId: string,
   boletinId: string,
@@ -257,7 +257,7 @@ export async function shareBoletin(
   });
 
   if (!boletin) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   const recipientIds = Array.from(new Set(input.userIds.filter((candidate) => candidate !== userId)));
@@ -329,8 +329,8 @@ export async function shareBoletin(
           data: {
             userId: recipient.id,
             type: NotificationType.BOLETIN_SHARED,
-            title: 'Novo boletin partilhado',
-            body: `${boletin.user.displayName ?? boletin.user.username} partilhou um boletin contigo`,
+            title: 'Novo boletim partilhado',
+            body: `${boletin.user.displayName ?? boletin.user.username} partilhou um boletim contigo`,
             data: {
               boletinId,
               sharedById: userId,
@@ -378,7 +378,7 @@ export async function listSharedBoletins(userId: string): Promise<SharedBoletinF
   }));
 }
 
-/** Adds a single selection to an existing boletin and recalculates odds/status. */
+/** Adds a single selection to an existing boletim and recalculates odds/status. */
 export async function addBoletinItem(
   userId: string,
   boletinId: string,
@@ -390,11 +390,11 @@ export async function addBoletinItem(
   });
 
   if (!existing) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   if (existing.items.length >= 20) {
-    throw Object.assign(new Error('Máximo de 20 seleções por boletin'), { statusCode: 400 });
+    throw Object.assign(new Error('Máximo de 20 seleções por boletim'), { statusCode: 400 });
   }
 
   const newOddValue = new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
@@ -427,7 +427,7 @@ export async function addBoletinItem(
   return serializeBoletinDetail(updated);
 }
 
-/** Removes a single selection from an existing boletin and recalculates odds/status. */
+/** Removes a single selection from an existing boletim and recalculates odds/status. */
 export async function deleteBoletinItem(
   userId: string,
   boletinId: string,
@@ -439,7 +439,7 @@ export async function deleteBoletinItem(
   });
 
   if (!existing) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   const item = existing.items.find((i) => i.id === itemId);
@@ -448,7 +448,7 @@ export async function deleteBoletinItem(
   }
 
   if (existing.items.length <= 1) {
-    throw Object.assign(new Error('O boletin deve ter pelo menos uma seleção'), { statusCode: 400 });
+    throw Object.assign(new Error('O boletim deve ter pelo menos uma seleção'), { statusCode: 400 });
   }
 
   // Recalculate totalOdds by dividing out the removed item's oddValue
@@ -465,7 +465,7 @@ export async function deleteBoletinItem(
   return serializeBoletinDetail(updated);
 }
 
-/** Edits a single item's fields and recalculates boletin totals/status when needed. */
+/** Edits a single item's fields and recalculates boletim totals/status when needed. */
 export async function updateBoletinItem(
   userId: string,
   boletinId: string,
@@ -478,7 +478,7 @@ export async function updateBoletinItem(
   });
 
   if (!existing) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   const item = existing.items.find((i) => i.id === itemId);
@@ -587,7 +587,7 @@ async function syncBoletinDerivedState(
   });
 
   if (!boletin) {
-    throw Object.assign(new Error('Boletin não encontrado'), { statusCode: 404 });
+    throw Object.assign(new Error('Boletim não encontrado'), { statusCode: 404 });
   }
 
   const nextStake = overrides?.stake ?? boletin.stake;
@@ -633,7 +633,7 @@ function emitResolvedBoletinResult(
 function assertUniqueSelections(items: CreateBoletinInput['items']): void {
   const keys = items.map((item) => `${item.homeTeam}:${item.awayTeam}:${item.competition}:${item.market}:${item.selection}`);
   if (new Set(keys).size !== keys.length) {
-    throw Object.assign(new Error('O boletin contém seleções duplicadas'), { statusCode: 400 });
+    throw Object.assign(new Error('O boletim contém seleções duplicadas'), { statusCode: 400 });
   }
 }
 

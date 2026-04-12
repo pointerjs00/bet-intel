@@ -8,7 +8,7 @@ import type {
 import { socketBaseUrl } from './runtimeConfig';
 
 type SocketEventMap = {
-  'boletin:result': BoletinResultPayload;
+  'boletim:result': BoletinResultPayload;
   'friend:activity': FriendActivityPayload;
   'notification:new': { notification: Notification };
 };

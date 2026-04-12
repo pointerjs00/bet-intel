@@ -1,4 +1,4 @@
-export interface MetricInfo {
+﻿export interface MetricInfo {
   id: string;
   title: string;
   subtitle: string;
@@ -457,8 +457,8 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
 
   // ── Boletin detail metrics ───────────────────────────────────────────────
 
-  'boletin-stake': {
-    id: 'boletin-stake',
+  'boletim-stake': {
+    id: 'boletim-stake',
     title: 'Stake',
     subtitle: 'Montante apostado neste boletim',
     icon: 'cash-outline',
@@ -479,8 +479,8 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     },
   },
 
-  'boletin-odds': {
-    id: 'boletin-odds',
+  'boletim-odds': {
+    id: 'boletim-odds',
     title: 'Odd Total',
     subtitle: 'Odd acumulada do boletim',
     icon: 'layers-outline',
@@ -503,8 +503,8 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     },
   },
 
-  'boletin-potential-return': {
-    id: 'boletin-potential-return',
+  'boletim-potential-return': {
+    id: 'boletim-potential-return',
     title: 'Retorno',
     subtitle: 'Valor total a receber se ganhar',
     icon: 'wallet-outline',
@@ -525,8 +525,8 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     },
   },
 
-  'boletin-profit': {
-    id: 'boletin-profit',
+  'boletim-profit': {
+    id: 'boletim-profit',
     title: 'Lucro / Prejuízo',
     subtitle: 'Ganho ou perda líquida',
     icon: 'trending-up-outline',
@@ -548,8 +548,8 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     },
   },
 
-  'boletin-roi': {
-    id: 'boletin-roi',
+  'boletim-roi': {
+    id: 'boletim-roi',
     title: 'ROI',
     subtitle: 'Retorno sobre o investimento',
     icon: 'trending-up-outline',
@@ -573,8 +573,8 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     },
   },
 
-  'boletin-selections': {
-    id: 'boletin-selections',
+  'boletim-selections': {
+    id: 'boletim-selections',
     title: 'Seleções',
     subtitle: 'Número de pernas do boletim',
     icon: 'list-outline',

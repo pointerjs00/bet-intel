@@ -1,13 +1,13 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../stores/authStore';
+import { ShareBoletinProvider } from '../components/social/ShareBoletinProvider';
 import { useTheme } from '../theme/useTheme';
 import { ToastProvider, useToast } from '../components/ui/Toast';
 import {
@@ -79,9 +79,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     return (
       <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
         <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContent}>
-          <View style={[styles.loadingLogoMark, { backgroundColor: colors.primary + '15' }]}>
-            <Ionicons color={colors.primary} name="flash" size={36} />
-          </View>
+          <Image
+            source={require('../assets/logo-no-bg.png')}
+            style={styles.loadingIcon}
+            resizeMode="contain"
+          />
           <Text style={[styles.loadingTitle, { color: colors.textPrimary }]}>BetIntel</Text>
         </Animated.View>
         <Animated.View entering={FadeInDown.delay(200).duration(300)}>
@@ -123,18 +125,20 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
             <NotificationLifecycleManager />
-            <AuthGate>
-              <StatusBar style={isDark ? 'light' : 'dark'} />
-              <View style={[styles.flex, { backgroundColor: colors.background }]}>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="settings" options={{ headerShown: true, presentation: 'card' }} />
-                  <Stack.Screen name="notifications" options={{ headerShown: false, presentation: 'card' }} />
-                  <Stack.Screen name="user/[username]" options={{ headerShown: false, presentation: 'card' }} />
-                </Stack>
-              </View>
-            </AuthGate>
+            <ShareBoletinProvider>
+              <AuthGate>
+                <StatusBar style={isDark ? 'light' : 'dark'} />
+                <View style={[styles.flex, { backgroundColor: colors.background }]}>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="settings" options={{ headerShown: true, presentation: 'card' }} />
+                    <Stack.Screen name="notifications" options={{ headerShown: false, presentation: 'card' }} />
+                    <Stack.Screen name="user/[username]" options={{ headerShown: false, presentation: 'card' }} />
+                  </Stack>
+                </View>
+              </AuthGate>
+            </ShareBoletinProvider>
           </ToastProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
@@ -199,12 +203,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
-  loadingLogoMark: {
-    alignItems: 'center',
-    borderRadius: 24,
-    height: 72,
-    justifyContent: 'center',
-    width: 72,
+  loadingIcon: {
+    height: 100,
+    width: 100,
   },
   loadingTitle: {
     fontSize: 28,

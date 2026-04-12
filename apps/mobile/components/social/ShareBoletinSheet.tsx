@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -22,10 +22,12 @@ interface ShareBoletinSheetProps {
   boletinId: string;
   boletinName?: string | null;
   onShared?: () => void;
+  onChange?: (index: number) => void;
+  onClose?: () => void;
 }
 
 export const ShareBoletinSheet = React.forwardRef<GorhomBottomSheet, ShareBoletinSheetProps>(
-  function ShareBoletinSheet({ boletinId, boletinName, onShared }, ref) {
+  function ShareBoletinSheet({ boletinId, boletinName, onShared, onChange, onClose }, ref) {
     const { colors, tokens } = useTheme();
     const { showToast } = useToast();
     const friendsQuery = useFriends();
@@ -35,6 +37,17 @@ export const ShareBoletinSheet = React.forwardRef<GorhomBottomSheet, ShareBoleti
     const [searchTerm, setSearchTerm] = useState('');
 
     const friends = friendsQuery.data ?? [];
+
+    const resetForm = useCallback(() => {
+      setSelectedIds(new Set());
+      setMessage('');
+      setSearchTerm('');
+      setSending(false);
+    }, []);
+
+    useEffect(() => {
+      resetForm();
+    }, [boletinId, resetForm]);
 
     const filteredFriends = useMemo(() => {
       if (!searchTerm.trim()) return friends;
@@ -56,7 +69,7 @@ export const ShareBoletinSheet = React.forwardRef<GorhomBottomSheet, ShareBoleti
     }, []);
 
     const handleShare = useCallback(async () => {
-      if (selectedIds.size === 0) return;
+      if (!boletinId || selectedIds.size === 0) return;
 
       setSending(true);
       try {
@@ -107,12 +120,17 @@ export const ShareBoletinSheet = React.forwardRef<GorhomBottomSheet, ShareBoleti
       [selectedIds, toggleFriend, colors],
     );
 
+    const handleClose = useCallback(() => {
+      resetForm();
+      onClose?.();
+    }, [onClose, resetForm]);
+
     return (
-      <BottomSheet ref={ref} snapPoints={['55%', '85%']}>
+      <BottomSheet ref={ref} snapPoints={['55%', '85%']} onChange={onChange} onClose={handleClose}>
         <View style={sheetStyles.container}>
           <View style={sheetStyles.header}>
             <MaterialCommunityIcons color={colors.primary} name="share-variant-outline" size={22} />
-            <Text style={[sheetStyles.title, { color: colors.textPrimary }]}>Partilhar boletin</Text>
+            <Text style={[sheetStyles.title, { color: colors.textPrimary }]}>Partilhar boletim</Text>
           </View>
 
           {boletinName ? (

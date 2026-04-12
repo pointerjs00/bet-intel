@@ -103,14 +103,14 @@ export function initializeSocketServer(server: HttpServer): Server {
   return io;
 }
 
-/** Emits a boletin result update to the owner's private room. */
+/** Emits a boletim result update to the owner's private room. */
 export function emitBoletinResult(userId: string, payload: BoletinResultPayload): void {
   const server = getSocketServer();
   if (!server) {
     return;
   }
 
-  server.to(userRoomName(userId)).emit('boletin:result', payload);
+  server.to(userRoomName(userId)).emit('boletim:result', payload);
 }
 
 /** Emits friend activity updates to one or more private user rooms. */
