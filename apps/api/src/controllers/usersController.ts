@@ -11,6 +11,7 @@ import {
   searchUsers,
   updateCurrentUserProfile,
 } from '../services/social/userService';
+import { uploadAvatar, removeAvatar } from '../services/social/avatarService';
 import { logger } from '../utils/logger';
 
 function ok<T>(res: Response, data: T, meta?: unknown): void {
@@ -63,6 +64,34 @@ export async function updateMeHandler(req: Request, res: Response): Promise<void
 
   try {
     const user = await updateCurrentUserProfile(requireUserId(req), parsed.data);
+    ok(res, user);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles POST /api/users/me/avatar — base64 image upload. */
+export async function uploadAvatarHandler(req: Request, res: Response): Promise<void> {
+  const { base64, mimeType } = req.body ?? {};
+
+  if (typeof base64 !== 'string' || typeof mimeType !== 'string') {
+    res.status(422).json({ success: false, error: 'Campos base64 e mimeType são obrigatórios.' });
+    return;
+  }
+
+  try {
+    const appUrl = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
+    const user = await uploadAvatar(requireUserId(req), base64, mimeType, appUrl);
+    ok(res, user);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles DELETE /api/users/me/avatar — removes the user's avatar. */
+export async function deleteAvatarHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const user = await removeAvatar(requireUserId(req));
     ok(res, user);
   } catch (err) {
     fail(res, err);

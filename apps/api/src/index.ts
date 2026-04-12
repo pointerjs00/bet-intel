@@ -1,5 +1,6 @@
 import 'dotenv/config';
 // build trigger: 2026-04-04
+import path from 'path';
 import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -55,6 +56,13 @@ app.use(compression());
 // ─── Global rate limiter ────────────────────────────────────────────────────────
 
 app.use(defaultLimiter);
+
+// ─── Static uploads ─────────────────────────────────────────────────────────
+
+app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), {
+  maxAge: '7d',
+  immutable: true,
+}));
 
 // ─── Routes ────────────────────────────────────────────────────────────────────
 

@@ -81,3 +81,33 @@ export function useChangePasswordMutation() {
     },
   });
 }
+
+/** Uploads a base64-encoded avatar image and updates the user's profile. */
+export function useUploadAvatarMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { base64: string; mimeType: string }) => {
+      const response = await apiClient.post<ApiResponse<PublicUser>>('/users/me/avatar', payload);
+      return requireData(response.data.data);
+    },
+    onSuccess: async (user) => {
+      await syncAuthenticatedUser(queryClient, user);
+    },
+  });
+}
+
+/** Removes the user's avatar. */
+export function useDeleteAvatarMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.delete<ApiResponse<PublicUser>>('/users/me/avatar');
+      return requireData(response.data.data);
+    },
+    onSuccess: async (user) => {
+      await syncAuthenticatedUser(queryClient, user);
+    },
+  });
+}

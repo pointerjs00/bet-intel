@@ -1,28 +1,18 @@
-﻿import Constants from 'expo-constants';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import GorhomBottomSheet from '@gorhom/bottom-sheet';
-import { AuthProvider } from '@betintel/shared';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
 import {
-  useChangePasswordMutation,
-  useLinkGoogleAccountMutation,
-  useSetPasswordMutation,
-  useUnlinkGoogleAccountMutation,
+  useDeleteAvatarMutation,
+  useUploadAvatarMutation,
 } from '../../services/accountService';
-import { useParseBetclicPdfMutation } from '../../services/importService';
 import { NotificationItem } from '../../components/social/NotificationItem';
-import { Avatar } from '../../components/ui/Avatar';
-import { BottomSheet } from '../../components/ui/BottomSheet';
+import { AvatarPicker } from '../../components/ui/AvatarPicker';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { Chip } from '../../components/ui/Chip';
-import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -37,196 +27,58 @@ import {
   useUpdateProfileMutation,
 } from '../../services/socialService';
 import { useStatsSummary } from '../../services/statsService';
-import { useAuthStore } from '../../stores/authStore';
-import { useThemeStore, type ThemePreference } from '../../stores/themeStore';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatPercentage } from '../../utils/formatters';
-
-const THEME_OPTIONS: Array<{ key: ThemePreference; label: string }> = [
-  { key: 'light', label: 'Claro' },
-  { key: 'dark', label: 'Escuro' },
-  { key: 'system', label: 'Sistema' },
-  { key: 'scheduled', label: 'Agendado' },
-];
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
-  const storedAuthProvider = useAuthStore((state) => state.user?.authProvider);
-  const logout = useAuthStore((state) => state.logout);
-  const storedThemePreference = useThemeStore((state) => state.preference);
-  const setThemePreference = useThemeStore((state) => state.setPreference);
+  const router = useRouter();
 
   const profileQuery = useMeProfile();
   const statsSummaryQuery = useStatsSummary('month');
-
   const notificationsQuery = useNotifications(1, 3);
 
   const updateProfileMutation = useUpdateProfileMutation();
   const markNotificationReadMutation = useMarkNotificationReadMutation(1, 3);
   const markAllNotificationsReadMutation = useMarkAllNotificationsReadMutation(1, 3);
-  const linkGoogleAccountMutation = useLinkGoogleAccountMutation();
-  const unlinkGoogleAccountMutation = useUnlinkGoogleAccountMutation();
-  const setPasswordMutation = useSetPasswordMutation();
-  const changePasswordMutation = useChangePasswordMutation();
+  const uploadAvatarMutation = useUploadAvatarMutation();
+  const deleteAvatarMutation = useDeleteAvatarMutation();
 
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [currency, setCurrency] = useState('EUR');
-
-  const [themePreference, setLocalThemePreference] = useState<ThemePreference>(storedThemePreference);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-
-  // Confirmation modals
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
-
-  // Import
-  const router = useRouter();
-  const importSheetRef = useRef<GorhomBottomSheet>(null);
-  const [importHelpExpanded, setImportHelpExpanded] = useState(false);
-  const parsePdfMutation = useParseBetclicPdfMutation();
 
   useEffect(() => {
-    if (!profileQuery.data) {
-      return;
-    }
-
+    if (!profileQuery.data) return;
     setDisplayName(profileQuery.data.displayName ?? '');
     setBio(profileQuery.data.bio ?? '');
-    setAvatarUrl(profileQuery.data.avatarUrl ?? '');
-    setCurrency(profileQuery.data.currency ?? 'EUR');
-
-    const nextThemePreference = mapThemeFromApi(profileQuery.data.theme);
-    // Don't overwrite the local 'scheduled' preference — it only exists client-side
-    if (storedThemePreference !== 'scheduled') {
-      setLocalThemePreference(nextThemePreference);
-      setThemePreference(nextThemePreference);
-    }
-  }, [profileQuery.data, setThemePreference]);
+  }, [profileQuery.data]);
 
   const notificationItems = notificationsQuery.data?.items ?? [];
   const unreadCount = notificationsQuery.data?.meta.unreadCount ?? 0;
-  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
-  const authProvider = profileQuery.data?.authProvider ?? storedAuthProvider ?? AuthProvider.EMAIL;
-  const isGoogleLinked = authProvider === AuthProvider.GOOGLE || authProvider === AuthProvider.HYBRID;
-  const isGoogleOnly = authProvider === AuthProvider.GOOGLE;
-  const canUnlinkGoogle = authProvider === AuthProvider.HYBRID;
-  const authLabel = useMemo(() => {
-    const provider = profileQuery.data?.authProvider;
-    if (provider === 'GOOGLE') return 'Google';
-    if (provider === 'HYBRID') return 'Email + Google';
-    return 'Email';
-  }, [profileQuery.data?.authProvider]);
-  const passwordConfirmationError =
-    confirmPassword.length > 0 && confirmPassword !== newPassword
-      ? 'As passwords não coincidem'
-      : undefined;
+  const profile = profileQuery.data;
 
-  function resetPasswordFields() {
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-  }
-
-  async function handleLinkGoogleAccount() {
+  const handleAvatarPick = async (result: { base64: string; mimeType: string }) => {
     try {
-      await linkGoogleAccountMutation.mutateAsync();
-      showToast('Conta Google ligada com sucesso.', 'success');
+      await uploadAvatarMutation.mutateAsync(result);
+      showToast('Foto de perfil atualizada.', 'success');
     } catch (error) {
       showToast(getApiErrorMessage(error), 'error');
     }
-  }
+  };
 
-  async function handleUnlinkGoogleAccount() {
+  const handleAvatarRemove = async () => {
     try {
-      await unlinkGoogleAccountMutation.mutateAsync();
-      showToast('Conta Google desligada.', 'success');
+      await deleteAvatarMutation.mutateAsync();
+      showToast('Foto de perfil removida.', 'success');
     } catch (error) {
       showToast(getApiErrorMessage(error), 'error');
     }
-  }
-
-  async function handlePasswordSubmit() {
-    if (newPassword !== confirmPassword) {
-      showToast('As passwords não coincidem.', 'error');
-      return;
-    }
-
-    try {
-      if (isGoogleOnly) {
-        await setPasswordMutation.mutateAsync({
-          newPassword,
-          confirmPassword,
-        });
-        resetPasswordFields();
-        showToast('Password definida. A conta agora suporta email e Google.', 'success');
-        return;
-      }
-
-      await changePasswordMutation.mutateAsync({
-        currentPassword,
-        newPassword,
-        confirmPassword,
-      });
-      resetPasswordFields();
-      showToast('Password alterada. Entra novamente.', 'success');
-      await logout();
-    } catch (error) {
-      showToast(getApiErrorMessage(error), 'error');
-    }
-  }
-
-  const handleSelectPdf = useCallback(async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled || !result.assets?.[0]) return;
-
-      const asset = result.assets[0];
-
-      // Validate MIME type
-      if (asset.mimeType && asset.mimeType !== 'application/pdf') {
-        showToast('Seleciona um ficheiro PDF válido.', 'error');
-        return;
-      }
-
-      // Validate size (10 MB)
-      if (asset.size && asset.size > 10 * 1024 * 1024) {
-        showToast('O ficheiro é demasiado grande (máx. 10MB)', 'error');
-        return;
-      }
-
-      importSheetRef.current?.close();
-
-      // Read file as base64
-      const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      // Send to backend for parsing
-      const parsed = await parsePdfMutation.mutateAsync(base64);
-
-      // Navigate to review screen with parsed data
-      router.push({
-        pathname: '/boletins/import-review',
-        params: { data: JSON.stringify(parsed) },
-      });
-    } catch (error) {
-      const msg = getApiErrorMessage(error);
-      showToast(msg, 'error');
-    }
-  }, [parsePdfMutation, router, showToast]);
+  };
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}> 
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Perfil' }} />
 
       <ScrollView
@@ -237,73 +89,105 @@ export default function ProfileScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerWrap}>
-          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Perfil</Text>
-          <Text style={[styles.title, { color: colors.textPrimary }]}>Ajusta identidade, preferências e o resumo da tua conta.</Text>
+        <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerRow}>
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Perfil</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>A tua conta</Text>
+          </View>
+          <Pressable
+            onPress={() => router.push('/settings')}
+            hitSlop={12}
+            style={[styles.settingsBtn, { backgroundColor: colors.surfaceRaised }]}
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
         </Animated.View>
 
-        {profileQuery.isLoading || !profileQuery.data ? (
+        {profileQuery.isLoading || !profile ? (
           <View style={styles.loadingStack}>
-            <Card><Skeleton height={160} width="100%" /></Card>
-            <Card><Skeleton height={320} width="100%" /></Card>
+            <Card><Skeleton height={200} width="100%" /></Card>
+            <Card><Skeleton height={120} width="100%" /></Card>
           </View>
         ) : (
           <View style={styles.sectionStack}>
-            <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
-              <Card style={styles.profileCard}>
-                <Avatar name={profileQuery.data.displayName ?? profileQuery.data.username} size="lg" uri={profileQuery.data.avatarUrl ?? undefined} />
-                <View style={styles.profileInfo}>
-                  <Text style={[styles.profileName, { color: colors.textPrimary }]}>{profileQuery.data.displayName ?? profileQuery.data.username}</Text>
-                  <Text style={[styles.profileMeta, { color: colors.textSecondary }]}>@{profileQuery.data.username} • {profileQuery.data.email}</Text>
-                  <Text style={[styles.profileMeta, { color: colors.textSecondary }]}>Autenticação: {authLabel} • Email {profileQuery.data.isEmailVerified ? 'verificado' : 'por verificar'}</Text>
-                </View>
-              </Card>
-            </Animated.View>
+            {/* ── Avatar + Identity Card ──────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(20).duration(160).springify()}>
+              <Card style={styles.identityCard}>
+                <AvatarPicker
+                  currentUri={profile.avatarUrl}
+                  name={profile.displayName ?? profile.username}
+                  uploading={uploadAvatarMutation.isPending || deleteAvatarMutation.isPending}
+                  onPick={handleAvatarPick}
+                  onRemove={profile.avatarUrl ? handleAvatarRemove : undefined}
+                />
 
-            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()} style={styles.statsRow}>
-              <MetricCard label="ROI mês" value={formatPercentage(statsSummaryQuery.data?.roi ?? 0)} valueColor={(statsSummaryQuery.data?.roi ?? 0) >= 0 ? colors.primary : colors.danger} />
-              <MetricCard label="Apostado" value={formatCurrency(statsSummaryQuery.data?.totalStaked ?? 0)} valueColor={colors.textPrimary} />
-              <MetricCard label="Lucro" value={formatCurrency(statsSummaryQuery.data?.profitLoss ?? 0)} valueColor={(statsSummaryQuery.data?.profitLoss ?? 0) >= 0 ? colors.primary : colors.danger} />
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
-              <Card style={styles.cardInner}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Perfil público</Text>
-                <Input label="Nome" onChangeText={setDisplayName} value={displayName} />
-                <Input label="Bio" multiline onChangeText={setBio} style={styles.multilineInput} value={bio} />
-                <Input autoCapitalize="none" label="Avatar URL" onChangeText={setAvatarUrl} value={avatarUrl} />
-              </Card>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
-              <Card style={styles.cardInner}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Preferências</Text>
-                <Input autoCapitalize="characters" label="Moeda" maxLength={3} onChangeText={(value) => setCurrency(value.toUpperCase())} value={currency} />
-
-                <View style={styles.preferenceGroup}>
-                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Tema</Text>
-                  <View style={styles.chipWrap}>
-                    {THEME_OPTIONS.map((option) => (
-                      <Chip
-                        key={option.key}
-                        label={option.label}
-                        selected={themePreference === option.key}
-                        onPress={() => {
-                          setLocalThemePreference(option.key);
-                          setThemePreference(option.key);
-                        }}
-                      />
-                    ))}
+                <View style={styles.identityInfo}>
+                  <Text style={[styles.profileName, { color: colors.textPrimary }]}>
+                    {profile.displayName ?? profile.username}
+                  </Text>
+                  <View style={styles.usernameRow}>
+                    <MaterialCommunityIcons name="at" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.profileMeta, { color: colors.textSecondary }]}>{profile.username}</Text>
                   </View>
-                  {themePreference === 'scheduled' && (
-                    <Text style={[styles.scheduleHint, { color: colors.textMuted }]}>
-                      Modo escuro ativo das 22:00 às 07:00
-                    </Text>
-                  )}
+                  <View style={styles.usernameRow}>
+                    <MaterialCommunityIcons name="email-outline" size={16} color={colors.textSecondary} />
+                    <Text style={[styles.profileMeta, { color: colors.textSecondary }]}>{profile.email}</Text>
+                  </View>
+                  {profile.bio ? (
+                    <Text style={[styles.bioText, { color: colors.textSecondary }]}>{profile.bio}</Text>
+                  ) : null}
                 </View>
+              </Card>
+            </Animated.View>
 
+            {/* ── Stats Summary Row ──────────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(30).duration(160).springify()} style={styles.statsRow}>
+              <MetricCard
+                icon="trending-up"
+                label="ROI mês"
+                value={formatPercentage(statsSummaryQuery.data?.roi ?? 0)}
+                valueColor={(statsSummaryQuery.data?.roi ?? 0) >= 0 ? colors.primary : colors.danger}
+                iconColor={(statsSummaryQuery.data?.roi ?? 0) >= 0 ? colors.primary : colors.danger}
+              />
+              <MetricCard
+                icon="cash-outline"
+                label="Apostado"
+                value={formatCurrency(statsSummaryQuery.data?.totalStaked ?? 0)}
+                valueColor={colors.textPrimary}
+                iconColor={colors.info}
+              />
+              <MetricCard
+                icon="wallet-outline"
+                label="Lucro"
+                value={formatCurrency(statsSummaryQuery.data?.profitLoss ?? 0)}
+                valueColor={(statsSummaryQuery.data?.profitLoss ?? 0) >= 0 ? colors.primary : colors.danger}
+                iconColor={(statsSummaryQuery.data?.profitLoss ?? 0) >= 0 ? colors.primary : colors.danger}
+              />
+            </Animated.View>
 
-
+            {/* ── Edit Profile Card ──────────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(40).duration(160).springify()}>
+              <Card style={styles.cardInner}>
+                <View style={styles.sectionHeader}>
+                  <MaterialCommunityIcons name="account-edit-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Perfil público</Text>
+                </View>
+                <Input
+                  icon={<MaterialCommunityIcons name="account-outline" size={18} color={colors.textSecondary} />}
+                  label="Nome"
+                  onChangeText={setDisplayName}
+                  value={displayName}
+                />
+                <Input
+                  icon={<MaterialCommunityIcons name="text-box-outline" size={18} color={colors.textSecondary} />}
+                  label="Bio"
+                  multiline
+                  onChangeText={setBio}
+                  style={styles.multilineInput}
+                  value={bio}
+                  maxLength={300}
+                  showCharCount
+                />
                 <Button
                   loading={updateProfileMutation.isPending}
                   onPress={async () => {
@@ -311,40 +195,45 @@ export default function ProfileScreen() {
                       await updateProfileMutation.mutateAsync({
                         displayName: displayName.trim() || undefined,
                         bio: bio.trim() || undefined,
-                        avatarUrl: avatarUrl.trim() || undefined,
-                        currency: currency.trim().toUpperCase() || undefined,
-                        theme: mapThemeToApi(themePreference),
                       });
                       showToast('Perfil atualizado.', 'success');
                     } catch (error) {
                       showToast(getApiErrorMessage(error), 'error');
                     }
                   }}
-                  title="Guardar alterações"
+                  title="Guardar perfil"
                 />
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
+            {/* ── Notifications Preview ──────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(50).duration(160).springify()}>
               <Card style={styles.cardInner}>
                 <View style={styles.notificationsHeader}>
-                  <View style={styles.notificationsTitleWrap}>
+                  <View style={styles.sectionHeader}>
+                    <MaterialCommunityIcons name="bell-outline" size={20} color={colors.warning} />
                     <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Notificações</Text>
-                    <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>{unreadCount} por ler</Text>
+                    {unreadCount > 0 ? (
+                      <View style={[styles.unreadBadge, { backgroundColor: colors.danger }]}>
+                        <Text style={styles.unreadBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                      </View>
+                    ) : null}
                   </View>
-                  <Button
-                    onPress={async () => {
-                      try {
-                        await markAllNotificationsReadMutation.mutateAsync();
-                        showToast('Notificações marcadas como lidas.', 'success');
-                      } catch (error) {
-                        showToast(getApiErrorMessage(error), 'error');
-                      }
-                    }}
-                    size="sm"
-                    title="Ler todas"
-                    variant="ghost"
-                  />
+                  {notificationItems.length > 0 ? (
+                    <Button
+                      onPress={async () => {
+                        try {
+                          await markAllNotificationsReadMutation.mutateAsync();
+                          showToast('Notificações marcadas como lidas.', 'success');
+                        } catch (error) {
+                          showToast(getApiErrorMessage(error), 'error');
+                        }
+                      }}
+                      size="sm"
+                      title="Ler todas"
+                      variant="ghost"
+                    />
+                  ) : null}
                 </View>
 
                 {notificationItems.length > 0 ? (
@@ -371,249 +260,171 @@ export default function ProfileScreen() {
               </Card>
             </Animated.View>
 
-            <Animated.View entering={FadeInDown.delay(50).duration(160).springify()}>
+            {/* ── Quick Links ────────────────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(60).duration(160).springify()}>
               <Card style={styles.cardInner}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Dados & Importação</Text>
-                <Pressable
-                  onPress={() => importSheetRef.current?.snapToIndex(0)}
-                  style={[styles.importRow, { borderColor: colors.border }]}
-                >
-                  <MaterialCommunityIcons name="file-import-outline" size={22} color={colors.primary} />
-                  <View style={styles.importRowText}>
-                    <Text style={[styles.importRowLabel, { color: colors.textPrimary }]}>Importar histórico Betclic</Text>
-                    <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Importa apostas de um PDF exportado</Text>
-                  </View>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-                </Pressable>
-              </Card>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
-              <Card style={styles.cardInner}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Conta</Text>
-                <View style={styles.accountSection}>
-                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Método atual: {authLabel}</Text>
-                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Email {profileQuery.data.isEmailVerified ? 'verificado' : 'por verificar'}.</Text>
+                <View style={styles.sectionHeader}>
+                  <MaterialCommunityIcons name="lightning-bolt-outline" size={20} color={colors.info} />
+                  <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Acesso rápido</Text>
                 </View>
 
-                <View style={styles.accountSection}>
-                  <Text style={[styles.accountHeading, { color: colors.textPrimary }]}>Google</Text>
-                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Liga a tua conta Google para entrares sem password ou desliga-a se já tens password ativa.</Text>
-                  {isGoogleLinked ? (
-                    <View style={styles.accountActionsRow}>
-                      <Button disabled title="Google ligado" variant="secondary" />
-                      <Button
-                        disabled={!canUnlinkGoogle}
-                        loading={unlinkGoogleAccountMutation.isPending}
-                        onPress={() => canUnlinkGoogle && setShowUnlinkConfirm(true)}
-                        title={canUnlinkGoogle ? 'Desligar Google' : 'Define password primeiro'}
-                        variant="ghost"
-                      />
-                    </View>
-                  ) : (
-                    <Button
-                      loading={linkGoogleAccountMutation.isPending}
-                      onPress={handleLinkGoogleAccount}
-                      title="Ligar conta Google"
-                      variant="secondary"
-                    />
-                  )}
-                </View>
-
-                <View style={styles.accountSection}>
-                  <Text style={[styles.accountHeading, { color: colors.textPrimary }]}>
-                    {isGoogleOnly ? 'Definir password' : 'Alterar password'}
-                  </Text>
-                  <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>A password precisa de 8+ caracteres, maiúscula, número e símbolo.</Text>
-                  {!isGoogleOnly ? (
-                    <Input
-                      label="Password atual"
-                      onChangeText={setCurrentPassword}
-                      secureTextEntry
-                      value={currentPassword}
-                    />
-                  ) : null}
-                  <Input
-                    label="Nova password"
-                    onChangeText={setNewPassword}
-                    secureTextEntry
-                    value={newPassword}
-                  />
-                  <Input
-                    error={passwordConfirmationError}
-                    label="Confirmar password"
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry
-                    value={confirmPassword}
-                  />
-                  <Button
-                    loading={setPasswordMutation.isPending || changePasswordMutation.isPending}
-                    onPress={handlePasswordSubmit}
-                    title={isGoogleOnly ? 'Guardar password' : 'Alterar password'}
-                  />
-                </View>
-
-                <Button
-                  onPress={() => setShowLogoutConfirm(true)}
-                  title="Terminar sessão"
-                  variant="danger"
+                <QuickLink
+                  icon="cog-outline"
+                  label="Definições"
+                  description="Tema, password, Google, importação"
+                  onPress={() => router.push('/settings')}
+                  color={colors.textSecondary}
+                  labelColor={colors.textPrimary}
+                  descColor={colors.textSecondary}
+                  chevronColor={colors.textMuted}
+                  borderColor={colors.border}
                 />
-              </Card>
-            </Animated.View>
-
-            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()}>
-              <Card style={styles.cardInner}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Sobre</Text>
-                <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>BetIntel mobile • versão {appVersion}</Text>
+                <QuickLink
+                  icon="chart-bar"
+                  label="Estatísticas"
+                  description="Desempenho detalhado"
+                  onPress={() => router.push('/(tabs)/stats')}
+                  color={colors.primary}
+                  labelColor={colors.textPrimary}
+                  descColor={colors.textSecondary}
+                  chevronColor={colors.textMuted}
+                  borderColor={colors.border}
+                />
+                <QuickLink
+                  icon="account-group-outline"
+                  label="Amigos"
+                  description="Rede e atividade social"
+                  onPress={() => router.push('/(tabs)/friends')}
+                  color={colors.info}
+                  labelColor={colors.textPrimary}
+                  descColor={colors.textSecondary}
+                  chevronColor={colors.textMuted}
+                  borderColor={colors.border}
+                />
               </Card>
             </Animated.View>
           </View>
         )}
       </ScrollView>
-
-      <ConfirmModal
-        visible={showLogoutConfirm}
-        title="Terminar sessão"
-        message="Tens a certeza que queres sair? Precisarás entrar novamente para aceder à tua conta."
-        confirmLabel="Sair"
-        cancelLabel="Ficar"
-        onConfirm={async () => {
-          setShowLogoutConfirm(false);
-          await logout();
-        }}
-        onCancel={() => setShowLogoutConfirm(false)}
-      />
-      <ConfirmModal
-        visible={showUnlinkConfirm}
-        title="Desligar conta Google"
-        message="Tens a certeza? Continuarás a poder entrar com a tua password. Não poderás desligar se não tiveres password definida."
-        confirmLabel="Desligar"
-        onConfirm={async () => {
-          setShowUnlinkConfirm(false);
-          await handleUnlinkGoogleAccount();
-        }}
-        onCancel={() => setShowUnlinkConfirm(false)}
-      />
-
-      {/* Betclic Import Bottom Sheet */}
-      <BottomSheet ref={importSheetRef} snapPoints={['55%', '75%']}>
-        <View style={styles.importSheetContent}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Importar histórico Betclic</Text>
-          <Text style={[styles.importSheetDesc, { color: colors.textSecondary }]}>
-            Importa o teu histórico de apostas diretamente do Betclic. Exporta o ficheiro PDF na tua conta Betclic e seleciona-o aqui.
-          </Text>
-
-          <Pressable
-            onPress={() => setImportHelpExpanded((v) => !v)}
-            style={[styles.importHelpHeader, { borderColor: colors.border }]}
-          >
-            <Text style={[styles.importHelpTitle, { color: colors.info }]}>Como exportar do Betclic?</Text>
-            <MaterialCommunityIcons
-              name={importHelpExpanded ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={colors.info}
-            />
-          </Pressable>
-          {importHelpExpanded && (
-            <View style={styles.importHelpSteps}>
-              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>1. Acede a betclic.pt e inicia sessão</Text>
-              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>2. Vai a &quot;A minha conta&quot; → &quot;Histórico de apostas&quot;</Text>
-              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>3. Seleciona o intervalo de datas e clica em &quot;Exportar PDF&quot;</Text>
-              <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>4. Guarda o ficheiro e importa-o aqui</Text>
-            </View>
-          )}
-
-          <View style={styles.importSheetActions}>
-            <Button title="Selecionar PDF" onPress={handleSelectPdf} loading={parsePdfMutation.isPending} />
-            <Button title="Cancelar" variant="ghost" onPress={() => importSheetRef.current?.close()} />
-          </View>
-        </View>
-      </BottomSheet>
-
-      {/* Loading overlay while parsing PDF */}
-      {parsePdfMutation.isPending && (
-        <View style={styles.loadingOverlay}>
-          <Card style={styles.loadingOverlayCard}>
-            <Skeleton height={24} width={200} />
-            <Text style={[styles.loadingOverlayText, { color: colors.textSecondary }]}>A ler o teu histórico Betclic...</Text>
-          </Card>
-        </View>
-      )}
     </View>
   );
 }
 
-function MetricCard({ label, value, valueColor }: { label: string; value: string; valueColor: string }) {
+function MetricCard({
+  icon,
+  label,
+  value,
+  valueColor,
+  iconColor,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+  valueColor: string;
+  iconColor: string;
+}) {
+  const { colors } = useTheme();
   return (
     <Card style={styles.metricCard}>
-      <Text style={[styles.metricLabel, { color: valueColor }]}>{label}</Text>
+      <Ionicons name={icon as 'trending-up'} size={18} color={iconColor} />
+      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>{label}</Text>
       <Text style={[styles.metricValue, { color: valueColor }]}>{value}</Text>
     </Card>
   );
 }
 
-function mapThemeFromApi(theme: 'LIGHT' | 'DARK' | 'SYSTEM'): ThemePreference {
-  switch (theme) {
-    case 'LIGHT':
-      return 'light';
-    case 'DARK':
-      return 'dark';
-    case 'SYSTEM':
-    default:
-      return 'system';
-  }
-}
-
-function mapThemeToApi(theme: ThemePreference): 'LIGHT' | 'DARK' | 'SYSTEM' {
-  switch (theme) {
-    case 'light':
-      return 'LIGHT';
-    case 'dark':
-      return 'DARK';
-    case 'system':
-    default:
-      return 'SYSTEM';
-  }
+function QuickLink({
+  icon,
+  label,
+  description,
+  onPress,
+  color,
+  labelColor,
+  descColor,
+  chevronColor,
+  borderColor,
+}: {
+  icon: string;
+  label: string;
+  description: string;
+  onPress: () => void;
+  color: string;
+  labelColor: string;
+  descColor: string;
+  chevronColor: string;
+  borderColor: string;
+}) {
+  return (
+    <Pressable onPress={onPress} style={[styles.quickLink, { borderColor }]}>
+      <MaterialCommunityIcons name={icon as 'cog-outline'} size={22} color={color} />
+      <View style={styles.quickLinkText}>
+        <Text style={[styles.quickLinkLabel, { color: labelColor }]}>{label}</Text>
+        <Text style={[styles.quickLinkDesc, { color: descColor }]}>{description}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={20} color={chevronColor} />
+    </Pressable>
+  );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  headerWrap: { gap: 8, marginBottom: 18 },
+  headerRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 18 },
+  headerTextWrap: { gap: 4, flex: 1 },
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
   loadingStack: { gap: 16 },
-  sectionStack: { gap: 18 },
-  profileCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  profileInfo: { flex: 1, gap: 4 },
+  sectionStack: { gap: 16 },
+
+  /* Identity card */
+  identityCard: { alignItems: 'center', gap: 16, paddingVertical: 24 },
+  identityInfo: { alignItems: 'center', gap: 6 },
   profileName: { fontSize: 24, fontWeight: '900' },
+  usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   profileMeta: { fontSize: 13, lineHeight: 20 },
+  bioText: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 4, paddingHorizontal: 16 },
+
+  /* Stats */
   statsRow: { flexDirection: 'row', gap: 10 },
-  metricCard: { flex: 1, gap: 4 },
-  metricLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  metricCard: { flex: 1, gap: 4, alignItems: 'center', paddingVertical: 14 },
+  metricLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
   metricValue: { fontSize: 16, fontWeight: '900' },
-  cardInner: { gap: 14 },
+
+  /* Section */
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
+  cardInner: { gap: 14 },
   multilineInput: { minHeight: 96, textAlignVertical: 'top' },
-  preferenceGroup: { gap: 8 },
-  preferenceLabel: { fontSize: 13, lineHeight: 20 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  scheduleHint: { fontSize: 12, fontStyle: 'italic', marginTop: 4 },
-  notificationsHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  notificationsTitleWrap: { gap: 2, flex: 1, paddingRight: 12 },
-  accountSection: { gap: 10 },
-  accountHeading: { fontSize: 15, fontWeight: '800' },
-  accountActionsRow: { flexDirection: 'row', gap: 10 },
-  importRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  importRowText: { flex: 1, gap: 2 },
-  importRowLabel: { fontSize: 15, fontWeight: '700' },
-  importSheetContent: { gap: 16, paddingBottom: 32 },
-  importSheetDesc: { fontSize: 14, lineHeight: 20 },
-  importHelpHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
-  importHelpTitle: { fontSize: 14, fontWeight: '600' },
-  importHelpSteps: { gap: 6, paddingLeft: 4 },
-  importHelpStep: { fontSize: 13, lineHeight: 20 },
-  importSheetActions: { gap: 10, marginTop: 8 },
-  loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
-  loadingOverlayCard: { alignItems: 'center', gap: 12, paddingHorizontal: 32, paddingVertical: 24 },
-  loadingOverlayText: { fontSize: 14, fontWeight: '600' },
+
+  /* Notifications */
+  notificationsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  unreadBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    marginLeft: 6,
+  },
+  unreadBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+
+  /* Quick links */
+  quickLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  quickLinkText: { flex: 1, gap: 2 },
+  quickLinkLabel: { fontSize: 15, fontWeight: '700' },
+  quickLinkDesc: { fontSize: 12, lineHeight: 18 },
 });

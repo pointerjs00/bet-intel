@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     minHeight: 56,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
   },
   iconWrap: {
     marginRight: 10,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   labelContainer: {
     position: 'absolute',
-    left: 0,
+    left: 2,
     top: 0,
     bottom: 0,
     justifyContent: 'center',
