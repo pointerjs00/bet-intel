@@ -258,21 +258,23 @@ export function BoletinFilterSheet({
           {/* SORT */}
           <View style={styles.sectionTitleRow}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Ordenar por</Text>
-            <Pressable
+            <PressableScale
               hitSlop={10}
               onPress={toggleSortDir}
+              scaleDown={0.92}
               style={[styles.dirButton, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
             >
               <Ionicons color={colors.primary} name={draftSort.dir === 'asc' ? 'arrow-up' : 'arrow-down'} size={15} />
-            </Pressable>
+            </PressableScale>
           </View>
           <View style={styles.filterBtnRow}>
             {SORT_OPTIONS.map((opt) => {
               const active = draftSort.by === opt.key;
               return (
-                <Pressable
+                <PressableScale
                   key={opt.key}
                   onPress={() => setDraftSort((prev) => ({ ...prev, by: opt.key }))}
+                  scaleDown={0.95}
                   style={[styles.filterBtn, {
                     backgroundColor: active ? colors.primary : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
@@ -282,7 +284,7 @@ export function BoletinFilterSheet({
                   <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -441,12 +443,13 @@ export function BoletinFilterSheet({
             {WEEKDAY_OPTIONS.map((opt) => {
               const active = draftFilter.weekday === opt.value;
               return (
-                <Pressable
+                <PressableScale
                   key={opt.value}
                   onPress={() => setDraftFilter((prev) => ({
                     ...prev,
                     weekday: prev.weekday === opt.value ? null : opt.value,
                   }))}
+                  scaleDown={0.95}
                   style={[styles.filterBtn, {
                     backgroundColor: active ? colors.primary : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
@@ -455,7 +458,7 @@ export function BoletinFilterSheet({
                   <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -466,12 +469,13 @@ export function BoletinFilterSheet({
             {LEG_COUNT_OPTIONS.map((opt) => {
               const active = draftFilter.legCount === opt.value;
               return (
-                <Pressable
+                <PressableScale
                   key={opt.value}
                   onPress={() => setDraftFilter((prev) => ({
                     ...prev,
                     legCount: prev.legCount === opt.value ? null : opt.value,
                   }))}
+                  scaleDown={0.95}
                   style={[styles.filterBtn, {
                     backgroundColor: active ? colors.primary : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
@@ -480,7 +484,7 @@ export function BoletinFilterSheet({
                   <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>
@@ -533,9 +537,9 @@ export function BoletinFilterSheet({
             },
           ]}
         >
-          <Pressable onPress={handleApply} style={[styles.applyBtn, { backgroundColor: colors.primary }]}>
+          <PressableScale onPress={handleApply} scaleDown={0.98} style={[styles.applyBtn, { backgroundColor: colors.primary }]}> 
             <Text style={styles.applyBtnText}>Aplicar</Text>
-          </Pressable>
+          </PressableScale>
         </View>
       </GorhomBottomSheet>
 
