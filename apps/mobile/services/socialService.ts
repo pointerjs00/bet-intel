@@ -15,6 +15,7 @@ import type {
   UsernameAvailability,
 } from '@betintel/shared';
 import { apiClient } from './apiClient';
+import { useAuthStore } from '../stores/authStore';
 
 export const socialQueryKeys = {
   me: ['users', 'me'] as const,
@@ -187,7 +188,9 @@ export function useUpdateProfileMutation() {
       const response = await apiClient.patch<ApiResponse<PublicUser>>('/users/me', payload);
       return response.data.data as PublicUser;
     },
-    onSuccess: async () => {
+    onSuccess: async (user) => {
+      queryClient.setQueryData(socialQueryKeys.me, user);
+      useAuthStore.getState().updateUser(user);
       await queryClient.invalidateQueries({ queryKey: socialQueryKeys.me });
     },
   });

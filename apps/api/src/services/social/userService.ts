@@ -77,6 +77,7 @@ export async function updateCurrentUserProfile(
       expoPushToken: input.expoPushToken,
       currency: input.currency,
       theme: input.theme,
+      defaultBoletinsPublic: input.defaultBoletinsPublic,
     },
     select: USER_SELECT,
   });

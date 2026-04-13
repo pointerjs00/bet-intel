@@ -185,7 +185,7 @@ export const ShareBoletinSheet = React.forwardRef<GorhomBottomSheet, ShareBoleti
             disabled={selectedIds.size === 0}
             loading={sending}
             onPress={handleShare}
-            title={selectedIds.size > 0 ? `Enviar (${selectedIds.size})` : 'Seleciona amigos'}
+            title={selectedIds.size > 0 ? `Enviar (${selectedIds.size})` : 'Enviar'}
             style={sheetStyles.sendBtn}
           />
         </View>

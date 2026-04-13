@@ -236,6 +236,7 @@ export const updateProfileSchema = z.object({
   /** ISO 4217 currency code */
   currency: z.string().length(3, 'Código de moeda inválido').optional(),
   theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional(),
+  defaultBoletinsPublic: z.boolean().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

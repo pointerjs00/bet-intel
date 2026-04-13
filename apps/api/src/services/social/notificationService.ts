@@ -11,6 +11,16 @@ import { logger } from '../../utils/logger';
 
 type NotificationRow = Prisma.NotificationGetPayload<Record<string, never>>;
 
+interface NotificationDelivery {
+  userId: string;
+  notification: SharedNotification;
+}
+
+interface DispatchStoredNotificationsOptions {
+  emitNotification?: (userId: string, notification: SharedNotification) => void;
+  sendPushNotifications?: (deliveries: NotificationDelivery[]) => Promise<void>;
+}
+
 /** Creates a single notification row. */
 export async function createNotification(input: {
   userId: string;
@@ -29,10 +39,8 @@ export async function createNotification(input: {
     },
   });
 
-  const notification = serializeNotification(row);
-  emitNotificationNew(row.userId, notification);
-  await sendExpoPushNotifications([{ userId: row.userId, notification }]);
-  return notification;
+  const [notification] = await dispatchStoredNotifications([row]);
+  return notification!;
 }
 
 /** Creates multiple notifications in a transaction-friendly bulk operation. */
@@ -61,12 +69,27 @@ export async function createNotifications(inputs: Array<{
     ),
   );
 
+  return dispatchStoredNotifications(rows);
+}
+
+/** Emits socket notifications and sends Expo pushes for already-created notification rows. */
+export async function dispatchStoredNotifications(
+  rows: NotificationRow[],
+  options: DispatchStoredNotificationsOptions = {},
+): Promise<SharedNotification[]> {
+  if (rows.length === 0) {
+    return [];
+  }
+
   const notifications = rows.map(serializeNotification);
+  const emit = options.emitNotification ?? emitNotificationNew;
+  const sendPush = options.sendPushNotifications ?? sendExpoPushNotifications;
+
   rows.forEach((row, index) => {
-    emitNotificationNew(row.userId, notifications[index]!);
+    emit(row.userId, notifications[index]!);
   });
 
-  await sendExpoPushNotifications(
+  await sendPush(
     rows.map((row, index) => ({
       userId: row.userId,
       notification: notifications[index]!,
@@ -161,9 +184,7 @@ function toPrismaJson(value?: Record<string, unknown> | null): Prisma.InputJsonV
   return value as Prisma.InputJsonValue;
 }
 
-async function sendExpoPushNotifications(
-  deliveries: Array<{ userId: string; notification: SharedNotification }>,
-): Promise<void> {
+async function sendExpoPushNotifications(deliveries: NotificationDelivery[]): Promise<void> {
   if (deliveries.length === 0) {
     return;
   }
@@ -186,24 +207,7 @@ async function sendExpoPushNotifications(
       .map((user) => [user.id, user.expoPushToken as string]),
   );
 
-  const messages: ExpoPushMessage[] = deliveries.flatMap((delivery) => {
-      const token = tokenByUserId.get(delivery.userId);
-      if (!token) {
-        return [];
-      }
-
-      return [{
-        to: token,
-        sound: 'default',
-        title: delivery.notification.title,
-        body: delivery.notification.body,
-        data: {
-          notificationId: delivery.notification.id,
-          type: delivery.notification.type,
-          ...(delivery.notification.data ?? {}),
-        },
-      }];
-    });
+  const messages = buildExpoPushMessages(deliveries, tokenByUserId);
 
   if (messages.length === 0) {
     return;
@@ -284,4 +288,28 @@ interface ExpoPushTicket {
 interface ExpoPushResponse {
   data?: ExpoPushTicket[];
   errors?: Array<{ code?: string; message?: string }>;
+}
+
+export function buildExpoPushMessages(
+  deliveries: NotificationDelivery[],
+  tokenByUserId: Map<string, string>,
+): ExpoPushMessage[] {
+  return deliveries.flatMap((delivery) => {
+    const token = tokenByUserId.get(delivery.userId);
+    if (!token) {
+      return [];
+    }
+
+    return [{
+      to: token,
+      sound: 'default',
+      title: delivery.notification.title,
+      body: delivery.notification.body,
+      data: {
+        notificationId: delivery.notification.id,
+        type: delivery.notification.type,
+        ...(delivery.notification.data ?? {}),
+      },
+    }];
+  });
 }

@@ -32,6 +32,7 @@ interface BuilderStateValues {
   notes: string;
   siteSlug: string;
   betDate: string; // DD/MM/YYYY display string, or '' for today
+  defaultIsPublic: boolean;
   isPublic: boolean;
   isFreebet: boolean;
   totalOdds: number;
@@ -46,24 +47,30 @@ interface BoletinBuilderStore extends BuilderStateValues {
   setNotes: (notes: string) => void;
   setSiteSlug: (siteSlug: string) => void;
   setBetDate: (betDate: string) => void;
+  setDefaultPublicPreference: (value: boolean) => void;
   setPublic: (value: boolean) => void;
   setFreebet: (value: boolean) => void;
   reset: () => void;
   save: () => Promise<BoletinDetail>;
 }
 
-const DEFAULT_STATE: BuilderStateValues = {
-  items: [],
-  stake: 0,
-  name: '',
-  notes: '',
-  siteSlug: '',
-  betDate: todayDDMMYYYY(),
-  isPublic: false,
-  isFreebet: false,
-  totalOdds: 1,
-  potentialReturn: 0,
-};
+function buildDefaultState(defaultIsPublic = false): BuilderStateValues {
+  return {
+    items: [],
+    stake: 0,
+    name: '',
+    notes: '',
+    siteSlug: '',
+    betDate: todayDDMMYYYY(),
+    defaultIsPublic,
+    isPublic: defaultIsPublic,
+    isFreebet: false,
+    totalOdds: 1,
+    potentialReturn: 0,
+  };
+}
+
+const DEFAULT_STATE = buildDefaultState();
 
 function withComputed(state: BuilderStateValues): BuilderStateValues {
   const totalOdds = state.items.reduce((acc, item) => acc * item.oddValue, 1);
@@ -106,6 +113,17 @@ function buildCreatePayload(state: BuilderStateValues): CreateBoletinInput {
   };
 }
 
+function isPristineDraft(state: BuilderStateValues): boolean {
+  return (
+    state.items.length === 0 &&
+    state.stake === 0 &&
+    state.name.trim().length === 0 &&
+    state.notes.trim().length === 0 &&
+    state.siteSlug.trim().length === 0 &&
+    state.isFreebet === false
+  );
+}
+
 /** Persistent builder store for in-progress boletins across screens. */
 export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
   persist(
@@ -137,9 +155,18 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
       setNotes: (notes) => set((state) => ({ ...state, notes })),
       setSiteSlug: (siteSlug) => set((state) => ({ ...state, siteSlug })),
       setBetDate: (betDate) => set((state) => ({ ...state, betDate })),
+      setDefaultPublicPreference: (defaultIsPublic) =>
+        set((state) =>
+          withComputed({
+            ...state,
+            defaultIsPublic,
+            isPublic: isPristineDraft(state) ? defaultIsPublic : state.isPublic,
+          }),
+        ),
       setPublic: (isPublic) => set((state) => ({ ...state, isPublic })),
       setFreebet: (isFreebet) => set((state) => ({ ...state, isFreebet })),
-      reset: () => set(withComputed({ ...DEFAULT_STATE, betDate: todayDDMMYYYY() })),
+      reset: () =>
+        set((state) => withComputed({ ...buildDefaultState(state.defaultIsPublic), betDate: todayDDMMYYYY() })),
       save: async () => {
         const state = get();
 
@@ -152,7 +179,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         }
 
         const created = await createBoletinRequest(buildCreatePayload(state));
-        set(withComputed(DEFAULT_STATE));
+        set(withComputed(buildDefaultState(state.defaultIsPublic)));
         return created;
       },
     }),
@@ -165,13 +192,16 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         name: state.name,
         notes: state.notes,
         betDate: state.betDate,
+        defaultIsPublic: state.defaultIsPublic,
         isPublic: state.isPublic,
         isFreebet: state.isFreebet,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,
         ...withComputed({
-          ...DEFAULT_STATE,
+          ...buildDefaultState(
+            (persistedState as Partial<BuilderStateValues> | undefined)?.defaultIsPublic ?? currentState.defaultIsPublic,
+          ),
           ...(persistedState as Partial<BuilderStateValues>),
         }),
       }),

@@ -87,6 +87,7 @@ export interface User {
   theme: Theme;
   /** ISO 4217 currency code, e.g. "EUR" */
   currency: string;
+  defaultBoletinsPublic: boolean;
   lastLoginAt: string | null;
   failedLoginAttempts: number;
   /** Brute-force lockout expiry */
@@ -308,7 +309,7 @@ export interface PublicProfile {
   publicBoletins: PublicBoletinPreview[];
 }
 
-export type FriendActivityType = 'PUBLIC_BOLETIN';
+export type FriendActivityType = 'PUBLIC_BOLETIN' | 'SHARED_BOLETIN';
 
 export interface FriendFeedItem {
   id: string;

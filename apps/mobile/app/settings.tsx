@@ -31,6 +31,7 @@ import {
   useUpdateProfileMutation,
 } from '../services/socialService';
 import { useAuthStore } from '../stores/authStore';
+import { useBoletinBuilderStore } from '../stores/boletinBuilderStore';
 import { useThemeStore, type ThemePreference } from '../stores/themeStore';
 import { useTheme } from '../theme/useTheme';
 
@@ -74,6 +75,7 @@ export default function SettingsScreen() {
   const logout = useAuthStore((state) => state.logout);
   const storedThemePreference = useThemeStore((state) => state.preference);
   const setThemePreference = useThemeStore((state) => state.setPreference);
+  const setDefaultPublicPreference = useBoletinBuilderStore((state) => state.setDefaultPublicPreference);
 
   const profileQuery = useMeProfile();
   const updateProfileMutation = useUpdateProfileMutation();
@@ -84,6 +86,7 @@ export default function SettingsScreen() {
 
   const [themePreference, setLocalThemePreference] = useState<ThemePreference>(storedThemePreference);
   const [currency, setCurrency] = useState('EUR');
+  const [defaultBoletinsPublic, setDefaultBoletinsPublic] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -98,12 +101,14 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (!profileQuery.data) return;
     setCurrency(profileQuery.data.currency ?? 'EUR');
+    setDefaultBoletinsPublic(profileQuery.data.defaultBoletinsPublic ?? false);
+    setDefaultPublicPreference(profileQuery.data.defaultBoletinsPublic ?? false);
     const nextThemePreference = mapThemeFromApi(profileQuery.data.theme);
     if (storedThemePreference !== 'scheduled') {
       setLocalThemePreference(nextThemePreference);
       setThemePreference(nextThemePreference);
     }
-  }, [profileQuery.data, setThemePreference]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profileQuery.data, setDefaultPublicPreference, setThemePreference]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const authProvider = profileQuery.data?.authProvider ?? storedAuthProvider ?? AuthProvider.EMAIL;
   const isGoogleLinked = authProvider === AuthProvider.GOOGLE || authProvider === AuthProvider.HYBRID;
@@ -252,14 +257,24 @@ export default function SettingsScreen() {
               value={currency}
             />
 
+            <View style={[styles.toggleRow, { borderColor: colors.border }]}> 
+              <View style={styles.toggleCopy}>
+                <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>Boletins públicos por defeito</Text>
+                <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>Os novos boletins começam como públicos no construtor.</Text>
+              </View>
+              <Switch onValueChange={setDefaultBoletinsPublic} value={defaultBoletinsPublic} />
+            </View>
+
             <Button
               loading={updateProfileMutation.isPending}
               onPress={async () => {
                 try {
                   await updateProfileMutation.mutateAsync({
                     currency: currency.trim().toUpperCase() || undefined,
+                    defaultBoletinsPublic,
                     theme: mapThemeToApi(themePreference),
                   });
+                  setDefaultPublicPreference(defaultBoletinsPublic);
                   showToast('Preferências guardadas.', 'success');
                 } catch (error) {
                   showToast(getApiErrorMessage(error), 'error');
@@ -494,6 +509,17 @@ const styles = StyleSheet.create({
   preferenceLabel: { fontSize: 13, lineHeight: 20 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   scheduleHint: { fontSize: 12, fontStyle: 'italic', marginTop: 4 },
+  toggleRow: {
+    alignItems: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingTop: 12,
+  },
+  toggleCopy: { flex: 1, gap: 2 },
+  toggleTitle: { fontSize: 14, fontWeight: '700' },
+  toggleSubtitle: { fontSize: 12, lineHeight: 18 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   infoText: { fontSize: 13, lineHeight: 20, flex: 1 },
   actionsRow: { flexDirection: 'row', gap: 10 },

@@ -45,6 +45,7 @@ import {
 } from '../../services/socialService';
 import { tokens } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
+import { getNotificationTarget } from '../../utils/notificationNavigation';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
@@ -99,6 +100,7 @@ function SwipeableNotifRow({
   const translateX = useSharedValue(0);
   const offset = useSharedValue(0);
   const scale = useSharedValue(1);
+  const rowWidth = useSharedValue(0);
 
   const pan = Gesture.Pan()
     .activeOffsetX([-8, 8])
@@ -125,10 +127,16 @@ function SwipeableNotifRow({
   const tap = Gesture.Tap()
     .onBegin(() => { scale.value = withTiming(0.96, { duration: 80 }); })
     .onFinalize(() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); })
-    .onEnd(() => {
+    .onEnd((event) => {
       if (translateX.value < -5) {
         translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
         offset.value = 0;
+      } else if (
+        onNavigate
+        && rowWidth.value > 0
+        && event.x >= Math.max(0, rowWidth.value - 52)
+      ) {
+        runOnJS(onNavigate)();
       } else {
         runOnJS(onPress)();
       }
@@ -156,6 +164,7 @@ function SwipeableNotifRow({
       </Animated.View>
       <GestureDetector gesture={gesture}>
         <Animated.View
+          onLayout={(event) => { rowWidth.value = event.nativeEvent.layout.width; }}
           style={[
             swipeableRowStyles.row,
             { borderBottomColor: colors.border as string },
@@ -175,9 +184,9 @@ function SwipeableNotifRow({
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               {!notif.isRead && <View style={[swipeableRowStyles.dot, { backgroundColor: colors.primary as string }]} />}
               {onNavigate && (
-                <Pressable hitSlop={10} onPress={onNavigate}>
+                <View pointerEvents="none" style={swipeableRowStyles.navigateIconWrap}>
                   <MaterialCommunityIcons name="chevron-right" size={16} color={colors.textMuted as string} />
-                </Pressable>
+                </View>
               )}
             </View>
           </View>
@@ -195,6 +204,7 @@ const swipeableRowStyles = StyleSheet.create({
   body: { fontSize: 11, lineHeight: 15 },
   time: { fontSize: 10, fontWeight: '600' },
   dot: { borderRadius: 4, height: 8, width: 8 },
+  navigateIconWrap: { alignItems: 'center', justifyContent: 'center', minWidth: 18 },
 });
 
 export default function HomeScreen() {
@@ -945,7 +955,7 @@ export default function HomeScreen() {
                 );
               }
               return visibleItems.map((notif: Notification) => {
-                const data = notif.data as Record<string, string> | null;
+                const target = getNotificationTarget(notif);
                 return (
                   <SwipeableNotifRow
                     key={notif.id}
@@ -961,16 +971,11 @@ export default function HomeScreen() {
                       setShowNotifBubble(false);
                     }}
                     onNavigate={
-                      (notif.type === 'FRIEND_REQUEST' || notif.type === 'FRIEND_ACCEPTED' ||
-                       ((notif.type === 'BOLETIN_SHARED' || notif.type === 'BOLETIN_RESULT') && data?.boletinId))
+                      target
                         ? () => {
                             if (!notif.isRead) markReadMutation.mutate(notif.id);
                             setShowNotifBubble(false);
-                            if (notif.type === 'FRIEND_REQUEST' || notif.type === 'FRIEND_ACCEPTED') {
-                              router.push('/(tabs)/friends');
-                            } else if ((notif.type === 'BOLETIN_SHARED' || notif.type === 'BOLETIN_RESULT') && data?.boletinId) {
-                              router.push(`/boletins/${data.boletinId}`);
-                            }
+                            router.push(target as never);
                           }
                         : undefined
                     }
@@ -1005,10 +1010,8 @@ export default function HomeScreen() {
         const n = selectedNotif;
         const nIconConfig = NOTIF_ICONS[n.type] ?? NOTIF_ICONS.SYSTEM;
         const nIconColor = colors[nIconConfig.color as keyof typeof colors] ?? colors.info;
-        const nData = n.data as Record<string, string> | null;
-        const hasNavTarget =
-          n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPTED' ||
-          ((n.type === 'BOLETIN_SHARED' || n.type === 'BOLETIN_RESULT') && nData?.boletinId);
+        const target = getNotificationTarget(n);
+        const hasNavTarget = Boolean(target);
 
         return (
           <>
@@ -1041,10 +1044,8 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => {
                     setSelectedNotif(null);
-                    if (n.type === 'FRIEND_REQUEST' || n.type === 'FRIEND_ACCEPTED') {
-                      router.push('/(tabs)/friends');
-                    } else if ((n.type === 'BOLETIN_SHARED' || n.type === 'BOLETIN_RESULT') && nData?.boletinId) {
-                      router.push(`/boletins/${nData.boletinId}`);
+                    if (target) {
+                      router.push(target as never);
                     }
                   }}
                   style={[styles.notifDetailButton, { backgroundColor: colors.primary }]}

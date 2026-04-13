@@ -114,7 +114,7 @@ export default function FriendsScreen() {
                 </Animated.View>
               ))
             ) : (
-              <EmptyState icon="newspaper-variant-outline" title="Feed vazio" message="Quando os teus amigos publicarem boletins, eles aparecem aqui." />
+              <EmptyState icon="newspaper-variant-outline" title="Feed vazio" message="Quando os teus amigos publicarem ou partilharem boletins, eles aparecem aqui." />
             )}
           </View>
         ) : null}

@@ -87,6 +87,7 @@ model User {
   expoPushToken       String?
   theme               Theme        @default(SYSTEM)
   currency            String       @default("EUR")
+  defaultBoletinsPublic Boolean    @default(false)
   lastLoginAt         DateTime?
   failedLoginAttempts Int          @default(0)
   lockedUntil         DateTime?    // brute-force lockout

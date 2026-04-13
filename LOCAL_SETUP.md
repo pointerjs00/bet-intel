@@ -299,6 +299,14 @@ The DB already has tables from a previous run. Run:
 pnpm --filter api prisma:migrate:deploy
 ```
 
+### API fails with Prisma error — `The column User.defaultBoletinsPublic does not exist`
+Your local database is behind the current Prisma schema. Apply the pending migrations:
+```powershell
+pnpm --filter api prisma:migrate:deploy
+```
+
+If the API was already running, retry the request after the migration finishes. If you still see auth errors, sign in again so the app can refresh its session.
+
 ---
 
 ## Useful Commands

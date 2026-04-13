@@ -17,9 +17,9 @@ import type {
 import { NotificationType as SharedNotificationType } from '@betintel/shared';
 import { prisma } from '../../prisma';
 import { redis } from '../../utils/redis';
+import { logger } from '../../utils/logger';
 import { emitBoletinResult, emitFriendActivity } from '../../sockets';
-import { emitNotificationNew } from '../../sockets/notificationSocket';
-import { toSharedNotification } from '../social/notificationService';
+import { createNotification, dispatchStoredNotifications } from '../social/notificationService';
 
 /** Invalidates all cached stats entries for a user after boletin changes. */
 async function invalidateStatsCache(userId: string): Promise<void> {
@@ -183,7 +183,7 @@ export async function updateBoletin(
     nextStake !== undefined ? { stake: nextStake } : undefined,
   );
 
-  emitResolvedBoletinResult(userId, updated);
+  emitResolvedBoletinResult(userId, existing, updated);
 
   void invalidateStatsCache(userId);
 
@@ -222,7 +222,7 @@ export async function updateBoletinItems(
 
   const updated = await syncBoletinDerivedState(boletinId);
 
-  emitResolvedBoletinResult(userId, updated);
+  emitResolvedBoletinResult(userId, existing, updated);
 
   void invalidateStatsCache(userId);
 
@@ -345,9 +345,7 @@ export async function shareBoletin(
     return { sharedRows: rows, notifications: createdNotifications };
   });
 
-  notifications.forEach((notification) => {
-    emitNotificationNew(notification.userId, toSharedNotification(notification));
-  });
+  await dispatchStoredNotifications(notifications);
 
   emitFriendActivity(recipientIds, {
     userId,
@@ -421,7 +419,7 @@ export async function addBoletinItem(
 
   const updated = await syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds });
 
-  emitResolvedBoletinResult(userId, updated);
+  emitResolvedBoletinResult(userId, existing, updated);
   void invalidateStatsCache(userId);
 
   return serializeBoletinDetail(updated);
@@ -459,7 +457,7 @@ export async function deleteBoletinItem(
 
   const updated = await syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds });
 
-  emitResolvedBoletinResult(userId, updated);
+  emitResolvedBoletinResult(userId, existing, updated);
   void invalidateStatsCache(userId);
 
   return serializeBoletinDetail(updated);
@@ -518,7 +516,7 @@ export async function updateBoletinItem(
     newTotalOdds !== undefined ? { totalOdds: newTotalOdds } : undefined,
   );
 
-  emitResolvedBoletinResult(userId, updated);
+  emitResolvedBoletinResult(userId, existing, updated);
   void invalidateStatsCache(userId);
 
   return serializeBoletinDetail(updated);
@@ -617,9 +615,10 @@ async function syncBoletinDerivedState(
 
 function emitResolvedBoletinResult(
   userId: string,
+  previousBoletin: { status: BoletinStatus; actualReturn: Prisma.Decimal | null },
   boletin: { id: string; name?: string | null; status: BoletinStatus; actualReturn: Prisma.Decimal | null },
 ): void {
-  if (boletin.status === BoletinStatus.PENDING) {
+  if (!didResolvedOutcomeChange(previousBoletin, boletin)) {
     return;
   }
 
@@ -628,6 +627,81 @@ function emitResolvedBoletinResult(
     status: boletin.status as unknown as SharedBoletinStatus,
     actualReturn: boletin.actualReturn?.toFixed(2) ?? null,
   });
+
+  void createNotification({
+    userId,
+    type: NotificationType.BOLETIN_RESULT,
+    title: buildBoletinResultNotificationTitle(boletin.status),
+    body: buildBoletinResultNotificationBody(boletin),
+    data: {
+      boletinId: boletin.id,
+      status: boletin.status,
+      actualReturn: boletin.actualReturn?.toFixed(2) ?? null,
+    },
+  }).catch((error) => {
+    logger.warn('Failed to create boletim result notification', {
+      boletinId: boletin.id,
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+}
+
+function didResolvedOutcomeChange(
+  previousBoletin: { status: BoletinStatus; actualReturn: Prisma.Decimal | null },
+  nextBoletin: { status: BoletinStatus; actualReturn: Prisma.Decimal | null },
+): boolean {
+  if (nextBoletin.status === BoletinStatus.PENDING) {
+    return false;
+  }
+
+  const previousReturn = previousBoletin.actualReturn?.toFixed(2) ?? null;
+  const nextReturn = nextBoletin.actualReturn?.toFixed(2) ?? null;
+
+  return previousBoletin.status !== nextBoletin.status || previousReturn !== nextReturn;
+}
+
+function buildBoletinResultNotificationTitle(status: BoletinStatus): string {
+  switch (status) {
+    case BoletinStatus.WON:
+      return 'Boletim ganho';
+    case BoletinStatus.LOST:
+      return 'Boletim perdido';
+    case BoletinStatus.VOID:
+      return 'Boletim anulado';
+    case BoletinStatus.PARTIAL:
+      return 'Boletim parcialmente ganho';
+    case BoletinStatus.CASHOUT:
+      return 'Boletim encerrado em cashout';
+    case BoletinStatus.PENDING:
+    default:
+      return 'Boletim atualizado';
+  }
+}
+
+function buildBoletinResultNotificationBody(boletin: {
+  name?: string | null;
+  status: BoletinStatus;
+  actualReturn: Prisma.Decimal | null;
+}): string {
+  const label = boletin.name?.trim() || 'O teu boletim';
+  const returnText = boletin.actualReturn ? ` Retorno: €${boletin.actualReturn.toFixed(2)}.` : '';
+
+  switch (boletin.status) {
+    case BoletinStatus.WON:
+      return `${label} foi resolvido como ganho.${returnText}`;
+    case BoletinStatus.LOST:
+      return `${label} foi resolvido como perdido.`;
+    case BoletinStatus.VOID:
+      return `${label} foi anulado.${returnText}`;
+    case BoletinStatus.PARTIAL:
+      return `${label} foi resolvido parcialmente.${returnText}`;
+    case BoletinStatus.CASHOUT:
+      return `${label} foi encerrado em cashout.${returnText}`;
+    case BoletinStatus.PENDING:
+    default:
+      return `${label} foi atualizado.`;
+  }
 }
 
 function assertUniqueSelections(items: CreateBoletinInput['items']): void {

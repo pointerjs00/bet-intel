@@ -23,6 +23,7 @@ import {
   useNotifications,
 } from '../services/socialService';
 import { useTheme } from '../theme/useTheme';
+import { getNotificationTarget } from '../utils/notificationNavigation';
 import { formatRelativeTime } from '../utils/formatters';
 
 const NOTIFICATION_ICONS: Record<string, { name: React.ComponentProps<typeof MaterialCommunityIcons>['name']; color: 'primary' | 'info' | 'gold' | 'danger' | 'warning' }> = {
@@ -102,19 +103,13 @@ export default function NotificationsScreen() {
   const unreadCount = notificationsQuery.data?.meta.unreadCount ?? 0;
 
   function handleNotificationPress(notification: Notification) {
-    // Mark read on tap
     if (!notification.isRead) {
       markReadMutation.mutate(notification.id);
     }
 
-    // Navigate based on type
-    const data = notification.data as Record<string, string> | null;
-    if (notification.type === 'FRIEND_REQUEST' || notification.type === 'FRIEND_ACCEPTED') {
-      router.push('/(tabs)/friends');
-    } else if (notification.type === 'BOLETIN_SHARED' && data?.boletinId) {
-      router.push(`/boletins/${data.boletinId}`);
-    } else if (notification.type === 'BOLETIN_RESULT' && data?.boletinId) {
-      router.push(`/boletins/${data.boletinId}`);
+    const target = getNotificationTarget(notification);
+    if (target) {
+      router.push(target as never);
     }
   }
 

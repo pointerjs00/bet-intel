@@ -34,6 +34,7 @@ import {
   useDeleteBoletinItemMutation,
   useDeleteBoletinMutation,
 } from '../../services/boletinService';
+import { useAuthStore } from '../../stores/authStore';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate } from '../../utils/formatters';
@@ -60,6 +61,7 @@ export default function BoletinDetailScreen() {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
   const { openShareBoletinSheet } = useShareBoletinSheet();
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -114,6 +116,20 @@ export default function BoletinDetailScreen() {
   const tennisTeamsQuery = useTeams({ sport: Sport.TENNIS, competition: 'ATP Tour' });
 
   const boletin = boletinQuery.data;
+  const canEdit = Boolean(boletin && currentUserId && boletin.userId === currentUserId);
+
+  useEffect(() => {
+    if (canEdit || !isEditing) {
+      return;
+    }
+
+    setIsEditing(false);
+    setEditItemTarget(null);
+    setRemoveItemTarget(null);
+    setPendingDelete(false);
+    setPendingPublic(false);
+    Keyboard.dismiss();
+  }, [canEdit, isEditing]);
 
   // Seed prevStatusRef on first data load (no celebration on mount)
   useEffect(() => {
@@ -227,7 +243,7 @@ export default function BoletinDetailScreen() {
   }, [addMarket, addHomeTeam, addHomeTeam2, addAwayTeam, addAwayTeam2, addIsDoubles, addSport, addUseCustomMarket]);
 
   const handleAddItem = useCallback(async () => {
-    if (!boletin) return;
+    if (!boletin || !canEdit) return;
     const fHome = addIsDoubles && addSport === Sport.TENNIS
       ? `${addHomeTeam.trim()} / ${addHomeTeam2.trim()}`
       : addHomeTeam.trim();
@@ -278,10 +294,10 @@ export default function BoletinDetailScreen() {
     } catch (error) {
       showToast(getErrorMessage(error), 'error');
     }
-  }, [boletin, addHomeTeam, addHomeTeam2, addAwayTeam, addAwayTeam2, addIsDoubles, addCompetition, addSport, addMarket, addSelection, addOddValue, addItemMutation, showToast]);
+  }, [boletin, canEdit, addHomeTeam, addHomeTeam2, addAwayTeam, addAwayTeam2, addIsDoubles, addCompetition, addSport, addMarket, addSelection, addOddValue, addItemMutation, showToast]);
 
   const handleSave = async () => {
-    if (!boletin) return;
+    if (!boletin || !canEdit) return;
     const stakeNum = parseFloat(editStake.replace(',', '.'));
     if (!stakeNum || stakeNum <= 0) {
       showToast('Stake inválida.', 'error');
@@ -553,44 +569,55 @@ export default function BoletinDetailScreen() {
                 </>
               ) : (
                 <>
-                  <Button
-                    leftSlot={<Ionicons color={colors.textPrimary} name="create-outline" size={16} />}
-                    onPress={() => setIsEditing(true)}
-                    size="sm"
-                    style={{ flex: 1, minWidth: 100 }}
-                    title="Editar"
-                    variant="secondary"
-                  />
-                  <Button
-                    leftSlot={<Ionicons color={colors.textPrimary} name="globe-outline" size={16} />}
-                    onPress={() => setPendingPublic(true)}
-                    size="sm"
-                    style={{ flex: 1, minWidth: 100 }}
-                    title={boletin.isPublic ? 'Tornar privado' : 'Tornar público'}
-                    variant="secondary"
-                  />
-                  <Button
-                    leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
-                    onPress={() => {
-                      if (!id) {
-                        return;
-                      }
+                  {canEdit ? (
+                    <>
+                      <Button
+                        leftSlot={<Ionicons color={colors.textPrimary} name="create-outline" size={16} />}
+                        onPress={() => setIsEditing(true)}
+                        size="sm"
+                        style={{ flex: 1, minWidth: 100 }}
+                        title="Editar"
+                        variant="secondary"
+                      />
+                      <Button
+                        leftSlot={<Ionicons color={colors.textPrimary} name="globe-outline" size={16} />}
+                        onPress={() => setPendingPublic(true)}
+                        size="sm"
+                        style={{ flex: 1, minWidth: 100 }}
+                        title={boletin.isPublic ? 'Tornar privado' : 'Tornar público'}
+                        variant="secondary"
+                      />
+                      <Button
+                        leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
+                        onPress={() => {
+                          if (!id) {
+                            return;
+                          }
 
-                      openShareBoletinSheet({ boletinId: id, boletinName: boletin?.name });
-                    }}
-                    size="sm"
-                    style={{ flex: 1, minWidth: 100 }}
-                    title="Partilhar"
-                    variant="secondary"
-                  />
-                  <Button
-                    leftSlot={<Ionicons color={colors.danger} name="trash-outline" size={16} />}
-                    onPress={() => setPendingDelete(true)}
-                    size="sm"
-                    style={{ flex: 1, minWidth: 100 }}
-                    title="Apagar"
-                    variant="secondary"
-                  />
+                          openShareBoletinSheet({ boletinId: id, boletinName: boletin?.name });
+                        }}
+                        size="sm"
+                        style={{ flex: 1, minWidth: 100 }}
+                        title="Partilhar"
+                        variant="secondary"
+                      />
+                      <Button
+                        leftSlot={<Ionicons color={colors.danger} name="trash-outline" size={16} />}
+                        onPress={() => setPendingDelete(true)}
+                        size="sm"
+                        style={{ flex: 1, minWidth: 100 }}
+                        title="Apagar"
+                        variant="secondary"
+                      />
+                    </>
+                  ) : (
+                    <View style={[styles.readOnlyNotice, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}> 
+                      <Ionicons color={colors.info} name="lock-closed-outline" size={16} />
+                      <Text style={[styles.readOnlyNoticeText, { color: colors.textSecondary }]}>
+                        Partilhado por {boletin.user.displayName ?? `@${boletin.user.username}`}. Apenas o proprietário pode editar este boletim.
+                      </Text>
+                    </View>
+                  )}
                 </>
               )}
             </Animated.View>
@@ -971,10 +998,10 @@ export default function BoletinDetailScreen() {
                   ? (tennisPhotoLookup.get(item.awayTeam) ?? null)
                   : null,
               }}
-              onRemove={isEditing ? () => {
+              onRemove={canEdit && isEditing ? () => {
                 setRemoveItemTarget({ boletinId: boletin.id, itemId: item.id });
               } : undefined}
-              onEdit={isEditing ? () => {
+              onEdit={canEdit && isEditing ? () => {
                 setEditItemTarget({
                   id: item.id,
                   homeTeam: item.homeTeam,
@@ -987,7 +1014,7 @@ export default function BoletinDetailScreen() {
                   result: item.result,
                 });
               } : undefined}
-              onResultChange={!isEditing ? async (result) => {
+              onResultChange={canEdit && !isEditing ? async (result) => {
                 try {
                   const updated = await updateItemsMutation.mutateAsync({
                     boletinId: boletin.id,
@@ -1017,7 +1044,7 @@ export default function BoletinDetailScreen() {
       />
 
       <ConfirmModal
-        visible={pendingPublic}
+        visible={canEdit && pendingPublic}
         title={boletin!.isPublic ? 'Tornar privado' : 'Tornar público'}
         message={boletin!.isPublic
           ? 'O boletim deixará de estar visível no teu perfil e nas partilhas.'
@@ -1036,7 +1063,7 @@ export default function BoletinDetailScreen() {
         onCancel={() => setPendingPublic(false)}
       />
       <ConfirmModal
-        visible={pendingDelete}
+        visible={canEdit && pendingDelete}
         title="Apagar boletim"
         message="Tens a certeza que queres apagar este boletim? Esta ação não pode ser desfeita."
         confirmLabel="Apagar"
@@ -1053,7 +1080,7 @@ export default function BoletinDetailScreen() {
         onCancel={() => setPendingDelete(false)}
       />
       <ConfirmModal
-        visible={removeItemTarget !== null}
+        visible={canEdit && removeItemTarget !== null}
         title="Remover seleção"
         message="Queres remover esta seleção do boletim?"
         confirmLabel="Remover"
@@ -1072,7 +1099,7 @@ export default function BoletinDetailScreen() {
         onCancel={() => setRemoveItemTarget(null)}
       />
       <EditItemModal
-        visible={editItemTarget !== null}
+        visible={canEdit && editItemTarget !== null}
         item={editItemTarget}
         isSaving={updateItemMutation.isPending}
         onSave={async (itemId, changes) => {
@@ -1156,6 +1183,22 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 12, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
   actionButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  readOnlyNotice: {
+    alignItems: 'center',
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    width: '100%',
+  },
+  readOnlyNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
+  },
   notesCard: { gap: 10 },
   notesHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   notesTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4 },

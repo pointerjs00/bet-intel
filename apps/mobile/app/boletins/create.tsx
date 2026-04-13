@@ -48,6 +48,7 @@ import type { DropdownItem, DropdownSection } from '../../components/ui/Searchab
 import { CompetitionPickerModal } from '../../components/ui/CompetitionPickerModal';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { boletinQueryKeys, useBoletins } from '../../services/boletinService';
+import { useMeProfile } from '../../services/socialService';
 import { usePersonalStats } from '../../services/statsService';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
@@ -1097,6 +1098,7 @@ export default function CreateBoletinScreen() {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
+  const profileQuery = useMeProfile();
 
   const items = useBoletinBuilderStore((state) => state.items);
   const stake = useBoletinBuilderStore((state) => state.stake);
@@ -1112,6 +1114,7 @@ export default function CreateBoletinScreen() {
   const setStake = useBoletinBuilderStore((state) => state.setStake);
   const setName = useBoletinBuilderStore((state) => state.setName);
   const setNotes = useBoletinBuilderStore((state) => state.setNotes);
+  const setDefaultPublicPreference = useBoletinBuilderStore((state) => state.setDefaultPublicPreference);
   const setPublic = useBoletinBuilderStore((state) => state.setPublic);
   const setFreebet = useBoletinBuilderStore((state) => state.setFreebet);
   const setSiteSlug = useBoletinBuilderStore((state) => state.setSiteSlug);
@@ -1136,6 +1139,12 @@ export default function CreateBoletinScreen() {
   // Confirmation modals
   const [pendingReset, setPendingReset] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profileQuery.data) {
+      setDefaultPublicPreference(profileQuery.data.defaultBoletinsPublic ?? false);
+    }
+  }, [profileQuery.data, setDefaultPublicPreference]);
 
   // Smart default name based on selections (e.g. "FC Porto vs SL Benfica")
   const defaultName = useMemo(() => {
