@@ -399,6 +399,17 @@ export default function SettingsScreen() {
               </View>
               <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
             </Pressable>
+            <Pressable
+              onPress={() => router.push('/boletins/scan')}
+              style={[styles.importRow, { borderColor: colors.border }]}
+            >
+              <MaterialCommunityIcons name="cellphone-screenshot" size={22} color={colors.primary} />
+              <View style={styles.importRowText}>
+                <Text style={[styles.importRowLabel, { color: colors.textPrimary }]}>Importar por screenshot</Text>
+                <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Lê uma aposta a partir de um screenshot Betclic</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+            </Pressable>
           </Card>
         </Animated.View>
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Input } from '../ui/Input';
+import { NumericInput } from '../ui/NumericInput';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -38,11 +38,13 @@ export function StakeInput({ value, onChange }: StakeInputProps) {
 
   return (
     <View style={styles.container}>
-      <Input
-        keyboardType="decimal-pad"
+      <NumericInput
+        allowDecimal
         label="Valor da aposta"
+        maxLength={10}
         onChangeText={handleChangeText}
         placeholder="0,00"
+        suffix="€"
         value={rawText}
       />
 

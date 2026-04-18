@@ -6,6 +6,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -17,10 +18,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp, FadeIn, FadeOut, SlideInDown, SlideInUp, useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS, interpolate, Extrapolation } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import type GorhomBottomSheet from '@gorhom/bottom-sheet';
-import { BoletinStatus, Sport } from '@betintel/shared';
+import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import type { Notification } from '@betintel/shared';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
-import { BoletinCard } from '../../components/boletins/BoletinCard';
+import { SwipeableBoletinCard } from '../../components/boletins/SwipeableBoletinCard';
 import { useShareBoletinSheet } from '../../components/social/ShareBoletinProvider';
 import {
   BoletinFilterSheet,
@@ -36,7 +37,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useToast } from '../../components/ui/Toast';
-import { useBoletins, useDeleteBoletinMutation } from '../../services/boletinService';
+import { useBoletins, useDeleteBoletinMutation, useUpdateBoletinItemsMutation } from '../../services/boletinService';
 import {
   useNotifications,
   useMarkNotificationReadMutation,
@@ -250,6 +251,7 @@ export default function HomeScreen() {
 
   const boletinsQuery = useBoletins();
   const deleteMutation = useDeleteBoletinMutation();
+  const updateItemsMutation = useUpdateBoletinItemsMutation();
   const unreadCount = useUnreadNotificationsCount().data ?? 0;
   const notificationsQuery = useNotifications(1, 8);
   const markReadMutation = useMarkNotificationReadMutation();
@@ -264,6 +266,19 @@ export default function HomeScreen() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
+
+  const handleQuickResolve = useCallback(
+    (boletin: { id: string; items: Array<{ id: string }> }, result: ItemResult) => {
+      updateItemsMutation.mutate(
+        { boletinId: boletin.id, items: boletin.items.map((i) => ({ id: i.id, result })) },
+        {
+          onSuccess: () => showToast(result === ItemResult.WON ? 'Ganhou! 🎉' : result === ItemResult.LOST ? 'Perdeu.' : 'Void.', 'success'),
+          onError: (err) => showToast(getErrorMessage(err), 'error'),
+        },
+      );
+    },
+    [updateItemsMutation, showToast],
+  );
 
   // Hide the tab bar when the notification detail popup is open.
   useEffect(() => {
@@ -319,6 +334,8 @@ export default function HomeScreen() {
     sites: [],
     weekday: null,
     legCount: null,
+    dateFrom: null,
+    dateTo: null,
   });
 
   useEffect(() => {
@@ -442,6 +459,7 @@ export default function HomeScreen() {
     if (filter.sites.length > 0) count++;
     if (filter.weekday !== null) count++;
     if (filter.legCount !== null) count++;
+    if (filter.dateFrom !== null || filter.dateTo !== null) count++;
     if (exactMarket) count++;
     return count;
   }, [filter, dataRanges, exactMarket]);
@@ -525,6 +543,17 @@ export default function HomeScreen() {
       result = result.filter((b) =>
         filter.legCount! >= 6 ? b.items.length >= 6 : b.items.length === filter.legCount,
       );
+    }
+
+    // Date range filter
+    if (filter.dateFrom !== null) {
+      const from = filter.dateFrom.getTime();
+      result = result.filter((b) => new Date(b.betDate ?? b.createdAt).getTime() >= from);
+    }
+    if (filter.dateTo !== null) {
+      const to = new Date(filter.dateTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter((b) => new Date(b.betDate ?? b.createdAt).getTime() <= to.getTime());
     }
 
     // Exact market filter (from stats drilldown — uses strict equality, not substring)
@@ -632,6 +661,11 @@ export default function HomeScreen() {
       ? ((summary.totalReturned - summary.totalStaked) / summary.totalStaked) * 100
       : 0;
 
+  const pendingCount = useMemo(
+    () => (boletinsQuery.data ?? []).filter((b) => b.status === BoletinStatus.PENDING).length,
+    [boletinsQuery.data],
+  );
+
   const hasActiveControls = searchQuery.trim().length > 0 || activeFilterCount > 0 || !isDefaultSort;
 
   return (
@@ -663,6 +697,8 @@ export default function HomeScreen() {
               <View style={styles.topActions}>
                 <PressableScale
                   scaleDown={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Notificações"
                   onPress={() => { hapticLight(); setShowNotifBubble((v) => !v); }}
                   style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
                 >
@@ -675,6 +711,8 @@ export default function HomeScreen() {
                 </PressableScale>
                 <PressableScale
                   scaleDown={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Diário de apostas"
                   onPress={() => router.push('/boletins/journal')}
                   style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
                 >
@@ -682,6 +720,26 @@ export default function HomeScreen() {
                 </PressableScale>
                 <PressableScale
                   scaleDown={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Importar screenshot"
+                  onPress={() => router.push('/boletins/scan')}
+                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
+                >
+                  <MaterialCommunityIcons color={colors.textSecondary} name="cellphone-screenshot" size={20} />
+                </PressableScale>
+                <PressableScale
+                  scaleDown={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Registo rápido"
+                  onPress={() => router.push('/boletins/quick-log')}
+                  style={[styles.iconButton, { backgroundColor: `${colors.warning}20`, borderWidth: 1, borderColor: colors.warning }]}
+                >
+                  <Ionicons color={colors.warning} name="flash" size={18} />
+                </PressableScale>
+                <PressableScale
+                  scaleDown={0.88}
+                  accessibilityRole="button"
+                  accessibilityLabel="Criar boletin"
                   onPress={() => router.push('/boletins/create')}
                   style={[styles.iconButton, { backgroundColor: colors.primary }]}
                 >
@@ -713,6 +771,22 @@ export default function HomeScreen() {
               </Pressable>
             </Animated.View>
 
+            {/* Batch resolve shortcut */}
+            {pendingCount > 1 && (
+              <Animated.View entering={FadeInDown.delay(40).duration(160).springify()}>
+                <Pressable
+                  onPress={() => router.push('/boletins/batch-resolve')}
+                  style={[styles.batchResolveBtn, { backgroundColor: `${colors.warning}18`, borderColor: colors.warning }]}
+                >
+                  <Ionicons color={colors.warning} name="checkmark-done" size={18} />
+                  <Text style={[styles.batchResolveBtnText, { color: colors.warning }]}>
+                    Resolver {pendingCount} pendentes
+                  </Text>
+                  <Ionicons color={colors.warning} name="chevron-forward" size={16} />
+                </Pressable>
+              </Animated.View>
+            )}
+
             {/* Search bar */}
             <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
               <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -725,7 +799,12 @@ export default function HomeScreen() {
                   value={searchQuery}
                 />
                 {searchQuery.length > 0 ? (
-                  <Pressable hitSlop={8} onPress={() => setSearchQuery('')}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Limpar pesquisa"
+                    hitSlop={8}
+                    onPress={() => setSearchQuery('')}
+                  >
                     <Ionicons color={colors.textMuted} name="close-circle" size={18} />
                   </Pressable>
                 ) : null}
@@ -816,6 +895,8 @@ export default function HomeScreen() {
                     sites: [],
                     weekday: null,
                     legCount: null,
+                    dateFrom: null,
+                    dateTo: null,
                   });
                 }}
               >
@@ -865,11 +946,12 @@ export default function HomeScreen() {
           }
 
           const card = (
-            <BoletinCard
+            <SwipeableBoletinCard
               boletin={item}
               onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
               onPress={() => router.push(`/boletins/${item.id}`)}
               onShare={() => openShareBoletinSheet({ boletinId: item.id, boletinName: item.name ?? undefined })}
+              onQuickResolve={item.status === BoletinStatus.PENDING ? (result) => handleQuickResolve(item, result) : undefined}
             />
           );
 
@@ -906,10 +988,12 @@ export default function HomeScreen() {
       {/* Notification bubble overlay */}
       {showNotifBubble ? (
         <>
-          <Pressable
-            onPress={() => setShowNotifBubble(false)}
-            style={StyleSheet.absoluteFill}
-          />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Fechar notificações"
+                    onPress={() => setShowNotifBubble(false)}
+                    style={StyleSheet.absoluteFill}
+                  />
           <Animated.View
             entering={FadeIn.duration(200).springify().damping(18).stiffness(260)}
             exiting={FadeOut.duration(120)}
@@ -928,6 +1012,8 @@ export default function HomeScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {(notificationsQuery.data?.items ?? []).some((n: Notification) => !n.isRead) && (
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Marcar todas como lidas"
                     hitSlop={8}
                     onPress={() => setShowMarkAllConfirm(true)}
                     disabled={markAllMutation.isPending}
@@ -935,7 +1021,12 @@ export default function HomeScreen() {
                     <Text style={[styles.notifBubbleMarkAll, { color: colors.textSecondary }]}>Marcar todas</Text>
                   </Pressable>
                 )}
-                <Pressable hitSlop={8} onPress={() => { setShowNotifBubble(false); router.push('/notifications'); }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ver todas as notificações"
+                  hitSlop={8}
+                  onPress={() => { setShowNotifBubble(false); router.push('/notifications'); }}
+                >
                   <Text style={[styles.notifBubbleSeeAll, { color: colors.primary }]}>Ver todas</Text>
                 </Pressable>
               </View>
@@ -1123,7 +1214,7 @@ const styles = StyleSheet.create({
   logo: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
   tagline: { fontSize: 14, fontWeight: '600' },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconButton: { alignItems: 'center', borderRadius: 16, height: 44, justifyContent: 'center', width: 44 },
+  iconButton: { alignItems: 'center', borderRadius: 12, height: 38, justifyContent: 'center', width: 38 },
   notifBadge: {
     alignItems: 'center',
     borderRadius: 10,
@@ -1267,5 +1358,7 @@ const styles = StyleSheet.create({
   skeletonCard: { gap: 14 },
   loadMoreFooter: { alignItems: 'center', gap: 10, marginTop: 8, paddingBottom: 8, paddingTop: 4 },
   loadMoreText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  batchResolveBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  batchResolveBtnText: { fontSize: 13, fontWeight: '700', flex: 1 },
   footerBar: { marginTop: tokens.spacing.xl },
 });

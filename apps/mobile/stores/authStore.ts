@@ -6,6 +6,7 @@ import { detachDevicePushToken, resetDevicePushTokenCache } from '../services/no
 
 const ACCESS_TOKEN_KEY = 'betintel_access_token';
 const REFRESH_TOKEN_KEY = 'betintel_refresh_token';
+const USER_KEY = 'betintel_user';
 
 // Module-level reentrancy guard — prevents recursive logout loops that occur when
 // detachDevicePushToken() fails with 401 → interceptor calls clearSession() → logout() again.
@@ -65,6 +66,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+      await SecureStore.deleteItemAsync(USER_KEY);
 
       set({
         user: null,
@@ -87,6 +89,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     await Promise.all([
       SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
       SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+      SecureStore.deleteItemAsync(USER_KEY),
     ]);
     resetDevicePushTokenCache();
     set({
@@ -125,28 +128,28 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   async hydrate() {
+    // Always start unauthenticated on cold launch (app killed and reopened).
+    // Tokens are only kept in-memory during an active session; once the app
+    // process is terminated, the user must sign in again.
+    // Any stale tokens still sitting in SecureStore from a prior session are
+    // cleared here so they cannot be accidentally restored.
     try {
-      const [accessToken, refreshTokenValue] = await Promise.all([
-        SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
-        SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
+      await Promise.all([
+        SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+        SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+        SecureStore.deleteItemAsync(USER_KEY),
       ]);
-
-      set({
-        accessToken,
-        refreshTokenValue,
-        isAuthenticated: Boolean(accessToken),
-        isHydrating: false,
-      });
     } catch {
-      // SecureStore unavailable (e.g. first install, emulator keystore issue)
-      set({ isHydrating: false });
+      // SecureStore unavailable — ignore
     }
+    set({ isHydrating: false });
   },
 
   async setSession({ user, accessToken, refreshToken }) {
     await Promise.all([
       SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
       SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
+      SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
     ]);
 
     set({
@@ -160,6 +163,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   updateUser(user) {
     set({ user });
+    void SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
   },
 }));
 

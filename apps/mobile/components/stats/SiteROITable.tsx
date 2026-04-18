@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StatsBySiteRow } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';
 import { SiteBreakdownLabel } from './BreakdownTable';
+import { TableSortButton, type SortKey } from './TableSortButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatPercentage } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
@@ -19,16 +20,36 @@ interface SiteROITableProps {
 export const SiteROITable = React.memo(function SiteROITable({ rows, onInfoPress, onRowPress }: SiteROITableProps) {
   const { colors } = useTheme();
   const [showAll, setShowAll] = useState(false);
+  const [sortBy, setSortBy] = useState<SortKey>('roi');
+  const [minBets, setMinBets] = useState(0);
 
   const siteLookup = React.useMemo(
     () => new Map(BETTING_SITES.map((site) => [site.slug, site])),
     [],
   );
 
+  const sortedRows = useMemo(() => {
+    let filtered = minBets > 0 ? rows.filter((r) => r.totalBets >= minBets) : rows;
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'roi': return b.roi - a.roi;
+        case 'winRate': return b.winRate - a.winRate;
+        case 'totalBets': return b.totalBets - a.totalBets;
+        case 'profitLoss': return b.profitLoss - a.profitLoss;
+        default: return 0;
+      }
+    });
+  }, [rows, sortBy, minBets]);
+
   if (rows.length === 0) return null;
 
-  const visibleRows = showAll ? rows : rows.slice(0, MAX_ROWS);
-  const hasMore = rows.length > MAX_ROWS;
+  const visibleRows = showAll ? sortedRows : sortedRows.slice(0, MAX_ROWS);
+  const hasMore = sortedRows.length > MAX_ROWS;
+
+  const handleApply = (newSort: SortKey, newMin: number) => {
+    setSortBy(newSort);
+    setMinBets(newMin);
+  };
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -37,7 +58,8 @@ export const SiteROITable = React.memo(function SiteROITable({ rows, onInfoPress
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre a análise por casa de apostas" onPress={onInfoPress} />
         ) : null}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Por casa de apostas</Text>
+        <Text style={[styles.title, { color: colors.textPrimary, flex: 1 }]}>Por casa de apostas</Text>
+        <TableSortButton sortBy={sortBy} minBets={minBets} onApply={handleApply} title="Por casa de apostas" />
       </View>
 
       {/* Header */}

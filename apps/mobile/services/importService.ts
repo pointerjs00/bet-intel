@@ -6,12 +6,16 @@ import { boletinQueryKeys } from './boletinService';
 
 export interface ParsedBetclicItem {
   homeTeam: string;
+  homeTeamImageUrl?: string | null;
   awayTeam: string;
+  awayTeamImageUrl?: string | null;
   competition: string;
   sport: string;
   market: string;
   selection: string;
   oddValue: number;
+  /** ISO date string for the individual event (may differ from boletin betDate) */
+  eventDate?: string;
 }
 
 export interface ParsedBetclicBoletin {

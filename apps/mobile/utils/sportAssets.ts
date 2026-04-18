@@ -2404,6 +2404,15 @@ const TEAM_LOGO_ALIASES: Record<string, string> = {
   'Sporting KC 2': 'Sporting Kansas City',
   'Real Salt Lake Monarchs': 'Real Salt Lake',
   'Roda JC': 'Roda JC Kerkrade',
+  // ── English clubs — resolveTeamAlias adds "FC" suffix; TEAM_LOGOS uses bare name ──
+  'Arsenal FC':       'Arsenal',
+  'Chelsea FC':       'Chelsea',
+  'Liverpool FC':     'Liverpool',
+  'Everton FC':       'Everton',
+  'Fulham FC':        'Fulham',
+  'Brentford FC':     'Brentford',
+  'Southampton FC':   'Southampton',
+  'Burnley FC':       'Burnley',
   // ── Duplicate name variants (same club, different name formats) ──────────
   'Académico de Viseu': 'Académico de Viseu FC',
   'FC Alverca': 'Alverca',

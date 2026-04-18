@@ -41,3 +41,10 @@ export function hapticSuccess() {
 export function hapticSelection() {
   runHaptic(() => void HapticsModule.selectionAsync());
 }
+
+/** Error notification haptic — failed operations. */
+export function hapticError() {
+  runHaptic(() =>
+    void HapticsModule.notificationAsync(HapticsModule.NotificationFeedbackType.Error),
+  );
+}

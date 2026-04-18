@@ -24,6 +24,7 @@ import { TeamBadge } from '../ui/TeamBadge';
 import { SearchableDropdown } from '../ui/SearchableDropdown';
 import { CompetitionPickerModal } from '../ui/CompetitionPickerModal';
 import { useTheme } from '../../theme/useTheme';
+import { DatePickerField } from '../ui/DatePickerField';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
 import { type BettingSite } from '../../utils/sportAssets';
 
@@ -62,6 +63,8 @@ export interface BoletinFilter {
   sites: string[];
   weekday: number | null;
   legCount: number | null;
+  dateFrom: Date | null;
+  dateTo: Date | null;
 }
 
 export interface CompetitionEntry { name: string; sport: Sport }
@@ -165,6 +168,8 @@ export function BoletinFilterSheet({
       sites: [],
       weekday: null,
       legCount: null,
+      dateFrom: null,
+      dateTo: null,
     });
     setSliderKey((k) => k + 1);
   };
@@ -321,6 +326,31 @@ export function BoletinFilterSheet({
             onHighChange={(v) => setDraftFilter((p) => ({ ...p, returnRange: [p.returnRange[0], v] }))}
             formatValue={formatCurrency}
           />
+
+          {/* DATE RANGE */}
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Período</Text>
+          <View style={styles.dateRangeRow}>
+            <View style={styles.dateField}>
+              <DatePickerField
+                label="De"
+                value={draftFilter.dateFrom}
+                placeholder="Início"
+                maxDate={draftFilter.dateTo ?? undefined}
+                onChange={(d) => setDraftFilter((p) => ({ ...p, dateFrom: d }))}
+                onClear={() => setDraftFilter((p) => ({ ...p, dateFrom: null }))}
+              />
+            </View>
+            <View style={styles.dateField}>
+              <DatePickerField
+                label="Até"
+                value={draftFilter.dateTo}
+                placeholder="Fim"
+                minDate={draftFilter.dateFrom ?? undefined}
+                onChange={(d) => setDraftFilter((p) => ({ ...p, dateTo: d }))}
+                onClear={() => setDraftFilter((p) => ({ ...p, dateTo: null }))}
+              />
+            </View>
+          </View>
 
           {/* BETTING SITES */}
           {allSites.length > 0 && (
@@ -628,6 +658,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   selectedChipText: { flexShrink: 1, fontSize: 12, fontWeight: '700' },
+  dateRangeRow: { flexDirection: 'row', gap: 12 },
+  dateField: { flex: 1 },
   applyBar: { borderTopWidth: 1, marginBottom: 30, paddingBottom: 30, paddingHorizontal: 20, paddingTop: 20 },
   applyBtn: { alignItems: 'center', borderRadius: 14, paddingVertical: 14 },
   applyBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },

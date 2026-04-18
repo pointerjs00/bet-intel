@@ -3,6 +3,7 @@ import type {
   PersonalStats,
   SiteMonthlyROI,
   StatsByCompetitionRow,
+  StatsByHourRow,
   StatsByLegCountRow,
   StatsByMarketRow,
   StatsByOddsRangeRow,
@@ -13,8 +14,12 @@ import type {
   StatsByTeamRow,
   StatsByWeekdayRow,
   StatsBreakdownRow,
+  StatsCalibrationPoint,
   StatsFreebetSummary,
+  StatsInsight,
+  StatsLegKillRow,
   StatsPeriod,
+  StatsROITrendPoint,
   StatsStreaks,
   StatsSummary,
   StatsTimelinePoint,
@@ -278,6 +283,11 @@ function buildStatsBundle(boletins: StatsBoletinRecord[], period: StatsPeriod, g
     byStakeBracket: buildByStakeBracket(boletins),
     bySportMarket: buildBySportMarket(boletins),
     bySite: buildBySite(boletins),
+    byHour: buildByHour(boletins),
+    legKillDistribution: buildLegKillDistribution(boletins),
+    calibration: buildCalibration(boletins),
+    roiTrend: buildROITrend(boletins),
+    insights: buildInsights(summary, boletins),
     timeline,
     bestBoletins: buildTopBoletins(settledBoletins, 'best'),
     worstBoletins: buildTopBoletins(settledBoletins, 'worst'),
@@ -314,6 +324,37 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
   // Count of non-cancelled boletins for averages (VOID/Cancelado excluded)
   let nonVoidCount = 0;
 
+  // Home/Away tracking (directional 1X2 bets)
+  let homeStaked = 0;
+  let homeReturned = 0;
+  let homeSettledStake = 0;
+  let homeWon = 0;
+  let homeDecisive = 0;
+  let homeBets = 0;
+  let awayStaked = 0;
+  let awayReturned = 0;
+  let awaySettledStake = 0;
+  let awayWon = 0;
+  let awayDecisive = 0;
+  let awayBets = 0;
+
+  // Favourite / Underdog tracking (threshold: odds 2.00)
+  let favStaked = 0;
+  let favReturned = 0;
+  let favSettledStake = 0;
+  let favWon = 0;
+  let favDecisive = 0;
+  let favBets = 0;
+  let undStaked = 0;
+  let undReturned = 0;
+  let undSettledStake = 0;
+  let undWon = 0;
+  let undDecisive = 0;
+  let undBets = 0;
+
+  // P&L per boletin for variance calculation
+  const pnlValues: number[] = [];
+
   for (const boletin of boletins) {
     // Cancelado (VOID) boletins are excluded from all financial and performance stats.
     // They only increment voidBoletins for display purposes.
@@ -349,6 +390,72 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
     if (settled && !boletin.isFreebet) {
       impliedReturnSum += stake * odds; // what a "perfect" bettor would expect
       actualReturnSum += getEffectiveReturn(boletin);
+      // Track P&L for variance calculation
+      pnlValues.push(getEffectiveReturn(boletin) - stake);
+    }
+
+    // Home/Away + Favourite/Underdog item-level tracking
+    if (settled && !boletin.isFreebet) {
+      const itemCount = Math.max(boletin.items.length, 1);
+      const itemStakeShare = stake / itemCount;
+      const itemReturnShare = getEffectiveReturn(boletin) / itemCount;
+
+      for (const item of boletin.items) {
+        const itemOdds = decimalToNumber(item.oddValue);
+        const isItemWon = item.result === ItemResult.WON;
+        const isItemDecisive = item.result === ItemResult.WON || item.result === ItemResult.LOST;
+
+        // Home/Away — match numeric codes, Portuguese labels, and team-name selections
+        const sel = item.selection.toLowerCase().trim();
+        const isHome =
+          sel === '1' ||
+          sel === 'casa' ||
+          sel === 'casa vence' ||
+          sel === '1x' ||
+          sel === '12' ||
+          sel === item.homeTeam.toLowerCase().trim();
+        const isAway =
+          sel === '2' ||
+          sel === 'fora' ||
+          sel === 'fora vence' ||
+          sel === 'x2' ||
+          sel === item.awayTeam.toLowerCase().trim();
+
+        if (isHome) {
+          homeBets += 1;
+          homeStaked += itemStakeShare;
+          homeSettledStake += itemStakeShare;
+          homeReturned += itemReturnShare;
+          if (isItemDecisive) homeDecisive += 1;
+          if (isItemWon) homeWon += 1;
+        } else if (isAway) {
+          awayBets += 1;
+          awayStaked += itemStakeShare;
+          awaySettledStake += itemStakeShare;
+          awayReturned += itemReturnShare;
+          if (isItemDecisive) awayDecisive += 1;
+          if (isItemWon) awayWon += 1;
+        }
+
+        // Favourite / Underdog (threshold: 2.00)
+        if (isItemDecisive) {
+          if (itemOdds < 2.0) {
+            favBets += 1;
+            favStaked += itemStakeShare;
+            favSettledStake += itemStakeShare;
+            favReturned += itemReturnShare;
+            favDecisive += 1;
+            if (isItemWon) favWon += 1;
+          } else {
+            undBets += 1;
+            undStaked += itemStakeShare;
+            undSettledStake += itemStakeShare;
+            undReturned += itemReturnShare;
+            undDecisive += 1;
+            if (isItemWon) undWon += 1;
+          }
+        }
+      }
     }
 
     switch (boletin.status) {
@@ -431,6 +538,20 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
     oddsEfficiency: impliedReturnSum > 0 ? round((actualReturnSum / impliedReturnSum) * 100) : 0,
     streaks,
     freebetSummary,
+    variance: computeVariance(pnlValues),
+    stdDev: round(Math.sqrt(computeVariance(pnlValues))),
+    homeROI: homeSettledStake > 0 ? round(((homeReturned - homeSettledStake) / homeSettledStake) * 100) : 0,
+    homeWinRate: homeDecisive > 0 ? round((homeWon / homeDecisive) * 100) : 0,
+    homeBets,
+    awayROI: awaySettledStake > 0 ? round(((awayReturned - awaySettledStake) / awaySettledStake) * 100) : 0,
+    awayWinRate: awayDecisive > 0 ? round((awayWon / awayDecisive) * 100) : 0,
+    awayBets,
+    favouriteROI: favSettledStake > 0 ? round(((favReturned - favSettledStake) / favSettledStake) * 100) : 0,
+    favouriteWinRate: favDecisive > 0 ? round((favWon / favDecisive) * 100) : 0,
+    favouriteBets: favBets,
+    underdogROI: undSettledStake > 0 ? round(((undReturned - undSettledStake) / undSettledStake) * 100) : 0,
+    underdogWinRate: undDecisive > 0 ? round((undWon / undDecisive) * 100) : 0,
+    underdogBets: undBets,
   };
 }
 
@@ -862,6 +983,282 @@ function periodToDefaultGranularity(period: StatsPeriod): 'daily' | 'weekly' | '
   if (period === 'week') return 'daily';
   if (period === 'month') return 'weekly';
   return 'monthly';
+}
+
+// ─── New breakdown builders ───────────────────────────────────────────────────
+
+const HOUR_LABELS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}h`);
+
+function buildByHour(boletins: StatsBoletinRecord[]): StatsByHourRow[] {
+  const map = new Map<number, StatsByHourRow>();
+
+  for (let h = 0; h < 24; h++) {
+    map.set(h, {
+      hour: h,
+      key: String(h),
+      label: HOUR_LABELS[h]!,
+      totalBets: 0,
+      won: 0,
+      lost: 0,
+      void: 0,
+      pending: 0,
+      settledStake: 0,
+      totalStaked: 0,
+      totalReturned: 0,
+      profitLoss: 0,
+      roi: 0,
+      winRate: 0,
+    });
+  }
+
+  for (const boletin of boletins) {
+    const date = boletin.betDate ?? boletin.createdAt;
+    const hour = date.getUTCHours();
+    const row = map.get(hour)!;
+    const stake = boletin.isFreebet ? 0 : decimalToNumber(boletin.stake);
+    const settled = isSettledStatus(boletin.status);
+    const effectiveReturn = settled ? getEffectiveReturn(boletin) : 0;
+
+    row.totalBets += 1;
+    row.totalStaked += stake;
+
+    if (settled) {
+      row.settledStake += stake;
+      row.totalReturned += effectiveReturn;
+    }
+
+    switch (boletin.status) {
+      case BoletinStatus.WON:
+      case BoletinStatus.PARTIAL:
+        row.won += 1;
+        break;
+      case BoletinStatus.LOST:
+        row.lost += 1;
+        break;
+      case BoletinStatus.VOID:
+        row.void += 1;
+        break;
+      case BoletinStatus.CASHOUT:
+        break;
+      case BoletinStatus.PENDING:
+      default:
+        row.pending += 1;
+        break;
+    }
+  }
+
+  const rows = Array.from({ length: 24 }, (_, i) => map.get(i)!);
+  return computeRowMetrics(rows);
+}
+
+function buildLegKillDistribution(boletins: StatsBoletinRecord[]): StatsLegKillRow[] {
+  const killCounts = new Map<number, number>();
+  let totalLostParlays = 0;
+
+  for (const boletin of boletins) {
+    if (boletin.status !== BoletinStatus.LOST) continue;
+    if (boletin.items.length < 2) continue; // only parlays
+
+    totalLostParlays += 1;
+
+    for (let i = 0; i < boletin.items.length; i++) {
+      if (boletin.items[i]!.result === ItemResult.LOST) {
+        const pos = i + 1;
+        killCounts.set(pos, (killCounts.get(pos) ?? 0) + 1);
+      }
+    }
+  }
+
+  if (totalLostParlays === 0) return [];
+
+  return Array.from(killCounts.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([pos, count]): StatsLegKillRow => ({
+      legPosition: pos,
+      label: `Seleção ${pos}`,
+      killCount: count,
+      killRate: round((count / totalLostParlays) * 100),
+    }));
+}
+
+function buildCalibration(boletins: StatsBoletinRecord[]): StatsCalibrationPoint[] {
+  // Group item-level bets by implied probability bucket (10% bands)
+  const BUCKET_COUNT = 10;
+  const buckets: Array<{ won: number; total: number }> = Array.from({ length: BUCKET_COUNT }, () => ({ won: 0, total: 0 }));
+
+  for (const boletin of boletins) {
+    if (!isSettledStatus(boletin.status) || boletin.status === BoletinStatus.VOID) continue;
+
+    for (const item of boletin.items) {
+      if (item.result === ItemResult.VOID || item.result === ItemResult.PENDING) continue;
+      const odds = decimalToNumber(item.oddValue);
+      if (odds <= 1) continue;
+      const impliedProb = 1 / odds; // 0-1
+      const bucketIdx = Math.min(Math.floor(impliedProb * BUCKET_COUNT), BUCKET_COUNT - 1);
+      buckets[bucketIdx]!.total += 1;
+      if (item.result === ItemResult.WON) buckets[bucketIdx]!.won += 1;
+    }
+  }
+
+  return buckets
+    .map((bucket, i): StatsCalibrationPoint => ({
+      label: `${i * 10}-${(i + 1) * 10}%`,
+      impliedProbability: (i * 10 + 5) / 100, // centre of bucket
+      actualWinRate: bucket.total > 0 ? round(bucket.won / bucket.total, 3) : 0,
+      sampleSize: bucket.total,
+    }))
+    .filter((point) => point.sampleSize > 0);
+}
+
+function buildROITrend(boletins: StatsBoletinRecord[]): StatsROITrendPoint[] {
+  const WINDOW_SIZE = 5;
+
+  const settled = boletins
+    .filter((b) => isSettledStatus(b.status) && b.status !== BoletinStatus.VOID && !b.isFreebet)
+    .sort((a, b) => {
+      const dateA = a.betDate ?? a.createdAt;
+      const dateB = b.betDate ?? b.createdAt;
+      return dateA.getTime() - dateB.getTime();
+    });
+
+  if (settled.length < WINDOW_SIZE) return [];
+
+  const points: StatsROITrendPoint[] = [];
+
+  for (let i = WINDOW_SIZE - 1; i < settled.length; i++) {
+    let windowStaked = 0;
+    let windowReturned = 0;
+
+    for (let j = i - WINDOW_SIZE + 1; j <= i; j++) {
+      const b = settled[j]!;
+      windowStaked += decimalToNumber(b.stake);
+      windowReturned += getEffectiveReturn(b);
+    }
+
+    const windowPnL = windowReturned - windowStaked;
+    points.push({
+      betIndex: i,
+      roi: windowStaked > 0 ? round((windowPnL / windowStaked) * 100) : 0,
+    });
+  }
+
+  return points;
+}
+
+function buildInsights(summary: StatsSummary, boletins: StatsBoletinRecord[]): StatsInsight[] {
+  const insights: StatsInsight[] = [];
+  let id = 0;
+
+  // 1. Parlay warning — compare singles vs multi-leg ROI
+  const singles = boletins.filter((b) => b.items.length === 1 && isSettledStatus(b.status) && !b.isFreebet);
+  const parlays = boletins.filter((b) => b.items.length >= 3 && isSettledStatus(b.status) && !b.isFreebet);
+  if (singles.length >= 3 && parlays.length >= 3) {
+    const singlesStaked = singles.reduce((sum, b) => sum + decimalToNumber(b.stake), 0);
+    const singlesReturned = singles.reduce((sum, b) => sum + getEffectiveReturn(b), 0);
+    const singlesROI = singlesStaked > 0 ? ((singlesReturned - singlesStaked) / singlesStaked) * 100 : 0;
+    const parlaysStaked = parlays.reduce((sum, b) => sum + decimalToNumber(b.stake), 0);
+    const parlaysReturned = parlays.reduce((sum, b) => sum + getEffectiveReturn(b), 0);
+    const parlaysROI = parlaysStaked > 0 ? ((parlaysReturned - parlaysStaked) / parlaysStaked) * 100 : 0;
+    if (parlaysROI < singlesROI - 10) {
+      insights.push({
+        id: String(++id),
+        icon: 'warning-outline',
+        sentiment: 'negative',
+        title: 'Acumuladas a prejudicar-te',
+        body: `O teu ROI em apostas simples é ${round(singlesROI)}% mas em acumuladas de 3+ seleções é apenas ${round(parlaysROI)}%. Considera reduzir o número de seleções.`,
+      });
+    }
+  }
+
+  // 2. Average stake on losses vs wins
+  if (summary.averageLostStake > 0 && summary.averageWonStake > 0 && summary.averageLostStake > summary.averageWonStake * 1.3) {
+    insights.push({
+      id: String(++id),
+      icon: 'trending-down-outline',
+      sentiment: 'negative',
+      title: 'Stakes mais altas nas perdas',
+      body: `A tua stake média em apostas perdidas (€${round(summary.averageLostStake)}) é significativamente maior do que nas ganhas (€${round(summary.averageWonStake)}). Isto pode indicar "tilt" ou excesso de confiança.`,
+    });
+  }
+
+  // 3. Weekday P&L warning
+  const byWeekday = buildByWeekday(boletins);
+  const worstDay = byWeekday.reduce((worst, row) => (row.profitLoss < worst.profitLoss ? row : worst), byWeekday[0]!);
+  if (worstDay && worstDay.profitLoss < -10 && worstDay.totalBets >= 3) {
+    insights.push({
+      id: String(++id),
+      icon: 'calendar-outline',
+      sentiment: 'negative',
+      title: `${worstDay.label} é o teu pior dia`,
+      body: `Tens um prejuízo de €${round(Math.abs(worstDay.profitLoss))} às ${worstDay.label.toLowerCase()}s com ${worstDay.totalBets} apostas. Considera evitar apostar nesse dia.`,
+    });
+  }
+
+  // 4. Hot streak
+  if (summary.streaks.currentType === 'WON' && summary.streaks.currentCount >= 5) {
+    insights.push({
+      id: String(++id),
+      icon: 'flame-outline',
+      sentiment: 'positive',
+      title: `Série de ${summary.streaks.currentCount} vitórias!`,
+      body: 'Estás num ótimo momento. Mantém a disciplina e não aumentes as stakes por excesso de confiança.',
+    });
+  }
+
+  // 5. Losing streak
+  if (summary.streaks.currentType === 'LOST' && summary.streaks.currentCount >= 4) {
+    insights.push({
+      id: String(++id),
+      icon: 'snow-outline',
+      sentiment: 'negative',
+      title: `Série de ${summary.streaks.currentCount} derrotas`,
+      body: 'Considera fazer uma pausa. Séries negativas são normais mas apostar em "tilt" agrava a situação.',
+    });
+  }
+
+  // 6. Positive ROI celebration
+  if (summary.roi > 5 && summary.settledBoletins >= 10) {
+    insights.push({
+      id: String(++id),
+      icon: 'trophy-outline',
+      sentiment: 'positive',
+      title: `ROI positivo de ${round(summary.roi)}%`,
+      body: `Com ${summary.settledBoletins} apostas resolvidas, estás a superar a expectativa. Continua com a mesma estratégia.`,
+    });
+  }
+
+  // 7. Favourite / underdog imbalance
+  if (summary.favouriteBets >= 5 && summary.underdogBets >= 5) {
+    if (summary.favouriteROI < summary.underdogROI - 15) {
+      insights.push({
+        id: String(++id),
+        icon: 'swap-horizontal-outline',
+        sentiment: 'neutral',
+        title: 'Mais lucro nos underdogs',
+        body: `O teu ROI em favoritos (odds < 2.00) é ${round(summary.favouriteROI)}% mas em underdogs é ${round(summary.underdogROI)}%. Podes ter mais edge em apostas de valor.`,
+      });
+    }
+  }
+
+  // 8. Odds efficiency
+  if (summary.oddsEfficiency > 0 && summary.oddsEfficiency < 85 && summary.settledBoletins >= 8) {
+    insights.push({
+      id: String(++id),
+      icon: 'speedometer-outline',
+      sentiment: 'negative',
+      title: 'Eficiência de odds baixa',
+      body: `A tua eficiência de odds é ${round(summary.oddsEfficiency)}% — estás a retornar significativamente menos do que o esperado pelas odds. Revê a tua seleção de apostas.`,
+    });
+  }
+
+  return insights;
+}
+
+function computeVariance(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+  const squaredDiffs = values.reduce((sum, v) => sum + (v - mean) ** 2, 0);
+  return round(squaredDiffs / values.length);
 }
 
 function buildTimeline(boletins: StatsBoletinRecord[], period: StatsPeriod, granularity?: 'daily' | 'weekly' | 'monthly'): StatsTimelinePoint[] {

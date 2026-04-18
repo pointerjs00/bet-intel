@@ -24,6 +24,7 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
   return (
     <PressableScale
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ selected }}
       onPress={() => {
         hapticSelection();

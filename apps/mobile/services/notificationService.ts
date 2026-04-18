@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import axios from 'axios';
 import { apiClient } from './apiClient';
 
 Notifications.setNotificationHandler({
@@ -51,9 +52,14 @@ export async function syncDevicePushToken(): Promise<string | null> {
     cachedExpoPushToken = nextToken;
     return nextToken;
   })().catch((err: unknown) => {
-    // Best-effort registration — never propagate to callers.
-    // A failure here just means the server won't be able to push to this device
-    // until the next successful sync (e.g. next login).
+    // A 401 means the auth system is handling it (token refresh or session clear).
+    // Reset the cache so the sync retries on the next authenticated request.
+    const is401 = axios.isAxiosError(err) && err.response?.status === 401;
+    if (is401) {
+      cachedExpoPushToken = null;
+      return null;
+    }
+    // For all other errors, warn in dev — these are unexpected (network, 5xx, etc.)
     if (__DEV__) {
       console.warn('[BetIntel] Push token sync failed:', err);
     }
@@ -84,6 +90,14 @@ export function addForegroundNotificationListener(
   listener: (notification: Notifications.Notification) => void,
 ): () => void {
   const subscription = Notifications.addNotificationReceivedListener(listener);
+  return () => subscription.remove();
+}
+
+/** Subscribes to notification tap/response events (background & killed state). */
+export function addNotificationResponseListener(
+  listener: (response: Notifications.NotificationResponse) => void,
+): () => void {
+  const subscription = Notifications.addNotificationResponseReceivedListener(listener);
   return () => subscription.remove();
 }
 

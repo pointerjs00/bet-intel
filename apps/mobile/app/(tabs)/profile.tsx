@@ -95,6 +95,8 @@ export default function ProfileScreen() {
             <Text style={[styles.title, { color: colors.textPrimary }]}>A tua conta</Text>
           </View>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Definições"
             onPress={() => router.push('/settings')}
             hitSlop={12}
             style={[styles.settingsBtn, { backgroundColor: colors.surfaceRaised }]}
@@ -360,7 +362,12 @@ function QuickLink({
   borderColor: string;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.quickLink, { borderColor }]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={[styles.quickLink, { borderColor }]}
+    >
       <MaterialCommunityIcons name={icon as 'cog-outline'} size={22} color={color} />
       <View style={styles.quickLinkText}>
         <Text style={[styles.quickLinkLabel, { color: labelColor }]}>{label}</Text>

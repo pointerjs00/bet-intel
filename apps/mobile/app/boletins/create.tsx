@@ -35,6 +35,7 @@ import { Card } from '../../components/ui/Card';
 import { DatePickerField } from '../../components/ui/DatePickerField';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Input } from '../../components/ui/Input';
+import { NumericInput } from '../../components/ui/NumericInput';
 import { CompetitionBadge } from '../../components/ui/CompetitionBadge';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { TeamBadge } from '../../components/ui/TeamBadge';
@@ -903,12 +904,13 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Input
+          <NumericInput
+            allowDecimal
             label="Odd"
-            placeholder="1.85"
-            keyboardType="decimal-pad"
-            value={oddValue}
+            maxLength={6}
             onChangeText={setOddValue}
+            placeholder="1.85"
+            value={oddValue}
           />
         </View>
       </View>

@@ -227,7 +227,7 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
     subtitle: 'ROI agrupado por nível de risco',
     icon: 'options-outline',
     description:
-      'Agrupa as tuas apostas por faixas de odds (<1.5, 1.5–2.0, 2.0–3.0, 3.0–5.0, >5.0) e calcula o ROI em cada faixa. Muito útil para perceber se preferes favoritos ou azarões.',
+      'Agrupa as tuas apostas por faixas de odds (<1.5, 1.5–2.0, 2.0–3.0, 3.0–5.0, >5.0) e calcula o ROI em cada faixa. Muito útil para perceber se preferes favoritos ou underdogs.',
     example:
       'Odds de 1.5–2.0: ROI +18% (100 apostas). Odds de 3.0–5.0: ROI −35% (40 apostas). Claramente deves concentrar-te nas odds baixas e evitar as odds longas.',
     tips: [
@@ -396,6 +396,194 @@ export const METRIC_INFO: Record<string, MetricInfo> = {
       if (value >= 4) return { text: `${value} combinações com dados. O padrão começa a aparecer — foca nas células com mais apostas antes de tirar conclusões.`, sentiment: 'neutral' };
       if (value > 0) return { text: `Apenas ${value} combinaç${value === 1 ? 'ão' : 'ões'} com dados. Regista mais apostas em desportos e mercados variados para a matriz ter valor.`, sentiment: 'neutral' };
       return { text: 'Sem dados na matriz ainda.', sentiment: 'neutral' };
+    },
+  },
+
+  insights: {
+    id: 'insights',
+    title: 'Insights Automáticos',
+    subtitle: 'Padrões e tendências detetadas',
+    icon: 'bulb-outline',
+    description:
+      'O sistema analisa automaticamente as tuas apostas e gera insights personalizados — padrões de vitória/derrota, mercados mais lucrativos, tendências sazonais e alertas de comportamento que podem estar a custar-te dinheiro.',
+    example:
+      'Exemplo: "O teu ROI no mercado BTTS é +18% com 30 apostas — significativamente acima da média. Considera aumentar o volume neste mercado." Ou: "Apostas mais de €20 aos sábados com ROI de −35% — possível sinal de apostas impulsivas."',
+    tips: [
+      'Insights com mais de 20 apostas na amostra são mais fiáveis do que os baseados em poucas observações.',
+      'Os insights negativos são os mais valiosos — mostram onde podes melhorar imediatamente.',
+      'Revê os insights regularmente. Padrões que eram verdadeiros há 3 meses podem já não se aplicar.',
+    ],
+    interpret: (value) => {
+      if (value >= 5) return { text: `${value} insights gerados. O sistema encontrou padrões suficientes para ajudar na tua tomada de decisão — lê todos com atenção.`, sentiment: 'positive' };
+      if (value > 0) return { text: `${value} insight${value !== 1 ? 's' : ''} gerado${value !== 1 ? 's' : ''}. Regista mais apostas para o sistema encontrar mais padrões.`, sentiment: 'neutral' };
+      return { text: 'Sem insights ainda — regista mais apostas para o sistema começar a encontrar padrões.', sentiment: 'neutral' };
+    },
+  },
+
+  'roi-trend': {
+    id: 'roi-trend',
+    title: 'Tendência de ROI',
+    subtitle: 'Evolução do ROI ao longo do tempo',
+    icon: 'trending-up-outline',
+    description:
+      'Mostra como o teu ROI evoluiu ao longo do tempo, aposta a aposta ou período a período. Ao contrário do ROI final (que é um único número), esta curva revela se estás a melhorar, a piorar ou estabilizado.',
+    example:
+      'Se o gráfico mostra ROI de −15% nas primeiras 20 apostas mas gradualmente sobe para +5% nas últimas 50, estás claramente a evoluir como apostador. Uma queda recente pode indicar alteração de mercado ou perda de disciplina.',
+    tips: [
+      'Um ROI que estabiliza ao longo do tempo (menos oscilações) indica que a amostra é grande o suficiente para revelar o teu verdadeiro nível.',
+      'Quedas bruscas no ROI após longas subidas podem indicar mudança de estratégia — analisa o que mudaste.',
+      'A tendência de longo prazo é mais importante do que flutuações de curto prazo causadas pela variância.',
+    ],
+    interpret: (value) => {
+      if (value === undefined || value === null) return { text: 'Sem dados suficientes para calcular a tendência de ROI.', sentiment: 'neutral' };
+      return { text: 'Analisa o gráfico de tendência para perceber se o teu ROI está a melhorar, estabilizar ou deteriorar-se ao longo do tempo.', sentiment: 'neutral' };
+    },
+  },
+
+  calibration: {
+    id: 'calibration',
+    title: 'Calibração',
+    subtitle: 'Precisão das probabilidades implícitas',
+    icon: 'locate-outline',
+    description:
+      'Compara a probabilidade implícita das odds com a taxa de vitória real. Se apostas a odds de 2.00 (50% implícito), deves ganhar ~50% dessas apostas. Se ganhas mais, encontraste valor; menos, estás a sobrepagar.',
+    formulaLabel: 'Como funciona',
+    formula: 'Prob. Implícita = 1 ÷ Odd\nCalibrção = Taxa de Vitória Real ÷ Prob. Implícita',
+    example:
+      'Apostaste 20 vezes a odds entre 1.8–2.2 (prob. implícita ~50%). Ganhou 12 vezes (60% de vitórias). Estás calibrado acima — encontraste consistentemente valor nesta faixa.',
+    tips: [
+      'Um apostador perfeitamente calibrado tem uma linha diagonal no gráfico — probabilidade implícita = taxa de vitória real.',
+      'Pontos acima da diagonal indicam que encontras valor nessa faixa de odds (ganhas mais do que o esperado).',
+      'Pontos abaixo da diagonal indicam que estás a sobrepagar — as odds parecem boas mas perdes mais do que o esperado.',
+    ],
+    interpret: (value) => {
+      if (value === undefined || value === null) return { text: 'Sem dados suficientes para calcular a calibração.', sentiment: 'neutral' };
+      return { text: 'Analisa o gráfico de calibração — pontos acima da diagonal são as faixas onde encontras valor real. Concentra o volume nesses intervalos.', sentiment: 'neutral' };
+    },
+  },
+
+  'home-away': {
+    id: 'home-away',
+    title: 'Casa vs Fora',
+    subtitle: 'Performance em apostas home/away',
+    icon: 'swap-horizontal-outline',
+    description:
+      'Compara o teu desempenho em apostas onde escolheste a equipa da casa versus a equipa visitante. Muitos apostadores têm viés inconsciente a favor das equipas que jogam em casa (home bias).',
+    example:
+      'Apostas "Casa": 60 apostas, ROI +5%. Apostas "Fora": 40 apostas, ROI −12%. Conclusão: tens melhor leitura dos jogos em casa do que fora, ou estás a sobrestimar equipas visitantes.',
+    tips: [
+      'A vantagem de jogar em casa varia por liga — em ligas como a Premier League é menor; na liga turca é muito maior.',
+      'Se tens ROI muito negativo em apostas "Fora", podes estar a apostar contra odds que já descontam a vantagem caseira.',
+      'Cruza esta análise com "Por Competição" — o teu viés pode ser específico de certas ligas.',
+    ],
+    interpret: (value) => {
+      if (value === undefined || value === null) return { text: 'Sem dados suficientes para análise casa/fora.', sentiment: 'neutral' };
+      return { text: 'Compara o teu ROI em apostas na equipa da casa vs visitante. Se a diferença for grande, podes ter home bias inconsciente.', sentiment: 'neutral' };
+    },
+  },
+
+  'favourite-underdog': {
+    id: 'favourite-underdog',
+    title: 'Favoritos vs Underdogs',
+    subtitle: 'Performance por nível do favoritismo',
+    icon: 'podium-outline',
+    description:
+      'Analisa se és mais lucrativo a apostar em favoritos (odds baixas, alta probabilidade) ou em underdogs (odds altas, baixa probabilidade). A maioria dos apostadores recreativos perde mais dinheiro em underdogs.',
+    example:
+      'Favoritos (odds <2.0): 50 apostas, ROI +8% — bom a identificar favoritos com valor. Underdogs (odds >3.0): 30 apostas, ROI −28% — as tuas apostas em longshots não compensam.',
+    tips: [
+      'O público tende a sobrestimar underdogs (favourite-longshot bias) — as casas exploram isto com margens maiores em odds altas.',
+      'Se o teu ROI em favoritos é positivo mas em underdogs é negativo, este é dos insights mais acionáveis que podes ter.',
+      'Apostar em underdogs "pela emoção" é entertainment, não investimento — gere a stake em conformidade.',
+    ],
+    interpret: (value) => {
+      if (value === undefined || value === null) return { text: 'Sem dados suficientes para análise favoritos/underdogs.', sentiment: 'neutral' };
+      return { text: 'Compara o teu ROI em favoritos vs underdogs. Se a diferença for marcada, ajusta o teu volume em cada categoria.', sentiment: 'neutral' };
+    },
+  },
+
+  'leg-kill': {
+    id: 'leg-kill',
+    title: 'Perna Assassina',
+    subtitle: 'Qual a seleção que mais falha nos parlays',
+    icon: 'skull-outline',
+    description:
+      'Mostra qual a posição (1ª, 2ª, 3ª perna, etc.) que mais frequentemente falha nos teus acumuladores perdidos. Ajuda a perceber se tens tendência a adicionar "uma perna a mais" sem análise suficiente.',
+    example:
+      'Em boletins de 3 seleções, a 3ª perna falhou em 45% das derrotas. Isto sugere que a última seleção adicionada é feita com menos rigor — é a "perna a mais" que destrói o acumulador.',
+    tips: [
+      'Se a última perna falha significativamente mais, é provável que a adiciones de forma impulsiva para aumentar a odd.',
+      'Considera remover a última seleção e fazer uma aposta mais segura com menor odd total.',
+      'Não há nenhuma posição "mágica" — mas se um padrão emerge claramente, investiga o que acontece nessa seleção.',
+    ],
+    interpret: (value) => {
+      if (value === undefined || value === null) return { text: 'Sem dados suficientes para análise de perna assassina.', sentiment: 'neutral' };
+      return { text: 'Analisa o gráfico para identificar se alguma posição de seleção falha consistentemente mais do que as outras nos teus acumuladores perdidos.', sentiment: 'neutral' };
+    },
+  },
+
+  'by-hour': {
+    id: 'by-hour',
+    title: 'Por Hora do Dia',
+    subtitle: 'Performance por hora de criação',
+    icon: 'time-outline',
+    description:
+      'Agrupa as tuas apostas pela hora em que foram criadas e calcula o ROI de cada bloco horário. Pode revelar se apostas feitas de madrugada ou tarde da noite têm piores resultados.',
+    example:
+      'Manhã (9h–12h): ROI +10%, 25 apostas — apostas bem pensadas antes do dia começar. Noite (23h–2h): ROI −30%, 15 apostas — apostas impulsivas antes de dormir.',
+    tips: [
+      'Apostas feitas em períodos de cansaço ou stress têm tipicamente piores resultados.',
+      'Se a madrugada é o teu pior período, define uma regra: nunca apostar depois das 23h.',
+      'Combina esta análise com "Por Dia da Semana" para um perfil completo do teu comportamento temporal.',
+    ],
+    interpret: (value) => {
+      if (value >= 6) return { text: `Dados de ${value} blocos horários — suficiente para ver padrões. Procura as horas com ROI positivo — são os teus melhores momentos para apostar.`, sentiment: 'positive' };
+      if (value > 0) return { text: `Dados de ${value} bloco${value !== 1 ? 's' : ''} horário${value !== 1 ? 's' : ''}. Regista mais apostas para o padrão horário ser significativo.`, sentiment: 'neutral' };
+      return { text: 'Sem dados por hora do dia ainda.', sentiment: 'neutral' };
+    },
+  },
+
+  variance: {
+    id: 'variance',
+    title: 'Variância',
+    subtitle: 'Dispersão dos resultados',
+    icon: 'pulse-outline',
+    description:
+      'A variância mede quão dispersos são os resultados das tuas apostas em relação à média. Uma variância alta significa que os teus resultados oscilam muito entre grandes ganhos e grandes perdas. Uma variância baixa indica resultados mais previsíveis.',
+    formulaLabel: 'Fórmula',
+    formula: 'Variância = Σ(xi − μ)² / N\nonde xi = P&L de cada aposta, μ = P&L médio, N = total de apostas',
+    example:
+      'Se tens lucros de +€50, −€30, +€20, −€40: a média é 0 e a variância é alta. Se tens +€5, −€3, +€4, −€2: a média é ~1 e a variância é baixa.',
+    tips: [
+      'Variância alta não significa que apostas mal — acumuladores com odds altas terão naturalmente mais variância.',
+      'Se a variância é alta e o ROI é negativo, pode ser melhor reduzir as odds das tuas apostas para mais estabilidade.',
+      'Uma gestão de bankroll conservadora (stakes baixas) suaviza o impacto da variância no teu saldo.',
+    ],
+    interpret: (value) => {
+      if (value === undefined || value === null || value <= 0) return { text: 'Sem dados suficientes para calcular a variância.', sentiment: 'neutral' };
+      return { text: `Variância de ${value.toFixed(2)}. ${value > 100 ? 'Os teus resultados oscilam bastante — indica apostas de alto risco ou odds altas. Considera reduzir o risco para mais estabilidade.' : 'Os teus resultados são relativamente estáveis — boa gestão de bankroll.'}`, sentiment: value > 100 ? 'negative' : 'positive' };
+    },
+  },
+
+  'std-dev': {
+    id: 'std-dev',
+    title: 'Desvio Padrão',
+    subtitle: 'Volatilidade dos resultados em €',
+    icon: 'analytics-outline',
+    description:
+      'O desvio padrão é a raiz quadrada da variância — expresso na mesma unidade dos resultados (€). Indica quanto cada aposta tipicamente se desvia da média. Um desvio padrão de €15 significa que a maioria dos resultados está entre +€15 e −€15 do desfecho médio.',
+    formulaLabel: 'Fórmula',
+    formula: 'Desvio Padrão = √Variância',
+    example:
+      'Se o teu desvio padrão é €12: a maioria dos teus boletins dá resultados entre −€12 e +€12 da média. Valores acima disso são outliers — grandes vitórias ou grandes derrotas.',
+    tips: [
+      'O desvio padrão em € é mais intuitivo que a variância — mostra diretamente a oscilação típica por aposta.',
+      'Se o desvio padrão é maior do que a tua stake média, precisas de mais apostas para confirmar o teu ROI real.',
+      'Para reduzir o desvio padrão: usa stakes fixas e evita acumuladores de odds extremas.',
+    ],
+    interpret: (value) => {
+      if (value === undefined || value === null || value <= 0) return { text: 'Sem dados suficientes para calcular o desvio padrão.', sentiment: 'neutral' };
+      return { text: `Desvio padrão de €${value.toFixed(2)}. ${value > 25 ? 'Os teus resultados são bastante voláteis — cada aposta desvia significativamente da média. Se o bankroll for limitado, considera stakes mais conservadoras.' : 'Volatilidade controlada — os teus resultados são relativamente consistentes, facilitando a gestão de bankroll.'}`, sentiment: value > 25 ? 'negative' : 'positive' };
     },
   },
 

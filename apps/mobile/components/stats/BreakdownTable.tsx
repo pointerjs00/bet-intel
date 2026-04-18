@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, ImageSourcePropType, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { StatsBreakdownRow } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';
@@ -15,6 +15,8 @@ interface BreakdownTableProps<TRow extends StatsBreakdownRow> {
   onInfoPress?: () => void;
   /** When true, label text uses numberOfLines={2} so full market names are visible. */
   expandLabels?: boolean;
+  /** Optional node rendered at the far right of the title row. */
+  headerRight?: React.ReactNode;
 }
 
 /** Generic table for sport, site, and market breakdowns. */
@@ -26,6 +28,7 @@ export const BreakdownTable = React.memo(function BreakdownTable<TRow extends St
   onRowPress,
   onInfoPress,
   expandLabels,
+  headerRight,
 }: BreakdownTableProps<TRow>) {
   const { colors } = useTheme();
   const [showAll, setShowAll] = useState(false);
@@ -38,7 +41,8 @@ export const BreakdownTable = React.memo(function BreakdownTable<TRow extends St
         {onInfoPress ? (
           <InfoButton accessibilityLabel={`Mais informação sobre ${title}`} onPress={onInfoPress} />
         ) : null}
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
+        <Text style={[styles.title, { color: colors.textPrimary, flex: 1 }]}>{title}</Text>
+        {headerRight ?? null}
       </View>
 
       <View style={[styles.headerRow, { borderColor: colors.border }]}> 

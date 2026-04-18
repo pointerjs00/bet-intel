@@ -37,10 +37,12 @@ export function usePersonalStats(
   siteSlugs: string[] = [],
   dateFrom?: string,
   dateTo?: string,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: statsQueryKeys.me(period, siteSlugs, dateFrom, dateTo),
     staleTime: 30_000,    // 30s — avoids redundant refetches on tab switches
+    enabled,
     queryFn: async () => {
       const params: Record<string, string> = { period };
       if (siteSlugs.length > 0) params.siteSlugs = siteSlugs.join(',');

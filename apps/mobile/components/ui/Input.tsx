@@ -149,6 +149,7 @@ export function Input({
         {secureTextEntry ? (
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={isSecure ? 'Mostrar password' : 'Ocultar password'}
             hitSlop={12}
             onPress={() => setIsSecure((prev) => !prev)}
             style={styles.toggle}

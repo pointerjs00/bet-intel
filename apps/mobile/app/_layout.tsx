@@ -1,13 +1,17 @@
 import React, { useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { ONBOARDING_DONE_KEY } from './onboarding';
 import { useAuthStore } from '../stores/authStore';
 import { ShareBoletinProvider } from '../components/social/ShareBoletinProvider';
+import { ConnectivityBanner } from '../components/ui/ConnectivityBanner';
 import { useTheme } from '../theme/useTheme';
 import { ToastProvider, useToast } from '../components/ui/Toast';
 import {
@@ -19,6 +23,7 @@ import {
 } from '../services/socketService';
 import {
   addForegroundNotificationListener,
+  addNotificationResponseListener,
   resetDevicePushTokenCache,
   syncDevicePushToken,
 } from '../services/notificationService';
@@ -65,13 +70,25 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (isHydrating) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const inOnboarding = segments[0] === 'onboarding';
 
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
     }
 
     if (isAuthenticated && inAuthGroup) {
-      router.replace('/(tabs)');
+      // Check if onboarding is needed before going to tabs
+      void AsyncStorage.getItem(ONBOARDING_DONE_KEY).then((done) => {
+        if (!done) {
+          router.replace('/onboarding');
+        } else {
+          router.replace('/(tabs)');
+        }
+      });
+    }
+
+    if (isAuthenticated && !inAuthGroup && !inOnboarding) {
+      // Already authenticated + not on onboarding — no action needed
     }
   }, [isAuthenticated, isHydrating, router, segments]);
 
@@ -88,6 +105,25 @@ function AuthGate({ children }: { children: React.ReactNode }) {
         </Animated.View>
         <Animated.View entering={FadeInDown.delay(200).duration(300)}>
           <ActivityIndicator color={colors.primary} size="small" />
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // While a redirect to login is pending (segments haven't moved to auth yet),
+  // keep the loading screen visible so no authenticated content flashes.
+  const inAuthGroup = segments[0] === '(auth)';
+  const inOnboarding = segments[0] === 'onboarding';
+  if (!isAuthenticated && !inAuthGroup && !inOnboarding) {
+    return (
+      <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
+        <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContent}>
+          <Image
+            source={require('../assets/logo-no-bg.png')}
+            style={styles.loadingIcon}
+            resizeMode="contain"
+          />
+          <Text style={[styles.loadingTitle, { color: colors.textPrimary }]}>BetIntel</Text>
         </Animated.View>
       </View>
     );
@@ -121,20 +157,29 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={styles.flex}>
+      <BottomSheetModalProvider>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
             <NotificationLifecycleManager />
+            <ConnectivityBanner />
             <ShareBoletinProvider>
               <AuthGate>
                 <StatusBar style={isDark ? 'light' : 'dark'} />
                 <View style={[styles.flex, { backgroundColor: colors.background }]}>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="settings" options={{ headerShown: true, presentation: 'card' }} />
-                    <Stack.Screen name="notifications" options={{ headerShown: false, presentation: 'card' }} />
-                    <Stack.Screen name="user/[username]" options={{ headerShown: false, presentation: 'card' }} />
+                  <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
+                    <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+                    <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+                    <Stack.Screen name="settings" options={{ headerShown: true }} />
+                    <Stack.Screen name="notifications" />
+                    <Stack.Screen name="user/[username]" />
+                    <Stack.Screen name="boletins/[id]" />
+                    <Stack.Screen name="boletins/create" />
+                    <Stack.Screen name="boletins/journal" />
+                    <Stack.Screen name="boletins/import-review" />
+                    <Stack.Screen name="boletins/scan" options={{ headerShown: true }} />
+                    <Stack.Screen name="boletins/quick-log" options={{ headerShown: false }} />
+                    <Stack.Screen name="boletins/batch-resolve" options={{ headerShown: true }} />
                   </Stack>
                 </View>
               </AuthGate>
@@ -142,11 +187,13 @@ export default function RootLayout() {
           </ToastProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
   );
 }
 
 function NotificationLifecycleManager() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -166,6 +213,22 @@ function NotificationLifecycleManager() {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     });
 
+    const unsubscribeResponse = addNotificationResponseListener((response) => {
+      // Navigate to the relevant screen based on notification data
+      const data = response.notification.request.content.data as Record<string, unknown> | undefined;
+      if (!data) return;
+
+      if (data.boletinId && typeof data.boletinId === 'string') {
+        // "bet settled" or "boletin shared" → open boletin detail
+        router.push(`/boletins/${data.boletinId}`);
+      } else if (data.type === 'FRIEND_REQUEST' || data.type === 'FRIEND_ACCEPTED') {
+        router.push('/notifications');
+      } else if (data.notificationId) {
+        // Generic fallback: open notifications screen
+        router.push('/notifications');
+      }
+    });
+
     const unsubscribeForeground = addForegroundNotificationListener((notification) => {
       const title = notification.request.content.title?.trim();
       const body = notification.request.content.body?.trim();
@@ -180,6 +243,7 @@ function NotificationLifecycleManager() {
 
     return () => {
       unsubscribeSocket();
+      unsubscribeResponse();
       unsubscribeForeground();
     };
   }, [queryClient, showToast]);

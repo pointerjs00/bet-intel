@@ -50,6 +50,8 @@ export const Button = React.memo(function Button({
   return (
     <AnimatedPressable
       accessibilityRole="button"
+      accessibilityLabel={props.accessibilityLabel ?? title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPressIn={() => {
         scale.value = withSpring(0.97, { damping: 18, stiffness: 600 });

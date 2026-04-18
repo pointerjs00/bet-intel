@@ -1,5 +1,5 @@
 ﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Image, Keyboard, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { FlatList, Image, Keyboard, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
+import { ShareCard } from '../../components/boletins/ShareCard';
 import { useShareBoletinSheet } from '../../components/social/ShareBoletinProvider';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -35,6 +36,7 @@ import {
   useDeleteBoletinMutation,
 } from '../../services/boletinService';
 import { useAuthStore } from '../../stores/authStore';
+import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate } from '../../utils/formatters';
@@ -62,6 +64,7 @@ export default function BoletinDetailScreen() {
   const { showToast } = useToast();
   const { openShareBoletinSheet } = useShareBoletinSheet();
   const currentUserId = useAuthStore((state) => state.user?.id);
+
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -78,6 +81,7 @@ export default function BoletinDetailScreen() {
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingPublic, setPendingPublic] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
   const prevStatusRef = useRef<BoletinStatus | undefined>(undefined);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
@@ -326,6 +330,30 @@ export default function BoletinDetailScreen() {
     setIsEditing(false);
     Keyboard.dismiss();
   };
+
+  const handleClone = useCallback(() => {
+    if (!boletin) return;
+    const builder = useBoletinBuilderStore.getState();
+    builder.reset();
+    for (const item of boletin.items) {
+      builder.addItem({
+        id: `clone-${item.id}-${Date.now()}`,
+        homeTeam: item.homeTeam,
+        awayTeam: item.awayTeam,
+        competition: item.competition ?? '',
+        sport: (item.sport ?? Sport.FOOTBALL) as Sport,
+        market: item.market,
+        selection: item.selection,
+        oddValue: Number(item.oddValue),
+      });
+    }
+    builder.setStake(Number(boletin.stake));
+    if (boletin.siteSlug) builder.setSiteSlug(boletin.siteSlug);
+    if (boletin.notes) builder.setNotes(boletin.notes);
+    builder.setFreebet(false);
+    router.push('/boletins/create');
+    showToast('Boletim duplicado — edita e guarda.', 'success');
+  }, [boletin, router, showToast]);
 
   const bannerColor = useMemo(() => {
     // Darker shades to ensure WCAG AA contrast (≥4.5:1) with white text
@@ -602,11 +630,27 @@ export default function BoletinDetailScreen() {
                         variant="secondary"
                       />
                       <Button
+                        leftSlot={<Ionicons color={colors.textPrimary} name="image-outline" size={16} />}
+                        onPress={() => setShowShareCard(true)}
+                        size="sm"
+                        style={{ flex: 1, minWidth: 100 }}
+                        title="Imagem"
+                        variant="secondary"
+                      />
+                      <Button
                         leftSlot={<Ionicons color={colors.danger} name="trash-outline" size={16} />}
                         onPress={() => setPendingDelete(true)}
                         size="sm"
                         style={{ flex: 1, minWidth: 100 }}
                         title="Apagar"
+                        variant="secondary"
+                      />
+                      <Button
+                        leftSlot={<Ionicons color={colors.textPrimary} name="copy-outline" size={16} />}
+                        onPress={handleClone}
+                        size="sm"
+                        style={{ flex: 1, minWidth: 100 }}
+                        title="Duplicar"
                         variant="secondary"
                       />
                     </>
@@ -1121,6 +1165,19 @@ export default function BoletinDetailScreen() {
           onDismiss={() => setShowCelebration(false)}
         />
       )}
+
+      <Modal
+        animationType="slide"
+        transparent
+        visible={showShareCard}
+        onRequestClose={() => setShowShareCard(false)}
+      >
+        <Pressable onPress={() => setShowShareCard(false)} style={styles.shareCardOverlay}>
+          <Pressable>
+            <ShareCard boletin={boletin} onClose={() => setShowShareCard(false)} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1222,4 +1279,11 @@ const styles = StyleSheet.create({
   doublesRow: { flexDirection: 'row', gap: 8 },
   doublesBtn: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flex: 1, paddingVertical: 9 },
   doublesBtnText: { fontSize: 13, fontWeight: '600' },
+  shareCardOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
 });

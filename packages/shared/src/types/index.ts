@@ -435,6 +435,34 @@ export interface StatsSummary {
   oddsEfficiency: number;
   streaks: StatsStreaks;
   freebetSummary: StatsFreebetSummary;
+  /** Standard deviation of P&L per boletin */
+  variance: number;
+  /** Standard deviation value (sqrt of variance) */
+  stdDev: number;
+  /** ROI when betting on home teams (1X2 selection "1") */
+  homeROI: number;
+  /** Win rate when betting on home teams */
+  homeWinRate: number;
+  /** Number of home team bets */
+  homeBets: number;
+  /** ROI when betting on away teams (1X2 selection "2") */
+  awayROI: number;
+  /** Win rate when betting on away teams */
+  awayWinRate: number;
+  /** Number of away team bets */
+  awayBets: number;
+  /** ROI on favourite picks (odds < 2.00) */
+  favouriteROI: number;
+  /** Win rate on favourite picks */
+  favouriteWinRate: number;
+  /** Number of favourite bets */
+  favouriteBets: number;
+  /** ROI on underdog picks (odds >= 2.00) */
+  underdogROI: number;
+  /** Win rate on underdog picks */
+  underdogWinRate: number;
+  /** Number of underdog bets */
+  underdogBets: number;
 }
 
 export interface StatsBreakdownRow {
@@ -509,6 +537,51 @@ export interface StatsBySiteRow extends StatsBreakdownRow {
   monthlySeries: SiteMonthlyROI[];
 }
 
+export interface StatsByHourRow extends StatsBreakdownRow {
+  /** Hour 0-23 */
+  hour: number;
+}
+
+export interface StatsLegKillRow {
+  /** 1-indexed leg position */
+  legPosition: number;
+  label: string;
+  /** Times this leg position was the one that killed the parlay */
+  killCount: number;
+  /** Percentage of total lost parlays this leg position killed */
+  killRate: number;
+}
+
+export interface StatsCalibrationPoint {
+  /** Label for this implied probability bucket, e.g. "60-70%" */
+  label: string;
+  /** Centre of the implied probability bucket (0-1) */
+  impliedProbability: number;
+  /** User's actual win rate for bets in this bucket (0-1) */
+  actualWinRate: number;
+  /** Number of bets in this bucket */
+  sampleSize: number;
+}
+
+export interface StatsROITrendPoint {
+  /** Index of the bet (0-based) */
+  betIndex: number;
+  /** Rolling-window ROI % at this point */
+  roi: number;
+}
+
+export interface StatsInsight {
+  id: string;
+  /** Icon name (Ionicons) */
+  icon: string;
+  /** Colour hint: 'positive' | 'negative' | 'neutral' */
+  sentiment: 'positive' | 'negative' | 'neutral';
+  /** Portuguese text */
+  title: string;
+  /** Portuguese text — longer explanation */
+  body: string;
+}
+
 export interface StatsTimelinePoint {
   key: string;
   label: string;
@@ -553,6 +626,11 @@ export interface PersonalStats {
   byStakeBracket: StatsByStakeBracketRow[];
   bySportMarket: StatsBySportMarketCell[];
   bySite: StatsBySiteRow[];
+  byHour: StatsByHourRow[];
+  legKillDistribution: StatsLegKillRow[];
+  calibration: StatsCalibrationPoint[];
+  roiTrend: StatsROITrendPoint[];
+  insights: StatsInsight[];
   timeline: StatsTimelinePoint[];
   bestBoletins: StatsTopBoletin[];
   worstBoletins: StatsTopBoletin[];

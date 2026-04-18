@@ -46,6 +46,7 @@ function TabItemButton({
       }}
       onPress={onPress}
       accessibilityRole="tab"
+      accessibilityLabel={label}
       accessibilityState={{ selected: focused }}
     >
       <View style={styles.iconWrap}>
