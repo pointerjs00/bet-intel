@@ -1,8 +1,9 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import {
   Image,
   KeyboardAvoidingView,
@@ -31,9 +32,22 @@ export default function LoginScreen() {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
   const login = useAuthStore((state) => state.login);
+  const biometricEnabled = useAuthStore((state) => state.biometricEnabled);
+  const loginWithBiometric = useAuthStore((state) => state.loginWithBiometric);
 
   const [isEmailLoading, setIsEmailLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+
+  // Check if biometric hardware is enrolled so we can show the button
+  useEffect(() => {
+    if (!biometricEnabled) return;
+    void LocalAuthentication.hasHardwareAsync().then((hasHw) => {
+      if (!hasHw) return;
+      return LocalAuthentication.isEnrolledAsync().then(setBiometricAvailable);
+    });
+  }, [biometricEnabled]);
 
   const {
     control,
@@ -55,6 +69,22 @@ export default function LoginScreen() {
       setIsEmailLoading(false);
     }
   });
+
+  const handleBiometricPress = async () => {
+    try {
+      setIsBiometricLoading(true);
+      const success = await loginWithBiometric();
+      if (success) {
+        router.replace('/(tabs)');
+      } else {
+        showToast('Biometria cancelada. Entra com a tua password.', 'error');
+      }
+    } catch {
+      showToast('Erro ao usar biometria. Tenta com password.', 'error');
+    } finally {
+      setIsBiometricLoading(false);
+    }
+  };
 
   const handleGooglePress = async () => {
     try {
@@ -161,6 +191,19 @@ export default function LoginScreen() {
             </View>
           </Card>
         </Animated.View>
+
+        {biometricEnabled && biometricAvailable && (
+          <Animated.View entering={FadeInDown.delay(40).duration(180).springify()} style={styles.biometricWrap}>
+            <Pressable
+              disabled={isBiometricLoading}
+              onPress={handleBiometricPress}
+              style={[styles.biometricButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
+            >
+              <MaterialCommunityIcons name="fingerprint" size={28} color={colors.primary} />
+              <Text style={[styles.biometricText, { color: colors.textPrimary }]}>Entrar com biometria</Text>
+            </Pressable>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(35).duration(180).springify()} style={styles.dividerWrap}>
           <Divider style={styles.dividerLine} />
@@ -286,5 +329,22 @@ const styles = StyleSheet.create({
   footerLink: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  biometricWrap: {
+    marginTop: 12,
+  },
+  biometricButton: {
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  biometricText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

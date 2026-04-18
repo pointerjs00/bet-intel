@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import * as LocalAuthentication from 'expo-local-authentication';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
@@ -73,6 +74,9 @@ export default function SettingsScreen() {
   const router = useRouter();
   const storedAuthProvider = useAuthStore((state) => state.user?.authProvider);
   const logout = useAuthStore((state) => state.logout);
+  const biometricEnabled = useAuthStore((state) => state.biometricEnabled);
+  const enableBiometric = useAuthStore((state) => state.enableBiometric);
+  const disableBiometric = useAuthStore((state) => state.disableBiometric);
   const storedThemePreference = useThemeStore((state) => state.preference);
   const setThemePreference = useThemeStore((state) => state.setPreference);
   const setDefaultPublicPreference = useBoletinBuilderStore((state) => state.setDefaultPublicPreference);
@@ -93,10 +97,42 @@ export default function SettingsScreen() {
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const importSheetRef = useRef<GorhomBottomSheet>(null);
   const [importHelpExpanded, setImportHelpExpanded] = useState(false);
   const parsePdfMutation = useParseBetclicPdfMutation();
+
+  // Check biometric hardware availability once on mount
+  useEffect(() => {
+    void (async () => {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      setBiometricAvailable(hasHardware && isEnrolled);
+    })();
+  }, []);
+
+  async function handleBiometricToggle(value: boolean) {
+    setBiometricLoading(true);
+    try {
+      if (value) {
+        const success = await enableBiometric();
+        if (success) {
+          showToast('Login biométrico activado.', 'success');
+        } else {
+          showToast('Não foi possível activar. Confirma a tua biometria e tenta de novo.', 'error');
+        }
+      } else {
+        await disableBiometric();
+        showToast('Login biométrico desactivado.', 'success');
+      }
+    } catch {
+      showToast('Ocorreu um erro. Tenta de novo.', 'error');
+    } finally {
+      setBiometricLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!profileQuery.data) return;
@@ -383,6 +419,28 @@ export default function SettingsScreen() {
             />
           </Card>
         </Animated.View>
+
+        {/* ── Security ─────────────────────────────────────────────────── */}
+        {biometricAvailable && (
+          <Animated.View entering={FadeInDown.delay(55).duration(160).springify()}>
+            <Card style={styles.cardInner}>
+              <SectionHeader icon="fingerprint" title="Segurança" color={colors.warning} textColor={colors.textPrimary} />
+              <View style={[styles.toggleRow, { borderColor: colors.border }]}>
+                <View style={styles.toggleCopy}>
+                  <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>Login biométrico</Text>
+                  <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>
+                    Usa impressão digital ou Face ID para entrar sem password ao abrir a app.
+                  </Text>
+                </View>
+                <Switch
+                  disabled={biometricLoading}
+                  onValueChange={handleBiometricToggle}
+                  value={biometricEnabled}
+                />
+              </View>
+            </Card>
+          </Animated.View>
+        )}
 
         {/* ── Import ───────────────────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(60).duration(160).springify()}>
