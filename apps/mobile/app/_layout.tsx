@@ -167,7 +167,7 @@ export default function RootLayout() {
               <AuthGate>
                 <StatusBar style={isDark ? 'light' : 'dark'} />
                 <View style={[styles.flex, { backgroundColor: colors.background }]}>
-                  <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
+                  <Stack screenOptions={{ headerShown: false, gestureEnabled: true, contentStyle: { backgroundColor: colors.background } }}>
                     <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="settings" options={{ headerShown: true }} />
