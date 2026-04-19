@@ -458,9 +458,16 @@ export default function ImportReviewScreen() {
                 </Text>
               </View>
               <View style={styles.betCardMetricItem}>
-                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Retorno</Text>
-                <Text style={[styles.metricValue, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                  {formatCurrency(item.potentialReturn)}
+                <Text style={[styles.metricLabel, { color: colors.textMuted }]}>
+                  {item.status === BoletinStatus.LOST ? 'Perdas' : 'Retorno'}
+                </Text>
+                <Text
+                  style={[styles.metricValue, { color: item.status === BoletinStatus.LOST ? colors.danger : colors.primary }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
+                  {item.status === BoletinStatus.LOST ? `-${formatCurrency(item.stake)}` : formatCurrency(item.potentialReturn)}
                 </Text>
               </View>
             </View>
@@ -634,9 +641,9 @@ export default function ImportReviewScreen() {
                         >
                           <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Casa</Text>
                           <View style={styles.editFieldValue}>
-                            {(edits.homeTeam || selectionItem.homeTeam) ? (
+                            {edits.homeTeam ? (
                               <TeamBadge
-                                name={edits.homeTeam || selectionItem.homeTeam}
+                                name={edits.homeTeam}
                                 imageUrl={edits.homeTeamImageUrl}
                                 size={16}
                                 variant={edits.sport === 'TENNIS' ? 'player' : 'team'}
@@ -644,14 +651,14 @@ export default function ImportReviewScreen() {
                             ) : null}
                             <Text
                               numberOfLines={1}
-                              style={[styles.editFieldValueText, { color: (edits.homeTeam || selectionItem.homeTeam) ? colors.textPrimary : colors.textMuted }]}
+                              style={[styles.editFieldValueText, { color: edits.homeTeam ? colors.textPrimary : colors.textMuted }]}
                             >
-                              {edits.homeTeam || selectionItem.homeTeam || 'Selecionar equipa...'}
+                              {edits.homeTeam || 'Selecionar equipa...'}
                             </Text>
-                            {(edits.homeTeam || selectionItem.homeTeam) ? (
+                            {edits.homeTeam ? (
                               <Pressable
                                 hitSlop={8}
-                                onPress={() => updateItemEdit(index, selectionIndex, { homeTeam: '', homeTeamImageUrl: null })}
+                                onPress={(e) => { e.stopPropagation(); updateItemEdit(index, selectionIndex, { homeTeam: '', homeTeamImageUrl: null }); }}
                               >
                                 <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                               </Pressable>
@@ -669,9 +676,9 @@ export default function ImportReviewScreen() {
                         >
                           <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Fora</Text>
                           <View style={styles.editFieldValue}>
-                            {(edits.awayTeam || selectionItem.awayTeam) ? (
+                            {edits.awayTeam ? (
                               <TeamBadge
-                                name={edits.awayTeam || selectionItem.awayTeam}
+                                name={edits.awayTeam}
                                 imageUrl={edits.awayTeamImageUrl}
                                 size={16}
                                 variant={edits.sport === 'TENNIS' ? 'player' : 'team'}
@@ -679,14 +686,14 @@ export default function ImportReviewScreen() {
                             ) : null}
                             <Text
                               numberOfLines={1}
-                              style={[styles.editFieldValueText, { color: (edits.awayTeam || selectionItem.awayTeam) ? colors.textPrimary : colors.textMuted }]}
+                              style={[styles.editFieldValueText, { color: edits.awayTeam ? colors.textPrimary : colors.textMuted }]}
                             >
-                              {edits.awayTeam || selectionItem.awayTeam || 'Selecionar equipa...'}
+                              {edits.awayTeam || 'Selecionar equipa...'}
                             </Text>
-                            {(edits.awayTeam || selectionItem.awayTeam) ? (
+                            {edits.awayTeam ? (
                               <Pressable
                                 hitSlop={8}
-                                onPress={() => updateItemEdit(index, selectionIndex, { awayTeam: '', awayTeamImageUrl: null })}
+                                onPress={(e) => { e.stopPropagation(); updateItemEdit(index, selectionIndex, { awayTeam: '', awayTeamImageUrl: null }); }}
                               >
                                 <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                               </Pressable>
@@ -801,6 +808,7 @@ export default function ImportReviewScreen() {
         onClose={() => setCompetitionPickerTarget(null)}
         title="Escolher competição"
         sections={competitionSections}
+        sport={competitionPickerSport as Sport | undefined}
         allowCustomValue
         onSelect={(value) => {
           if (competitionPickerTarget) {
