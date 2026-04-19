@@ -35,6 +35,12 @@ interface AuthStore {
   /** Updates the in-memory user after account linking/unlinking/set-password. */
   updateUser: (user: PublicUser) => void;
   /**
+   * Fetches the authenticated user from /api/users/me and updates the store.
+   * Used to recover user data when it is missing from SecureStore after a
+   * biometric session restore.
+   */
+  refreshUser: () => Promise<void>;
+  /**
    * Prompts biometric authentication and, on success, restores the session that
    * was kept in SecureStore after a cancelled biometric prompt at app open.
    * Returns true if the session was successfully restored.
@@ -301,6 +307,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   updateUser(user) {
     set({ user });
     void SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+  },
+
+  async refreshUser() {
+    try {
+      const response = await apiClient.get('/users/me');
+      const user = response.data.data as PublicUser;
+      await SecureStore.setItemAsync(USER_KEY, JSON.stringify(user));
+      set({ user });
+    } catch {
+      // Silently fail — user stays null until next explicit login
+    }
   },
 }));
 

@@ -7,7 +7,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ONBOARDING_DONE_KEY } from './onboarding';
 import { useAuthStore } from '../stores/authStore';
 import { ShareBoletinProvider } from '../components/social/ShareBoletinProvider';
@@ -59,6 +59,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrating = useAuthStore((state) => state.isHydrating);
   const hydrate = useAuthStore((state) => state.hydrate);
+  const storeUser = useAuthStore((state) => state.user);
+  const refreshUser = useAuthStore((state) => state.refreshUser);
   const rootNavState = useRootNavigationState();
 
   usePrefetchHomeData(isAuthenticated);
@@ -66,6 +68,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  // If biometric auth succeeded but USER_KEY was missing from SecureStore,
+  // user is null while isAuthenticated is true. Recover by fetching from API.
+  useEffect(() => {
+    if (isAuthenticated && !isHydrating && !storeUser) {
+      void refreshUser();
+    }
+  }, [isAuthenticated, isHydrating, storeUser, refreshUser]);
 
   useEffect(() => {
     // rootNavState?.key is only set once the Stack navigator has mounted.
@@ -105,18 +115,20 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     <>
       {children}
       {showOverlay && (
-        <View style={[StyleSheet.absoluteFill, styles.loadingScreen, { backgroundColor: colors.background }]}>
-          <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContent}>
+        <View style={[StyleSheet.absoluteFill, styles.loadingScreen]}>
+          <View style={styles.loadingContent}>
             <Image
               source={require('../assets/logo-no-bg.png')}
-              style={styles.loadingIcon}
+              style={styles.loadingLogo}
               resizeMode="contain"
             />
-            <Text style={[styles.loadingTitle, { color: colors.textPrimary }]}>BetIntel</Text>
-          </Animated.View>
+            <Text style={styles.loadingTitle}>BetIntel</Text>
+          </View>
           {isHydrating && (
-            <Animated.View entering={FadeInDown.delay(200).duration(300)}>
-              <ActivityIndicator color={colors.primary} size="small" />
+            <Animated.View entering={FadeInDown.delay(180).duration(300)} style={styles.loadingSpinnerWrap}>
+              <View style={styles.loadingSpinnerChip}>
+                <ActivityIndicator color={colors.primary} size="small" />
+              </View>
             </Animated.View>
           )}
         </View>
@@ -251,22 +263,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   loadingScreen: {
-    alignItems: 'center',
+    backgroundColor: '#07110D',
     flex: 1,
+    overflow: 'hidden',
+    alignItems: 'center',
     justifyContent: 'center',
-    gap: 40,
   },
   loadingContent: {
     alignItems: 'center',
-    gap: 14,
+    gap: 16,
   },
-  loadingIcon: {
-    height: 100,
-    width: 100,
+  loadingLogo: {
+    width: 96,
+    height: 96,
   },
   loadingTitle: {
+    color: '#FFFFFF',
     fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: -0.8,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  loadingSpinnerWrap: {
+    alignSelf: 'center',
+    bottom: 72,
+    position: 'absolute',
+  },
+  loadingSpinnerChip: {
+    backgroundColor: 'rgba(7, 17, 13, 0.72)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
 });

@@ -237,8 +237,24 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
             continue;
           }
 
-          await createBoletin(userId, validated.data);
+          const createdBoletin = await createBoletin(userId, validated.data);
           imported++;
+
+          // Apply parsed status: set all item results so the boletin
+          // auto-resolves to WON or LOST instead of staying PENDING.
+          if (bet.status === 'WON' || bet.status === 'LOST') {
+            await prisma.boletinItem.updateMany({
+              where: { boletinId: createdBoletin.id },
+              data: { result: bet.status },
+            });
+            await prisma.boletin.update({
+              where: { id: createdBoletin.id },
+              data: {
+                status: bet.status,
+                actualReturn: bet.status === 'WON' ? createdBoletin.potentialReturn : '0.00',
+              },
+            });
+          }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : 'Erro desconhecido';
           errors.push(`Ref ${bet.reference ?? '?'}: ${msg}`);
