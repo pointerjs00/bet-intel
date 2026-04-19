@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +31,7 @@ export default function ScanScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { sharedImageUri } = useLocalSearchParams<{ sharedImageUri?: string }>();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -77,6 +78,14 @@ export default function ScanScreen() {
       showToast('Erro ao abrir câmara. Verifica as permissões nas definições.', 'error');
     }
   }, [showToast]);
+
+  // Auto-load image when screen is opened via Android share intent
+  useEffect(() => {
+    if (sharedImageUri && !imageUri) {
+      setImageUri(sharedImageUri);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedImageUri]);
 
   const processImage = useCallback(async () => {
     if (!imageUri) return;

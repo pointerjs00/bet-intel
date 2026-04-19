@@ -28,6 +28,7 @@ import {
   syncDevicePushToken,
 } from '../services/notificationService';
 import { boletinQueryKeys, listBoletinsRequest } from '../services/boletinService';
+import { useSharedImage } from '../hooks/useSharedImage';
 import '../global.css';
 
 const queryClient = new QueryClient();
@@ -64,6 +65,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const rootNavState = useRootNavigationState();
 
   usePrefetchHomeData(isAuthenticated);
+  useSharedImage();
 
   useEffect(() => {
     void hydrate();
