@@ -276,7 +276,13 @@ function extractSelectionPairs(
       const startsLower = /^[a-záàâãéêíóôõúüç]/.test(next.line);
       const startsArticle = ARTICLE_CONTINUATION_RE.test(next.line);
       if (!startsLower && !startsArticle) break;
-      selText += ' ' + next.line;
+      // Strip leading single-letter OCR artefact: "O de 1,5 golos" → "de 1,5 golos"
+      // A single uppercase letter before a space is never a real word in this context.
+      let fragment = next.line;
+      if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ] /.test(fragment)) {
+        fragment = fragment.slice(2).trim();
+      }
+      if (fragment) selText += ' ' + fragment;
       consumedLines.add(k);
       lastJoinedIdx = k;
     }
