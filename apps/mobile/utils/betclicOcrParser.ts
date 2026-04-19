@@ -44,7 +44,7 @@ const SCORER_INITIAL_RE = /^[A-ZÀ-Ÿ]\.\s+\S+.*\s+\d{1,3}$/;
 
 const NOISE_WORDS = new Set([
   'betclic', 'que pena!', 'boom', 'boom!', 'parabéns', 'parabens',
-  'muitos anos', 'partilha',
+  'muitos anos', 'partilha', 'costas', 'costas!',
 ]);
 
 const KNOWN_MARKET_PATTERNS: RegExp[] = [
@@ -82,6 +82,11 @@ function isNoise(line: string): boolean {
   // Betclic "boost" promo text fragments: BOOM, BOO, MBOO, BOOOM, etc.
   if (/^m?b[o0]{2,}m?!?$/i.test(lower)) return true;
   if (/^[\u2600-\u27BF\uD83C-\uDBFF\uDC00-\uDFFF\s🎯🏹💣🔥⚽🟢🔴🟡⚪✓✗⏳🚫]+$/.test(lower)) return true;
+  // Betclic celebration overlay promotional text patterns
+  // e.g. "Fazes isto com uma perna às costas!" (appears on win screens)
+  if (/\bperna\b/i.test(lower)) return true;        // "perna" never in team names/markets
+  if (/^fazes\b/i.test(lower)) return true;          // 2nd-person PT verb, never a selection
+  if (/^costas[!?.]*$/i.test(lower)) return true;    // standalone word from celebration text
   return false;
 }
 
@@ -111,6 +116,8 @@ function classifyLine(line: string): LineType {
   if (SCORE_RE.test(t)) return 'SCORE';
   if (isScorer(t)) return 'SCORER';
   if (isNoise(t)) return 'NOISE';
+  // "@ 2.20" — odds display between team logos in the Betclic VS card row
+  if (/^@\s*\d+[,.]\d+$/.test(t)) return 'ODD';
   return 'CANDIDATE';
 }
 
@@ -355,6 +362,10 @@ function extractTeamFromSelection(selection: string): string {
   if (selection.includes('/')) {
     return selection.split('/')[0]!.trim();
   }
+  // "Team A ou Team B vence ..." → return first team only so that the second
+  // team is NOT also matched as a dup and ends up in the opponents list
+  const ouVenceMatch = selection.match(/^(.+?)\s+ou\s+(.+?)\s+vence\b/i);
+  if (ouVenceMatch) return ouVenceMatch[1]!.trim();
   // "Team vence ..." or "Team vence" → Team
   const vencem = selection.match(/^(.+?)\s+vence\b/i);
   if (vencem) return vencem[1]!.trim();
