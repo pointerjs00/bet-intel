@@ -1276,7 +1276,7 @@ function buildTimeline(boletins: StatsBoletinRecord[], period: StatsPeriod, gran
   );
 
   for (const boletin of boletins) {
-    const bucketKey = getTimelineBucketKey(effectiveGranularity, boletin.createdAt);
+    const bucketKey = getTimelineBucketKey(effectiveGranularity, boletin.betDate ?? boletin.createdAt);
     const bucket = bucketMap.get(bucketKey);
 
     if (!bucket) {
@@ -1598,12 +1598,17 @@ function getTimelineRange(
     return explicitRange;
   }
 
-  const firstBoletin = boletins[0]?.createdAt;
-  if (!firstBoletin) {
+  // Use the earliest effective date (betDate if set, otherwise createdAt) so that
+  // manually back-dated boletins expand the chart range correctly.
+  const earliest = boletins.reduce<Date | null>((min, b) => {
+    const d = b.betDate ?? b.createdAt;
+    return min === null || d < min ? d : min;
+  }, null);
+  if (!earliest) {
     return { start: startOfMonth(now), end: now };
   }
 
-  return { start: startOfMonth(firstBoletin), end: now };
+  return { start: startOfMonth(earliest), end: now };
 }
 
 function createTimelineBuckets(granularity: 'daily' | 'weekly' | 'monthly', start: Date, end: Date): TimelineAccumulator[] {
