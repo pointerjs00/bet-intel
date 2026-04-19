@@ -3,13 +3,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-  Dimensions,
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -18,8 +18,6 @@ import { useTheme } from '../theme/useTheme';
 import { hapticLight } from '../utils/haptics';
 
 export const ONBOARDING_DONE_KEY = 'betintel_onboarding_done';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface OnboardingSlide {
   id: string;
@@ -53,18 +51,34 @@ const SLIDES: OnboardingSlide[] = [
 export default function OnboardingScreen() {
   const { colors, tokens } = useTheme();
   const router = useRouter();
+  const { width: screenWidth } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<OnboardingSlide>>(null);
+  const currentIndexRef = useRef(0);
 
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+  const updateCurrentIndex = (index: number) => {
+    currentIndexRef.current = index;
     setCurrentIndex(index);
   };
 
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (screenWidth <= 0) {
+      return;
+    }
+
+    const index = Math.max(
+      0,
+      Math.min(SLIDES.length - 1, Math.round(e.nativeEvent.contentOffset.x / screenWidth)),
+    );
+    updateCurrentIndex(index);
+  };
+
   const handleNext = () => {
-    if (currentIndex < SLIDES.length - 1) {
+    if (currentIndexRef.current < SLIDES.length - 1) {
+      const nextIndex = currentIndexRef.current + 1;
       hapticLight();
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
+      updateCurrentIndex(nextIndex);
+      flatListRef.current?.scrollToOffset({ offset: nextIndex * screenWidth, animated: true });
     } else {
       handleFinish();
     }
@@ -83,7 +97,15 @@ export default function OnboardingScreen() {
       <FlatList
         ref={flatListRef}
         data={SLIDES}
+        bounces={false}
+        extraData={screenWidth}
+        getItemLayout={(_, index) => ({
+          length: screenWidth,
+          offset: screenWidth * index,
+          index,
+        })}
         horizontal
+        initialNumToRender={SLIDES.length}
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyExtractor={(item) => item.id}
@@ -91,7 +113,7 @@ export default function OnboardingScreen() {
         renderItem={({ item }) => (
           <Animated.View
             entering={FadeInDown.duration(300)}
-            style={[styles.slide, { width: SCREEN_WIDTH }]}
+            style={[styles.slide, { width: screenWidth }]}
           >
             <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}22` }]}>
               <Ionicons

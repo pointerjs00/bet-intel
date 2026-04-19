@@ -3,7 +3,16 @@ Add-Type -AssemblyName System.Drawing
 $ErrorActionPreference = 'Stop'
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$assetDir = Join-Path (Split-Path -Parent $scriptRoot) 'assets'
+$mobileDir = Split-Path -Parent $scriptRoot
+$appsDir = Split-Path -Parent $mobileDir
+$repoRoot = Split-Path -Parent $appsDir
+$assetDir = Join-Path $mobileDir 'assets'
+$sourceIconPath = Join-Path $repoRoot 'icon.png'
+$iconBackgroundHex = '#07110D'
+
+if (!(Test-Path $sourceIconPath)) {
+  throw "Source icon not found at $sourceIconPath"
+}
 
 if (!(Test-Path $assetDir)) {
   New-Item -ItemType Directory -Path $assetDir | Out-Null
@@ -12,6 +21,19 @@ if (!(Test-Path $assetDir)) {
 function New-ColorBrush([string]$hex, [int]$alpha = 255) {
   $color = [System.Drawing.ColorTranslator]::FromHtml($hex)
   return New-Object System.Drawing.SolidBrush([System.Drawing.Color]::FromArgb($alpha, $color.R, $color.G, $color.B))
+}
+
+function New-Color([string]$hex, [int]$alpha = 255) {
+  $color = [System.Drawing.ColorTranslator]::FromHtml($hex)
+  return [System.Drawing.Color]::FromArgb($alpha, $color.R, $color.G, $color.B)
+}
+
+function New-RoundedPen([string]$hex, [float]$width, [int]$alpha = 255) {
+  $pen = New-Object System.Drawing.Pen((New-Color $hex $alpha), $width)
+  $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+  $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+  $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+  return $pen
 }
 
 function New-GradientBrush([float]$x1, [float]$y1, [float]$x2, [float]$y2, [string]$start, [string]$end) {
@@ -45,87 +67,253 @@ function Save-Png([System.Drawing.Bitmap]$bitmap, [string]$path) {
   }
 }
 
-function Draw-BrandMark([System.Drawing.Graphics]$graphics, [float]$scale, [float]$offsetX, [float]$offsetY) {
-  $panelPath = New-RoundedRectPath (40 * $scale + $offsetX) (34 * $scale + $offsetY) (176 * $scale) (176 * $scale) (42 * $scale)
-  $panelBrush = New-GradientBrush 0 0 (216 * $scale) (216 * $scale) '#0E1713' '#1D2D26'
-  $panelBorder = New-Object System.Drawing.Pen -ArgumentList @([System.Drawing.Color]::FromArgb(110, 0, 200, 81), [float](6 * $scale))
-  $graphics.FillPath($panelBrush, $panelPath)
-  $graphics.DrawPath($panelBorder, $panelPath)
-  $panelBorder.Dispose()
-  $panelBrush.Dispose()
-  $panelPath.Dispose()
-
-  $chartPen = New-Object System.Drawing.Pen -ArgumentList @([System.Drawing.ColorTranslator]::FromHtml('#FFD700'), [float](11 * $scale))
-  $chartPen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
-  $chartPen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
-  $graphics.DrawLine($chartPen, (72 * $scale) + $offsetX, (162 * $scale) + $offsetY, (106 * $scale) + $offsetX, (128 * $scale) + $offsetY)
-  $graphics.DrawLine($chartPen, (106 * $scale) + $offsetX, (128 * $scale) + $offsetY, (140 * $scale) + $offsetX, (140 * $scale) + $offsetY)
-  $graphics.DrawLine($chartPen, (140 * $scale) + $offsetX, (140 * $scale) + $offsetY, (182 * $scale) + $offsetX, (88 * $scale) + $offsetY)
-  $chartPen.Dispose()
-
-  $dotBrush = New-ColorBrush '#FFD700'
-  foreach ($point in @(@(72, 162, 10), @(106, 128, 9), @(140, 140, 9), @(182, 88, 12))) {
-    $graphics.FillEllipse($dotBrush, ($point[0] - $point[2]) * $scale + $offsetX, ($point[1] - $point[2]) * $scale + $offsetY, ($point[2] * 2) * $scale, ($point[2] * 2) * $scale)
-  }
-  $dotBrush.Dispose()
-
-  $greenBrush = New-ColorBrush '#00C851'
-  $darkFillBrush = New-ColorBrush '#1E2B25'
-  $cutBrush = New-ColorBrush '#0E1713'
-
-  $bStem = New-RoundedRectPath (58 * $scale + $offsetX) (52 * $scale + $offsetY) (54 * $scale) (138 * $scale) (22 * $scale)
-  $bTop = New-RoundedRectPath (92 * $scale + $offsetX) (58 * $scale + $offsetY) (74 * $scale) (52 * $scale) (24 * $scale)
-  $bBottom = New-RoundedRectPath (92 * $scale + $offsetX) (124 * $scale + $offsetY) (64 * $scale) (52 * $scale) (24 * $scale)
-  $graphics.FillPath($greenBrush, $bStem)
-  $graphics.FillPath($greenBrush, $bTop)
-  $graphics.FillPath($greenBrush, $bBottom)
-  $bStem.Dispose()
-  $bTop.Dispose()
-  $bBottom.Dispose()
-
-  $graphics.FillEllipse($cutBrush, 109 * $scale + $offsetX, 73 * $scale + $offsetY, 34 * $scale, 24 * $scale)
-  $graphics.FillEllipse($cutBrush, 107 * $scale + $offsetX, 139 * $scale + $offsetY, 28 * $scale, 24 * $scale)
-
-  $iBar = New-RoundedRectPath (168 * $scale + $offsetX) (52 * $scale + $offsetY) (22 * $scale) (114 * $scale) (11 * $scale)
-  $graphics.FillPath($darkFillBrush, $iBar)
-  $graphics.FillEllipse((New-ColorBrush '#FFD700'), 166 * $scale + $offsetX, 30 * $scale + $offsetY, 26 * $scale, 26 * $scale)
-  $iBar.Dispose()
-
-  $greenBrush.Dispose()
-  $darkFillBrush.Dispose()
-  $cutBrush.Dispose()
+function Set-HighQualityGraphics([System.Drawing.Graphics]$graphics) {
+  $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+  $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+  $graphics.CompositingQuality = [System.Drawing.Drawing2D.CompositingQuality]::HighQuality
 }
 
-function New-IconArt([int]$size, [string]$path) {
+function Get-VisibleBounds([System.Drawing.Bitmap]$bitmap, [int]$alphaThreshold = 16) {
+  $minX = $bitmap.Width
+  $minY = $bitmap.Height
+  $maxX = -1
+  $maxY = -1
+
+  for ($y = 0; $y -lt $bitmap.Height; $y++) {
+    for ($x = 0; $x -lt $bitmap.Width; $x++) {
+      if ($bitmap.GetPixel($x, $y).A -gt $alphaThreshold) {
+        if ($x -lt $minX) { $minX = $x }
+        if ($y -lt $minY) { $minY = $y }
+        if ($x -gt $maxX) { $maxX = $x }
+        if ($y -gt $maxY) { $maxY = $y }
+      }
+    }
+  }
+
+  if ($maxX -lt $minX -or $maxY -lt $minY) {
+    return New-Object System.Drawing.Rectangle(0, 0, $bitmap.Width, $bitmap.Height)
+  }
+
+  return New-Object System.Drawing.Rectangle($minX, $minY, ($maxX - $minX + 1), ($maxY - $minY + 1))
+}
+
+function Resize-Png([string]$sourcePath, [int]$size, [string]$targetPath) {
+  $source = [System.Drawing.Image]::FromFile($sourcePath)
   $bitmap = New-Object System.Drawing.Bitmap($size, $size)
   $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 
   try {
-    $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $graphics.Clear([System.Drawing.ColorTranslator]::FromHtml('#08110D'))
-
-    $background = New-GradientBrush 0 0 $size $size '#08110D' '#123022'
-    $graphics.FillRectangle($background, 0, 0, $size, $size)
-    $background.Dispose()
-
-    $glowPath = New-Object System.Drawing.Drawing2D.GraphicsPath
-    $glowRect = New-Object System.Drawing.RectangleF(($size * 0.14), ($size * 0.12), ($size * 0.72), ($size * 0.72))
-    $glowPath.AddEllipse($glowRect)
-    $glow = New-Object System.Drawing.Drawing2D.PathGradientBrush -ArgumentList $glowPath
-    $glow.CenterColor = [System.Drawing.Color]::FromArgb(100, 0, 200, 81)
-    $glow.SurroundColors = @([System.Drawing.Color]::FromArgb(0, 0, 200, 81))
-    $graphics.FillEllipse($glow, $glowRect)
-    $glow.Dispose()
-    $glowPath.Dispose()
-
-    Draw-BrandMark $graphics ($size / 256.0) 0 0
+    Set-HighQualityGraphics $graphics
+    $graphics.Clear([System.Drawing.Color]::Transparent)
+    $destRect = New-Object System.Drawing.Rectangle(0, 0, $size, $size)
+    $graphics.DrawImage($source, $destRect)
   }
   finally {
     $graphics.Dispose()
+    $source.Dispose()
   }
 
-  Save-Png $bitmap $path
+  Save-Png $bitmap $targetPath
+}
+
+function Resize-PngContained(
+  [string]$sourcePath,
+  [int]$size,
+  [string]$targetPath,
+  [double]$maxScaleRatio,
+  [string]$backgroundHex = ''
+) {
+  $source = [System.Drawing.Image]::FromFile($sourcePath)
+  $bitmap = New-Object System.Drawing.Bitmap($size, $size)
+  $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+
+  try {
+    Set-HighQualityGraphics $graphics
+
+    if ([string]::IsNullOrWhiteSpace($backgroundHex)) {
+      $graphics.Clear([System.Drawing.Color]::Transparent)
+    }
+    else {
+      $graphics.Clear([System.Drawing.ColorTranslator]::FromHtml($backgroundHex))
+    }
+
+    $maxSize = [double]($size * $maxScaleRatio)
+    $scale = [Math]::Min($maxSize / $source.Width, $maxSize / $source.Height)
+    $drawWidth = [int]([Math]::Round($source.Width * $scale))
+    $drawHeight = [int]([Math]::Round($source.Height * $scale))
+    $drawX = [int]([Math]::Round(($size - $drawWidth) / 2.0))
+    $drawY = [int]([Math]::Round(($size - $drawHeight) / 2.0))
+    $destRect = New-Object System.Drawing.Rectangle($drawX, $drawY, $drawWidth, $drawHeight)
+
+    $graphics.DrawImage($source, $destRect)
+  }
+  finally {
+    $graphics.Dispose()
+    $source.Dispose()
+  }
+
+  Save-Png $bitmap $targetPath
+}
+
+function Draw-LogoImage([System.Drawing.Graphics]$graphics, [int]$canvasWidth, [int]$canvasHeight, [double]$maxScaleRatio, [double]$offsetYRatio = 0.0) {
+  $logoPath = Join-Path $assetDir 'logo-no-bg.png'
+  $logoBitmap = [System.Drawing.Bitmap]::FromFile($logoPath)
+
+  try {
+    $sourceRect = Get-VisibleBounds $logoBitmap
+    $maxSize = [double]([Math]::Min($canvasWidth, $canvasHeight) * $maxScaleRatio)
+    $scale = [Math]::Min($maxSize / $sourceRect.Width, $maxSize / $sourceRect.Height)
+
+    $drawWidth = [int]([Math]::Round($sourceRect.Width * $scale))
+    $drawHeight = [int]([Math]::Round($sourceRect.Height * $scale))
+    $drawX = [int]([Math]::Round(($canvasWidth - $drawWidth) / 2.0))
+    $drawY = [int]([Math]::Round(($canvasHeight - $drawHeight) / 2.0 + ($canvasHeight * $offsetYRatio)))
+    $destRect = New-Object System.Drawing.Rectangle($drawX, $drawY, $drawWidth, $drawHeight)
+
+    $graphics.DrawImage($logoBitmap, $destRect, $sourceRect, [System.Drawing.GraphicsUnit]::Pixel)
+  }
+  finally {
+    $logoBitmap.Dispose()
+  }
+}
+
+function Draw-LauncherMark(
+  [System.Drawing.Graphics]$graphics,
+  [int]$canvasWidth,
+  [int]$canvasHeight,
+  [double]$scaleRatio,
+  [double]$offsetYRatio = 0.0,
+  [bool]$withGlow = $true,
+  [bool]$withShadow = $true
+) {
+  $canvasSize = [double][Math]::Min($canvasWidth, $canvasHeight)
+  $markSize = $canvasSize * $scaleRatio
+  $cardWidth = $markSize * 0.74
+  $cardHeight = $markSize * 0.74
+  $cardX = ($canvasWidth - $cardWidth) / 2.0
+  $cardY = (($canvasHeight - $cardHeight) / 2.0) + ($canvasHeight * $offsetYRatio)
+  $cardRadius = $cardWidth * 0.16
+
+  if ($withGlow) {
+    $glowPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $glowRect = New-Object System.Drawing.RectangleF(($cardX - ($cardWidth * 0.12)), ($cardY - ($cardHeight * 0.12)), ($cardWidth * 1.24), ($cardHeight * 1.24))
+    $glowPath.AddEllipse($glowRect)
+    $glow = New-Object System.Drawing.Drawing2D.PathGradientBrush -ArgumentList $glowPath
+    $glow.CenterColor = New-Color '#8FFF3A' 54
+    $glow.SurroundColors = @((New-Color '#00C851' 0))
+    $graphics.FillEllipse($glow, $glowRect)
+    $glow.Dispose()
+    $glowPath.Dispose()
+  }
+
+  if ($withShadow) {
+    $shadowPath = New-RoundedRectPath ($cardX + ($cardWidth * 0.025)) ($cardY + ($cardHeight * 0.04)) $cardWidth $cardHeight $cardRadius
+    $shadowBrush = New-ColorBrush '#031109' 90
+    $graphics.FillPath($shadowBrush, $shadowPath)
+    $shadowBrush.Dispose()
+    $shadowPath.Dispose()
+  }
+
+  $cardPath = New-RoundedRectPath $cardX $cardY $cardWidth $cardHeight $cardRadius
+  $cardFill = New-GradientBrush $cardX $cardY ($cardX + $cardWidth) ($cardY + $cardHeight) '#B7FF5C' '#35E96E'
+  $cardBorder = New-RoundedPen '#DBFF9A' ($cardWidth * 0.028) 220
+  $graphics.FillPath($cardFill, $cardPath)
+  $graphics.DrawPath($cardBorder, $cardPath)
+  $cardFill.Dispose()
+  $cardBorder.Dispose()
+
+  $highlightPath = New-RoundedRectPath ($cardX + ($cardWidth * 0.035)) ($cardY + ($cardHeight * 0.035)) ($cardWidth * 0.93) ($cardHeight * 0.34) ($cardRadius * 0.7)
+  $highlightBrush = New-ColorBrush '#FFFFFF' 26
+  $graphics.FillPath($highlightBrush, $highlightPath)
+  $highlightBrush.Dispose()
+  $highlightPath.Dispose()
+
+  $detailColor = '#0B2316'
+  $linePen = New-RoundedPen $detailColor ($cardWidth * 0.07)
+  $checkPen = New-RoundedPen $detailColor ($cardWidth * 0.055)
+  $accentPen = New-RoundedPen $detailColor ($cardWidth * 0.04) 120
+
+  $lineStartX = [single]($cardX + ($cardWidth * 0.34))
+  $lineEndX = [single]($cardX + ($cardWidth * 0.78))
+  $lineYs = @(
+    [single]($cardY + ($cardHeight * 0.34)),
+    [single]($cardY + ($cardHeight * 0.50)),
+    [single]($cardY + ($cardHeight * 0.66))
+  )
+
+  foreach ($lineY in $lineYs) {
+    $graphics.DrawLine($linePen, $lineStartX, $lineY, $lineEndX, $lineY)
+  }
+
+  $checkXs = @(
+    [single]($cardX + ($cardWidth * 0.15)),
+    [single]($cardX + ($cardWidth * 0.19)),
+    [single]($cardX + ($cardWidth * 0.27))
+  )
+
+  foreach ($lineY in $lineYs) {
+    $graphics.DrawLine($checkPen, $checkXs[0], ($lineY - ($cardHeight * 0.015)), $checkXs[1], ($lineY + ($cardHeight * 0.04)))
+    $graphics.DrawLine($checkPen, $checkXs[1], ($lineY + ($cardHeight * 0.04)), $checkXs[2], ($lineY - ($cardHeight * 0.06)))
+  }
+
+  $sparkPoints = [System.Drawing.PointF[]]@(
+    (New-Object System.Drawing.PointF([single]($cardX + ($cardWidth * 0.17)), [single]($cardY + ($cardHeight * 0.80)))),
+    (New-Object System.Drawing.PointF([single]($cardX + ($cardWidth * 0.32)), [single]($cardY + ($cardHeight * 0.74)))),
+    (New-Object System.Drawing.PointF([single]($cardX + ($cardWidth * 0.47)), [single]($cardY + ($cardHeight * 0.79)))),
+    (New-Object System.Drawing.PointF([single]($cardX + ($cardWidth * 0.62)), [single]($cardY + ($cardHeight * 0.64)))),
+    (New-Object System.Drawing.PointF([single]($cardX + ($cardWidth * 0.78)), [single]($cardY + ($cardHeight * 0.57))))
+  )
+  $graphics.DrawLines($accentPen, $sparkPoints)
+
+  foreach ($point in $sparkPoints) {
+    $dotBrush = New-ColorBrush $detailColor 170
+    $dotSize = $cardWidth * 0.045
+    $graphics.FillEllipse($dotBrush, ($point.X - ($dotSize / 2.0)), ($point.Y - ($dotSize / 2.0)), $dotSize, $dotSize)
+    $dotBrush.Dispose()
+  }
+
+  $linePen.Dispose()
+  $checkPen.Dispose()
+  $accentPen.Dispose()
+  $cardPath.Dispose()
+}
+
+function New-IconArt([int]$size, [string]$path) {
+  Resize-PngContained $sourceIconPath $size $path 0.90 $iconBackgroundHex
+}
+
+function New-AdaptiveForegroundArt([int]$size, [string]$path) {
+  Resize-PngContained $sourceIconPath $size $path 0.82
+}
+
+function Sync-NativeIconResources([string]$iconPath, [string]$foregroundPath) {
+  $nativeResDir = Join-Path (Split-Path -Parent $assetDir) 'android\app\src\main\res'
+  $legacySizes = @{
+    'mipmap-mdpi' = 48
+    'mipmap-hdpi' = 72
+    'mipmap-xhdpi' = 96
+    'mipmap-xxhdpi' = 144
+    'mipmap-xxxhdpi' = 192
+  }
+  $foregroundSizes = @{
+    'mipmap-mdpi' = 108
+    'mipmap-hdpi' = 162
+    'mipmap-xhdpi' = 216
+    'mipmap-xxhdpi' = 324
+    'mipmap-xxxhdpi' = 432
+  }
+
+  foreach ($density in $legacySizes.Keys) {
+    $targetDir = Join-Path $nativeResDir $density
+    Resize-Png $iconPath $legacySizes[$density] (Join-Path $targetDir 'ic_launcher.png')
+    Resize-Png $iconPath $legacySizes[$density] (Join-Path $targetDir 'ic_launcher_round.png')
+  }
+
+  foreach ($density in $foregroundSizes.Keys) {
+    $targetDir = Join-Path $nativeResDir $density
+    Resize-Png $foregroundPath $foregroundSizes[$density] (Join-Path $targetDir 'ic_launcher_foreground.png')
+  }
 }
 
 function New-SplashArt([int]$width, [int]$height, [string]$path) {
@@ -133,49 +321,68 @@ function New-SplashArt([int]$width, [int]$height, [string]$path) {
   $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 
   try {
-    $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-    $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
-    $graphics.Clear([System.Drawing.ColorTranslator]::FromHtml('#08110D'))
+    Set-HighQualityGraphics $graphics
+    $graphics.Clear([System.Drawing.ColorTranslator]::FromHtml('#07110D'))
 
-    $background = New-GradientBrush 0 0 $width $height '#08110D' '#143427'
+    $background = New-GradientBrush 0 0 0 $height '#07110D' '#123324'
     $graphics.FillRectangle($background, 0, 0, $width, $height)
     $background.Dispose()
 
-    $goldGlow = New-ColorBrush '#FFD700' 22
-    $greenGlow = New-ColorBrush '#00C851' 28
-    $graphics.FillEllipse($goldGlow, -180, -100, 760, 760)
-    $graphics.FillEllipse($greenGlow, $width - 520, $height - 540, 620, 620)
-    $goldGlow.Dispose()
-    $greenGlow.Dispose()
+    $topGlow = New-ColorBrush '#7EAA2A' 46
+    $bottomGlow = New-ColorBrush '#00C851' 42
+    $graphics.FillEllipse($topGlow, -220, -170, 580, 580)
+    $graphics.FillEllipse($bottomGlow, $width - 340, $height - 360, 500, 500)
+    $topGlow.Dispose()
+    $bottomGlow.Dispose()
 
-    $markSize = [int]340
+    $haloPath = New-Object System.Drawing.Drawing2D.GraphicsPath
+    $haloRect = New-Object System.Drawing.RectangleF -ArgumentList @((($width * 0.5) - 340), (($height * 0.34) - 340), 680, 680)
+    $haloPath.AddEllipse($haloRect)
+    $haloBrush = New-Object System.Drawing.Drawing2D.PathGradientBrush -ArgumentList $haloPath
+    $haloBrush.CenterColor = New-Color '#31D667' 54
+    $haloBrush.SurroundColors = @((New-Color '#31D667' 0))
+    $graphics.FillEllipse($haloBrush, $haloRect)
+    $haloBrush.Dispose()
+    $haloPath.Dispose()
+
+    $badgeSize = [int]420
+    $badgeX = [int](($width - $badgeSize) / 2)
+    $badgeY = [int]600
+    $badgeShadow = New-ColorBrush '#02110A' 110
+    $graphics.FillEllipse($badgeShadow, ($badgeX + 12), ($badgeY + 18), $badgeSize, $badgeSize)
+    $badgeShadow.Dispose()
+
+    $badgeFill = New-ColorBrush '#0B6124' 255
+    $graphics.FillEllipse($badgeFill, $badgeX, $badgeY, $badgeSize, $badgeSize)
+    $badgeFill.Dispose()
+
+    $badgeRing = New-Object System.Drawing.Pen -ArgumentList @((New-Color '#31D667' 72), [float]3)
+    $graphics.DrawEllipse($badgeRing, $badgeX, $badgeY, $badgeSize, $badgeSize)
+    $badgeRing.Dispose()
+
+    $markSize = [int]250
     $markX = [int](($width - $markSize) / 2)
-    $markY = [int]200
+    $markY = [int]685
     $iconPath = Join-Path $assetDir 'logo-no-bg.png'
     $iconImg = [System.Drawing.Image]::FromFile($iconPath)
     $destRect = New-Object System.Drawing.Rectangle($markX, $markY, $markSize, $markSize)
     $graphics.DrawImage($iconImg, $destRect)
     $iconImg.Dispose()
 
-    $titleFont = New-Object System.Drawing.Font -ArgumentList @('Segoe UI', [float]56, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
-    $taglineFont = New-Object System.Drawing.Font -ArgumentList @('Segoe UI', [float]24, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-    $subFont = New-Object System.Drawing.Font -ArgumentList @('Segoe UI', [float]18, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+    $titleFont = New-Object System.Drawing.Font -ArgumentList @('Segoe UI', [float]76, [System.Drawing.FontStyle]::Bold, [System.Drawing.GraphicsUnit]::Pixel)
+    $taglineFont = New-Object System.Drawing.Font -ArgumentList @('Segoe UI', [float]30, [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
     $titleBrush = New-ColorBrush '#FFFFFF'
-    $taglineBrush = New-ColorBrush '#B5C5BD'
-    $subBrush = New-ColorBrush '#FFD700'
+    $taglineBrush = New-ColorBrush '#C6D5CD'
     $format = New-Object System.Drawing.StringFormat
     $format.Alignment = [System.Drawing.StringAlignment]::Center
 
-    $graphics.DrawString('BetIntel', $titleFont, $titleBrush, ($width / 2), 610, $format)
-    $graphics.DrawString('Odds smarter. Boletins cleaner.', $taglineFont, $taglineBrush, ($width / 2), 690, $format)
-    $graphics.DrawString('Portuguese betting companion', $subFont, $subBrush, ($width / 2), 742, $format)
+    $graphics.DrawString('BetIntel', $titleFont, $titleBrush, ($width / 2), 1110, $format)
+    $graphics.DrawString('Regista apostas. Analisa ROI.', $taglineFont, $taglineBrush, ($width / 2), 1202, $format)
 
     $titleFont.Dispose()
     $taglineFont.Dispose()
-    $subFont.Dispose()
     $titleBrush.Dispose()
     $taglineBrush.Dispose()
-    $subBrush.Dispose()
     $format.Dispose()
   }
   finally {
@@ -185,6 +392,25 @@ function New-SplashArt([int]$width, [int]$height, [string]$path) {
   Save-Png $bitmap $path
 }
 
-New-SplashArt 1242 2436 (Join-Path $assetDir 'splash.png')
+function Sync-NativeSplashResources([string]$sourcePath) {
+  $nativeResDir = Join-Path (Split-Path -Parent $assetDir) 'android\app\src\main\res'
+  foreach ($density in @('drawable-mdpi', 'drawable-hdpi', 'drawable-xhdpi', 'drawable-xxhdpi', 'drawable-xxxhdpi')) {
+    $targetPath = Join-Path $nativeResDir "$density\splashscreen_image.png"
+    Copy-Item $sourcePath $targetPath -Force
+  }
+}
+
+$iconPath = Join-Path $assetDir 'icon.png'
+$adaptiveIconPath = Join-Path $assetDir 'adaptive-icon.png'
+$faviconPath = Join-Path $assetDir 'favicon.png'
+
+New-IconArt 1024 $iconPath
+New-AdaptiveForegroundArt 1024 $adaptiveIconPath
+New-IconArt 256 $faviconPath
+Sync-NativeIconResources $iconPath $adaptiveIconPath
+
+$splashPath = Join-Path $assetDir 'splash.png'
+New-SplashArt 1242 2436 $splashPath
+Sync-NativeSplashResources $splashPath
 
 Get-ChildItem $assetDir | Select-Object Name, Length

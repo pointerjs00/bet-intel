@@ -32,8 +32,10 @@ import { PressableScale } from '../../components/ui/PressableScale';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { DeltaBadge } from '../../components/stats/DeltaBadge';
+import { CustomMetricCard } from '../../components/stats/CustomMetricCard';
 import StatsCustomizeSheet from '../../components/stats/StatsCustomizeSheet';
 import { usePersonalStats, useStatsTimeline } from '../../services/statsService';
+import { useCustomMetricsStore } from '../../stores/customMetricsStore';
 import { useStatsDashboardStore } from '../../stores/statsDashboardStore';
 import { useBoletins, exportBoletinsToCsv, exportBoletinsToXlsx } from '../../services/boletinService';
 import { useTableSort } from '../../hooks/useTableSort';
@@ -595,6 +597,7 @@ export default function StatsScreen() {
 
   const isSectionVisible = useStatsDashboardStore((s) => s.isSectionVisible);
   const getEffectiveOrder = useStatsDashboardStore((s) => s.getEffectiveOrder);
+  const customMetrics = useCustomMetricsStore((s) => s.metrics);
 
   // Resolve params for the query — each date is independent; either alone still filters
   const activeFrom = useCustomRange && dateFrom ? toISODate(dateFrom) : undefined;
@@ -1230,6 +1233,37 @@ export default function StatsScreen() {
               default: return null;
               }
             })}
+
+            {/* Custom metrics section */}
+            {customMetrics.length > 0 && (
+              <>
+                <View style={styles.customMetricsHeader}>
+                  <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>As tuas métricas</Text>
+                  <Pressable hitSlop={8} onPress={() => router.push('/custom-metric')}>
+                    <Ionicons color={colors.primary} name="add-circle-outline" size={22} />
+                  </Pressable>
+                </View>
+                {customMetrics.map((cm) => (
+                  <Animated.View key={cm.id} entering={FadeInDown.delay(45).duration(160).springify()}>
+                    <CustomMetricCard
+                      metric={cm}
+                      stats={stats}
+                      timeline={timelineData}
+                      onEdit={() => router.push({ pathname: '/custom-metric', params: { id: cm.id } })}
+                    />
+                  </Animated.View>
+                ))}
+              </>
+            )}
+
+            {/* Add custom metric button */}
+            <Pressable
+              onPress={() => router.push('/custom-metric')}
+              style={[styles.addMetricBtn, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+            >
+              <Ionicons color={colors.primary} name="add-circle-outline" size={20} />
+              <Text style={[styles.addMetricText, { color: colors.primary }]}>Criar métrica personalizada</Text>
+            </Pressable>
           </View>
         )}
       </ScrollView>
@@ -1321,6 +1355,9 @@ const styles = StyleSheet.create({
   siteDropdownLogo: { width: 20, height: 20, borderRadius: 3 },
   loadingStack: { gap: 16 },
   contentStack: { gap: 18 },
+  customMetricsHeader: { flexDirection: 'row' as const, justifyContent: 'space-between' as const, alignItems: 'center' as const, marginTop: 8 },
+  addMetricBtn: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 8, paddingVertical: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed' as const, marginTop: 4 },
+  addMetricText: { fontSize: 14, fontWeight: '700' as const },
   heroMetricsRow: { flexDirection: 'row', gap: 12 },
   metricCard: { flex: 1, gap: 6 },
   metricLabelRow: {

@@ -29,6 +29,10 @@ interface PnLChartProps {
 interface TimelineDatum extends Record<string, number> {
   x: number;
   profitLoss: number;
+  /** Clamped to >= 0 for the positive area fill */
+  positivePnL: number;
+  /** Clamped to <= 0 for the negative area fill */
+  negativePnL: number;
 }
 
 function toEpochSeconds(iso: string): number {
@@ -51,30 +55,34 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
 
   // Map real bucket timestamps → x values so Victory Native spaces data in real time
   const chartData = useMemo<TimelineDatum[]>(() => {
-    let mapped: TimelineDatum[];
+    let raw: Array<{ x: number; profitLoss: number }>;
 
     if (cumulative) {
       let runningTotal = 0;
-      mapped = visibleData.map((item) => {
+      raw = visibleData.map((item) => {
         runningTotal += item.profitLoss;
         return { x: toEpochSeconds(item.bucketStart), profitLoss: runningTotal };
       });
     } else {
-      mapped = visibleData.map((item) => ({
+      raw = visibleData.map((item) => ({
         x: toEpochSeconds(item.bucketStart),
         profitLoss: item.profitLoss,
       }));
     }
 
     // CartesianChart requires >= 2 points with a non-zero x-domain
-    if (mapped.length === 0) {
+    if (raw.length === 0) {
       const now = Math.floor(Date.now() / 1000);
-      return [{ x: now - 86_400, profitLoss: 0 }, { x: now, profitLoss: 0 }];
+      raw = [{ x: now - 86_400, profitLoss: 0 }, { x: now, profitLoss: 0 }];
+    } else if (raw.length === 1) {
+      raw = [{ x: raw[0]!.x - 86_400, profitLoss: 0 }, raw[0]!];
     }
-    if (mapped.length === 1) {
-      return [{ x: mapped[0]!.x - 86_400, profitLoss: 0 }, mapped[0]!];
-    }
-    return mapped;
+
+    return raw.map((d) => ({
+      ...d,
+      positivePnL: Math.max(d.profitLoss, 0),
+      negativePnL: Math.min(d.profitLoss, 0),
+    }));
   }, [visibleData, cumulative]);
 
   // Total P&L = sum of the buckets actually shown in the chart
@@ -83,25 +91,41 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
     [visibleData],
   );
 
-  // Compute Y-axis ticks: min, 0, max (3 labels)
+  // Classify whether the chart has positive, negative, or mixed values
+  const pnlDirection = useMemo(() => {
+    const hasPositive = chartData.some((d) => d.profitLoss > 0);
+    const hasNegative = chartData.some((d) => d.profitLoss < 0);
+    if (hasPositive && hasNegative) return 'mixed' as const;
+    if (hasNegative) return 'negative' as const;
+    return 'positive' as const;
+  }, [chartData]);
+
+  // Compute Y-axis domain — always include 0 so the zero line is anchored
   const yDomain = useMemo(() => {
     const values = chartData.map((d) => d.profitLoss);
-    const min = Math.min(...values, 0);
-    const max = Math.max(...values, 0);
-    return { min, max };
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    // Always include zero and add 10% padding for visual breathing room
+    const padding = Math.max(Math.abs(dataMax - dataMin) * 0.1, 1);
+    return {
+      min: Math.min(dataMin, 0) - (dataMin < 0 ? padding : 0),
+      max: Math.max(dataMax, 0) + (dataMax > 0 ? padding : 0),
+    };
   }, [chartData]);
 
   const yTickLabels = useMemo<string[]>(() => {
-    const { min, max } = yDomain;
-    if (min === 0 && max === 0) return ['€0'];
+    const values = chartData.map((d) => d.profitLoss);
+    const dataMin = Math.min(...values, 0);
+    const dataMax = Math.max(...values, 0);
+    if (dataMin === 0 && dataMax === 0) return ['€0'];
     const ticks: number[] = [];
-    if (min < 0) ticks.push(min);
+    if (dataMin < 0) ticks.push(dataMin);
     ticks.push(0);
-    if (max > 0) ticks.push(max);
+    if (dataMax > 0) ticks.push(dataMax);
     // Reverse so highest value is first → rendered at top of the Y-axis column,
     // matching Victory Native which draws higher values at the top of the chart.
     return ticks.map((v) => formatCurrency(v)).reverse();
-  }, [yDomain]);
+  }, [chartData]);
 
   // Sample up to MAX_AXIS_LABELS evenly distributed labels (always include first + last)
   const axisLabels = useMemo<string[]>(() => {
@@ -113,6 +137,10 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
       return visibleData[idx]!.label;
     });
   }, [visibleData]);
+
+  const lineColor = pnlDirection === 'negative' ? colors.danger : colors.primary;
+  const positiveAreaColor = 'rgba(0, 168, 67, 0.18)';
+  const negativeAreaColor = 'rgba(255, 59, 48, 0.18)';
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -141,7 +169,9 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
             </Pressable>
           </View>
         </View>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Resultado: {formatCurrency(totalPnL)}</Text>
+        <Text style={[styles.subtitle, { color: totalPnL >= 0 ? colors.primary : colors.danger }]}>
+          Resultado: {formatCurrency(totalPnL)}
+        </Text>
       </View>
 
       {onGranularityChange ? (
@@ -179,17 +209,16 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
           ))}
         </View>
         <View style={styles.chartWrap}>
-          <CartesianChart<TimelineDatum, 'x', 'profitLoss'>
+          <CartesianChart<TimelineDatum, 'x', 'profitLoss' | 'positivePnL' | 'negativePnL'>
             data={chartData}
             xKey="x"
-            yKeys={["profitLoss"]}
+            yKeys={["profitLoss", "positivePnL", "negativePnL"]}
+            domain={{ y: [yDomain.min, yDomain.max] }}
           >
             {({ points, chartBounds }) => {
-              // Compute zero-line Y position via interpolation
-              const yMin = yDomain.min;
-              const yMax = yDomain.max;
-              const range = yMax - yMin || 1;
-              const zeroFraction = (yMax - 0) / range;
+              // Compute zero-line Y position using the explicit domain
+              const range = yDomain.max - yDomain.min || 1;
+              const zeroFraction = (yDomain.max - 0) / range;
               const zeroY = chartBounds.top + zeroFraction * (chartBounds.bottom - chartBounds.top);
 
               return (
@@ -199,17 +228,29 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
                     p1={{ x: chartBounds.left, y: zeroY }}
                     p2={{ x: chartBounds.right, y: zeroY }}
                     color={colors.textMuted}
-                    strokeWidth={1}
+                    strokeWidth={StyleSheet.hairlineWidth}
                     style="stroke"
                   >
                     <DashPathEffect intervals={[6, 4]} />
                   </SkiaLine>
-                  <Area
-                    color="rgba(0, 168, 67, 0.18)"
-                    points={points.profitLoss}
-                    y0={chartBounds.bottom}
-                  />
-                  <Line color={colors.primary} points={points.profitLoss} strokeWidth={3} />
+                  {/* Green area: positive region fills down to zero */}
+                  {pnlDirection !== 'negative' && (
+                    <Area
+                      color={positiveAreaColor}
+                      points={points.positivePnL}
+                      y0={zeroY}
+                    />
+                  )}
+                  {/* Red area: negative region fills up to zero */}
+                  {pnlDirection !== 'positive' && (
+                    <Area
+                      color={negativeAreaColor}
+                      points={points.negativePnL}
+                      y0={zeroY}
+                    />
+                  )}
+                  {/* Main line uses actual profitLoss for correct shape */}
+                  <Line color={lineColor} points={points.profitLoss} strokeWidth={2.5} />
                 </>
               );
             }}

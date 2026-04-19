@@ -52,7 +52,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: 'BetIntel',
   slug: 'betintel',
-  version: '1.0.0',
+  version: '1.0.3',
   icon: './assets/icon.png',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
@@ -60,7 +60,7 @@ module.exports = ({ config }) => ({
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
-    backgroundColor: '#0D0D0D',
+    backgroundColor: '#07110D',
   },
   assetBundlePatterns: ['**/*'],
   ios: {
@@ -80,7 +80,7 @@ module.exports = ({ config }) => ({
     package: 'com.betintel.app',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
-      backgroundColor: '#0D0D0D',
+      backgroundColor: '#07110D',
     },
     googleServicesFile: './google-services.json',
     intentFilters: [

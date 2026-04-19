@@ -812,7 +812,7 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Rio Ave FC':           TEAM_CDN(226),
   'CD Santa Clara':       TEAM_CDN(227),
   'Estoril Praia':        TEAM_CDN(230),
-  'CF Estrela Amadora':   'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/S%C3%ADmbolo_Estrela_da_Amadora.svg/250px-S%C3%ADmbolo_Estrela_da_Amadora.svg.png',
+  'CF Estrela Amadora':   SOFA_TEAM(262578),
   'Casa Pia AC':          TEAM_CDN(4716),
   'FC Arouca':            TEAM_CDN(240),
   'CD Nacional':          TEAM_CDN(225),
@@ -2318,7 +2318,10 @@ const TEAM_LOGO_ALIASES: Record<string, string> = {
   Braga: 'SC Braga',
   'Vitoria Guimaraes': 'Vitória SC',
   Guimaraes: 'Vitória SC',
+  'CF Estrela da Amadora': 'CF Estrela Amadora',
+  'C.F. Estrela da Amadora': 'CF Estrela Amadora',
   'Estrela da Amadora': 'CF Estrela Amadora',
+  'Estrela Amadora': 'CF Estrela Amadora',
   Famalicao: 'FC Famalicão',
   'Pacos de Ferreira': 'FC Paços de Ferreira',
   Maritimo: 'Marítimo',
@@ -2469,6 +2472,10 @@ const LEAGUE_LOGO_ALIASES: Record<string, string> = {
   'UEFA Champions League Women': "UEFA Women's Champions League",
 };
 
+const TEAM_LOGO_SOURCES: Record<string, ImageSourcePropType> = {
+  'CF Estrela Amadora': require('../assets/teams/estrela-amadora.png'),
+};
+
 const KNOWN_BAD_STATIC_TEAM_LOGOS = new Set([
   'Al-Hazm',
   'Olympiacos BC',
@@ -2488,14 +2495,27 @@ function buildLookupIndex(source: Record<string, string>, aliases: Record<string
 const TEAM_LOGO_INDEX = buildLookupIndex(TEAM_LOGOS, TEAM_LOGO_ALIASES);
 const LEAGUE_LOGO_INDEX = buildLookupIndex(LEAGUE_LOGOS, LEAGUE_LOGO_ALIASES);
 
+function getCanonicalTeamName(teamName: string): string {
+  return TEAM_LOGO_INDEX.get(normalizeAssetKey(teamName)) ?? teamName;
+}
+
 /** Returns the badge URL for a team, or null if not mapped. */
 /** Returns the badge/crest URL for a team or player photo, or null if not mapped. */
 export function getTeamLogoUrl(teamName: string): string | null {
-  const canonicalName = TEAM_LOGO_INDEX.get(normalizeAssetKey(teamName)) ?? teamName;
+  const canonicalName = getCanonicalTeamName(teamName);
   if (KNOWN_BAD_STATIC_TEAM_LOGOS.has(canonicalName)) {
     return null;
   }
   return TEAM_LOGOS[canonicalName] ?? PLAYER_PHOTOS[canonicalName] ?? null;
+}
+
+/** Returns a bundled crest image for teams that should not depend on remote CDNs. */
+export function getTeamLogoSource(teamName: string): ImageSourcePropType | null {
+  const canonicalName = getCanonicalTeamName(teamName);
+  if (KNOWN_BAD_STATIC_TEAM_LOGOS.has(canonicalName)) {
+    return null;
+  }
+  return TEAM_LOGO_SOURCES[canonicalName] ?? null;
 }
 
 /** Returns the ATP/WTA player headshot URL, or null if not mapped. */

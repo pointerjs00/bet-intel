@@ -60,6 +60,18 @@ export async function parseBetclicPdfRequest(pdfBase64: string): Promise<Betclic
   return response.data.data;
 }
 
+/** Sends a screenshot image to the backend for AI-powered parsing (Gemini Vision). */
+export async function scanImageAiRequest(
+  imageBase64: string,
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp' = 'image/jpeg',
+): Promise<BetclicPdfResult> {
+  const response = await apiClient.post<ApiEnvelope<BetclicPdfResult>>(
+    '/boletins/import/scan-ai',
+    { imageBase64, mimeType },
+  );
+  return response.data.data;
+}
+
 /** Fetches bet history from the Betclic API using the user's session token. */
 export async function fetchBetclicApiRequest(
   authToken: string,
@@ -89,6 +101,14 @@ export async function bulkImportRequest(
 export function useParseBetclicPdfMutation() {
   return useMutation({
     mutationFn: parseBetclicPdfRequest,
+  });
+}
+
+/** Mutation hook for AI vision scanning of bet slip screenshots. */
+export function useScanImageAiMutation() {
+  return useMutation({
+    mutationFn: ({ imageBase64, mimeType }: { imageBase64: string; mimeType?: 'image/jpeg' | 'image/png' | 'image/webp' }) =>
+      scanImageAiRequest(imageBase64, mimeType),
   });
 }
 

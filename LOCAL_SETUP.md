@@ -263,7 +263,9 @@ Once you've done the full setup above, your daily start sequence is:
 3. Start infra: `docker compose -f apps/api/docker-compose.dev.yml up -d`
 4. Start API (new terminal): `pnpm dev:api`
 5. Start mobile (new terminal): `pnpm dev:mobile`
-
+OR
+6. Open PowerShell → `cd C:\Users\jbsou\Desktop\bet-intel\apps\mobile`
+7. Start mobile: `npx expo run:android` (for physical device or Android emulator)
 ---
 
 ## Troubleshooting

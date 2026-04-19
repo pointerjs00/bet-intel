@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createBoletinSchema } from '@betintel/shared';
 import { parseBetclicPdf, type ParsedBetclicBoletin } from '../services/betclicPdfParser';
 import { fetchBetclicBets } from '../services/betclicApiService';
+import { parseImageWithGemini } from '../services/geminiVisionParser';
 import { createBoletin, listUserBoletins } from '../services/boletins/boletinService';
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
@@ -156,6 +157,63 @@ export async function betclicApiHandler(req: Request, res: Response): Promise<vo
       return;
     }
     logger.error('Unknown Betclic API import error', { error: err });
+    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+  }
+}
+
+// ─── AI Vision scan schema ───────────────────────────────────────────────────
+
+const scanAiSchema = z.object({
+  imageBase64: z.string().min(1, 'Imagem em falta'),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']).default('image/jpeg'),
+});
+
+// Maximum image size: 10 MB in base64
+const MAX_IMAGE_BASE64_LENGTH = 14 * 1024 * 1024;
+
+/** POST /api/boletins/import/scan-ai — parses a bet slip screenshot using AI vision (Gemini). */
+export async function scanAiHandler(req: Request, res: Response): Promise<void> {
+  try {
+    requireUserId(req);
+
+    const parsed = scanAiSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({
+        success: false,
+        error: 'Dados inválidos',
+        details: parsed.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const { imageBase64, mimeType } = parsed.data;
+
+    if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
+      res.status(413).json({
+        success: false,
+        error: 'A imagem é demasiado grande (máx. 10MB)',
+      });
+      return;
+    }
+
+    const result = await parseImageWithGemini(imageBase64, mimeType);
+
+    logger.info('AI vision scan completed', {
+      totalFound: result.totalFound,
+      errorCount: result.errorCount,
+    });
+
+    res.json({ success: true, data: result });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
+      if (statusCode >= 500) {
+        logger.error('AI vision scan error', { error: err.message, stack: err.stack });
+      }
+      res.status(statusCode).json({ success: false, error: err.message });
+      return;
+    }
+    logger.error('Unknown AI vision scan error', { error: err });
     res.status(500).json({ success: false, error: 'Erro interno do servidor' });
   }
 }

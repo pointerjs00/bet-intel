@@ -11,17 +11,17 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import TextRecognition from '@react-native-ml-kit/text-recognition';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 import { Button } from '../../components/ui/Button';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { useToast } from '../../components/ui/Toast';
 import { useTheme } from '../../theme/useTheme';
-import { parseBetclicOCR, type BetclicOCRResult } from '../../utils/betclicOcrParser';
 import type { BetclicPdfResult } from '../../services/importService';
+import { scanImageAiRequest } from '../../services/importService';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -35,8 +35,7 @@ export default function ScanScreen() {
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [ocrText, setOcrText] = useState<string | null>(null);
-  const [parseResult, setParseResult] = useState<BetclicOCRResult | null>(null);
+  const [parseResult, setParseResult] = useState<BetclicPdfResult | null>(null);
   const [showAllItems, setShowAllItems] = useState(false);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
 
@@ -52,7 +51,6 @@ export default function ScanScreen() {
       if (!result.canceled && result.assets[0]) {
         hapticLight();
         setImageUri(result.assets[0].uri);
-        setOcrText(null);
         setParseResult(null);
       }
     } catch {
@@ -71,7 +69,6 @@ export default function ScanScreen() {
       if (!result.canceled && result.assets[0]) {
         hapticLight();
         setImageUri(result.assets[0].uri);
-        setOcrText(null);
         setParseResult(null);
       }
     } catch {
@@ -91,22 +88,25 @@ export default function ScanScreen() {
     if (!imageUri) return;
     setIsProcessing(true);
     try {
-      const recognitionResult = await TextRecognition.recognize(imageUri);
-      const rawText = recognitionResult.text;
-      setOcrText(rawText);
+      // Read image as base64 and determine MIME type
+      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-      if (!rawText || rawText.trim().length < 20) {
-        hapticError();
-        showToast('Não foi possível ler texto. Tenta com outra screenshot.', 'error');
-        return;
-      }
+      const lower = imageUri.toLowerCase();
+      const mimeType: 'image/jpeg' | 'image/png' | 'image/webp' = lower.endsWith('.png')
+        ? 'image/png'
+        : lower.endsWith('.webp')
+          ? 'image/webp'
+          : 'image/jpeg';
 
-      const result = parseBetclicOCR(rawText);
+      // Send to backend AI parser
+      const result = await scanImageAiRequest(base64, mimeType);
       setParseResult(result);
 
       if (result.boletins.length === 0) {
         hapticError();
-        showToast('Nenhuma aposta encontrada. Confirma que é um screenshot da Betclic.', 'error');
+        showToast('Nenhuma aposta encontrada. Confirma que é um screenshot de uma aposta.', 'error');
       } else if (result.errorCount > 0) {
         hapticLight();
         showToast('Aposta lida com alguns erros. Revê os dados antes de importar.', 'warning');
@@ -117,8 +117,13 @@ export default function ScanScreen() {
     } catch (err) {
       hapticError();
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[ScanScreen] TextRecognition error:', msg);
-      showToast(__DEV__ ? `Erro: ${msg}` : 'Erro ao processar imagem. Tenta novamente.', 'error');
+      console.error('[ScanScreen] AI scan error:', msg);
+      showToast(
+        __DEV__
+          ? `Erro: ${msg}`
+          : 'Erro ao processar imagem. Verifica a tua ligação e tenta novamente.',
+        'error',
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -136,7 +141,6 @@ export default function ScanScreen() {
 
   const reset = useCallback(() => {
     setImageUri(null);
-    setOcrText(null);
     setParseResult(null);
     setShowAllItems(false);
     setImageViewerVisible(false);
@@ -184,11 +188,11 @@ export default function ScanScreen() {
         {!imageUri && (
           <Animated.View entering={FadeInUp.duration(300).springify()} style={[styles.hero, { backgroundColor: `${colors.primary}12` }]}>
             <View style={[styles.heroIconWrap, { backgroundColor: `${colors.primary}20` }]}>
-              <MaterialCommunityIcons name="cellphone-screenshot" size={44} color={colors.primary} />
+              <MaterialCommunityIcons name="robot-outline" size={44} color={colors.primary} />
             </View>
-            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Leitura automática</Text>
+            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Leitura com IA</Text>
             <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-              Seleciona um screenshot de uma aposta da Betclic e o BetIntel lê os dados automaticamente.
+              Seleciona um screenshot de uma aposta e a IA do BetIntel analisa e extrai os dados automaticamente.
             </Text>
             <View style={styles.steps}>
               {STEPS.map((step, i) => (
@@ -249,8 +253,8 @@ export default function ScanScreen() {
 
             {!parseResult && (
               <Button
-                title={isProcessing ? 'A ler screenshot...' : 'Ler aposta'}
-                leftSlot={!isProcessing ? <MaterialCommunityIcons name="text-recognition" size={20} color="#fff" /> : undefined}
+                title={isProcessing ? 'A analisar com IA...' : 'Analisar aposta'}
+                leftSlot={!isProcessing ? <MaterialCommunityIcons name="robot-outline" size={20} color="#fff" /> : undefined}
                 loading={isProcessing}
                 onPress={processImage}
                 disabled={isProcessing}
@@ -334,10 +338,6 @@ export default function ScanScreen() {
             </View>
           </Animated.View>
         )}
-
-        {__DEV__ && ocrText && parseResult && (
-          <OcrDebug ocrText={ocrText} colors={colors} />
-        )}
       </ScrollView>
 
       {/* Fullscreen image viewer */}
@@ -385,7 +385,7 @@ export default function ScanScreen() {
 
 const STEPS: Array<{ icon: 'image-outline' | 'text-recognition' | 'check-circle-outline'; label: string }> = [
   { icon: 'image-outline', label: 'Escolhe o screenshot' },
-  { icon: 'text-recognition', label: 'OCR lê a aposta' },
+  { icon: 'text-recognition', label: 'IA analisa a aposta' },
   { icon: 'check-circle-outline', label: 'Revê e importa' },
 ];
 
@@ -442,24 +442,6 @@ function Metric({
 
 function MetricDivider({ colors }: { colors: Record<string, string> }) {
   return <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />;
-}
-
-function OcrDebug({ ocrText, colors }: { ocrText: string; colors: Record<string, string> }) {
-  const [expanded, setExpanded] = useState(false);
-  return (
-    <Pressable
-      onPress={() => setExpanded((v) => !v)}
-      style={[styles.debugWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}
-    >
-      <View style={styles.debugHeader}>
-        <Text style={[styles.debugTitle, { color: colors.textMuted }]}>Debug OCR</Text>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
-      </View>
-      {expanded && (
-        <Text selectable style={[styles.debugText, { color: colors.textMuted }]}>{ocrText}</Text>
-      )}
-    </Pressable>
-  );
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
@@ -521,9 +503,4 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 15, fontWeight: '700' },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
-
-  debugWrap: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 8 },
-  debugHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  debugTitle: { fontSize: 11, fontWeight: '700' },
-  debugText: { fontSize: 10, fontFamily: 'monospace', lineHeight: 14 },
 });

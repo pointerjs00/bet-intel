@@ -146,6 +146,81 @@
 
 ---
 
+### 1.15 Peak Hours Analysis ✅ Ready (NEW)
+**What:** Breakdown of P&L by hour of day (0–23h). Show which time slots yield the best/worst ROI.  
+**Why:** Reveals fatigue/tilt patterns — e.g. "I lose money on late-night bets after 23h" or "my best decisions are placed in the morning". Actionable enough for the user to self-regulate.  
+**Feasibility:** `betDate` (or `createdAt`) already stores full DateTime. Group by `getHours()` into 24 buckets, aggregate P&L + win rate per bucket. Pure computation in `buildStatsBundle()`.  
+**Effort:** ~2h. New `byHour` breakdown array in stats API → new `HourlyHeatstrip` component (horizontal bar with 24 cells, colour-scaled).  
+**Mobile:** Compact 24-cell horizontal strip with heat colours (green = profitable, red = loss). Tap a cell to see hour-specific stats in a tooltip.
+
+---
+
+### 1.16 Closing Rate / Leg Kill Analysis ✅ Ready (NEW)
+**What:** For multi-leg (parlay) boletins that LOST, show which leg number most frequently kills the bet. E.g. "Leg 3 is the one that fails 42% of the time".  
+**Why:** Helps bettors identify if they consistently add a weak "extra leg" that ruins accumulators. Very common problem.  
+**Feasibility:** For each LOST boletin, find the LOST items and their position index. Aggregate across all lost accumulators. Requires `boletinItems` to have a stable order (array index = leg number).  
+**Effort:** ~3h. New `legKillDistribution` array in stats response → bar chart or table.  
+**Mobile:** Bar chart showing "Seleção que falhou" — which leg position kills parlays most. Only shown for users with enough multi-leg data (minimum 10 lost parlays).
+
+---
+
+### 1.17 Confidence Calibration ✅ Ready (NEW)
+**What:** Group bets by odds tier (implied probability %) and compare the user's actual win rate vs implied probability. Show a calibration curve — perfect calibration = diagonal line.  
+**Why:** Reveals systematic biases. E.g. "You bet on 1.50 odds (67% implied) but only win 55% of those — you're overpaying for favourites." This is the most insightful advanced metric for serious bettors.  
+**Feasibility:** All data exists: `oddValue` → `impliedProb = 1/oddValue`. Group items by implied-probability buckets (e.g. 10% bands: 0-10%, 10-20%, ..., 90-100%), compute actual win rate per bucket. Plot calibration curve.  
+**Effort:** ~4h. New `calibration` array in stats API → new `CalibrationChart` component (scatter/line chart with diagonal reference).  
+**Mobile:** Line chart: X-axis = implied probability, Y-axis = actual win rate. Diagonal line = perfect calibration. Points above the line = user finds value, below = user overpays.
+
+---
+
+### 1.18 Monthly Targets / Goals ✅ Ready (NEW)
+**What:** User sets monthly goals (e.g. "target ROI: +5%", "max 30 bets", "max stake per bet: €20"). Track progress against goals with a progress bar.  
+**Why:** Encourages disciplined betting. Professional bettors always have targets and limits. The progress visualisation creates positive reinforcement loops.  
+**Feasibility:** Store goals in a new `UserGoal` model or simpler as JSON in a user preference field. Compare current-month stats summary against targets. All underlying stats already computed.  
+**What's needed:**
+1. New `goals` JSON field on User model (or separate `UserGoal` table for history)
+2. Goal-setting UI in profile/settings
+3. `GoalProgressCard` on Stats screen showing bars for each active goal  
+**Effort:** ~4h total (1h schema + 1h API + 2h mobile).
+
+---
+
+### 1.19 Variance / Standard Deviation Tracker ✅ Ready (NEW)
+**What:** Compute and display the standard deviation of P&L per bet, plus a variance indicator showing whether current performance is within expected range.  
+**Why:** Helps users understand if a losing streak is statistically normal or if their strategy genuinely changed. Separates signal from noise.  
+**Feasibility:** Pure math on existing resolved boletins: `stdDev(profitLoss per boletin)`. Can also show "expected range" bands (±1σ, ±2σ) on the cumulative P&L chart.  
+**Effort:** ~3h. New `variance` / `stdDev` fields in `StatsSummary` → confidence bands overlay on PnLChart.  
+**Mobile:** Add ±1σ shaded bands to the cumulative P&L chart. New metric card showing "Volatilidade" with contextual explanation (low/medium/high).
+
+---
+
+### 1.20 Home/Away Split ✅ Ready (NEW)
+**What:** For bets on team events (football, basketball, etc.), show separate ROI/win rate for when you bet on the home team vs the away team.  
+**Why:** Many bettors unconsciously favour home teams or underestimate away underdogs. Quantifying the split surfaces the bias.  
+**Feasibility:** `BoletinItem` stores `homeTeam`, `awayTeam`, and `selection`. For 1X2 markets: selection "1" = home pick, "2" = away pick, "X" = draw. Parse and aggregate. For other markets (O/U, BTTS), this doesn't apply — filter to directional markets only.  
+**Effort:** ~2h. New `homeAwayROI` breakdown in stats API → two-column comparison card.  
+**Mobile:** Two side-by-side metric cards: "Casa" vs "Fora" showing ROI, win rate, and bet count for each.
+
+---
+
+### 1.21 Favourite vs Underdog Performance ✅ Ready (NEW)
+**What:** Classify each bet as "favourite" (odds < 2.00) or "underdog" (odds ≥ 2.00) and show separate ROI/win-rate for each.  
+**Why:** Users often think they're good at finding value underdogs when they're actually bleeding on them. Or vice versa — they could discover they have an edge on longshots.  
+**Feasibility:** Simple classification on `oddValue` threshold (2.00 is the fair coin line). Aggregate P&L per group.  
+**Effort:** ~2h. Two new fields in `StatsSummary` → comparison card on Stats screen.  
+**Mobile:** `FavouriteUnderdogCard` component — two columns comparing favourite (odds < 2.00) vs underdog (odds ≥ 2.00) with ROI, win rate, and total staked.
+
+---
+
+### 1.22 Yield Over Time (ROI Trend) ✅ Ready (NEW)
+**What:** A line chart showing ROI % evolution over time (rolling window — e.g. last 20 bets), not just cumulative P&L.  
+**Why:** Cumulative P&L is heavily influenced by stake size changes. A yield/ROI trend line normalises for that and shows whether the user's edge is improving, declining, or stable.  
+**Feasibility:** Compute rolling-window ROI from sorted resolved boletins. Window size configurable (20/50/100 bets).  
+**Effort:** ~3h. New `roiTrend` array in stats API or computed client-side → overlay on PnLChart or new chart.  
+**Mobile:** Toggle on PnLChart: "Yield %" mode showing rolling-window ROI line. Default window: last 20 settled bets, adjustable via segment control.
+
+---
+
 ## 2. New App Features
 
 ### 2.1 CSV / XLSX Export ✅ Ready — 🟢 BUILT
@@ -259,6 +334,104 @@
 
 ---
 
+### 2.11 Recurring Bet Templates ✅ Ready (NEW)
+**What:** Save a boletin as a reusable template (e.g. "Weekend Liga NOS accumulator"). One tap to recreate a new boletin with the same structure (teams, markets) but fresh odds/date.  
+**Why:** Power users place similar bet types weekly. Reduces friction from manual re-entry and encourages consistent strategy.  
+**Feasibility:** Store template as a lightweight JSON snapshot: `{ items: [{ homeTeam, awayTeam, competition, sport, market, selection }], siteSlug, defaultStake }`. No new schema needed — save templates as a JSON array on AsyncStorage or a new `BetTemplate` model.  
+**What's needed:**
+1. New `BetTemplate` Prisma model: `{ id, userId, name, template JSON, createdAt }`
+2. "Guardar como modelo" button on boletin detail
+3. "Criar a partir de modelo" option on create screen
+4. Pre-fill builder store from template, user adjusts odds/stake  
+**Effort:** ~4h total (1h schema + 1.5h API + 1.5h mobile).
+
+---
+
+### 2.12 Bet Slip Import from Screenshot (OCR) 🟡 Needs work (NEW)
+**What:** User takes a screenshot of their bet slip from a bookmaker site/app. The app uses OCR to extract teams, odds, stake, and pre-fills a new boletin.  
+**Why:** Dramatically reduces manual entry — the #1 friction point. Most bettors place bets outside the app and then log them.  
+**What's needed:**
+1. OCR library — `@react-native-ml-kit/text-recognition` (on-device, free, no network) or cloud OCR
+2. A parser that maps raw OCR text to structured bet data (regex patterns per bookmaker format)
+3. Confirmation screen where user reviews/corrects parsed data before saving  
+**Effort:** ~10h (3h OCR setup + 4h parser per site + 3h UI). **Risk:** OCR accuracy varies; should be positioned as "best effort" with manual correction.
+
+---
+
+### 2.13 Bet Tagging / Categorisation ✅ Ready (NEW)
+**What:** User adds custom tags to boletins (e.g. "value bet", "gut feeling", "statistic-based", "live bet", "pre-match"). Filter and view stats by tag.  
+**Why:** Lets the user categorise *why* they placed a bet and measure which strategies actually work. Essential for serious self-analysis.  
+**What's needed:**
+1. New `tags` field on `Boletin` model: `String[]` (array of tag strings)
+2. Prisma migration: `ALTER TABLE Boletin ADD COLUMN tags TEXT[] DEFAULT '{}'`
+3. Tag input on create/edit screen (pill chips with autocomplete from previous tags)
+4. New `byTag` stats breakdown
+5. Filter boletins list by tag  
+**Effort:** ~5h total (1h schema + 2h API + 2h mobile).
+
+---
+
+### 2.14 Undo / Edit Window for Resolved Bets ✅ Ready (NEW)
+**What:** After marking a boletin as WON/LOST, allow a 5-minute undo window, or let the user edit the result later (with a confirmation prompt and audit log).  
+**Why:** Users frequently mis-tap when resolving bets (marked as LOST when they won, or vice versa). Manual entry makes this inevitable.  
+**Feasibility:** The `Boletin.status` field can be updated via `PATCH /api/boletins/:id`. Add a `resolvedAt` timestamp to know when it was resolved. Allow status changes within a window or always with confirmation.  
+**What's needed:**
+1. New `resolvedAt` DateTime field on Boletin
+2. Toast with "Desfazer" button shown for 5 seconds after resolving
+3. Edit button on resolved boletins that opens a confirmation modal  
+**Effort:** ~3h total (30min schema + 1h API + 1.5h mobile).
+
+---
+
+### 2.15 Quick Log Mode ✅ Ready (NEW)
+**What:** A stripped-down boletin creation flow optimised for speed: just enter teams, market, odds, stake, result → done in 15 seconds. Skip competition selection, notes, site, date defaults to today.  
+**Why:** Many users log bets after the fact and just want to record them fast. The full create form has 8+ fields which discourages daily logging.  
+**Feasibility:** Reuse the builder store but pre-fill defaults (today's date, default site, auto-name). Show only: team inputs + market + odds + stake + result.  
+**Effort:** ~3h. New "Registo rápido" mode toggle on create screen or a separate bottom-sheet entry point from the boletins tab FAB.  
+**Mobile:** Long-press on FAB → "Registo rápido" → bottom sheet with minimal fields. Optional: swipe between items to add multiple quick bets in sequence.
+
+---
+
+### 2.16 Insights & Tips Engine ✅ Ready (NEW)
+**What:** Auto-generated personalised insights based on stats data. E.g. "Os teus boletins de 3+ seleções perdem 4x mais que simples" or "O teu ROI às sextas é -18%, considera parar".  
+**Why:** Raw stats tables are powerful but many users don't know what to look for. Automated insight text surfaces actionable findings.  
+**Feasibility:** All data already exists in stats breakdowns. Write a rule engine that checks thresholds: if weekday ROI < -10%, if parlay ROI << singles ROI, if avg stake on losses >> avg stake on wins, etc. Generate Portuguese text strings.  
+**Effort:** ~4h (3h rule engine + 1h component). No schema changes needed — pure client-side or API-side computation from existing stats.  
+**Mobile:** New `InsightsFeed` component at top of Stats screen (or dedicated tab). Each insight is a card with an icon, Portuguese text, and a "Ver mais" link to the relevant breakdown section.
+
+---
+
+### 2.17 Boletin Cloning / Copy ✅ Ready (NEW)
+**What:** Duplicate an existing boletin to create a new one with the same selections. Useful for re-betting similar events next matchday.  
+**Why:** Common workflow: "Last week's bet almost hit, want to try again with updated odds."  
+**Feasibility:** Copy `BoletinItem[]` (teams, markets, selections) into builder store. User adjusts odds/stake/date.  
+**Effort:** ~2h. "Duplicar" action on boletin detail → pre-fill builder store → navigate to create screen.  
+**Mobile:** Button on boletin detail screen. Builder loaded with items from the cloned boletin, user updates odds and stake before saving.
+
+---
+
+### 2.18 Responsible Gambling Tools ✅ Ready (NEW)
+**What:** Self-exclusion features: daily/weekly/monthly stake limits, loss limits, session time reminders, and a "cooling off" pause mode (disable bet creation for X hours).  
+**Why:** Responsible gambling compliance is increasingly mandatory in Portugal (SRIJ regulations). Also genuinely helpful for user well-being and app trust.  
+**What's needed:**
+1. New fields on User model: `dailyStakeLimit`, `weeklyStakeLimit`, `monthlyStakeLimit`, `lossLimit`, `coolingOffUntil`
+2. Enforce limits when creating boletins (soft block + optional hard block)
+3. Session timer notification (configurable: every 30/60/90 min via local Expo Notification)
+4. "Pausa" mode: `coolingOffUntil` timestamp, disable create button, show countdown  
+**Effort:** ~6h total (1h schema + 2h API + 3h mobile).  
+**Mobile:** New "Jogo responsável" section in Profile/Settings with limit inputs, pause toggle, and session timer toggle.
+
+---
+
+### 2.19 Advanced Search & Filter on Boletins ✅ Ready (NEW)
+**What:** Full-text search and advanced filters on the boletins list: search by team name, competition, date range, odds range, stake range, status, site, tags.  
+**Why:** As the user accumulates hundreds of boletins, finding specific ones becomes tedious. Power users need to query their history ("show me all Benfica bets from January").  
+**Feasibility:** All fields exist on Boletin/BoletinItem. Add query params to existing `GET /api/boletins` endpoint. Client-side search also possible for cached data.  
+**Effort:** ~4h (2h API filter expansion + 2h mobile search UI with filter sheet).  
+**Mobile:** Search bar at top of boletins list + expandable filter panel (bottom sheet) with: team search, sport pills, date range, odds slider, stake slider, status chips, site multi-select.
+
+---
+
 ## 3. New UX & Quality-of-Life Improvements
 
 ### 3.1 Empty State Coaching ✅ Ready — 🟢 BUILT
@@ -303,6 +476,85 @@
 
 ---
 
+### 3.7 Pull-to-Refresh with Smart Sync ✅ Ready (NEW)
+**What:** Pull-to-refresh on all data screens (stats, boletins, friends) with visual feedback. Also sync stale data when the app comes to foreground after 5+ minutes in background.  
+**Why:** Users expect pull-to-refresh on mobile. Smart background sync means data stays fresh without manual action.  
+**Feasibility:** React Query `refetchOnMount` / `refetchOnWindowFocus` + Expo AppState listener. Pull-to-refresh via `RefreshControl` on FlatList/ScrollView.  
+**Effort:** ~2h. Add `RefreshControl` to all major list screens + AppState listener in root layout.
+
+---
+
+### 3.8 Boletin Swipe Gestures ✅ Ready (NEW)
+**What:** Swipe actions on boletin list items: swipe right = quick resolve (WON/LOST picker), swipe left = share or delete. Two-step: swipe → confirm.  
+**Why:** Resolving bets is the most frequent action. Getting it to one swipe + tap saves enormous time when processing multiple results at once.  
+**Feasibility:** `react-native-gesture-handler` + `react-native-reanimated` already in the project. Swipeable rows with snap-back animation.  
+**Effort:** ~4h. New `SwipeableBoletinCard` component wrapping existing `BoletinCard`.  
+**Mobile:** Right swipe reveals green (WON) / red (LOST) / grey (VOID) buttons. Left swipe reveals share + delete. Haptic feedback on threshold.
+
+---
+
+### 3.9 Batch Resolve Mode ✅ Ready (NEW)
+**What:** "Resolver tudo" mode where the user can tap through multiple PENDING boletins in sequence: show boletin → WON/LOST/VOID → next → done. Progress indicator (3/7).  
+**Why:** After a weekend of matches, the user might have 10+ pending boletins to resolve. Going into each one individually is tedious.  
+**Feasibility:** Query all PENDING boletins, present in a paged card stack or swipeable flow. Status update API already exists (`PATCH /api/boletins/:id`).  
+**Effort:** ~4h. New `BatchResolveScreen` (or bottom sheet) accessible from boletins tab when PENDING count > 1.  
+**Mobile:** Full-screen card stack: boletin summary card with big WON/LOST/VOID buttons at bottom. Swipe left = skip (keep pending). Counter "3 de 7" at top. Done screen shows summary of what was resolved.
+
+---
+
+### 3.10 Stats Comparison Periods ✅ Ready (NEW)
+**What:** Compare two time periods side-by-side: "Este mês vs mês passado" or "Esta semana vs semana passada". Show delta arrows (↑↓) for each metric.  
+**Why:** Trend is more informative than a single snapshot. "ROI: +8% (↑ from -2% last month)" is much more motivating/alarming than just "+8%".  
+**Feasibility:** Stats API already supports `dateFrom`/`dateTo`. Make two parallel API calls with different periods and diff the results client-side.  
+**Effort:** ~3h. New "Comparar" toggle on Stats screen + `ComparisonOverlay` showing delta badges on metric cards.  
+**Mobile:** Small toggle button on Stats header: "Comparar". When active, each metric card shows the comparison period value below and a green/red delta arrow.
+
+---
+
+### 3.11 Accessibility Improvements ✅ Ready (NEW)
+**What:** Full accessibility audit and improvements: proper `accessibilityLabel` on all interactive elements, `accessibilityRole` on buttons/links, VoiceOver/TalkBack support, minimum 44pt touch targets, sufficient colour contrast (WCAG AA).  
+**Why:** Required for good mobile UX and app store compliance. Also helps users who rely on screen readers.  
+**Feasibility:** React Native accessibility props already available. Needs systematic audit.  
+**Effort:** ~6h for full audit + fixes across all screens.
+
+---
+
+### 3.12 Offline Mode / Optimistic UI ✅ Ready (NEW)
+**What:** Allow boletin creation and result logging while offline. Queue changes locally and sync when connectivity returns. Optimistic UI updates: show the change instantly, reconcile with server in background.  
+**Why:** Bettors are often in venues (stadiums, bars) with poor connectivity. Losing a bet entry to a network error is extremely frustrating.  
+**Feasibility:** React Query + AsyncStorage persistence. Queue mutations in a local store, replay on reconnect. `@react-native-community/netinfo` to detect connectivity.  
+**Effort:** ~6h (3h mutation queue + 2h conflict resolution + 1h connectivity UI indicator).  
+**Mobile:** Small status indicator in header: green dot = online, orange = queued changes, red = offline. Queued boletins show with a "sync pending" badge.
+
+---
+
+### 3.13 Share Card / Social Media Image ✅ Ready (NEW)
+**What:** Generate a branded image card from a resolved boletin showing: status (WON!), teams, odds, return, app branding. Share to Instagram stories, Twitter, WhatsApp.  
+**Why:** Social proof drives organic growth. Users love sharing winning slips. A branded card is more attractive than a screenshot.  
+**Feasibility:** Use `react-native-view-shot` to capture a styled component as an image → `expo-sharing` to share.  
+**Effort:** ~4h. New `ShareCard` component (branded boletin summary) + `ViewShot` capture → share sheet.  
+**Mobile:** "Partilhar imagem" button on resolved boletin detail → generates a dark-themed card with BetIntel logo, result badge, odds, return amount, and QR code linking to app download.
+
+---
+
+### 3.14 Guided Stat Walkthrough / Stat Explanations ✅ Ready (NEW)
+**What:** Each stat section has a small ⓘ icon. Tapping it opens a brief tooltip or bottom sheet explaining what the metric means and how to interpret it in Portuguese.  
+**Why:** Many users don't understand ROI, efficiency, calibration, or variance. Education increases engagement and trust in the data.  
+**Feasibility:** Static content only. Map each metric key to a localised explanation string.  
+**Effort:** ~2h. Info icon on each stat component → bottom sheet with title + 2-3 sentence explanation + example.  
+**Mobile:** Some stat cards already have ⓘ buttons. Extend to ALL stat sections with consistent bottom sheet behaviour.
+
+---
+
+### 3.15 Customisable Stats Dashboard ✅ Ready (NEW)
+**What:** Let the user reorder, pin, or hide stats sections on the stats screen. Save layout preference.  
+**Why:** The stats screen has 15+ sections. Not every user cares about every metric. Letting them personalize reduces scroll fatigue.  
+**Feasibility:** Store an ordered array of section IDs + visibility in AsyncStorage. Render sections in that order, skip hidden ones.  
+**Effort:** ~4h. New "Personalizar" button on Stats screen → drag-to-reorder list with toggle switches → save to AsyncStorage.  
+**Mobile:** Bottom sheet with section list, drag handles, and eye/hide toggles. Reset to default button.
+
+---
+
 ## 4. Summary: Implementation Priority
 
 | # | Feature | Status | Effort | Impact | Priority | Built |
@@ -325,15 +577,41 @@
 | 3.1 | Empty State Coaching | ✅ Ready | ~1h | 🟢 Low | **P1** | 🟢 Yes |
 | 3.2 | Haptic Feedback | ✅ Ready | ~1h | 🟢 Low | **P1** | 🟢 Yes |
 | 3.6 | Scheduled Dark Mode | ✅ Ready | ~1h | 🟢 Low | **P2** | 🟢 Yes |
+| **1.17** | **Confidence Calibration** | **✅ Ready** | **~4h** | **🔴 High** | **P1** | 🟢 Yes |
+| **1.15** | **Peak Hours Analysis** | **✅ Ready** | **~2h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **1.20** | **Home/Away Split** | **✅ Ready** | **~2h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **1.21** | **Favourite vs Underdog** | **✅ Ready** | **~2h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **1.16** | **Closing Rate / Leg Kill** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **1.22** | **Yield Over Time (ROI Trend)** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **2.16** | **Insights & Tips Engine** | **✅ Ready** | **~4h** | **🔴 High** | **P1** | 🟢 Yes |
+| **2.15** | **Quick Log Mode** | **✅ Ready** | **~3h** | **🔴 High** | **P1** | 🟢 Yes |
+| **2.17** | **Boletin Cloning** | **✅ Ready** | **~2h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **2.19** | **Advanced Search & Filter** | **✅ Ready** | **~4h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **3.8** | **Boletin Swipe Gestures** | **✅ Ready** | **~4h** | **🔴 High** | **P1** | 🟢 Yes |
+| **3.9** | **Batch Resolve Mode** | **✅ Ready** | **~4h** | **🔴 High** | **P1** | 🟢 Yes |
+| **3.10** | **Stats Comparison Periods** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **3.13** | **Share Card / Social Image** | **✅ Ready** | **~4h** | **🟡 Medium** | **P1** | 🟢 Yes |
 | 1.6 | EV Tracking | 🟡 Needs work | ~6h | 🔴 High | **P2** | ❌ No |
 | 2.4 | Bankroll Management | 🟡 Needs work | ~5h | 🔴 High | **P2** | ❌ No |
+| **1.19** | **Variance / StdDev Tracker** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | 🟢 Yes |
+| **1.18** | **Monthly Targets / Goals** | **✅ Ready** | **~4h** | **🟡 Medium** | **P2** | ❌ No |
+| **2.13** | **Bet Tagging** | **🟡 Needs work** | **~5h** | **🟡 Medium** | **P2** | ❌ No |
+| **2.14** | **Undo / Edit Resolved Bets** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | 🟢 Yes |
+| **2.18** | **Responsible Gambling Tools** | **🟡 Needs work** | **~6h** | **🔴 High** | **P2** | ❌ No |
+| **2.11** | **Recurring Bet Templates** | **🟡 Needs work** | **~4h** | **🟡 Medium** | **P2** | ❌ No |
+| **3.7** | **Pull-to-Refresh + Smart Sync** | **✅ Ready** | **~2h** | **🟢 Low** | **P2** | 🟢 Yes |
+| **3.12** | **Offline Mode / Optimistic UI** | **✅ Ready** | **~6h** | **🟡 Medium** | **P2** | 🟢 Yes |
+| **3.14** | **Guided Stat Explanations** | **✅ Ready** | **~2h** | **🟢 Low** | **P2** | 🟢 Yes |
+| **3.15** | **Customisable Stats Dashboard** | **✅ Ready** | **~4h** | **🟡 Medium** | **P2** | 🟢 Yes |
+| 3.3 | Quick-Add from Notification | ✅ Ready | ~2h | 🟢 Low | **P2** | 🟢 Yes |
+| 3.4 | Onboarding Flow | ✅ Ready | ~3h | 🟢 Low | **P2** | 🟢 Yes |
+| **3.11** | **Accessibility Improvements** | **✅ Ready** | **~6h** | **🟡 Medium** | **P2** | 🟢 Yes |
 | 1.7 | Kelly Criterion | 🟡 Needs work | ~3h+ | 🟡 Medium | **P3** | ❌ No |
 | 1.9 | Leaderboard vs Friends | 🟡 Needs work | ~7h | 🟡 Medium | **P3** | ❌ No |
 | 2.8 | Shared Comments | 🟡 Needs work | ~6h | 🟡 Medium | **P3** | ❌ No |
 | 2.10 | Multi-Currency/Odds | 🟡 Needs work | ~5h | 🟢 Low | **P3** | ❌ No |
+| **2.12** | **OCR Bet Slip Import** | **🟡 Needs work** | **~10h** | **🔴 High** | **P3** | ❌ No |
 | 2.6 | Auto-Settlement | 🔴 Blocked | ~32h | 🔴 High | **Future** | ❌ No |
 | 2.5 | Smart Alerts | 🔴 Blocked | ~6h+ | 🔴 High | **Future** | ❌ No |
 | 2.7 | Live Scores | 🔴 Blocked | ~4h+ | 🟡 Medium | **Future** | ❌ No |
-| 3.3 | Quick-Add from Notification | ✅ Ready | ~2h | 🟢 Low | **P2** | ❌ No |
-| 3.4 | Onboarding Flow | ✅ Ready | ~3h | 🟢 Low | **P2** | ❌ No |
 | 3.5 | Home Screen Widget | 🟡 Needs work | ~8h | 🟡 Medium | **Future** | ❌ No |

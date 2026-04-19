@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { getPlayerPhotoUrl, getTeamLogoUrl } from '../../utils/sportAssets';
+import type { ImageSourcePropType } from 'react-native';
+import { getPlayerPhotoUrl, getTeamLogoSource, getTeamLogoUrl } from '../../utils/sportAssets';
 
 const teamLogoFallbackCache = new Map<string, string | null>();
 const teamLogoFallbackInFlight = new Map<string, Promise<string | null>>();
@@ -103,9 +104,15 @@ export function TeamBadge({
 }: TeamBadgeProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const [fallbackUri, setFallbackUri] = useState<string | null>(null);
+  const localSource = !imageUrl && variant !== 'player' ? getTeamLogoSource(name) : null;
   const directUri = imageUrl ?? (variant === 'player' ? getPlayerPhotoUrl(name) : getTeamLogoUrl(name));
-  const uri = directUri ?? fallbackUri;
-  const showImage = uri && !imgFailed;
+  const activeUri = imgFailed ? fallbackUri : (directUri ?? fallbackUri);
+  const imageSource: ImageSourcePropType | undefined = localSource && !imgFailed
+    ? localSource
+    : activeUri
+      ? { uri: activeUri }
+      : undefined;
+  const showImage = Boolean(imageSource);
   const isPlayer = variant === 'player' || (variant === 'auto' && Boolean(imageUrl));
   const borderRadius = isPlayer ? size / 2 : size / 4;
 
@@ -116,7 +123,7 @@ export function TeamBadge({
   useEffect(() => {
     let cancelled = false;
 
-    if (disableRemoteFallback || variant === 'player' || imageUrl || directUri) {
+    if (disableRemoteFallback || variant === 'player' || imageUrl || directUri || localSource) {
       setFallbackUri(null);
       return () => {
         cancelled = true;
@@ -147,7 +154,7 @@ export function TeamBadge({
     >
       {showImage ? (
         <Image
-          source={{ uri }}
+          source={imageSource}
           style={{ width: size * 0.88, height: size * 0.88, borderRadius }}
           onError={() => {
             setImgFailed(true);

@@ -266,6 +266,7 @@ export default function HomeScreen() {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name?: string } | null>(null);
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
+  const [fabOpen, setFabOpen] = useState(false);
 
   const handleQuickResolve = useCallback(
     (boletin: { id: string; items: Array<{ id: string }> }, result: ItemResult) => {
@@ -721,29 +722,11 @@ export default function HomeScreen() {
                 <PressableScale
                   scaleDown={0.88}
                   accessibilityRole="button"
-                  accessibilityLabel="Importar screenshot"
-                  onPress={() => router.push('/boletins/scan')}
-                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
+                  accessibilityLabel={fabOpen ? 'Fechar menu' : 'Criar boletim'}
+                  onPress={() => { hapticLight(); setFabOpen((v) => !v); }}
+                  style={[styles.iconButton, { backgroundColor: fabOpen ? colors.danger : colors.primary }]}
                 >
-                  <MaterialCommunityIcons color={colors.textSecondary} name="cellphone-screenshot" size={20} />
-                </PressableScale>
-                <PressableScale
-                  scaleDown={0.88}
-                  accessibilityRole="button"
-                  accessibilityLabel="Registo rápido"
-                  onPress={() => router.push('/boletins/quick-log')}
-                  style={[styles.iconButton, { backgroundColor: `${colors.warning}20`, borderWidth: 1, borderColor: colors.warning }]}
-                >
-                  <Ionicons color={colors.warning} name="flash" size={18} />
-                </PressableScale>
-                <PressableScale
-                  scaleDown={0.88}
-                  accessibilityRole="button"
-                  accessibilityLabel="Criar boletin"
-                  onPress={() => router.push('/boletins/create')}
-                  style={[styles.iconButton, { backgroundColor: colors.primary }]}
-                >
-                  <Ionicons color="#FFFFFF" name="add" size={20} />
+                  <Ionicons color="#FFFFFF" name={fabOpen ? 'close' : 'add'} size={20} />
                 </PressableScale>
               </View>
             </Animated.View>
@@ -1086,6 +1069,46 @@ export default function HomeScreen() {
         </>
       ) : null}
 
+      {/* FAB create menu overlay */}
+      {fabOpen && (
+        <>
+          <Pressable onPress={() => setFabOpen(false)} style={StyleSheet.absoluteFill} />
+          <Animated.View
+            entering={FadeIn.duration(100)}
+            exiting={FadeOut.duration(80)}
+            style={[
+              styles.fabMenu,
+              { top: insets.top + 52, backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            {([
+              { label: 'Criar manualmente',   icon: 'create-outline',       lib: 'ion' as const, route: '/boletins/create',    color: colors.primary },
+              { label: 'Registo rápido',        icon: 'flash',                lib: 'ion' as const, route: '/boletins/quick-log',  color: colors.warning },
+              { label: 'Importar screenshot',   icon: 'cellphone-screenshot', lib: 'mci' as const, route: '/boletins/scan',        color: colors.info    },
+            ] as const).map((opt, i) => (
+              <Animated.View key={opt.route} entering={FadeInDown.delay(i * 40).duration(130).springify()}>
+                <Pressable
+                  onPress={() => { hapticLight(); setFabOpen(false); router.push(opt.route as never); }}
+                  style={[
+                    styles.fabMenuItem,
+                    { borderBottomColor: colors.border },
+                    i === 2 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <View style={[styles.fabMenuIcon, { backgroundColor: `${opt.color}18` }]}>
+                    {opt.lib === 'ion'
+                      ? <Ionicons color={opt.color} name={opt.icon as keyof typeof Ionicons.glyphMap} size={18} />
+                      : <MaterialCommunityIcons color={opt.color} name={opt.icon as keyof typeof MaterialCommunityIcons.glyphMap} size={18} />}
+                  </View>
+                  <Text style={[styles.fabMenuLabel, { color: colors.textPrimary }]}>{opt.label}</Text>
+                  <Ionicons color={colors.textMuted} name="chevron-forward" size={14} />
+                </Pressable>
+              </Animated.View>
+            ))}
+          </Animated.View>
+        </>
+      )}
+
       {/* Sort & Filter bottom sheet */}
       <BoletinFilterSheet
         sheetRef={filterSheetRef}
@@ -1369,4 +1392,34 @@ const styles = StyleSheet.create({
   batchResolveBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   batchResolveBtnText: { fontSize: 13, fontWeight: '700', flex: 1 },
   footerBar: { marginTop: tokens.spacing.xl },
+  fabMenu: {
+    position: 'absolute',
+    right: tokens.spacing.lg,
+    width: 230,
+    borderRadius: tokens.radius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 12,
+    zIndex: 50,
+  },
+  fabMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  fabMenuIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabMenuLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
 });
