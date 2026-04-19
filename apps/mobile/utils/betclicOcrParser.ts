@@ -376,10 +376,10 @@ function matchesAnySelRoot(text: string, selRootsLower: string[]): number {
  * Handles compound selections and "X vence" patterns.
  */
 function extractTeamFromSelection(selection: string): string {
-  // "Team / Empate & ..." → Team
-  if (selection.includes('/')) {
-    return selection.split('/')[0]!.trim();
-  }
+  // Check verb patterns FIRST — before the '/' split — because compound Boost
+  // selections like "SL Benfica vence intervalo/final e Acima de 2,5 golos"
+  // contain '/' inside a market phrase, NOT as a team separator.
+
   // "Team A ou Team B vence ..." → return first team only so that the second
   // team is NOT also matched as a dup and ends up in the opponents list
   const ouVenceMatch = selection.match(/^(.+?)\s+ou\s+(.+?)\s+vence\b/i);
@@ -390,6 +390,10 @@ function extractTeamFromSelection(selection: string): string {
   // "Team marca ..." → Team
   const marcam = selection.match(/^(.+?)\s+marca\b/i);
   if (marcam) return marcam[1]!.trim();
+  // "Team / Empate & ..." compound selection → first part
+  if (selection.includes('/')) {
+    return selection.split('/')[0]!.trim();
+  }
   // Plain team name
   return selection;
 }
