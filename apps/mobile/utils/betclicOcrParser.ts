@@ -68,6 +68,10 @@ function parseDecimal(v: string): number {
 }
 
 function isMarketLine(line: string): boolean {
+  // Lines containing selection verbs are selection phrases, not market labels.
+  // e.g. "SL Benfica vence intervalo/final e Acima de 2,5 golos" contains
+  // "intervalo/final" but is a Boost selection, not the Intervalo/Final market.
+  if (/\bvence\b|\bmarca\b|\bempata\b|\bganhar\b|\bmarcar\b/i.test(line)) return false;
   return KNOWN_MARKET_PATTERNS.some((p) => p.test(line));
 }
 
@@ -277,7 +281,11 @@ function extractSelectionPairs(
     // empata e Acima" + "de 1,5 golos (tempo reg.)")
     // Also join lines starting with Portuguese articles/prepositions (O, A, Os, As, E, De…)
     // because OCR can capitalise article fragments: "O de 1,5 golos (tempo reg.)"
+    // Also join lines starting with market-phrase words like "Acima", "Abaixo" —
+    // these are the second half of a wrapped selection, e.g.:
+    //   "SL Benfica vence intervalo/final e"  +  "Acima de 2,5 golos"
     const ARTICLE_CONTINUATION_RE = /^(o|a|os|as|e|de|do|da|dos|das)\s/i;
+    const MARKET_FRAG_CONTINUATION_RE = /^(acima|abaixo|e\s+acima|e\s+abaixo)\b/i;
     let selText = entry.line;
     let lastJoinedIdx = i;
     for (let k = i + 1; k < classified.length; k++) {
@@ -285,7 +293,8 @@ function extractSelectionPairs(
       if (next.type !== 'CANDIDATE') break;
       const startsLower = /^[a-záàâãéêíóôõúüç]/.test(next.line);
       const startsArticle = ARTICLE_CONTINUATION_RE.test(next.line);
-      if (!startsLower && !startsArticle) break;
+      const startsMarketFrag = MARKET_FRAG_CONTINUATION_RE.test(next.line);
+      if (!startsLower && !startsArticle && !startsMarketFrag) break;
       // Strip leading single-letter OCR artefact: "O de 1,5 golos" → "de 1,5 golos"
       // A single uppercase letter before a space is never a real word in this context.
       let fragment = next.line;
