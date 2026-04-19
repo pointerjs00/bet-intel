@@ -297,6 +297,12 @@ function extractSelectionPairs(
       lastJoinedIdx = k;
     }
 
+    // Strip inline sport-icon OCR artifacts: the football emoji (⚽) is sometimes
+    // read as "•" or "• O" embedded within the selection text on a single OCR line.
+    // e.g. "SL Benfica vence intervalo/final e • O Acima de 2,5 golos"
+    //    → "SL Benfica vence intervalo/final e Acima de 2,5 golos"
+    selText = selText.replace(/\s*[•·]\s*(?:[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ]\s+)?/g, ' ').trim();
+
     // Look for a MARKET within ±6 lines of the selection range
     const lo = Math.max(0, i - 6);
     const hi = Math.min(classified.length - 1, lastJoinedIdx + 6);
