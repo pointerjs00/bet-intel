@@ -812,7 +812,7 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Rio Ave FC':           TEAM_CDN(226),
   'CD Santa Clara':       TEAM_CDN(227),
   'Estoril Praia':        TEAM_CDN(230),
-  'CF Estrela Amadora':   TEAM_CDN(15130),
+  'CF Estrela Amadora':   'https://upload.wikimedia.org/wikipedia/commons/thumb/0/08/S%C3%ADmbolo_Estrela_da_Amadora.svg/250px-S%C3%ADmbolo_Estrela_da_Amadora.svg.png',
   'Casa Pia AC':          TEAM_CDN(4716),
   'FC Arouca':            TEAM_CDN(240),
   'CD Nacional':          TEAM_CDN(225),
