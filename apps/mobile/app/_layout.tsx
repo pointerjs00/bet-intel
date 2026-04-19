@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -59,6 +59,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const isHydrating = useAuthStore((state) => state.isHydrating);
   const hydrate = useAuthStore((state) => state.hydrate);
+  const rootNavState = useRootNavigationState();
 
   usePrefetchHomeData(isAuthenticated);
 
@@ -67,6 +68,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [hydrate]);
 
   useEffect(() => {
+    // Wait until the navigation container has mounted before attempting any navigation.
+    // Without this guard, router.replace() throws "Attempted to navigate before mounting
+    // the Root Layout component" on the first render.
+    if (!rootNavState?.key) return;
     if (isHydrating) return;
 
     const inAuthGroup = segments[0] === '(auth)';
@@ -90,7 +95,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     if (isAuthenticated && !inAuthGroup && !inOnboarding) {
       // Already authenticated + not on onboarding — no action needed
     }
-  }, [isAuthenticated, isHydrating, router, segments]);
+  }, [isAuthenticated, isHydrating, rootNavState?.key, router, segments]);
 
   if (isHydrating) {
     return (
