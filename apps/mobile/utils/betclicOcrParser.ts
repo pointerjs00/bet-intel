@@ -449,7 +449,9 @@ function extractSelectionBlocks(
   for (let i = 0; i < classified.length; i++) {
     if (excludedLines.has(i)) continue;
     if (classified[i]!.type !== 'CANDIDATE') continue;
-    const selIdx = matchesAnySelRoot(classified[i]!.line, selRootsLower);
+    // Strip trailing score suffix before matching (e.g. "Sporting CP 1-2" → "Sporting CP")
+    const lineStripped = classified[i]!.line.replace(/\s+\d{1,2}\s*-\s*\d{1,2}$/, '').trim();
+    const selIdx = matchesAnySelRoot(lineStripped, selRootsLower);
     if (selIdx === -1) continue;
     if (!dupsBySelIndex.has(selIdx)) dupsBySelIndex.set(selIdx, []);
     dupsBySelIndex.get(selIdx)!.push(i);
@@ -472,8 +474,11 @@ function extractSelectionBlocks(
     if (entry.type === 'CANDIDATE') {
       if (excludedLines.has(i)) continue;
       if (allDupLines.has(i)) continue;
-      if (matchesAnySelRoot(entry.line, selRootsLower) !== -1) continue;
-      teamName = entry.line;
+      // Strip trailing score suffix: "Sporting CP 1-2" → "Sporting CP"
+      // (Betclic renders finished match team names with score on the same OCR line)
+      const stripped = entry.line.replace(/\s+\d{1,2}\s*-\s*\d{1,2}$/, '').trim();
+      if (matchesAnySelRoot(stripped, selRootsLower) !== -1) continue;
+      teamName = stripped;
     } else if (entry.type === 'SCORE') {
       const extracted = extractTeamFromScore(entry.line);
       if (extracted && matchesAnySelRoot(extracted, selRootsLower) === -1) {
