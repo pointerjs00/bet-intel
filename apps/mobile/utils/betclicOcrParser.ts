@@ -105,6 +105,20 @@ function isScorer(line: string): boolean {
   return false;
 }
 
+function isSelectionPhraseLike(line: string): boolean {
+  const lower = line.toLowerCase().trim();
+  if (!lower) return false;
+  if (isMarketLine(lower)) return true;
+  if (/tempo\s*reg/i.test(lower)) return true;
+  if (/\b(acima|abaixo|marcam|empate|empata|golos|pontos|over|under|vence|resultado|handicap)\b/i.test(lower)) {
+    return true;
+  }
+  if (/[\/&]/.test(lower) && /\b(empate|acima|abaixo)\b/i.test(lower)) {
+    return true;
+  }
+  return false;
+}
+
 type LineType =
   | 'HEADER' | 'STATUS' | 'MARKET' | 'DATE' | 'SCORE' | 'SCORER'
   | 'FOOTER_LABEL' | 'NOISE' | 'ODD' | 'MONEY' | 'CANDIDATE';
@@ -418,6 +432,21 @@ function extractTeamFromScore(scoreLine: string): string | null {
   return null;
 }
 
+function extractTeamsFromCombinedMatchLine(line: string): string[] {
+  const match = line.match(/^(.+?)\s+\d{1,2}\s*[-–]\s*\d{1,2}\s+(.+)$/);
+  if (!match) return [];
+
+  const left = match[1]!.trim();
+  const right = match[2]!.trim();
+  if (!left || !right) return [];
+  if (!/[A-Za-zÁÀÂÃÉÊÍÓÔÕÚÜÇ]/i.test(left) || !/[A-Za-zÁÀÂÃÉÊÍÓÔÕÚÜÇ]/i.test(right)) return [];
+  if (isNoise(left) || isNoise(right)) return [];
+  if (isSelectionPhraseLike(left) || isSelectionPhraseLike(right)) return [];
+  if (isScorer(left) || isScorer(right)) return [];
+
+  return [left, right];
+}
+
 function normalizeTeamMatchKey(text: string): string {
   return resolveTeamAlias(text)
     .normalize('NFD')
@@ -445,7 +474,7 @@ function extractTeamsNearDate(
     const stripped = raw.replace(/\s+\d{1,2}\s*[-–]\s*\d{1,2}$/, '').trim();
     if (!stripped) return;
     if (!/[A-Za-zÁÀÂÃÉÊÍÓÔÕÚÜÇ]/i.test(stripped)) return;
-    if (isNoise(stripped) || isMarketLine(stripped)) return;
+    if (isNoise(stripped) || isSelectionPhraseLike(stripped)) return;
     if (isScorer(stripped)) return;
 
     const key = normalizeTeamMatchKey(stripped);
@@ -457,7 +486,12 @@ function extractTeamsNearDate(
   for (let i = startLine; i < endLineExclusive; i++) {
     const entry = classified[i]!;
     if (entry.type === 'CANDIDATE') {
+      const combinedTeams = extractTeamsFromCombinedMatchLine(entry.line);
+      if (combinedTeams.length > 0) {
+        combinedTeams.forEach(pushTeam);
+      } else {
       pushTeam(entry.line);
+      }
     } else if (entry.type === 'SCORE') {
       const extracted = extractTeamFromScore(entry.line);
       if (extracted) pushTeam(extracted);
@@ -569,6 +603,17 @@ function extractSelectionBlocks(
     if (entry.type === 'CANDIDATE') {
       if (excludedLines.has(i)) continue;
       if (allDupLines.has(i)) continue;
+      const combinedTeams = extractTeamsFromCombinedMatchLine(entry.line);
+      if (combinedTeams.length > 0) {
+        combinedTeams.forEach((team) => {
+          if (matchesAnySelRoot(team, selRootsLower) !== -1) return;
+          const nameLower = team.toLowerCase();
+          const existingIdx = opponents.findIndex((o) => o.name.toLowerCase() === nameLower);
+          if (existingIdx !== -1) opponents.splice(existingIdx, 1);
+          opponents.push({ lineIndex: i, name: team });
+        });
+        continue;
+      }
       // Strip trailing score suffix: "Sporting CP 1-2" → "Sporting CP"
       // (Betclic renders finished match team names with score on the same OCR line)
       const stripped = entry.line.replace(/\s+\d{1,2}\s*-\s*\d{1,2}$/, '').trim();
@@ -577,9 +622,7 @@ function extractSelectionBlocks(
       // OCR sometimes splits compound selections (e.g. "FC Porto vence ou empata e Acima
       // de 1,5 golos (tempo reg.)") and the tail fragment ends up here as a CANDIDATE
       // — sometimes with OCR artefacts so it doesn't match the full selection text.
-      const MARKET_PHRASE_RE =
-        /\b(acima|abaixo|marcam|empate|empata|golos|pontos|over|under|vence|resultado|handicap)\b/i;
-      if (MARKET_PHRASE_RE.test(stripped) || /tempo\s*reg/i.test(stripped) || isMarketLine(stripped)) continue;
+      if (isSelectionPhraseLike(stripped)) continue;
       teamName = stripped;
     } else if (entry.type === 'SCORE') {
       const extracted = extractTeamFromScore(entry.line);
