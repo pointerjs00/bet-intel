@@ -406,20 +406,26 @@ function buildSummary(boletins: StatsBoletinRecord[], period: StatsPeriod): Stat
         const isItemDecisive = item.result === ItemResult.WON || item.result === ItemResult.LOST;
 
         // Home/Away — match numeric codes, Portuguese labels, and team-name selections
+        // Also matches humanised market names like "SL Benfica vence" or
+        // "SL Benfica vence & +1.5 Golos" where the team name is the home/away team.
         const sel = item.selection.toLowerCase().trim();
+        const homeTeamNorm = item.homeTeam.toLowerCase().trim();
+        const awayTeamNorm = item.awayTeam.toLowerCase().trim();
         const isHome =
           sel === '1' ||
           sel === 'casa' ||
-          sel === 'casa vence' ||
           sel === '1x' ||
           sel === '12' ||
-          sel === item.homeTeam.toLowerCase().trim();
+          sel === homeTeamNorm ||
+          sel.startsWith('casa vence') ||
+          (homeTeamNorm.length > 0 && sel.startsWith(`${homeTeamNorm} vence`));
         const isAway =
           sel === '2' ||
           sel === 'fora' ||
-          sel === 'fora vence' ||
           sel === 'x2' ||
-          sel === item.awayTeam.toLowerCase().trim();
+          sel === awayTeamNorm ||
+          sel.startsWith('fora vence') ||
+          (awayTeamNorm.length > 0 && sel.startsWith(`${awayTeamNorm} vence`));
 
         if (isHome) {
           homeBets += 1;
