@@ -418,6 +418,57 @@ function extractTeamFromScore(scoreLine: string): string | null {
   return null;
 }
 
+function normalizeTeamMatchKey(text: string): string {
+  return resolveTeamAlias(text)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function teamsLooselyMatch(a: string, b: string): boolean {
+  const aKey = normalizeTeamMatchKey(a);
+  const bKey = normalizeTeamMatchKey(b);
+  if (!aKey || !bKey) return false;
+  return aKey === bKey || aKey.includes(bKey) || bKey.includes(aKey);
+}
+
+function extractTeamsNearDate(
+  classified: Array<{ line: string; type: LineType }>,
+  startLine: number,
+  endLineExclusive: number,
+): string[] {
+  const teams: string[] = [];
+
+  const pushTeam = (raw: string) => {
+    const stripped = raw.replace(/\s+\d{1,2}\s*[-–]\s*\d{1,2}$/, '').trim();
+    if (!stripped) return;
+    if (!/[A-Za-zÁÀÂÃÉÊÍÓÔÕÚÜÇ]/i.test(stripped)) return;
+    if (isNoise(stripped) || isMarketLine(stripped)) return;
+    if (isScorer(stripped)) return;
+
+    const key = normalizeTeamMatchKey(stripped);
+    if (!key) return;
+    if (teams.some((existing) => normalizeTeamMatchKey(existing) === key)) return;
+    teams.push(stripped);
+  };
+
+  for (let i = startLine; i < endLineExclusive; i++) {
+    const entry = classified[i]!;
+    if (entry.type === 'CANDIDATE') {
+      pushTeam(entry.line);
+    } else if (entry.type === 'SCORE') {
+      const extracted = extractTeamFromScore(entry.line);
+      if (extracted) pushTeam(extracted);
+    }
+
+    if (teams.length >= 2) break;
+  }
+
+  return teams;
+}
+
 /**
  * Main extraction.
  *
@@ -636,6 +687,8 @@ function extractSelectionBlocks(
   return usedPairs.map((pair, selIdx): SelectionBlock => {
     const opponent = pairedOpponents[selIdx] ?? '';
     const isHome = pairedIsHome[selIdx] ?? true;
+    const dateAnchorLine = matchDateLines[selIdx]?.lineIndex ?? -1;
+    const nextDateAnchorLine = matchDateLines[selIdx + 1]?.lineIndex ?? classified.length;
 
     // Assign eventDate positionally: Nth match → Nth 4-digit-year DATE line.
     // Fall back to nearest 4-digit DATE if count doesn't match.
@@ -652,6 +705,10 @@ function extractSelectionBlocks(
     }
 
     const selTeam = extractTeamFromSelection(pair.selection);
+    const localTeams =
+      dateAnchorLine === -1
+        ? []
+        : extractTeamsNearDate(classified, dateAnchorLine + 1, nextDateAnchorLine);
 
     // Compound "Team A ou Team B vence ..." boost selections contain both teams
     // in the selection text itself. Extract them directly instead of relying on
@@ -671,6 +728,20 @@ function extractSelectionBlocks(
       };
     }
 
+    // Prefer the teams found inside this selection's own match card. This is
+    // more reliable for multi-leg slips than the older global left/right
+    // pairing heuristic, especially when OCR misses one away team or when a
+    // later duplicate flips the inferred home/away side.
+    if (localTeams.length >= 2) {
+      return {
+        selection: pair.selection,
+        market: pair.market,
+        homeTeam: resolveTeamAlias(localTeams[0]!),
+        awayTeam: resolveTeamAlias(localTeams[1]!),
+        eventDate,
+      };
+    }
+
     // For non-team selections (BTTS, Over/Under, etc.) the selection text is a
     // market phrase, not a team name. Both home and away must come from the
     // opponents list instead of from the selection root.
@@ -680,7 +751,19 @@ function extractSelectionBlocks(
 
     let homeTeamRaw: string;
     let awayTeamRaw: string;
-    if (selTeamIsPhrase) {
+    if (localTeams.length === 1) {
+      const localTeam = localTeams[0]!;
+      if (teamsLooselyMatch(selTeam, localTeam)) {
+        homeTeamRaw = isHome ? selTeam : opponent || localTeam;
+        awayTeamRaw = isHome ? opponent : selTeam;
+      } else if (isHome) {
+        homeTeamRaw = selTeam;
+        awayTeamRaw = localTeam;
+      } else {
+        homeTeamRaw = localTeam;
+        awayTeamRaw = selTeam;
+      }
+    } else if (selTeamIsPhrase) {
       homeTeamRaw = opponents[0]?.name ?? selTeam;
       awayTeamRaw = opponents[1]?.name ?? opponent;
     } else if (isHome) {
