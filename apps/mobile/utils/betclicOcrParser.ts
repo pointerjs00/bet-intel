@@ -29,6 +29,8 @@ import type { ParsedBetclicBoletin, ParsedBetclicItem } from '../services/import
 
 const BET_TYPE_RE = /M[uú]ltipla\s*\(\s*(\d+)\s*\)|Simples/i;
 const DATE_TIME_RE = /\d{1,2}\/\d{1,2}\/\d{2,4}\s+\d{1,2}:\d{2}/;
+/** "Hoje 18:15", "Amanhã 21:00" — relative day + time shown inside match cards */
+const RELATIVE_DATE_TIME_RE = /^(hoje|amanhã|amanha)\s+\d{1,2}:\d{2}$/i;
 const SCORE_RE = /^\d+\s*-\s*\d+/;
 const DECIMAL_RE = /^(\d{1,3}[,.]\d{1,2})$/;
 const MONEY_RE = /^(\d+(?:[,.]\d+)?)\s*€$/;
@@ -105,6 +107,7 @@ function classifyLine(line: string): LineType {
   if (DECIMAL_RE.test(t)) return 'ODD';
   if (isMarketLine(t)) return 'MARKET';
   if (DATE_TIME_RE.test(t)) return 'DATE';
+  if (RELATIVE_DATE_TIME_RE.test(t)) return 'DATE';
   if (SCORE_RE.test(t)) return 'SCORE';
   if (isScorer(t)) return 'SCORER';
   if (isNoise(t)) return 'NOISE';
@@ -399,6 +402,20 @@ function extractSelectionBlocks(
     type: classifyLine(l),
   }));
 
+  // Betclic screenshots often have a promotional banner (e.g. "Fazes isto com
+  // uma perna às costas!") rendered ABOVE the bet header ("Simples"/"Múltipla").
+  // Any CANDIDATE line that appears before the first HEADER is promo/banner
+  // text, not a team name — reclassify it as NOISE so it doesn't pollute the
+  // opponent-extraction step.
+  const firstHeaderIdx = classified.findIndex((c) => c.type === 'HEADER');
+  if (firstHeaderIdx > 0) {
+    for (let i = 0; i < firstHeaderIdx; i++) {
+      if (classified[i]!.type === 'CANDIDATE') {
+        classified[i]!.type = 'NOISE';
+      }
+    }
+  }
+
   // ── DEBUG ──────────────────────────────────────────────────────────────────
   if (__DEV__) {
     console.log('[PARSER DEBUG] ── Classified lines ──');
@@ -580,11 +597,31 @@ function extractSelectionBlocks(
 
     const selTeam = extractTeamFromSelection(pair.selection);
 
+    // For non-team selections (BTTS, Over/Under, etc.) the selection text is a
+    // market phrase, not a team name. Both home and away must come from the
+    // opponents list instead of from the selection root.
+    const selTeamIsPhrase =
+      /\b(acima|abaixo|marcam|empate|golos|pontos|over|under)\b/i.test(selTeam) ||
+      selTeam.split(/\s+/).length > 3;
+
+    let homeTeamRaw: string;
+    let awayTeamRaw: string;
+    if (selTeamIsPhrase) {
+      homeTeamRaw = opponents[0]?.name ?? selTeam;
+      awayTeamRaw = opponents[1]?.name ?? opponent;
+    } else if (isHome) {
+      homeTeamRaw = selTeam;
+      awayTeamRaw = opponent;
+    } else {
+      homeTeamRaw = opponent;
+      awayTeamRaw = selTeam;
+    }
+
     return {
       selection: pair.selection,
       market: pair.market,
-      homeTeam: resolveTeamAlias(isHome ? selTeam : opponent),
-      awayTeam: resolveTeamAlias(isHome ? opponent : selTeam),
+      homeTeam: resolveTeamAlias(homeTeamRaw),
+      awayTeam: resolveTeamAlias(awayTeamRaw),
       eventDate,
     };
   });
