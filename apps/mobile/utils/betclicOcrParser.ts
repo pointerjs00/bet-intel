@@ -265,12 +265,17 @@ function extractSelectionPairs(
     // Join continuation lines: if the next CANDIDATE starts with lowercase,
     // it's a phrase fragment split across OCR lines (e.g., "FC Porto vence ou
     // empata e Acima" + "de 1,5 golos (tempo reg.)")
+    // Also join lines starting with Portuguese articles/prepositions (O, A, Os, As, E, De…)
+    // because OCR can capitalise article fragments: "O de 1,5 golos (tempo reg.)"
+    const ARTICLE_CONTINUATION_RE = /^(o|a|os|as|e|de|do|da|dos|das)\s/i;
     let selText = entry.line;
     let lastJoinedIdx = i;
     for (let k = i + 1; k < classified.length; k++) {
       const next = classified[k]!;
       if (next.type !== 'CANDIDATE') break;
-      if (!/^[a-záàâãéêíóôõúüç]/.test(next.line)) break;
+      const startsLower = /^[a-záàâãéêíóôõúüç]/.test(next.line);
+      const startsArticle = ARTICLE_CONTINUATION_RE.test(next.line);
+      if (!startsLower && !startsArticle) break;
       selText += ' ' + next.line;
       consumedLines.add(k);
       lastJoinedIdx = k;
@@ -478,6 +483,13 @@ function extractSelectionBlocks(
       // (Betclic renders finished match team names with score on the same OCR line)
       const stripped = entry.line.replace(/\s+\d{1,2}\s*-\s*\d{1,2}$/, '').trim();
       if (matchesAnySelRoot(stripped, selRootsLower) !== -1) continue;
+      // Skip candidates that are market/selection phrase fragments, not team names.
+      // OCR sometimes splits compound selections (e.g. "FC Porto vence ou empata e Acima
+      // de 1,5 golos (tempo reg.)") and the tail fragment ends up here as a CANDIDATE
+      // — sometimes with OCR artefacts so it doesn't match the full selection text.
+      const MARKET_PHRASE_RE =
+        /\b(acima|abaixo|marcam|empate|empata|golos|pontos|over|under|vence|resultado|handicap)\b/i;
+      if (MARKET_PHRASE_RE.test(stripped) || /tempo\s*reg/i.test(stripped) || isMarketLine(stripped)) continue;
       teamName = stripped;
     } else if (entry.type === 'SCORE') {
       const extracted = extractTeamFromScore(entry.line);
