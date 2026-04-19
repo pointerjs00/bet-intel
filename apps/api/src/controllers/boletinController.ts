@@ -28,21 +28,20 @@ function ok<T>(res: Response, data: T, meta?: unknown): void {
 
 function fail(res: Response, err: unknown): void {
   if (err instanceof Error) {
-    const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
+    const anyErr = err as unknown as Record<string, unknown>;
+    const statusCode = (anyErr.statusCode as number | undefined) ?? 500;
     if (statusCode >= 500) {
       logger.error('Boletin controller error', {
         error: err.message,
-        code: (err as Record<string, unknown>).code,
-        meta: (err as Record<string, unknown>).meta,
+        code: anyErr.code,
+        meta: anyErr.meta,
         stack: err.stack,
       });
     }
     // Include Prisma error meta in response to aid debugging
     const body: Record<string, unknown> = { success: false, error: err.message };
-    const prismaCode = (err as Record<string, unknown>).code;
-    const prismaMeta = (err as Record<string, unknown>).meta;
-    if (prismaCode) body.code = prismaCode;
-    if (prismaMeta) body.meta = prismaMeta;
+    if (anyErr.code) body.code = anyErr.code;
+    if (anyErr.meta) body.meta = anyErr.meta;
     res.status(statusCode).json(body);
     return;
   }
