@@ -30,9 +30,20 @@ function fail(res: Response, err: unknown): void {
   if (err instanceof Error) {
     const statusCode = (err as { statusCode?: number }).statusCode ?? 500;
     if (statusCode >= 500) {
-      logger.error('Boletin controller error', { error: err.message, stack: err.stack });
+      logger.error('Boletin controller error', {
+        error: err.message,
+        code: (err as Record<string, unknown>).code,
+        meta: (err as Record<string, unknown>).meta,
+        stack: err.stack,
+      });
     }
-    res.status(statusCode).json({ success: false, error: err.message });
+    // Include Prisma error meta in response to aid debugging
+    const body: Record<string, unknown> = { success: false, error: err.message };
+    const prismaCode = (err as Record<string, unknown>).code;
+    const prismaMeta = (err as Record<string, unknown>).meta;
+    if (prismaCode) body.code = prismaCode;
+    if (prismaMeta) body.meta = prismaMeta;
+    res.status(statusCode).json(body);
     return;
   }
 

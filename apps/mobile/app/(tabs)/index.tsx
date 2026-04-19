@@ -913,7 +913,15 @@ export default function HomeScreen() {
               <EmptyState
                 icon="cloud-outline"
                 title="Não foi possível carregar os boletins"
-                message="Toca em tentar novamente para actualizar a lista com os dados mais recentes."
+                message={
+                  (() => {
+                    const axiosErr = boletinsQuery.error as { response?: { data?: { error?: string } } } | null;
+                    const apiMsg = axiosErr?.response?.data?.error;
+                    return apiMsg
+                      ? `Erro: ${apiMsg}`
+                      : 'Toca em tentar novamente para actualizar a lista com os dados mais recentes.';
+                  })()
+                }
                 action={<Button onPress={() => void boletinsQuery.refetch()} title="Tentar novamente" />}
               />
             ) : (
