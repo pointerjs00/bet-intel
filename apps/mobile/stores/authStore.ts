@@ -48,6 +48,11 @@ interface AuthStore {
   enableBiometric: () => Promise<boolean>;
   /** Disables biometric login and removes the flag from SecureStore. */
   disableBiometric: () => Promise<void>;
+  /**
+   * Logs out the user. Pass explicit=false for auto-logouts (e.g. token refresh
+   * failure) to preserve the biometric preference so it survives session expiry.
+   */
+  logout: (explicit?: boolean) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -68,7 +73,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     await get().setSession({ user, accessToken, refreshToken });
   },
 
-  async logout() {
+  async logout(explicit = true) {
     if (isLoggingOut) return;
     isLoggingOut = true;
     try {
@@ -86,7 +91,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
-      await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+
+      // Only wipe the biometric preference on explicit user-initiated logout.
+      // Auto-logouts (token refresh failure, session expiry) must NOT clear it
+      // so the setting persists across involuntary session terminations.
+      if (explicit) {
+        await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+      }
 
       set({
         user: null,
@@ -94,7 +105,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         refreshTokenValue: null,
         isAuthenticated: false,
         isHydrating: false,
-        biometricEnabled: false,
+        ...(explicit ? { biometricEnabled: false } : {}),
       });
 
       resetDevicePushTokenCache();
@@ -143,7 +154,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ accessToken, refreshTokenValue: refreshToken, isAuthenticated: true });
       return accessToken;
     } catch {
-      await get().logout();
+      // Non-explicit auto-logout — preserve the biometric preference.
+      await get().logout(false);
       return null;
     }
   },
@@ -157,6 +169,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     //
     // If biometric is NOT enabled, stale tokens are cleared and the user must
     // sign in with their credentials as before.
+    //
+    // biometricEnabled is declared outside the try so the catch block can still
+    // use it when an error occurs mid-way (e.g. authenticateAsync throws).
+    let biometricEnabled = false;
     try {
       const [accessToken, refreshTokenValue, userJson, biometricFlag] = await Promise.all([
         SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
@@ -165,7 +181,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY),
       ]);
 
-      const biometricEnabled = biometricFlag === 'true';
+      biometricEnabled = biometricFlag === 'true';
 
       if (biometricEnabled && refreshTokenValue) {
         // Stored session exists + biometric is turned on → show the system prompt.
@@ -189,8 +205,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
 
         // Cancelled or failed — leave tokens in SecureStore for retry via login
-        // screen, but do not restore the session.
-        set({ biometricEnabled: true, isHydrating: false });
+        // screen, but do not restore the session. Expose refreshTokenValue in
+        // state so the login screen biometric button knows a session exists.
+        set({ biometricEnabled: true, refreshTokenValue, accessToken, isHydrating: false });
         return;
       }
 
@@ -203,8 +220,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       ]);
       set({ biometricEnabled, isHydrating: false });
     } catch {
-      // Unexpected error (e.g. SecureStore unavailable) — fail safe.
-      set({ isHydrating: false });
+      // Unexpected error (e.g. SecureStore unavailable or authenticateAsync threw).
+      // Preserve whatever biometricEnabled value we managed to read before the error.
+      set({ biometricEnabled, isHydrating: false });
     }
   },
 
@@ -290,6 +308,7 @@ setAuthStoreBridge({
   getAccessToken: () => useAuthStore.getState().accessToken,
   refreshToken: () => useAuthStore.getState().refreshToken(),
   clearSession: async () => {
-    await useAuthStore.getState().logout();
+    // Auto-logout from interceptor — preserve biometric preference.
+    await useAuthStore.getState().logout(false);
   },
 });

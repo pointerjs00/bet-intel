@@ -33,6 +33,10 @@ export default function LoginScreen() {
   const { showToast } = useToast();
   const login = useAuthStore((state) => state.login);
   const biometricEnabled = useAuthStore((state) => state.biometricEnabled);
+  // Only show the biometric button when there is actually a stored session to
+  // restore — prevents the button appearing after a logout where tokens were
+  // cleared but the biometric preference was preserved.
+  const hasStoredSession = useAuthStore((state) => !!state.refreshTokenValue);
   const loginWithBiometric = useAuthStore((state) => state.loginWithBiometric);
 
   const [isEmailLoading, setIsEmailLoading] = useState(false);
@@ -192,7 +196,7 @@ export default function LoginScreen() {
           </Card>
         </Animated.View>
 
-        {biometricEnabled && biometricAvailable && (
+        {biometricEnabled && biometricAvailable && hasStoredSession && (
           <Animated.View entering={FadeInDown.delay(40).duration(180).springify()} style={styles.biometricWrap}>
             <Pressable
               disabled={isBiometricLoading}
