@@ -68,9 +68,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [hydrate]);
 
   useEffect(() => {
-    // Wait until the navigation container has mounted before attempting any navigation.
-    // Without this guard, router.replace() throws "Attempted to navigate before mounting
-    // the Root Layout component" on the first render.
+    // rootNavState?.key is only set once the Stack navigator has mounted.
+    // We must wait for it before calling router.replace() to avoid the
+    // "Attempted to navigate before mounting the Root Layout" error.
     if (!rootNavState?.key) return;
     if (isHydrating) return;
 
@@ -82,7 +82,6 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
 
     if (isAuthenticated && inAuthGroup) {
-      // Check if onboarding is needed before going to tabs
       void AsyncStorage.getItem(ONBOARDING_DONE_KEY).then((done) => {
         if (!done) {
           router.replace('/onboarding');
@@ -91,50 +90,39 @@ function AuthGate({ children }: { children: React.ReactNode }) {
         }
       });
     }
-
-    if (isAuthenticated && !inAuthGroup && !inOnboarding) {
-      // Already authenticated + not on onboarding — no action needed
-    }
   }, [isAuthenticated, isHydrating, rootNavState?.key, router, segments]);
 
-  if (isHydrating) {
-    return (
-      <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
-        <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContent}>
-          <Image
-            source={require('../assets/logo-no-bg.png')}
-            style={styles.loadingIcon}
-            resizeMode="contain"
-          />
-          <Text style={[styles.loadingTitle, { color: colors.textPrimary }]}>BetIntel</Text>
-        </Animated.View>
-        <Animated.View entering={FadeInDown.delay(200).duration(300)}>
-          <ActivityIndicator color={colors.primary} size="small" />
-        </Animated.View>
-      </View>
-    );
-  }
-
-  // While a redirect to login is pending (segments haven't moved to auth yet),
-  // keep the loading screen visible so no authenticated content flashes.
+  // Determine whether to show the loading overlay.
+  // We show it while hydrating OR while waiting for a redirect to (auth) to complete.
   const inAuthGroup = segments[0] === '(auth)';
   const inOnboarding = segments[0] === 'onboarding';
-  if (!isAuthenticated && !inAuthGroup && !inOnboarding) {
-    return (
-      <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
-        <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContent}>
-          <Image
-            source={require('../assets/logo-no-bg.png')}
-            style={styles.loadingIcon}
-            resizeMode="contain"
-          />
-          <Text style={[styles.loadingTitle, { color: colors.textPrimary }]}>BetIntel</Text>
-        </Animated.View>
-      </View>
-    );
-  }
+  const showOverlay = isHydrating || (!isAuthenticated && !inAuthGroup && !inOnboarding);
 
-  return <>{children}</>;
+  // Always render children so the Stack navigator mounts immediately and
+  // rootNavState?.key becomes available for the navigation effect above.
+  // The overlay is rendered on top to prevent flashing protected content.
+  return (
+    <>
+      {children}
+      {showOverlay && (
+        <View style={[StyleSheet.absoluteFill, styles.loadingScreen, { backgroundColor: colors.background }]}>
+          <Animated.View entering={FadeIn.duration(300)} style={styles.loadingContent}>
+            <Image
+              source={require('../assets/logo-no-bg.png')}
+              style={styles.loadingIcon}
+              resizeMode="contain"
+            />
+            <Text style={[styles.loadingTitle, { color: colors.textPrimary }]}>BetIntel</Text>
+          </Animated.View>
+          {isHydrating && (
+            <Animated.View entering={FadeInDown.delay(200).duration(300)}>
+              <ActivityIndicator color={colors.primary} size="small" />
+            </Animated.View>
+          )}
+        </View>
+      )}
+    </>
+  );
 }
 
 export default function RootLayout() {
