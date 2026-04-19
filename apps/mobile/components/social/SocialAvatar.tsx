@@ -1,6 +1,8 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../theme/useTheme';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface SocialAvatarProps {
   name: string;
@@ -11,9 +13,17 @@ interface SocialAvatarProps {
 /** Compact avatar with initials fallback for social cards. */
 export function SocialAvatar({ name, avatarUrl, size = 44 }: SocialAvatarProps) {
   const { colors } = useTheme();
+  const resolvedUri = resolveMediaUrl(avatarUrl);
 
-  if (avatarUrl) {
-    return <Image source={{ uri: avatarUrl }} style={[styles.image, { height: size, width: size }]} />;
+  if (resolvedUri) {
+    return (
+      <Image
+        source={{ uri: resolvedUri }}
+        cachePolicy="disk"
+        contentFit="cover"
+        style={[styles.image, { height: size, width: size }]}
+      />
+    );
   }
 
   const initials = name

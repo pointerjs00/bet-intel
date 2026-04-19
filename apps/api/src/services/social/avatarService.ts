@@ -22,7 +22,6 @@ export async function uploadAvatar(
   userId: string,
   base64Data: string,
   mimeType: string,
-  appUrl: string,
 ): Promise<PublicUser> {
   if (!ALLOWED_MIMES.includes(mimeType as (typeof ALLOWED_MIMES)[number])) {
     throw Object.assign(new Error('Tipo de ficheiro não suportado. Usa JPEG, PNG ou WebP.'), {
@@ -57,7 +56,9 @@ export async function uploadAvatar(
 
   await fs.writeFile(filePath, buffer);
 
-  const avatarUrl = `${appUrl.replace(/\/$/, '')}/uploads/avatars/${filename}`;
+  // Store as relative path so clients resolve against their current API origin.
+  // This prevents stale absolute URLs when the host changes (dev ↔ prod, IP changes, etc.).
+  const avatarUrl = `/uploads/avatars/${filename}`;
 
   const updated = await prisma.user.update({
     where: { id: userId },

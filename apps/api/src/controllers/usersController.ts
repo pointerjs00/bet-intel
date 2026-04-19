@@ -80,8 +80,7 @@ export async function uploadAvatarHandler(req: Request, res: Response): Promise<
   }
 
   try {
-    const appUrl = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 3000}`;
-    const user = await uploadAvatar(requireUserId(req), base64, mimeType, appUrl);
+    const user = await uploadAvatar(requireUserId(req), base64, mimeType);
     ok(res, user);
   } catch (err) {
     fail(res, err);

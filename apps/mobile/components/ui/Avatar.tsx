@@ -1,6 +1,8 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { useTheme } from '../../theme/useTheme';
+import { resolveMediaUrl } from '../../utils/media';
 
 interface AvatarProps {
   uri?: string | null;
@@ -24,6 +26,7 @@ export function Avatar({ uri, name, size = 'md', showOnline, style }: AvatarProp
   const { colors } = useTheme();
   const dimension = SIZES[size];
   const fontSize = FONT_SIZES[size];
+  const resolvedUri = resolveMediaUrl(uri);
 
   return (
     <View
@@ -33,9 +36,11 @@ export function Avatar({ uri, name, size = 'md', showOnline, style }: AvatarProp
         style,
       ]}
     >
-      {uri ? (
+      {resolvedUri ? (
         <Image
-          source={{ uri }}
+          source={{ uri: resolvedUri }}
+          cachePolicy="disk"
+          contentFit="cover"
           style={[
             styles.image,
             { width: dimension, height: dimension, borderRadius: dimension / 2 },
