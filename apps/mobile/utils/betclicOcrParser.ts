@@ -87,6 +87,9 @@ function isNoise(line: string): boolean {
   if (/\bperna\b/i.test(lower)) return true;        // "perna" never in team names/markets
   if (/^fazes\b/i.test(lower)) return true;          // 2nd-person PT verb, never a selection
   if (/^costas[!?.]*$/i.test(lower)) return true;    // standalone word from celebration text
+  // Repeated-character OCR artifacts from decorative/graphic text (e.g. "OOO", "OOOO")
+  // These come from ML Kit reading stylised "BOOM" / "DOOOM" celebration banners.
+  if (/^(.)\1{2,}[!?]*$/.test(lower.replace(/\s/g, ''))) return true;
   return false;
 }
 
@@ -630,6 +633,24 @@ function extractSelectionBlocks(
     }
 
     const selTeam = extractTeamFromSelection(pair.selection);
+
+    // Compound "Team A ou Team B vence ..." boost selections contain both teams
+    // in the selection text itself. Extract them directly instead of relying on
+    // the opponent-extraction mechanism (which can be tripped by OCR artifacts
+    // from the celebration overlay graphic).
+    const ouVenceInSelection = pair.selection.match(/^(.+?)\s+ou\s+(.+?)\s+vence\b/i);
+    if (ouVenceInSelection) {
+      const teamA = ouVenceInSelection[1]!.trim();
+      const teamB = ouVenceInSelection[2]!.trim();
+      // teamA is always the home team (Betclic lists them home-first in boosts)
+      return {
+        selection: pair.selection,
+        market: pair.market,
+        homeTeam: resolveTeamAlias(teamA),
+        awayTeam: resolveTeamAlias(teamB),
+        eventDate,
+      };
+    }
 
     // For non-team selections (BTTS, Over/Under, etc.) the selection text is a
     // market phrase, not a team name. Both home and away must come from the
