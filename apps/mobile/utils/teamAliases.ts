@@ -502,6 +502,24 @@ export function inferCompetition(homeTeam: string, awayTeam: string): string {
   return '';
 }
 
+const COMPETITION_NAME_ALIASES: Record<string, string> = {
+  'Primeira Liga':        'Liga Portugal Betclic',
+  'Liga Portugal':        'Liga Portugal Betclic',
+  'Liga NOS':             'Liga Portugal Betclic',
+  'Liga Portugal SABSEG': 'Liga Portugal 2',
+  'Liga 3 Portugal':      'Liga 3',
+  'LaLiga':               'La Liga',
+  'La Liga EA Sports':    'La Liga',
+  'LaLiga Hypermotion':   'La Liga 2',
+  'Carabao Cup':          'EFL Cup (Carabao Cup)',
+  'EFL Cup':              'EFL Cup (Carabao Cup)',
+  'League Cup':           'EFL Cup (Carabao Cup)',
+};
+
+export function normalizeCompetitionName(name: string): string {
+  return COMPETITION_NAME_ALIASES[name] ?? name;
+}
+
 // Normalise a string for lookup: lowercase, strip accents
 function normalise(s: string): string {
   return s

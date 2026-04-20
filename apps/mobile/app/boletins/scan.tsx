@@ -24,7 +24,7 @@ import { useToast } from '../../components/ui/Toast';
 import { useTheme } from '../../theme/useTheme';
 import type { BetclicPdfResult } from '../../services/importService';
 import { scanImageAiRequest, storeScanFeedbackContext } from '../../services/importService';
-import { resolveTeamAlias, inferCompetition } from '../../utils/teamAliases';
+import { resolveTeamAlias, inferCompetition, normalizeCompetitionName } from '../../utils/teamAliases';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -150,9 +150,8 @@ export default function ScanScreen() {
             const home = resolveTeamAlias(item.homeTeam);
             const away = resolveTeamAlias(item.awayTeam);
             const competition =
-              item.competition && item.competition !== 'Competição desconhecida'
-                ? item.competition
-                : inferCompetition(home, away) || item.competition;
+              inferCompetition(home, away) ||
+              normalizeCompetitionName(item.competition);
             return { ...item, homeTeam: home, awayTeam: away, competition };
           }),
         })),
