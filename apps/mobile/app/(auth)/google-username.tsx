@@ -6,8 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { googleCompleteRegistrationSchema } from '@betintel/shared';
-import type { z } from 'zod';
+import { usernameSchema } from '@betintel/shared';
+import { z } from 'zod';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -17,8 +17,11 @@ import { apiClient } from '../../services/apiClient';
 import { useToast } from '../../components/ui/Toast';
 import { useAuthStore } from '../../stores/authStore';
 
-const formSchema = googleCompleteRegistrationSchema.extend({
-  displayName: googleCompleteRegistrationSchema.shape.username.optional(),
+// Only validate the user-entered fields — tempToken comes from URL params and
+// is not registered in the form, so including it in the schema causes silent
+// validation failures (handleSubmit never fires).
+const formSchema = z.object({
+  username: usernameSchema,
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -44,9 +47,7 @@ export default function GoogleUsernameScreen() {
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      tempToken: tempToken ?? '',
       username: '',
-      displayName: '',
     },
   });
 
@@ -73,10 +74,14 @@ export default function GoogleUsernameScreen() {
   }, [username]);
 
   const onSubmit = handleSubmit(async (values) => {
+    if (!tempToken) {
+      showToast('Sessão inválida. Tenta fazer login com Google novamente.', 'error');
+      return;
+    }
     try {
       setIsSubmitting(true);
       const response = await apiClient.post('/auth/google/complete-registration', {
-        tempToken: values.tempToken,
+        tempToken,
         username: values.username,
       });
 
