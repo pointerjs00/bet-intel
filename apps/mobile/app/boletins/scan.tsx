@@ -119,9 +119,9 @@ export default function ScanScreen() {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[ScanScreen] AI scan error:', msg);
       showToast(
-        __DEV__
-          ? `Erro: ${msg}`
-          : 'Erro ao processar imagem. Verifica a tua ligação e tenta novamente.',
+        msg.includes('timeout')
+          ? 'A análise demorou demasiado. Tenta novamente.'
+          : `Erro: ${msg}`,
         'error',
       );
     } finally {

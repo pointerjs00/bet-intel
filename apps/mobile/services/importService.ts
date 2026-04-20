@@ -68,6 +68,7 @@ export async function scanImageAiRequest(
   const response = await apiClient.post<ApiEnvelope<BetclicPdfResult>>(
     '/boletins/import/scan-ai',
     { imageBase64, mimeType },
+    { timeout: 60000 }, // Gemini Vision can take up to 30s
   );
   return response.data.data;
 }
