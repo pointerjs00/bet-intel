@@ -81,8 +81,9 @@ export async function parseImageWithGemini(imageBase64: string, mimeType: string
     generationConfig: {
       responseMimeType: 'application/json',
       // Disable thinking for speed — simple extraction doesn't need reasoning
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       thinkingConfig: { thinkingBudget: 0 },
-    },
+    } as any,
   });
 
   logger.info('Sending image to Gemini Vision for parsing', {
