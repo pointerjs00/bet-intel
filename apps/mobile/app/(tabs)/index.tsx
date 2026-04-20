@@ -911,7 +911,7 @@ export default function HomeScreen() {
             <View style={styles.loadMoreFooter}>
               <ActivityIndicator color={colors.primary} size="small" />
             </View>
-          ) : boletinsQuery.isLoading ? null : (
+          ) : boletinsQuery.isLoading || boletins.length === 0 ? null : (
             <View style={styles.footerBar}>
               <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
             </View>
