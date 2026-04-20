@@ -45,8 +45,9 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
           'You are a bet slip parser for a Portuguese sports betting app.',
           'Extract all data from bet slip screenshots and return structured JSON only.',
           'Return official international team names (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão").',
-          'Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga").',
-        ].join(' '),
+          'Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga").',          'Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING".',
+          'In an accumulator a bet can be LOST overall because ONE selection lost — the others that won must still be marked "WON".',
+          'Look for visual indicators (green check, red X, grey icon) next to each selection to determine its individual result.',        ].join(' '),
       },
       {
         role: 'user',
@@ -63,8 +64,9 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
             text: [
               'Extract all bet slip data. Return JSON only matching this schema:',
               '{"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING",',
-              '"items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO"}]}]}',
-              'status must be "WON", "LOST", or "PENDING". sport must be one of: FOOTBALL BASKETBALL TENNIS HANDBALL VOLLEYBALL HOCKEY RUGBY AMERICAN_FOOTBALL BASEBALL OTHER.',
+              '"items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO","result":"PENDING"}]}]}',
+              'Boletin status must be "WON", "LOST", or "PENDING". Item result must be "WON", "LOST", "VOID", or "PENDING" — set each item independently.',
+              'sport must be one of: FOOTBALL BASKETBALL TENNIS HANDBALL VOLLEYBALL HOCKEY RUGBY AMERICAN_FOOTBALL BASEBALL OTHER.',
               'If no bets found: {"boletins":[],"error":"reason"}',
             ].join(' '),
           },

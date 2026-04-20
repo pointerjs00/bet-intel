@@ -12,6 +12,8 @@ export interface AIParsedItem {
   selection: string;
   oddValue: number;
   eventDate?: string;
+  /** Individual selection result — only present on resolved bets */
+  result?: 'WON' | 'LOST' | 'VOID' | 'PENDING';
 }
 
 export interface AIParsedBoletin {
@@ -53,15 +55,16 @@ const SYSTEM_PROMPT = `Extract bet slip data from this Betclic Portugal screensh
 
 Rules:
 - Text is in Portuguese. Odds are decimal (e.g. 1.50). Dates are DD/MM/YYYY.
-- status: "WON", "LOST", or "PENDING"
+- Boletin status: "WON", "LOST", or "PENDING"
 - sport: FOOTBALL, BASKETBALL, TENNIS, HANDBALL, VOLLEYBALL, HOCKEY, RUGBY, AMERICAN_FOOTBALL, BASEBALL, or OTHER
 - eventDate and betDate: ISO 8601 format
 - Extract ALL selections from accumulators
+- IMPORTANT: Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING". In an accumulator a bet can be LOST overall because ONE selection lost — the others that won should still be marked "WON". Look for visual indicators (green check, red X, grey icon) next to each selection to determine its individual result. Only set "PENDING" if the event has not yet taken place.
 - IMPORTANT: Return official international team names, not Portuguese translations (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão", "Olympique Lyon" not "Lião", "Bayern Munich" not "Baviera")
 - IMPORTANT: Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga", "Liga Portugal"). Infer from teams if not shown.
 
 JSON schema:
-{"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING","items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO"}]}]}
+{"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING","items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO","result":"PENDING"}]}]}
 
 If no bets found: {"boletins":[],"error":"reason"}`;
 
@@ -105,6 +108,7 @@ export function normalizeParsedResult(parsed: {
       selection: item.selection || 'Seleção desconhecida',
       oddValue: typeof item.oddValue === 'number' && item.oddValue > 1 ? item.oddValue : 0,
       eventDate: item.eventDate || undefined,
+      result: (['WON', 'LOST', 'VOID', 'PENDING'].includes(item.result ?? '') ? item.result : 'PENDING') as 'WON' | 'LOST' | 'VOID' | 'PENDING',
     }));
 
     const hasError = items.length === 0 || b.stake <= 0;

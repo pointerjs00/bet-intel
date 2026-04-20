@@ -32,6 +32,8 @@ const bulkImportItemSchema = z.object({
   market: z.string().min(1),
   selection: z.string().min(1),
   oddValue: z.number().min(1.01).max(1000),
+  /** Per-item result from the AI parse — used to set individual selection outcomes. */
+  result: z.enum(['WON', 'LOST', 'VOID', 'PENDING']).optional(),
 });
 
 const bulkImportBoletinSchema = z.object({
@@ -304,13 +306,31 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
           const createdBoletin = await createBoletin(userId, validated.data);
           imported++;
 
-          // Apply parsed status: set all item results so the boletin
-          // auto-resolves to WON or LOST instead of staying PENDING.
-          if (bet.status === 'WON' || bet.status === 'LOST') {
-            await prisma.boletinItem.updateMany({
+          // Apply individual item results from the AI parse, then resolve the boletin status.
+          // Each item carries its own result (WON/LOST/VOID/PENDING) — do NOT use the boletin
+          // status to stamp all items, because in an accumulator only one leg may have lost.
+          if (bet.status === 'WON' || bet.status === 'LOST' || bet.status === 'VOID') {
+            const dbItems = await prisma.boletinItem.findMany({
               where: { boletinId: createdBoletin.id },
-              data: { result: bet.status },
+              orderBy: { id: 'asc' },
             });
+
+            for (let i = 0; i < dbItems.length; i++) {
+              const parsedItem = bet.items[i];
+              // Per-item result from AI; fall back to boletin status only for single-leg bets
+              const itemResult: 'WON' | 'LOST' | 'VOID' | 'PENDING' =
+                parsedItem?.result && ['WON', 'LOST', 'VOID', 'PENDING'].includes(parsedItem.result)
+                  ? (parsedItem.result as 'WON' | 'LOST' | 'VOID' | 'PENDING')
+                  : bet.items.length === 1
+                    ? (bet.status as 'WON' | 'LOST' | 'VOID')
+                    : 'PENDING';
+
+              await prisma.boletinItem.update({
+                where: { id: dbItems[i]!.id },
+                data: { result: itemResult },
+              });
+            }
+
             await prisma.boletin.update({
               where: { id: createdBoletin.id },
               data: {

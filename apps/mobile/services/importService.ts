@@ -16,6 +16,8 @@ export interface ParsedBetclicItem {
   oddValue: number;
   /** ISO date string for the individual event (may differ from boletin betDate) */
   eventDate?: string;
+  /** Individual selection result — only present on resolved bets */
+  result?: 'WON' | 'LOST' | 'VOID' | 'PENDING';
 }
 
 export interface ParsedBetclicBoletin {
