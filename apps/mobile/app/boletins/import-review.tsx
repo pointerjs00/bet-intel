@@ -405,8 +405,8 @@ export default function ImportReviewScreen() {
         ).catch(() => { /* silent — never block the user */ });
       }
 
-      router.back();
-      // Navigate back to profile (the router.back() from review goes to profile)
+      // Go back to the scan screen so the user can import another screenshot
+      router.replace('/boletins/scan');
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : 'Erro de ligação. Tenta novamente';
       showToast(msg, 'error');

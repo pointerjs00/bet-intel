@@ -158,7 +158,7 @@ export default function ScanScreen() {
     } catch (err) {
       hapticError();
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[ScanScreen] AI scan error:', msg);
+      console.error('[ScanScreen] scan error:', msg);
       showToast(
         msg.includes('timeout')
           ? 'A análise demorou demasiado. Tenta novamente.'
@@ -229,11 +229,11 @@ export default function ScanScreen() {
         {!imageUri && (
           <Animated.View entering={FadeInUp.duration(300).springify()} style={[styles.hero, { backgroundColor: `${colors.primary}12` }]}>
             <View style={[styles.heroIconWrap, { backgroundColor: `${colors.primary}20` }]}>
-              <MaterialCommunityIcons name="robot-outline" size={44} color={colors.primary} />
+              <MaterialCommunityIcons name="barcode-scan" size={44} color={colors.primary} />
             </View>
-            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Leitura com IA</Text>
+            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Importar Screenshot</Text>
             <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-              Seleciona um screenshot de uma aposta e a IA do BetIntel analisa e extrai os dados automaticamente.
+              Seleciona um screenshot de uma aposta Betclic e o BetIntel extrai os dados automaticamente.
             </Text>
             <View style={styles.steps}>
               {STEPS.map((step, i) => (
@@ -294,8 +294,8 @@ export default function ScanScreen() {
 
             {!parseResult && (
               <Button
-                title={isProcessing ? 'A analisar com IA...' : 'Analisar aposta'}
-                leftSlot={!isProcessing ? <MaterialCommunityIcons name="robot-outline" size={20} color="#fff" /> : undefined}
+                title={isProcessing ? 'A analisar...' : 'Analisar aposta'}
+                leftSlot={!isProcessing ? <MaterialCommunityIcons name="text-recognition" size={20} color="#fff" /> : undefined}
                 loading={isProcessing}
                 onPress={processImage}
                 disabled={isProcessing}
@@ -381,7 +381,7 @@ export default function ScanScreen() {
         )}
       </ScrollView>
 
-      {/* AI Disclaimer modal */}
+      {/* Disclaimer modal */}
       <Modal
         visible={disclaimerVisible}
         transparent
@@ -392,12 +392,12 @@ export default function ScanScreen() {
         <View style={styles.disclaimerBackdrop}>
           <View style={[styles.disclaimerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={[styles.disclaimerIconWrap, { backgroundColor: `${colors.warning}18` }]}>
-              <MaterialCommunityIcons name="robot-excited-outline" size={36} color={colors.warning} />
+              <MaterialCommunityIcons name="information-outline" size={36} color={colors.warning} />
             </View>
-            <Text style={[styles.disclaimerTitle, { color: colors.textPrimary }]}>Leitura por IA</Text>
+            <Text style={[styles.disclaimerTitle, { color: colors.textPrimary }]}>Leitura automática</Text>
             <Text style={[styles.disclaimerBody, { color: colors.textSecondary }]}>
-              {'A análise é feita por inteligência artificial e os resultados '}
-              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'podem não ser 100% precisos'}</Text>
+              {'A leitura automática de screenshots '}
+              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'pode não ser 100% precisa'}</Text>
               {'.'}
               {'\n\n'}
               {'Verifica sempre os dados antes de importar — cotas, seleções e datas devem ser confirmadas manualmente. O BetIntel não se responsabiliza por erros de leitura automática.'}
@@ -471,7 +471,7 @@ export default function ScanScreen() {
 
 const STEPS: Array<{ icon: 'image-outline' | 'text-recognition' | 'check-circle-outline'; label: string }> = [
   { icon: 'image-outline', label: 'Escolhe o screenshot' },
-  { icon: 'text-recognition', label: 'IA analisa a aposta' },
+  { icon: 'text-recognition', label: 'Análise automática' },
   { icon: 'check-circle-outline', label: 'Revê e importa' },
 ];
 
