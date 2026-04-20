@@ -919,10 +919,10 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
         refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
-        windowSize={21}
-        maxToRenderPerBatch={16}
-        updateCellsBatchingPeriod={10}
-        initialNumToRender={12}
+        windowSize={101}
+        maxToRenderPerBatch={20}
+        updateCellsBatchingPeriod={5}
+        initialNumToRender={15}
       />
 
       {/* Notification bubble overlay */}
