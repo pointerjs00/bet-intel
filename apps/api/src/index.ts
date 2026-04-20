@@ -28,6 +28,9 @@ import { seed as seedReferenceData } from './prisma/seed';
 
 const app: express.Application = express();
 
+// Trust Nginx reverse proxy (needed for rate limiting and IP detection)
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
