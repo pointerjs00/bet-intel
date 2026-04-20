@@ -57,6 +57,8 @@ Rules:
 - sport: FOOTBALL, BASKETBALL, TENNIS, HANDBALL, VOLLEYBALL, HOCKEY, RUGBY, AMERICAN_FOOTBALL, BASEBALL, or OTHER
 - eventDate and betDate: ISO 8601 format
 - Extract ALL selections from accumulators
+- IMPORTANT: Return official international team names, not Portuguese translations (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão", "Olympique Lyon" not "Lião", "Bayern Munich" not "Baviera")
+- IMPORTANT: Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga", "Liga Portugal"). Infer from teams if not shown.
 
 JSON schema:
 {"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING","items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO"}]}]}
@@ -78,6 +80,8 @@ export async function parseImageWithGemini(imageBase64: string, mimeType: string
     ],
     generationConfig: {
       responseMimeType: 'application/json',
+      // Disable thinking for speed — simple extraction doesn't need reasoning
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 

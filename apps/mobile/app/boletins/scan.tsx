@@ -23,6 +23,7 @@ import { useToast } from '../../components/ui/Toast';
 import { useTheme } from '../../theme/useTheme';
 import type { BetclicPdfResult } from '../../services/importService';
 import { scanImageAiRequest } from '../../services/importService';
+import { resolveTeamAlias, inferCompetition } from '../../utils/teamAliases';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
@@ -105,17 +106,34 @@ export default function ScanScreen() {
 
       // Send to backend AI parser
       const result = await scanImageAiRequest(base64, mimeType);
-      setParseResult(result);
 
-      if (result.boletins.length === 0) {
+      // Post-process: resolve Portuguese team name aliases + infer missing competitions
+      const processed: BetclicPdfResult = {
+        ...result,
+        boletins: result.boletins.map((b) => ({
+          ...b,
+          items: b.items.map((item) => {
+            const home = resolveTeamAlias(item.homeTeam);
+            const away = resolveTeamAlias(item.awayTeam);
+            const competition =
+              item.competition && item.competition !== 'Competição desconhecida'
+                ? item.competition
+                : inferCompetition(home, away) || item.competition;
+            return { ...item, homeTeam: home, awayTeam: away, competition };
+          }),
+        })),
+      };
+      setParseResult(processed);
+
+      if (processed.boletins.length === 0) {
         hapticError();
         showToast('Nenhuma aposta encontrada. Confirma que é um screenshot de uma aposta.', 'error');
-      } else if (result.errorCount > 0) {
+      } else if (processed.errorCount > 0) {
         hapticLight();
         showToast('Aposta lida com alguns erros. Revê os dados antes de importar.', 'warning');
       } else {
         hapticSuccess();
-        showToast(`${result.totalFound} aposta(s) encontrada(s)!`, 'success');
+        showToast(`${processed.totalFound} aposta(s) encontrada(s)!`, 'success');
       }
     } catch (err) {
       hapticError();
