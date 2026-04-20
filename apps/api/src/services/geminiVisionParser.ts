@@ -59,7 +59,8 @@ Rules:
 - sport: FOOTBALL, BASKETBALL, TENNIS, HANDBALL, VOLLEYBALL, HOCKEY, RUGBY, AMERICAN_FOOTBALL, BASEBALL, or OTHER
 - eventDate and betDate: ISO 8601 format
 - Extract ALL selections from accumulators
-- IMPORTANT: Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING". In an accumulator a bet can be LOST overall because ONE selection lost — the others that won should still be marked "WON". Look for visual indicators (green check, red X, grey icon) next to each selection to determine its individual result. Only set "PENDING" if the event has not yet taken place.
+- IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot — do NOT translate them to English. Examples: keep "Resultado (Tempo Regulamentar)" not "Match Result (Regular Time)", keep "SC Braga / Empate & Acima de 1,5" not "SC Braga / Draw & Over 1.5 Goals", keep "Resultado duplo/Golos - acima/abaixo" not "Double Chance/Goals - over/under".
+- IMPORTANT: Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING". On Betclic screenshots, a green filled circle with a checkmark (✓) next to a selection means WON; a red filled circle with an X means LOST; a grey or missing icon means PENDING. The overall bet being "Perdida" does NOT mean every selection lost — in an accumulator only ONE leg needs to lose. Read each selection's individual icon carefully and set its result independently.
 - IMPORTANT: Return official international team names, not Portuguese translations (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão", "Olympique Lyon" not "Lião", "Bayern Munich" not "Baviera")
 - IMPORTANT: Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga", "Liga Portugal"). Infer from teams if not shown.
 
