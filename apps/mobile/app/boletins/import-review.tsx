@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -7,6 +7,9 @@ import {
   Text,
   TextInput,
   View,
+  KeyboardAvoidingView,
+  Platform,
+  Animated as RNAnimated,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -43,6 +46,9 @@ import {
   submitScanFeedbackRequest,
 } from '../../services/importService';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
+import { NumericKeyboard } from '../../components/ui/NumericKeyboard';
+import { useMarkets } from '../../services/referenceService';
+import { humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -81,11 +87,15 @@ function formatParsedDate(iso: string): string {
 function formatSelectionDate(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString('pt-PT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    }) + ' ' + d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+    return (
+      d.toLocaleDateString('pt-PT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }) +
+      ' ' +
+      d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+    );
   } catch {
     return '—';
   }
@@ -108,6 +118,13 @@ interface ItemEdits {
 function buildEditKey(boletinIdx: number, itemIdx: number): string {
   return `${boletinIdx}-${itemIdx}`;
 }
+
+// ─── Numeric keyboard focus state ────────────────────────────────────────────
+
+type NumericFocusTarget =
+  | { kind: 'odd'; boletinIdx: number; itemIdx: number }
+  | { kind: 'stake'; boletinIdx: number }
+  | null;
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
@@ -161,6 +178,15 @@ export default function ImportReviewScreen() {
     return initial;
   });
 
+  // Per-boletin stake edits
+  const [stakeEdits, setStakeEdits] = useState<Map<number, string>>(() => {
+    const initial = new Map<number, string>();
+    boletins.forEach((b, bi) => {
+      if (b.stake != null) initial.set(bi, String(b.stake));
+    });
+    return initial;
+  });
+
   // Per-item result overrides — seeded from AI parse, fully user-editable
   type ItemResult = 'WON' | 'LOST' | 'VOID' | 'PENDING';
   const RESULT_CYCLE: ItemResult[] = ['PENDING', 'WON', 'LOST', 'VOID'];
@@ -177,18 +203,67 @@ export default function ImportReviewScreen() {
     return initial;
   });
 
-  const getItemResult = useCallback((boletinIdx: number, itemIdx: number, fallback: string): ItemResult => {
-    return itemResults.get(buildEditKey(boletinIdx, itemIdx)) ?? (fallback as ItemResult) ?? 'PENDING';
-  }, [itemResults]);
+  // ── Custom numeric keyboard state ──────────────────────────────────────────
+  const [numericFocus, setNumericFocus] = useState<NumericFocusTarget>(null);
 
-  const cycleItemResult = useCallback((boletinIdx: number, itemIdx: number, currentResult: ItemResult) => {
-    const next = RESULT_CYCLE[(RESULT_CYCLE.indexOf(currentResult) + 1) % RESULT_CYCLE.length]!;
-    setItemResults((prev) => {
-      const next2 = new Map(prev);
-      next2.set(buildEditKey(boletinIdx, itemIdx), next);
-      return next2;
-    });
-  }, []);
+  const numericKeyboardValue = useMemo(() => {
+    if (!numericFocus) return '';
+    if (numericFocus.kind === 'stake') {
+      return stakeEdits.get(numericFocus.boletinIdx) ?? '';
+    }
+    const edits = itemEdits.get(buildEditKey(numericFocus.boletinIdx, numericFocus.itemIdx));
+    return edits?.oddValue ?? '';
+  }, [numericFocus, stakeEdits, itemEdits]);
+
+  const handleNumericChange = useCallback(
+    (text: string) => {
+      if (!numericFocus) return;
+      if (numericFocus.kind === 'stake') {
+        setStakeEdits((prev) => {
+          const next = new Map(prev);
+          next.set(numericFocus.boletinIdx, text);
+          return next;
+        });
+      } else {
+        setItemEdits((prev) => {
+          const next = new Map(prev);
+          const key = buildEditKey(numericFocus.boletinIdx, numericFocus.itemIdx);
+          const existing = next.get(key);
+          if (existing) next.set(key, { ...existing, oddValue: text });
+          return next;
+        });
+      }
+    },
+    [numericFocus],
+  );
+
+  const dismissNumericKeyboard = useCallback(() => setNumericFocus(null), []);
+
+  // ── Pickers ────────────────────────────────────────────────────────────────
+  const getItemResult = useCallback(
+    (boletinIdx: number, itemIdx: number, fallback: string): ItemResult => {
+      return (
+        itemResults.get(buildEditKey(boletinIdx, itemIdx)) ??
+        ((fallback as ItemResult) ?? 'PENDING')
+      );
+    },
+    [itemResults],
+  );
+
+  const cycleItemResult = useCallback(
+    (boletinIdx: number, itemIdx: number, currentResult: ItemResult) => {
+      const next =
+        RESULT_CYCLE[
+          (RESULT_CYCLE.indexOf(currentResult) + 1) % RESULT_CYCLE.length
+        ]!;
+      setItemResults((prev) => {
+        const next2 = new Map(prev);
+        next2.set(buildEditKey(boletinIdx, itemIdx), next);
+        return next2;
+      });
+    },
+    [],
+  );
 
   // Competition picker modal state
   const [competitionPickerTarget, setCompetitionPickerTarget] = useState<{
@@ -209,19 +284,30 @@ export default function ImportReviewScreen() {
     side: 'home' | 'away';
   } | null>(null);
 
-  const getItemEdit = useCallback((boletinIdx: number, itemIdx: number): ItemEdits => {
-    return itemEdits.get(buildEditKey(boletinIdx, itemIdx)) ?? {
-      sport: 'FOOTBALL',
-      competition: '',
-      homeTeam: '',
-      awayTeam: '',
-      homeTeamImageUrl: null,
-      awayTeamImageUrl: null,
-      market: '',
-      selection: '',
-      oddValue: '',
-    };
-  }, [itemEdits]);
+  // Market picker modal state
+  const [marketPickerTarget, setMarketPickerTarget] = useState<{
+    boletinIdx: number;
+    itemIdx: number;
+  } | null>(null);
+
+  const getItemEdit = useCallback(
+    (boletinIdx: number, itemIdx: number): ItemEdits => {
+      return (
+        itemEdits.get(buildEditKey(boletinIdx, itemIdx)) ?? {
+          sport: 'FOOTBALL',
+          competition: '',
+          homeTeam: '',
+          awayTeam: '',
+          homeTeamImageUrl: null,
+          awayTeamImageUrl: null,
+          market: '',
+          selection: '',
+          oddValue: '',
+        }
+      );
+    },
+    [itemEdits],
+  );
 
   // Sport for the currently open team picker (used to filter teams)
   const teamPickerSport = useMemo(() => {
@@ -252,7 +338,7 @@ export default function ImportReviewScreen() {
     const data = teamsQuery.data ?? [];
     const source =
       teamPickerCompetition && !teamsQuery.isLoading && data.length === 0
-        ? (allTeamsQuery.data ?? [])
+        ? allTeamsQuery.data ?? []
         : data;
     return source.map((team) => ({
       label: team.displayName ?? team.name,
@@ -264,7 +350,10 @@ export default function ImportReviewScreen() {
   // Reference data for competition picker — filtered by sport of the target item
   const competitionPickerSport = useMemo(() => {
     if (!competitionPickerTarget) return undefined;
-    const edits = getItemEdit(competitionPickerTarget.boletinIdx, competitionPickerTarget.itemIdx);
+    const edits = getItemEdit(
+      competitionPickerTarget.boletinIdx,
+      competitionPickerTarget.itemIdx,
+    );
     return edits.sport || undefined;
   }, [competitionPickerTarget, getItemEdit]);
 
@@ -293,29 +382,68 @@ export default function ImportReviewScreen() {
     return sections;
   }, [competitionsQuery.data]);
 
-  const updateItemEdit = useCallback((boletinIdx: number, itemIdx: number, patch: Partial<ItemEdits>) => {
-    setItemEdits((prev) => {
-      const next = new Map(prev);
-      const key = buildEditKey(boletinIdx, itemIdx);
-      const existing = next.get(key) ?? {
-        sport: 'FOOTBALL',
-        competition: '',
-        homeTeam: '',
-        awayTeam: '',
-        homeTeamImageUrl: null,
-        awayTeamImageUrl: null,
-        market: '',
-        selection: '',
-        oddValue: '',
-      };
-      next.set(key, { ...existing, ...patch });
-      return next;
-    });
-  }, []);
+  const marketPickerSport = useMemo(() => {
+    if (!marketPickerTarget) return undefined;
+    const edits = getItemEdit(marketPickerTarget.boletinIdx, marketPickerTarget.itemIdx);
+    return (edits.sport as Sport) || Sport.FOOTBALL;
+  }, [marketPickerTarget, getItemEdit]);
+
+  const marketsQuery = useMarkets(marketPickerSport);
+
+  const marketSections = useMemo(() => {
+    const edits = marketPickerTarget
+      ? getItemEdit(marketPickerTarget.boletinIdx, marketPickerTarget.itemIdx)
+      : null;
+    const fHome = edits?.homeTeam ?? '';
+    const fAway = edits?.awayTeam ?? '';
+    const data = marketsQuery.data ?? [];
+    const grouped = new Map<string, typeof data>();
+    for (const m of data) {
+      const cat = m.category ?? 'Outro';
+      if (!grouped.has(cat)) grouped.set(cat, []);
+      grouped.get(cat)!.push(m);
+    }
+    const ORDER = MARKET_CATEGORY_ORDER;
+    const sortedCats = [...grouped.keys()].sort(
+      (a, b) =>
+        (ORDER.indexOf(a) === -1 ? 99 : ORDER.indexOf(a)) -
+        (ORDER.indexOf(b) === -1 ? 99 : ORDER.indexOf(b)),
+    );
+    return sortedCats.map((cat) => ({
+      title: cat,
+      data: (grouped.get(cat) ?? []).map((m) => ({
+        label: fHome && fAway ? humanizeMarket(m.name, fHome, fAway) : m.name,
+        value: m.name,
+      })),
+    }));
+  }, [marketsQuery.data, marketPickerTarget, getItemEdit]);
+
+  const updateItemEdit = useCallback(
+    (boletinIdx: number, itemIdx: number, patch: Partial<ItemEdits>) => {
+      setItemEdits((prev) => {
+        const next = new Map(prev);
+        const key = buildEditKey(boletinIdx, itemIdx);
+        const existing = next.get(key) ?? {
+          sport: 'FOOTBALL',
+          competition: '',
+          homeTeam: '',
+          awayTeam: '',
+          homeTeamImageUrl: null,
+          awayTeamImageUrl: null,
+          market: '',
+          selection: '',
+          oddValue: '',
+        };
+        next.set(key, { ...existing, ...patch });
+        return next;
+      });
+    },
+    [],
+  );
 
   const selectedCount = selected.size;
   const errorCount = boletins.filter((b) => b.parseError).length;
-  const duplicateCount = 0; // Duplicates are detected server-side during bulk import
+  const duplicateCount = 0;
 
   // Shake animation for disabled button
   const shakeX = useSharedValue(0);
@@ -357,7 +485,6 @@ export default function ImportReviewScreen() {
 
   const handleImport = useCallback(async () => {
     if (selectedCount === 0) {
-      // Shake animation
       shakeX.value = withSequence(
         withTiming(-8, { duration: 50 }),
         withTiming(8, { duration: 50 }),
@@ -370,11 +497,12 @@ export default function ImportReviewScreen() {
 
     const selectedBoletins = boletins
       .filter((_, i) => selected.has(i))
-      .map((b, origIdx) => {
-        // Find the original index (before filter) for edit lookups
+      .map((b) => {
         const boletinIdx = boletins.indexOf(b);
+        const stakeOverride = stakeEdits.get(boletinIdx);
         return {
           ...b,
+          stake: stakeOverride ? parseFloat(stakeOverride.replace(',', '.')) || b.stake : b.stake,
           items: b.items.map((item, itemIdx) => {
             const edits = getItemEdit(boletinIdx, itemIdx);
             return {
@@ -387,8 +515,9 @@ export default function ImportReviewScreen() {
               awayTeamImageUrl: edits.awayTeamImageUrl ?? item.awayTeamImageUrl,
               market: edits.market || item.market,
               selection: edits.selection || item.selection,
-              oddValue: edits.oddValue ? parseFloat(edits.oddValue) : item.oddValue,
-              // User-corrected result takes priority over AI result
+              oddValue: edits.oddValue
+                ? parseFloat(edits.oddValue.replace(',', '.'))
+                : item.oddValue,
               result: getItemResult(boletinIdx, itemIdx, item.result ?? 'PENDING'),
             };
           }),
@@ -404,8 +533,6 @@ export default function ImportReviewScreen() {
         showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
       }
 
-      // Fire-and-forget: send AI output + corrected output for fine-tuning data collection.
-      // Only present when the import came from an AI scan (not PDF/API).
       const feedbackCtx = consumeScanFeedbackContext();
       if (feedbackCtx) {
         const correctedOutput: BetclicPdfResult = {
@@ -418,16 +545,29 @@ export default function ImportReviewScreen() {
           feedbackCtx.mimeType,
           feedbackCtx.aiOutput,
           correctedOutput,
-        ).catch(() => { /* silent — never block the user */ });
+        ).catch(() => {});
       }
 
-      // Go back to the scan screen so the user can import another screenshot
       router.replace('/boletins/scan');
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Erro de ligação. Tenta novamente';
+      const msg =
+        error instanceof Error ? error.message : 'Erro de ligação. Tenta novamente';
       showToast(msg, 'error');
     }
-  }, [selectedCount, boletins, selected, bulkImportMutation, router, showToast, shakeX, getItemEdit]);
+  }, [
+    selectedCount,
+    boletins,
+    selected,
+    stakeEdits,
+    bulkImportMutation,
+    router,
+    showToast,
+    shakeX,
+    getItemEdit,
+    getItemResult,
+  ]);
+
+  // ── Render item ────────────────────────────────────────────────────────────
 
   const renderItem = useCallback(
     ({ item, index }: { item: ParsedBetclicBoletin; index: number }) => {
@@ -435,15 +575,23 @@ export default function ImportReviewScreen() {
       const isExpanded = expanded.has(index);
       const firstItem = item.items[0];
       const firstEdits = firstItem ? getItemEdit(index, 0) : null;
+      const stakeDisplay = stakeEdits.get(index) ?? String(item.stake ?? '');
 
       return (
-        <Card
-          style={[
-            styles.betCard,
-            !isSelected && styles.betCardDeselected,
-            { borderLeftColor: isSelected ? (item.parseError ? colors.warning : colors.primary) : colors.border },
-          ]}
-        >
+        <Pressable onPress={dismissNumericKeyboard} style={{ flex: 1 }}>
+          <Card
+            style={[
+              styles.betCard,
+              !isSelected && styles.betCardDeselected,
+              {
+                borderLeftColor: isSelected
+                  ? item.parseError
+                    ? colors.warning
+                    : colors.primary
+                  : colors.border,
+              },
+            ]}
+          >
             {/* Header: checkbox + date + badges — single row */}
             <View style={styles.betCardHeader}>
               <Pressable hitSlop={10} onPress={() => toggleItem(index)}>
@@ -453,13 +601,14 @@ export default function ImportReviewScreen() {
                   color={isSelected ? colors.primary : colors.textMuted}
                 />
               </Pressable>
-              <Text style={[styles.betCardDate, { color: colors.textSecondary }]} numberOfLines={1}>
+              <Text
+                style={[styles.betCardDate, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
                 {formatParsedDate(item.betDate)}
               </Text>
               <View style={styles.betCardBadges}>
-                {item.parseError && (
-                  <Badge label="Erro" variant="warning" />
-                )}
+                {item.parseError && <Badge label="Erro" variant="warning" />}
                 <StatusBadge status={item.status as BoletinStatus} />
               </View>
             </View>
@@ -474,10 +623,14 @@ export default function ImportReviewScreen() {
                     size={20}
                     variant={firstEdits?.sport === 'TENNIS' ? 'player' : 'team'}
                   />
-                  <Text style={[styles.betCardTeams, { color: colors.textPrimary }]} numberOfLines={1}>
+                  <Text
+                    style={[styles.betCardTeams, { color: colors.textPrimary }]}
+                    numberOfLines={1}
+                  >
                     {firstItem.homeTeam}
                   </Text>
-                  {(firstEdits?.awayTeam || (firstItem.awayTeam && firstItem.awayTeam !== 'Desconhecido')) && (
+                  {(firstEdits?.awayTeam ||
+                    (firstItem.awayTeam && firstItem.awayTeam !== 'Desconhecido')) && (
                     <>
                       <Text style={[styles.vsText, { color: colors.textMuted }]}>vs</Text>
                       <TeamBadge
@@ -486,7 +639,10 @@ export default function ImportReviewScreen() {
                         size={20}
                         variant={firstEdits?.sport === 'TENNIS' ? 'player' : 'team'}
                       />
-                      <Text style={[styles.betCardTeams, { color: colors.textPrimary }]} numberOfLines={1}>
+                      <Text
+                        style={[styles.betCardTeams, { color: colors.textPrimary }]}
+                        numberOfLines={1}
+                      >
                         {firstEdits?.awayTeam || firstItem.awayTeam}
                       </Text>
                     </>
@@ -494,7 +650,8 @@ export default function ImportReviewScreen() {
                 </View>
                 {item.items.length > 1 && (
                   <Text style={[styles.betCardMore, { color: colors.textMuted }]}>
-                    + {item.items.length - 1} {item.items.length === 2 ? 'seleção' : 'seleções'}
+                    + {item.items.length - 1}{' '}
+                    {item.items.length === 2 ? 'seleção' : 'seleções'}
                   </Text>
                 )}
               </View>
@@ -502,8 +659,13 @@ export default function ImportReviewScreen() {
 
             {firstItem && (
               <View style={styles.betCardMeta}>
-                <Text style={{ fontSize: 14 }}>{getSportIcon(firstEdits?.sport ?? 'FOOTBALL')} </Text>
-                <Text style={[styles.betCardMetaText, { color: colors.textSecondary }]} numberOfLines={1}>
+                <Text style={{ fontSize: 14 }}>
+                  {getSportIcon(firstEdits?.sport ?? 'FOOTBALL')}{' '}
+                </Text>
+                <Text
+                  style={[styles.betCardMetaText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                >
                   {firstItem.market} • {firstItem.selection}
                 </Text>
               </View>
@@ -511,15 +673,40 @@ export default function ImportReviewScreen() {
 
             {/* Stake / Odds / Return row */}
             <View style={styles.betCardMetrics}>
-              <View style={styles.betCardMetricItem}>
+              {/* Stake — tappable to open numeric keyboard */}
+              <Pressable
+                style={styles.betCardMetricItem}
+                onPress={() => {
+                  setNumericFocus({ kind: 'stake', boletinIdx: index });
+                }}
+              >
                 <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Stake</Text>
-                <Text style={[styles.metricValue, { color: colors.textPrimary }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                  {formatCurrency(item.stake)}
+                <Text
+                  style={[
+                    styles.metricValue,
+                    {
+                      color:
+                        numericFocus?.kind === 'stake' &&
+                        numericFocus.boletinIdx === index
+                          ? colors.primary
+                          : colors.textPrimary,
+                    },
+                  ]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
+                  {stakeDisplay ? formatCurrency(parseFloat(stakeDisplay.replace(',', '.'))) : formatCurrency(item.stake)}
                 </Text>
-              </View>
+              </Pressable>
               <View style={styles.betCardMetricItem}>
                 <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Odds</Text>
-                <Text style={[styles.metricValue, { color: colors.gold }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+                <Text
+                  style={[styles.metricValue, { color: colors.gold }]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.7}
+                >
                   {formatOdds(item.totalOdds)}
                 </Text>
               </View>
@@ -528,12 +715,22 @@ export default function ImportReviewScreen() {
                   {item.status === BoletinStatus.LOST ? 'Perdas' : 'Retorno'}
                 </Text>
                 <Text
-                  style={[styles.metricValue, { color: item.status === BoletinStatus.LOST ? colors.danger : colors.primary }]}
+                  style={[
+                    styles.metricValue,
+                    {
+                      color:
+                        item.status === BoletinStatus.LOST
+                          ? colors.danger
+                          : colors.primary,
+                    },
+                  ]}
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.7}
                 >
-                  {item.status === BoletinStatus.LOST ? `-${formatCurrency(item.stake)}` : formatCurrency(item.potentialReturn)}
+                  {item.status === BoletinStatus.LOST
+                    ? `-${formatCurrency(item.stake)}`
+                    : formatCurrency(item.potentialReturn)}
                 </Text>
               </View>
             </View>
@@ -549,7 +746,13 @@ export default function ImportReviewScreen() {
               <PressableScale
                 scaleDown={0.96}
                 onPress={() => toggleExpanded(index)}
-                style={[styles.detailsButton, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                style={[
+                  styles.detailsButton,
+                  {
+                    borderColor: colors.border,
+                    backgroundColor: colors.surfaceRaised,
+                  },
+                ]}
               >
                 <Ionicons name="pencil" size={13} color={colors.textSecondary} />
                 <Text style={[styles.detailsButtonText, { color: colors.textPrimary }]}>
@@ -567,6 +770,11 @@ export default function ImportReviewScreen() {
               <Animated.View entering={FadeIn.duration(200)} style={styles.expandedContainer}>
                 {item.items.map((selectionItem, selectionIndex) => {
                   const edits = getItemEdit(index, selectionIndex);
+                  const isOddFocused =
+                    numericFocus?.kind === 'odd' &&
+                    numericFocus.boletinIdx === index &&
+                    numericFocus.itemIdx === selectionIndex;
+
                   return (
                     <Animated.View
                       key={`${item.reference}-${selectionIndex}`}
@@ -583,16 +791,40 @@ export default function ImportReviewScreen() {
                       <View style={styles.matchCardTopRow}>
                         <View style={styles.matchCardTopLeft}>
                           {item.items.length > 1 && (
-                            <View style={[styles.matchNumberPill, { backgroundColor: colors.primary + '20' }]}>
-                              <Text style={[styles.matchNumberText, { color: colors.primary }]}>
+                            <View
+                              style={[
+                                styles.matchNumberPill,
+                                { backgroundColor: colors.primary + '20' },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.matchNumberText,
+                                  { color: colors.primary },
+                                ]}
+                              >
                                 Jogo {selectionIndex + 1}
                               </Text>
                             </View>
                           )}
                           {selectionItem.eventDate && (
-                            <View style={[styles.matchDatePill, { backgroundColor: colors.surfaceRaised }]}>
-                              <Ionicons name="time-outline" size={11} color={colors.textMuted} />
-                              <Text style={[styles.matchDateText, { color: colors.textMuted }]}>
+                            <View
+                              style={[
+                                styles.matchDatePill,
+                                { backgroundColor: colors.surfaceRaised },
+                              ]}
+                            >
+                              <Ionicons
+                                name="time-outline"
+                                size={11}
+                                color={colors.textMuted}
+                              />
+                              <Text
+                                style={[
+                                  styles.matchDateText,
+                                  { color: colors.textMuted },
+                                ]}
+                              >
                                 {formatSelectionDate(selectionItem.eventDate)}
                               </Text>
                             </View>
@@ -601,13 +833,32 @@ export default function ImportReviewScreen() {
                         <Pressable
                           hitSlop={10}
                           onPress={() => {
-                            const current = getItemResult(index, selectionIndex, selectionItem.result ?? item.status);
+                            const current = getItemResult(
+                              index,
+                              selectionIndex,
+                              selectionItem.result ?? item.status,
+                            );
                             cycleItemResult(index, selectionIndex, current);
                           }}
                         >
-                          <StatusBadge status={getItemResult(index, selectionIndex, selectionItem.result ?? item.status) as BoletinStatus} />
+                          <StatusBadge
+                            status={
+                              getItemResult(
+                                index,
+                                selectionIndex,
+                                selectionItem.result ?? item.status,
+                              ) as BoletinStatus
+                            }
+                          />
                           {(item.status === 'WON' || item.status === 'LOST') && (
-                            <Text style={[styles.tapToChangeTip, { color: colors.textMuted }]}>toca para alterar</Text>
+                            <Text
+                              style={[
+                                styles.tapToChangeTip,
+                                { color: colors.textMuted },
+                              ]}
+                            >
+                              toca para alterar
+                            </Text>
                           )}
                         </Pressable>
                       </View>
@@ -621,13 +872,28 @@ export default function ImportReviewScreen() {
                             size={28}
                             variant={edits.sport === 'TENNIS' ? 'player' : 'team'}
                           />
-                          <Text style={[styles.matchTeamName, { color: colors.textPrimary }]} numberOfLines={2}>
+                          <Text
+                            style={[
+                              styles.matchTeamName,
+                              { color: colors.textPrimary },
+                            ]}
+                            numberOfLines={2}
+                          >
                             {selectionItem.homeTeam}
                           </Text>
                         </View>
                         <View style={styles.matchVsContainer}>
-                          <Text style={[styles.matchVs, { color: colors.textMuted }]}>vs</Text>
-                          <Text style={[styles.matchOdd, { color: colors.gold }]}>@ {formatOdds(edits.oddValue ? parseFloat(edits.oddValue) : selectionItem.oddValue)}</Text>
+                          <Text style={[styles.matchVs, { color: colors.textMuted }]}>
+                            vs
+                          </Text>
+                          <Text style={[styles.matchOdd, { color: colors.gold }]}>
+                            @{' '}
+                            {formatOdds(
+                              edits.oddValue
+                                ? parseFloat(edits.oddValue.replace(',', '.'))
+                                : selectionItem.oddValue,
+                            )}
+                          </Text>
                         </View>
                         <View style={styles.matchTeamSide}>
                           <TeamBadge
@@ -636,176 +902,362 @@ export default function ImportReviewScreen() {
                             size={28}
                             variant={edits.sport === 'TENNIS' ? 'player' : 'team'}
                           />
-                          <Text style={[styles.matchTeamName, { color: edits.awayTeam ? colors.textPrimary : colors.textMuted }]} numberOfLines={2}>
+                          <Text
+                            style={[
+                              styles.matchTeamName,
+                              {
+                                color: edits.awayTeam
+                                  ? colors.textPrimary
+                                  : colors.textMuted,
+                              },
+                            ]}
+                            numberOfLines={2}
+                          >
                             {edits.awayTeam || 'Adversário'}
                           </Text>
                         </View>
                       </View>
 
-                      {/* Market & selection — editable */}
-                      <View style={styles.editFieldsMarket}>
-                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface, flex: 1 }]}>
-                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Mercado</Text>
-                          <TextInput
-                            style={[styles.editFieldInput, { color: colors.textPrimary }]}
-                            value={edits.market}
-                            onChangeText={(v) => updateItemEdit(index, selectionIndex, { market: v })}
-                            placeholder="ex: Resultado Final"
-                            placeholderTextColor={colors.textMuted}
-                            autoCapitalize="none"
-                          />
-                        </View>
-                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface, flex: 1 }]}>
-                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Seleção</Text>
-                          <TextInput
-                            style={[styles.editFieldInput, { color: colors.textPrimary }]}
-                            value={edits.selection}
-                            onChangeText={(v) => updateItemEdit(index, selectionIndex, { selection: v })}
-                            placeholder="ex: 1"
-                            placeholderTextColor={colors.textMuted}
-                            autoCapitalize="none"
-                          />
-                        </View>
-                      </View>
-
-                      {/* Editable fields */}
+                      {/* ── Editable fields — same order as create screen ── */}
                       <View style={styles.editFieldsContainer}>
-                        {/* Sport picker */}
-                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Desporto</Text>
+
+                        {/* 1. Sport */}
+                        <View
+                          style={[
+                            styles.editField,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: colors.surface,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>
+                            DESPORTO
+                          </Text>
                           <View style={styles.editFieldValue}>
                             <PressableScale
                               scaleDown={0.97}
-                              onPress={() => setSportPickerTarget({ boletinIdx: index, itemIdx: selectionIndex })}
-                              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}
+                              onPress={() =>
+                                setSportPickerTarget({
+                                  boletinIdx: index,
+                                  itemIdx: selectionIndex,
+                                })
+                              }
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                flex: 1,
+                              }}
                             >
-                              <Text style={{ fontSize: 14 }}>{getSportIcon(edits.sport)}</Text>
-                              <Text style={[styles.editFieldValueText, { color: colors.textPrimary }]}>
-                                {SPORT_OPTIONS.find((o) => o.key === edits.sport)?.label ?? edits.sport}
+                              <Text style={{ fontSize: 14 }}>
+                                {getSportIcon(edits.sport)}
                               </Text>
-                              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                              <Text
+                                style={[
+                                  styles.editFieldValueText,
+                                  { color: colors.textPrimary },
+                                ]}
+                              >
+                                {SPORT_OPTIONS.find((o) => o.key === edits.sport)?.label ??
+                                  edits.sport}
+                              </Text>
+                              <Ionicons
+                                name="chevron-forward"
+                                size={14}
+                                color={colors.textMuted}
+                              />
                             </PressableScale>
                             {edits.sport && edits.sport !== Sport.FOOTBALL && (
                               <Pressable
                                 hitSlop={8}
-                                onPress={() => updateItemEdit(index, selectionIndex, { sport: Sport.FOOTBALL })}
+                                onPress={() =>
+                                  updateItemEdit(index, selectionIndex, {
+                                    sport: Sport.FOOTBALL,
+                                  })
+                                }
                               >
-                                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                                <Ionicons
+                                  name="close-circle"
+                                  size={16}
+                                  color={colors.textMuted}
+                                />
                               </Pressable>
                             )}
                           </View>
                         </View>
 
-                        {/* Competition picker */}
-                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Competição</Text>
+                        {/* 2. Competition */}
+                        <View
+                          style={[
+                            styles.editField,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: colors.surface,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>
+                            COMPETIÇÃO
+                          </Text>
                           <View style={styles.editFieldValue}>
                             <PressableScale
                               scaleDown={0.97}
-                              onPress={() => setCompetitionPickerTarget({ boletinIdx: index, itemIdx: selectionIndex })}
-                              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}
+                              onPress={() =>
+                                setCompetitionPickerTarget({
+                                  boletinIdx: index,
+                                  itemIdx: selectionIndex,
+                                })
+                              }
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                flex: 1,
+                              }}
                             >
                               {edits.competition ? (
                                 <>
                                   <CompetitionBadge name={edits.competition} size={16} />
-                                  <Text style={[styles.editFieldValueText, { color: colors.textPrimary }]} numberOfLines={1}>
+                                  <Text
+                                    style={[
+                                      styles.editFieldValueText,
+                                      { color: colors.textPrimary },
+                                    ]}
+                                    numberOfLines={1}
+                                  >
                                     {edits.competition}
                                   </Text>
                                 </>
                               ) : (
-                                <Text style={[styles.editFieldValueText, { color: colors.textMuted }]}>
+                                <Text
+                                  style={[
+                                    styles.editFieldValueText,
+                                    { color: colors.textMuted },
+                                  ]}
+                                >
                                   Escolher competição...
                                 </Text>
                               )}
-                              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                              <Ionicons
+                                name="chevron-forward"
+                                size={14}
+                                color={colors.textMuted}
+                              />
                             </PressableScale>
                             {edits.competition ? (
                               <Pressable
                                 hitSlop={8}
-                                onPress={() => updateItemEdit(index, selectionIndex, { competition: '' })}
+                                onPress={() =>
+                                  updateItemEdit(index, selectionIndex, {
+                                    competition: '',
+                                  })
+                                }
                               >
-                                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                                <Ionicons
+                                  name="close-circle"
+                                  size={16}
+                                  color={colors.textMuted}
+                                />
                               </Pressable>
                             ) : null}
                           </View>
                         </View>
 
-                        {/* Home team picker */}
+                        {/* 3. Home team */}
                         <PressableScale
                           scaleDown={0.97}
-                          onPress={() => setTeamPickerTarget({ boletinIdx: index, itemIdx: selectionIndex, side: 'home' })}
-                          style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                          onPress={() =>
+                            setTeamPickerTarget({
+                              boletinIdx: index,
+                              itemIdx: selectionIndex,
+                              side: 'home',
+                            })
+                          }
+                          style={[
+                            styles.editField,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: colors.surface,
+                            },
+                          ]}
                         >
-                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Casa</Text>
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>
+                            {edits.sport === 'TENNIS' ? 'JOGADOR 1' : 'EQUIPA CASA'}
+                          </Text>
                           <View style={styles.editFieldValue}>
                             {edits.homeTeam ? (
                               <TeamBadge
                                 name={edits.homeTeam}
                                 imageUrl={edits.homeTeamImageUrl}
                                 size={16}
-                                variant={edits.sport === 'TENNIS' ? 'player' : 'team'}
+                                variant={
+                                  edits.sport === 'TENNIS' ? 'player' : 'team'
+                                }
                               />
                             ) : null}
                             <Text
                               numberOfLines={1}
-                              style={[styles.editFieldValueText, { color: edits.homeTeam ? colors.textPrimary : colors.textMuted }]}
+                              style={[
+                                styles.editFieldValueText,
+                                {
+                                  color: edits.homeTeam
+                                    ? colors.textPrimary
+                                    : colors.textMuted,
+                                },
+                              ]}
                             >
-                              {edits.homeTeam || 'Selecionar equipa...'}
+                              {edits.homeTeam ||
+                                (edits.sport === 'TENNIS'
+                                  ? 'Selecionar jogador...'
+                                  : 'Selecionar equipa...')}
                             </Text>
                             {edits.homeTeam ? (
                               <Pressable
                                 hitSlop={8}
-                                onPress={(e) => { e.stopPropagation(); updateItemEdit(index, selectionIndex, { homeTeam: '', homeTeamImageUrl: null }); }}
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  updateItemEdit(index, selectionIndex, {
+                                    homeTeam: '',
+                                    homeTeamImageUrl: null,
+                                  });
+                                }}
                               >
-                                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                                <Ionicons
+                                  name="close-circle"
+                                  size={16}
+                                  color={colors.textMuted}
+                                />
                               </Pressable>
                             ) : (
-                              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                              <Ionicons
+                                name="chevron-forward"
+                                size={14}
+                                color={colors.textMuted}
+                              />
                             )}
                           </View>
                         </PressableScale>
 
-                        {/* Odds edit */}
-                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Odds</Text>
-                          <View style={styles.editFieldValue}>
-                            <TextInput
-                              style={[styles.editFieldInput, { color: colors.gold, flex: 1 }]}
-                              value={edits.oddValue}
-                              onChangeText={(v) => updateItemEdit(index, selectionIndex, { oddValue: v })}
-                              placeholder={String(selectionItem.oddValue)}
-                              placeholderTextColor={colors.textMuted}
-                              keyboardType="decimal-pad"
-                            />
-                          </View>
-                        </View>
-
-                        {/* Away team picker */}
+                        {/* 4. Away team */}
                         <PressableScale
                           scaleDown={0.97}
-                          onPress={() => setTeamPickerTarget({ boletinIdx: index, itemIdx: selectionIndex, side: 'away' })}
-                          style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                          onPress={() =>
+                            setTeamPickerTarget({
+                              boletinIdx: index,
+                              itemIdx: selectionIndex,
+                              side: 'away',
+                            })
+                          }
+                          style={[
+                            styles.editField,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: colors.surface,
+                            },
+                          ]}
                         >
-                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Fora</Text>
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>
+                            {edits.sport === 'TENNIS' ? 'JOGADOR 2' : 'EQUIPA FORA'}
+                          </Text>
                           <View style={styles.editFieldValue}>
                             {edits.awayTeam ? (
                               <TeamBadge
                                 name={edits.awayTeam}
                                 imageUrl={edits.awayTeamImageUrl}
                                 size={16}
-                                variant={edits.sport === 'TENNIS' ? 'player' : 'team'}
+                                variant={
+                                  edits.sport === 'TENNIS' ? 'player' : 'team'
+                                }
                               />
                             ) : null}
                             <Text
                               numberOfLines={1}
-                              style={[styles.editFieldValueText, { color: edits.awayTeam ? colors.textPrimary : colors.textMuted }]}
+                              style={[
+                                styles.editFieldValueText,
+                                {
+                                  color: edits.awayTeam
+                                    ? colors.textPrimary
+                                    : colors.textMuted,
+                                },
+                              ]}
                             >
-                              {edits.awayTeam || 'Selecionar equipa...'}
+                              {edits.awayTeam ||
+                                (edits.sport === 'TENNIS'
+                                  ? 'Selecionar jogador...'
+                                  : 'Selecionar equipa...')}
                             </Text>
                             {edits.awayTeam ? (
                               <Pressable
                                 hitSlop={8}
-                                onPress={(e) => { e.stopPropagation(); updateItemEdit(index, selectionIndex, { awayTeam: '', awayTeamImageUrl: null }); }}
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  updateItemEdit(index, selectionIndex, {
+                                    awayTeam: '',
+                                    awayTeamImageUrl: null,
+                                  });
+                                }}
+                              >
+                                <Ionicons
+                                  name="close-circle"
+                                  size={16}
+                                  color={colors.textMuted}
+                                />
+                              </Pressable>
+                            ) : (
+                              <Ionicons
+                                name="chevron-forward"
+                                size={14}
+                                color={colors.textMuted}
+                              />
+                            )}
+                          </View>
+                        </PressableScale>
+
+                        {/* 5. Market */}
+                        <PressableScale
+                          scaleDown={0.97}
+                          onPress={() =>
+                            setMarketPickerTarget({
+                              boletinIdx: index,
+                              itemIdx: selectionIndex,
+                            })
+                          }
+                          style={[
+                            styles.editField,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: colors.surface,
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>
+                            MERCADO
+                          </Text>
+                          <View style={styles.editFieldValue}>
+                            <Text
+                              numberOfLines={1}
+                              style={[
+                                styles.editFieldValueText,
+                                {
+                                  color: edits.market ? colors.textPrimary : colors.textMuted,
+                                  flex: 1,
+                                },
+                              ]}
+                            >
+                              {edits.market
+                                ? (edits.homeTeam && edits.awayTeam
+                                    ? humanizeMarket(edits.market, edits.homeTeam, edits.awayTeam)
+                                    : edits.market)
+                                : 'Selecionar mercado...'}
+                            </Text>
+                            {edits.market ? (
+                              <Pressable
+                                hitSlop={8}
+                                onPress={(e) => {
+                                  e.stopPropagation();
+                                  updateItemEdit(index, selectionIndex, { market: '' });
+                                }}
                               >
                                 <Ionicons name="close-circle" size={16} color={colors.textMuted} />
                               </Pressable>
@@ -814,25 +1266,125 @@ export default function ImportReviewScreen() {
                             )}
                           </View>
                         </PressableScale>
+
+                        {/* 6. Selection + Odd — inline row like create screen */}
+                        <View style={styles.inlineRow}>
+                          {/* Selection */}
+                          <View
+                            style={[
+                              styles.editField,
+                              styles.inlineFieldFlex2,
+                              {
+                                borderColor: colors.border,
+                                backgroundColor: colors.surface,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[styles.editFieldLabel, { color: colors.textMuted }]}
+                            >
+                              SELEÇÃO
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.editFieldInput,
+                                { color: colors.textPrimary },
+                              ]}
+                              value={edits.selection}
+                              onChangeText={(v) =>
+                                updateItemEdit(index, selectionIndex, { selection: v })
+                              }
+                              placeholder="ex: 1"
+                              placeholderTextColor={colors.textMuted}
+                              autoCapitalize="none"
+                            />
+                          </View>
+
+                          {/* Odd — taps open numeric keyboard */}
+                          <Pressable
+                            onPress={() => {
+                              setNumericFocus({
+                                kind: 'odd',
+                                boletinIdx: index,
+                                itemIdx: selectionIndex,
+                              });
+                            }}
+                            style={[
+                              styles.editField,
+                              styles.inlineFieldFlex1,
+                              {
+                                borderColor: isOddFocused
+                                  ? colors.primary
+                                  : colors.border,
+                                backgroundColor: colors.surface,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[styles.editFieldLabel, { color: colors.textMuted }]}
+                            >
+                              ODD
+                            </Text>
+                            <Text
+                              style={[
+                                styles.editFieldInput,
+                                {
+                                  color: isOddFocused ? colors.primary : colors.gold,
+                                  fontWeight: '700',
+                                },
+                              ]}
+                            >
+                              {edits.oddValue ||
+                                formatOdds(selectionItem.oddValue) ||
+                                '—'}
+                            </Text>
+                          </Pressable>
+                        </View>
                       </View>
                     </Animated.View>
                   );
                 })}
               </Animated.View>
             )}
-        </Card>
+          </Card>
+        </Pressable>
       );
     },
-    [selected, expanded, itemResults, toggleItem, toggleExpanded, colors, getItemEdit, getItemResult, cycleItemResult, updateItemEdit, setTeamPickerTarget],
+    [
+      selected,
+      expanded,
+      itemResults,
+      numericFocus,
+      stakeEdits,
+      toggleItem,
+      toggleExpanded,
+      colors,
+      getItemEdit,
+      getItemResult,
+      cycleItemResult,
+      updateItemEdit,
+      dismissNumericKeyboard,
+    ],
   );
 
   if (!pdfResult || boletins.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <View
+        style={[
+          styles.screen,
+          { backgroundColor: colors.background, paddingTop: insets.top },
+        ]}
+      >
         <Stack.Screen options={{ headerShown: false }} />
         <View style={styles.emptyWrap}>
-          <MaterialCommunityIcons name="file-alert-outline" size={48} color={colors.textMuted} />
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+          <MaterialCommunityIcons
+            name="file-alert-outline"
+            size={48}
+            color={colors.textMuted}
+          />
+          <Text
+            style={[styles.emptyText, { color: colors.textSecondary }]}
+          >
             Não encontrámos apostas neste ficheiro.
           </Text>
           <Button title="Voltar" onPress={() => router.back()} variant="ghost" />
@@ -841,12 +1393,23 @@ export default function ImportReviewScreen() {
     );
   }
 
+  const numericKeyboardVisible = numericFocus !== null;
+  const numericIsDecimal = numericFocus?.kind === 'odd'; // odds allow decimals; stake is integer
+
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.screen,
+        { backgroundColor: colors.background, paddingTop: insets.top },
+      ]}
+    >
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* Summary banner */}
-      <Animated.View entering={FadeInDown.duration(160)} style={[styles.summaryBanner, { backgroundColor: colors.surface }]}>
+      <Animated.View
+        entering={FadeInDown.duration(160)}
+        style={[styles.summaryBanner, { backgroundColor: colors.surface }]}
+      >
         <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
           <Text style={{ fontWeight: '900' }}>{boletins.length}</Text> apostas encontradas
           {errorCount > 0 && (
@@ -860,14 +1423,26 @@ export default function ImportReviewScreen() {
 
       {/* Select all toggle */}
       <View style={[styles.selectAllRow, { borderColor: colors.border }]}>
-        <PressableScale scaleDown={0.96} onPress={toggleAll} style={styles.selectAllButton}>
+        <PressableScale
+          scaleDown={0.96}
+          onPress={toggleAll}
+          style={styles.selectAllButton}
+        >
           <Ionicons
-            name={selectedCount === boletins.length ? 'checkbox' : 'square-outline'}
+            name={
+              selectedCount === boletins.length ? 'checkbox' : 'square-outline'
+            }
             size={20}
-            color={selectedCount === boletins.length ? colors.primary : colors.textMuted}
+            color={
+              selectedCount === boletins.length
+                ? colors.primary
+                : colors.textMuted
+            }
           />
           <Text style={[styles.selectAllLabel, { color: colors.textPrimary }]}>
-            {selectedCount === boletins.length ? 'Desselecionar tudo' : 'Selecionar tudo'}
+            {selectedCount === boletins.length
+              ? 'Desselecionar tudo'
+              : 'Selecionar tudo'}
           </Text>
         </PressableScale>
         <Text style={[styles.selectedCount, { color: colors.textSecondary }]}>
@@ -882,13 +1457,70 @@ export default function ImportReviewScreen() {
         renderItem={renderItem}
         contentContainerStyle={{
           paddingHorizontal: tokens.spacing.lg,
-          paddingBottom: insets.bottom + 100,
+          paddingBottom: insets.bottom + (numericKeyboardVisible ? 320 : 100),
         }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={dismissNumericKeyboard}
       />
 
-      {/* Sticky footer */}
+      {/* Sticky footer + numeric keyboard (slides up together) */}
       <Animated.View style={[shakeStyle]}>
+        {/* Numeric keyboard — shown when odd or stake is focused */}
+        {numericKeyboardVisible && (
+          <Animated.View
+            entering={FadeInDown.duration(220).springify()}
+            style={[
+              styles.numericKeyboardPanel,
+              {
+                backgroundColor: colors.surface,
+                borderTopColor: colors.border,
+                paddingBottom: 0,
+              },
+            ]}
+          >
+            {/* Label + dismiss */}
+            <View style={styles.numericKeyboardHeader}>
+              <Text style={[styles.numericKeyboardLabel, { color: colors.textSecondary }]}>
+                {numericFocus?.kind === 'stake' ? 'Stake (€)' : 'Odd'}
+              </Text>
+              <Pressable hitSlop={12} onPress={dismissNumericKeyboard}>
+                <Ionicons name="checkmark-done" size={20} color={colors.primary} />
+              </Pressable>
+            </View>
+            {/* Current value display */}
+            <View
+              style={[
+                styles.numericValueDisplay,
+                { borderColor: colors.border, backgroundColor: colors.surfaceRaised },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.numericValueText,
+                  { color: numericFocus?.kind === 'odd' ? colors.gold : colors.textPrimary },
+                ]}
+              >
+                {numericKeyboardValue || '0'}
+              </Text>
+              {numericKeyboardValue.length > 0 && (
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => handleNumericChange('')}
+                >
+                  <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+            <NumericKeyboard
+              value={numericKeyboardValue}
+              maxLength={numericFocus?.kind === 'odd' ? 6 : 8}
+              allowDecimal={numericIsDecimal}
+              onChangeText={handleNumericChange}
+            />
+          </Animated.View>
+        )}
+
         <View
           style={[
             styles.footer,
@@ -900,7 +1532,11 @@ export default function ImportReviewScreen() {
           ]}
         >
           <Button
-            title={selectedCount > 0 ? `Importar ${selectedCount} apostas` : 'Importar'}
+            title={
+              selectedCount > 0
+                ? `Importar ${selectedCount} apostas`
+                : 'Importar'
+            }
             onPress={handleImport}
             loading={bulkImportMutation.isPending}
             disabled={selectedCount === 0 && !bulkImportMutation.isPending}
@@ -924,9 +1560,11 @@ export default function ImportReviewScreen() {
         allowCustomValue
         onSelect={(value) => {
           if (competitionPickerTarget) {
-            updateItemEdit(competitionPickerTarget.boletinIdx, competitionPickerTarget.itemIdx, {
-              competition: value,
-            });
+            updateItemEdit(
+              competitionPickerTarget.boletinIdx,
+              competitionPickerTarget.itemIdx,
+              { competition: value },
+            );
           }
           setCompetitionPickerTarget(null);
         }}
@@ -936,7 +1574,15 @@ export default function ImportReviewScreen() {
       <SearchableDropdown
         visible={teamPickerTarget !== null}
         onClose={() => setTeamPickerTarget(null)}
-        title={teamPickerTarget?.side === 'home' ? 'Equipa Casa' : 'Equipa Fora'}
+        title={
+          teamPickerTarget?.side === 'home'
+            ? teamPickerSport === Sport.TENNIS
+              ? 'Jogador 1'
+              : 'Equipa Casa'
+            : teamPickerSport === Sport.TENNIS
+            ? 'Jogador 2'
+            : 'Equipa Fora'
+        }
         items={teamPickerItems}
         renderItemLeft={(dropItem) => (
           <TeamBadge
@@ -949,8 +1595,9 @@ export default function ImportReviewScreen() {
         )}
         onSelect={(val) => {
           if (teamPickerTarget) {
-            const picked = teamsQuery.data?.find((t) => (t.displayName ?? t.name) === val)
-              ?? allTeamsQuery.data?.find((t) => (t.displayName ?? t.name) === val);
+            const picked =
+              teamsQuery.data?.find((t) => (t.displayName ?? t.name) === val) ??
+              allTeamsQuery.data?.find((t) => (t.displayName ?? t.name) === val);
             const imageUrl = picked?.imageUrl ?? null;
             if (teamPickerTarget.side === 'home') {
               updateItemEdit(teamPickerTarget.boletinIdx, teamPickerTarget.itemIdx, {
@@ -972,6 +1619,25 @@ export default function ImportReviewScreen() {
         initialVisibleCount={20}
       />
 
+      {/* Market picker — plain text entry via SearchableDropdown custom value */}
+      <SearchableDropdown
+        visible={marketPickerTarget !== null}
+        onClose={() => setMarketPickerTarget(null)}
+        title="Mercado"
+        sections={marketSections}
+        onSelect={(val) => {
+          if (marketPickerTarget) {
+            updateItemEdit(marketPickerTarget.boletinIdx, marketPickerTarget.itemIdx, {
+              market: val,
+            });
+          }
+          setMarketPickerTarget(null);
+        }}
+        isLoading={marketsQuery.isLoading}
+        initialVisibleCount={8}
+        allowCustomValue
+      />
+
       {/* Sport Picker Modal */}
       <Modal
         visible={sportPickerTarget !== null}
@@ -983,22 +1649,31 @@ export default function ImportReviewScreen() {
           style={styles.sportModalBackdrop}
           onPress={() => setSportPickerTarget(null)}
         >
-          <View style={[styles.sportModalContent, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sportModalTitle, { color: colors.textPrimary }]}>Desporto</Text>
+          <View
+            style={[styles.sportModalContent, { backgroundColor: colors.surface }]}
+          >
+            <Text style={[styles.sportModalTitle, { color: colors.textPrimary }]}>
+              Desporto
+            </Text>
             <View style={styles.sportModalGrid}>
               {SPORT_OPTIONS.map((opt) => {
                 const isActive =
                   sportPickerTarget !== null &&
-                  getItemEdit(sportPickerTarget.boletinIdx, sportPickerTarget.itemIdx).sport === opt.key;
+                  getItemEdit(
+                    sportPickerTarget.boletinIdx,
+                    sportPickerTarget.itemIdx,
+                  ).sport === opt.key;
                 return (
                   <PressableScale
                     scaleDown={0.92}
                     key={opt.key}
                     onPress={() => {
                       if (sportPickerTarget) {
-                        updateItemEdit(sportPickerTarget.boletinIdx, sportPickerTarget.itemIdx, {
-                          sport: opt.key,
-                        });
+                        updateItemEdit(
+                          sportPickerTarget.boletinIdx,
+                          sportPickerTarget.itemIdx,
+                          { sport: opt.key },
+                        );
                       }
                       setSportPickerTarget(null);
                     }}
@@ -1006,7 +1681,9 @@ export default function ImportReviewScreen() {
                       styles.sportModalChip,
                       {
                         borderColor: isActive ? colors.primary : colors.border,
-                        backgroundColor: isActive ? colors.primary + '18' : colors.surfaceRaised,
+                        backgroundColor: isActive
+                          ? colors.primary + '18'
+                          : colors.surfaceRaised,
                       },
                     ]}
                   >
@@ -1034,7 +1711,13 @@ export default function ImportReviewScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 16, padding: 32 },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+    padding: 32,
+  },
   emptyText: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
   summaryBanner: { paddingHorizontal: 16, paddingVertical: 12 },
   summaryText: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
@@ -1060,14 +1743,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  betCardBadges: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 'auto' },
+  betCardBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
+    marginLeft: 'auto',
+  },
   betCardDate: { fontSize: 13, fontWeight: '600', flex: 1 },
   betCardEvent: { gap: 4 },
   betCardTeams: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
   betCardMore: { fontSize: 12 },
   betCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   betCardMetaText: { fontSize: 13, flexShrink: 1 },
-  teamsRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  teamsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flexWrap: 'wrap',
+  },
   vsText: { fontSize: 12, fontWeight: '500' },
   betCardMetrics: { flexDirection: 'row', gap: 12, marginTop: 4 },
   betCardMetricItem: { gap: 2, flex: 1, minWidth: 0 },
@@ -1138,10 +1832,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  matchDateText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
+  matchDateText: { fontSize: 10, fontWeight: '600' },
   matchTeamsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1167,40 +1858,10 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 4,
   },
-  matchVs: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  matchOdd: {
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  matchMarketRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginHorizontal: 10,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  matchMarketText: {
-    fontSize: 12,
-    fontWeight: '500',
-    flex: 1,
-    lineHeight: 17,
-  },
-  editFieldsMarket: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingTop: 8,
-  },
-  editFieldInput: {
-    fontSize: 13,
-    fontWeight: '500',
-    paddingVertical: 0,
-  },
+  matchVs: { fontSize: 11, fontWeight: '600' },
+  matchOdd: { fontSize: 12, fontWeight: '900' },
+
+  // ── Edit fields — ordered like create screen ──
   editFieldsContainer: {
     gap: 8,
     paddingHorizontal: 10,
@@ -1217,7 +1878,54 @@ const styles = StyleSheet.create({
   editFieldLabel: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
   editFieldValue: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   editFieldValueText: { fontSize: 13, fontWeight: '500', flex: 1 },
+  editFieldInput: {
+    fontSize: 13,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  // Inline row (selection + odd) — mirrors create screen
+  inlineRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  inlineFieldFlex2: { flex: 2 },
+  inlineFieldFlex1: { flex: 1 },
 
+  // ── Numeric keyboard panel ──
+  numericKeyboardPanel: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 8,
+    gap: 10,
+  },
+  numericKeyboardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  numericKeyboardLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  numericValueDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  numericValueText: {
+    fontSize: 22,
+    fontWeight: '800',
+    flex: 1,
+  },
+
+  // ── Sport modal ──
   sportModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1250,10 +1958,6 @@ const styles = StyleSheet.create({
   },
   sportModalChipLabel: { fontSize: 13, fontWeight: '600' },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 16,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
