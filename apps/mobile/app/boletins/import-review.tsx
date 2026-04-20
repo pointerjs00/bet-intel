@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -99,6 +100,9 @@ interface ItemEdits {
   awayTeam: string;
   homeTeamImageUrl?: string | null;
   awayTeamImageUrl?: string | null;
+  market: string;
+  selection: string;
+  oddValue: string;
 }
 
 function buildEditKey(boletinIdx: number, itemIdx: number): string {
@@ -148,6 +152,9 @@ export default function ImportReviewScreen() {
           awayTeam: item.awayTeam === 'Desconhecido' ? '' : item.awayTeam,
           homeTeamImageUrl: item.homeTeamImageUrl ?? null,
           awayTeamImageUrl: item.awayTeamImageUrl ?? null,
+          market: item.market || '',
+          selection: item.selection || '',
+          oddValue: item.oddValue != null ? String(item.oddValue) : '',
         });
       });
     });
@@ -210,6 +217,9 @@ export default function ImportReviewScreen() {
       awayTeam: '',
       homeTeamImageUrl: null,
       awayTeamImageUrl: null,
+      market: '',
+      selection: '',
+      oddValue: '',
     };
   }, [itemEdits]);
 
@@ -294,6 +304,9 @@ export default function ImportReviewScreen() {
         awayTeam: '',
         homeTeamImageUrl: null,
         awayTeamImageUrl: null,
+        market: '',
+        selection: '',
+        oddValue: '',
       };
       next.set(key, { ...existing, ...patch });
       return next;
@@ -372,6 +385,9 @@ export default function ImportReviewScreen() {
               awayTeam: edits.awayTeam || item.awayTeam,
               homeTeamImageUrl: edits.homeTeamImageUrl ?? item.homeTeamImageUrl,
               awayTeamImageUrl: edits.awayTeamImageUrl ?? item.awayTeamImageUrl,
+              market: edits.market || item.market,
+              selection: edits.selection || item.selection,
+              oddValue: edits.oddValue ? parseFloat(edits.oddValue) : item.oddValue,
               // User-corrected result takes priority over AI result
               result: getItemResult(boletinIdx, itemIdx, item.result ?? 'PENDING'),
             };
@@ -611,7 +627,7 @@ export default function ImportReviewScreen() {
                         </View>
                         <View style={styles.matchVsContainer}>
                           <Text style={[styles.matchVs, { color: colors.textMuted }]}>vs</Text>
-                          <Text style={[styles.matchOdd, { color: colors.gold }]}>@ {formatOdds(selectionItem.oddValue)}</Text>
+                          <Text style={[styles.matchOdd, { color: colors.gold }]}>@ {formatOdds(edits.oddValue ? parseFloat(edits.oddValue) : selectionItem.oddValue)}</Text>
                         </View>
                         <View style={styles.matchTeamSide}>
                           <TeamBadge
@@ -626,12 +642,30 @@ export default function ImportReviewScreen() {
                         </View>
                       </View>
 
-                      {/* Market & selection */}
-                      <View style={[styles.matchMarketRow, { backgroundColor: colors.background }]}>
-                        <Text style={{ fontSize: 13 }}>{getSportIcon(edits.sport)}</Text>
-                        <Text style={[styles.matchMarketText, { color: colors.textSecondary }]} numberOfLines={2}>
-                          {selectionItem.market} • {selectionItem.selection}
-                        </Text>
+                      {/* Market & selection — editable */}
+                      <View style={styles.editFieldsMarket}>
+                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface, flex: 1 }]}>
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Mercado</Text>
+                          <TextInput
+                            style={[styles.editFieldInput, { color: colors.textPrimary }]}
+                            value={edits.market}
+                            onChangeText={(v) => updateItemEdit(index, selectionIndex, { market: v })}
+                            placeholder="ex: Resultado Final"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="none"
+                          />
+                        </View>
+                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface, flex: 1 }]}>
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Seleção</Text>
+                          <TextInput
+                            style={[styles.editFieldInput, { color: colors.textPrimary }]}
+                            value={edits.selection}
+                            onChangeText={(v) => updateItemEdit(index, selectionIndex, { selection: v })}
+                            placeholder="ex: 1"
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="none"
+                          />
+                        </View>
                       </View>
 
                       {/* Editable fields */}
@@ -730,6 +764,21 @@ export default function ImportReviewScreen() {
                             )}
                           </View>
                         </PressableScale>
+
+                        {/* Odds edit */}
+                        <View style={[styles.editField, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                          <Text style={[styles.editFieldLabel, { color: colors.textMuted }]}>Odds</Text>
+                          <View style={styles.editFieldValue}>
+                            <TextInput
+                              style={[styles.editFieldInput, { color: colors.gold, flex: 1 }]}
+                              value={edits.oddValue}
+                              onChangeText={(v) => updateItemEdit(index, selectionIndex, { oddValue: v })}
+                              placeholder={String(selectionItem.oddValue)}
+                              placeholderTextColor={colors.textMuted}
+                              keyboardType="decimal-pad"
+                            />
+                          </View>
+                        </View>
 
                         {/* Away team picker */}
                         <PressableScale
@@ -1140,6 +1189,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
     lineHeight: 17,
+  },
+  editFieldsMarket: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+  },
+  editFieldInput: {
+    fontSize: 13,
+    fontWeight: '500',
+    paddingVertical: 0,
   },
   editFieldsContainer: {
     gap: 8,
