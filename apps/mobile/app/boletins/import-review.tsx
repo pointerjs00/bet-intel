@@ -154,6 +154,35 @@ export default function ImportReviewScreen() {
     return initial;
   });
 
+  // Per-item result overrides — seeded from AI parse, fully user-editable
+  type ItemResult = 'WON' | 'LOST' | 'VOID' | 'PENDING';
+  const RESULT_CYCLE: ItemResult[] = ['PENDING', 'WON', 'LOST', 'VOID'];
+  const [itemResults, setItemResults] = useState<Map<string, ItemResult>>(() => {
+    const initial = new Map<string, ItemResult>();
+    boletins.forEach((b, bi) => {
+      b.items.forEach((item, ii) => {
+        const r = item.result as ItemResult | undefined;
+        if (r && RESULT_CYCLE.includes(r)) {
+          initial.set(buildEditKey(bi, ii), r);
+        }
+      });
+    });
+    return initial;
+  });
+
+  const getItemResult = useCallback((boletinIdx: number, itemIdx: number, fallback: string): ItemResult => {
+    return itemResults.get(buildEditKey(boletinIdx, itemIdx)) ?? (fallback as ItemResult) ?? 'PENDING';
+  }, [itemResults]);
+
+  const cycleItemResult = useCallback((boletinIdx: number, itemIdx: number, currentResult: ItemResult) => {
+    const next = RESULT_CYCLE[(RESULT_CYCLE.indexOf(currentResult) + 1) % RESULT_CYCLE.length]!;
+    setItemResults((prev) => {
+      const next2 = new Map(prev);
+      next2.set(buildEditKey(boletinIdx, itemIdx), next);
+      return next2;
+    });
+  }, []);
+
   // Competition picker modal state
   const [competitionPickerTarget, setCompetitionPickerTarget] = useState<{
     boletinIdx: number;
@@ -343,6 +372,8 @@ export default function ImportReviewScreen() {
               awayTeam: edits.awayTeam || item.awayTeam,
               homeTeamImageUrl: edits.homeTeamImageUrl ?? item.homeTeamImageUrl,
               awayTeamImageUrl: edits.awayTeamImageUrl ?? item.awayTeamImageUrl,
+              // User-corrected result takes priority over AI result
+              result: getItemResult(boletinIdx, itemIdx, item.result ?? 'PENDING'),
             };
           }),
         };
@@ -551,7 +582,18 @@ export default function ImportReviewScreen() {
                             </View>
                           )}
                         </View>
-                        <StatusBadge status={(selectionItem.result ?? item.status) as BoletinStatus} />
+                        <Pressable
+                          hitSlop={10}
+                          onPress={() => {
+                            const current = getItemResult(index, selectionIndex, selectionItem.result ?? item.status);
+                            cycleItemResult(index, selectionIndex, current);
+                          }}
+                        >
+                          <StatusBadge status={getItemResult(index, selectionIndex, selectionItem.result ?? item.status) as BoletinStatus} />
+                          {(item.status === 'WON' || item.status === 'LOST') && (
+                            <Text style={[styles.tapToChangeTip, { color: colors.textMuted }]}>toca para alterar</Text>
+                          )}
+                        </Pressable>
                       </View>
 
                       {/* Teams face-off row */}
@@ -732,7 +774,7 @@ export default function ImportReviewScreen() {
         </Card>
       );
     },
-    [selected, expanded, toggleItem, toggleExpanded, colors, getItemEdit, updateItemEdit, setTeamPickerTarget],
+    [selected, expanded, itemResults, toggleItem, toggleExpanded, colors, getItemEdit, getItemResult, cycleItemResult, updateItemEdit, setTeamPickerTarget],
   );
 
   if (!pdfResult || boletins.length === 0) {
@@ -1020,6 +1062,12 @@ const styles = StyleSheet.create({
     gap: 8,
     flexShrink: 1,
     flexWrap: 'wrap',
+  },
+  tapToChangeTip: {
+    fontSize: 9,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 2,
   },
   matchNumberPill: {
     alignSelf: 'flex-start',

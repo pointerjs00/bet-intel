@@ -60,10 +60,10 @@ Rules:
 - eventDate and betDate: ISO 8601 format
 - Extract ALL selections from accumulators
 - IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot — do NOT translate them to English. Examples: keep "Resultado (Tempo Regulamentar)" not "Match Result (Regular Time)", keep "SC Braga / Empate & Acima de 1,5" not "SC Braga / Draw & Over 1.5 Goals", keep "Resultado duplo/Golos - acima/abaixo" not "Double Chance/Goals - over/under".
-- IMPORTANT: Each item has its own "result" field. Use TWO independent visual signals per row and they must agree:
-  SIGNAL 1 — coloured circle icon on the LEFT side of the row: GREEN circle with white checkmark (✓) = WON; RED circle with white X = LOST; grey/absent = PENDING.
-  SIGNAL 2 — colour of the selection/team text in that row: GREEN text = WON; RED text = LOST; white/grey text = PENDING.
-  Both signals should point to the same result. If they conflict, prefer the icon. CRITICAL: read each signal in the SAME HORIZONTAL ROW as the selection text — never assign an icon or text colour from an adjacent row. In a lost accumulator exactly ONE selection row will show red (icon + text); all other rows that show green must be marked "WON". Do NOT mark a selection LOST just because the overall bet is "Perdida".
+- IMPORTANT: Each item has its own "result" field. Process each selection row from TOP to BOTTOM in document order. For each row, look at (1) the coloured circle icon immediately to the LEFT of the team name on THAT SAME LINE and (2) the colour of the team/selection text on THAT SAME LINE:
+  GREEN circle ✓ + green text = WON. RED circle ✗ + red text = LOST. No icon + white/grey text = PENDING.
+  If the two signals disagree, trust the icon. Never borrow an icon or text colour from a different row.
+  In a lost accumulator exactly ONE row will be red (the leg that caused the loss); the rest are green and must be WON. Do NOT mark a selection LOST just because the overall bet label says "Perdida".
 - IMPORTANT: Return official international team names, not Portuguese translations (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão", "Olympique Lyon" not "Lião", "Bayern Munich" not "Baviera")
 - IMPORTANT: Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga", "Liga Portugal"). Infer from teams if not shown.
 
