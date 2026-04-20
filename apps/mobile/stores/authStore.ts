@@ -55,10 +55,10 @@ interface AuthStore {
   /** Disables biometric login and removes the flag from SecureStore. */
   disableBiometric: () => Promise<void>;
   /**
-   * Logs out the user. Pass explicit=false for auto-logouts (e.g. token refresh
-   * failure) to preserve the biometric preference so it survives session expiry.
+   * Logs out the user. Biometric preference is always preserved so the user
+   * doesn't have to re-enable it after signing back in.
    */
-  logout: (explicit?: boolean) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -79,7 +79,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     await get().setSession({ user, accessToken, refreshToken });
   },
 
-  async logout(explicit = true) {
+  async logout() {
     if (isLoggingOut) return;
     isLoggingOut = true;
     try {
@@ -97,13 +97,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
       await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
-
-      // Only wipe the biometric preference on explicit user-initiated logout.
-      // Auto-logouts (token refresh failure, session expiry) must NOT clear it
-      // so the setting persists across involuntary session terminations.
-      if (explicit) {
-        await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
-      }
+      // Biometric preference intentionally preserved across all logouts so the
+      // user doesn't have to re-enable it every time they sign back in.
 
       set({
         user: null,
@@ -111,7 +106,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         refreshTokenValue: null,
         isAuthenticated: false,
         isHydrating: false,
-        ...(explicit ? { biometricEnabled: false } : {}),
       });
 
       resetDevicePushTokenCache();
@@ -160,8 +154,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       set({ accessToken, refreshTokenValue: refreshToken, isAuthenticated: true });
       return accessToken;
     } catch {
-      // Non-explicit auto-logout — preserve the biometric preference.
-      await get().logout(false);
+      await get().logout();
       return null;
     }
   },
@@ -325,7 +318,6 @@ setAuthStoreBridge({
   getAccessToken: () => useAuthStore.getState().accessToken,
   refreshToken: () => useAuthStore.getState().refreshToken(),
   clearSession: async () => {
-    // Auto-logout from interceptor — preserve biometric preference.
-    await useAuthStore.getState().logout(false);
+    await useAuthStore.getState().logout();
   },
 });
