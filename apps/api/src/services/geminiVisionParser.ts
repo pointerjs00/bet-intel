@@ -24,6 +24,11 @@ export interface AIParsedBoletin {
   potentialReturn: number;
   status: string;
   items: AIParsedItem[];
+  /**
+   * Team name strings that appear in RED on the screenshot (the losing legs).
+   * More reliable than per-item icon detection — used to override item.result via text matching.
+   */
+  losingSelections?: string[];
   parseError: boolean;
   parseErrorReason?: string;
 }
@@ -60,15 +65,14 @@ Rules:
 - eventDate and betDate: ISO 8601 format
 - Extract ALL selections from accumulators
 - IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot — do NOT translate them to English. Examples: keep "Resultado (Tempo Regulamentar)" not "Match Result (Regular Time)", keep "SC Braga / Empate & Acima de 1,5" not "SC Braga / Draw & Over 1.5 Goals", keep "Resultado duplo/Golos - acima/abaixo" not "Double Chance/Goals - over/under".
-- IMPORTANT: Each item has its own "result" field. Process each selection row from TOP to BOTTOM in document order. For each row, look at (1) the coloured circle icon immediately to the LEFT of the team name on THAT SAME LINE and (2) the colour of the team/selection text on THAT SAME LINE:
-  GREEN circle ✓ + green text = WON. RED circle ✗ + red text = LOST. No icon + white/grey text = PENDING.
-  If the two signals disagree, trust the icon. Never borrow an icon or text colour from a different row.
-  In a lost accumulator exactly ONE row will be red (the leg that caused the loss); the rest are green and must be WON. Do NOT mark a selection LOST just because the overall bet label says "Perdida".
+- IMPORTANT: Each item has its own "result" field. Use the coloured circle icon immediately to the LEFT of the team name on that same line: GREEN circle ✓ = WON; RED circle ✗ = LOST; grey/absent = PENDING. Also check text colour: green text = WON, red text = LOST.
+- IMPORTANT: At the boletin level, add a "losingSelections" array: list the EXACT team name text strings (as written in the screenshot) for every team name that appears in RED. For example, if "SC Braga" and "FC Arouca" appear in red, output ["SC Braga", "FC Arouca"]. If no team names are red (pending bet), output []. This field is the most reliable way to identify losing legs.
+- In a lost accumulator exactly ONE selection row is red; all others are green (WON). Do NOT mark a selection LOST just because the overall bet label says "Perdida".
 - IMPORTANT: Return official international team names, not Portuguese translations (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão", "Olympique Lyon" not "Lião", "Bayern Munich" not "Baviera")
 - IMPORTANT: Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga", "Liga Portugal"). Infer from teams if not shown.
 
 JSON schema:
-{"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING","items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO","result":"PENDING"}]}]}
+{"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING","losingSelections":["team name in red"],"items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO","result":"PENDING"}]}]}
 
 If no bets found: {"boletins":[],"error":"reason"}`;
 
@@ -114,6 +118,32 @@ export function normalizeParsedResult(parsed: {
       eventDate: item.eventDate || undefined,
       result: (['WON', 'LOST', 'VOID', 'PENDING'].includes(item.result ?? '') ? item.result : 'PENDING') as 'WON' | 'LOST' | 'VOID' | 'PENDING',
     }));
+
+    // ── losingSelections override ──────────────────────────────────────────
+    // The AI is asked to list team-name strings that appear in RED on the
+    // screenshot. Text-content matching is far more reliable than spatial
+    // icon-row detection. If provided and the boletin is resolved, use these
+    // to derive per-item results, overriding the per-item icon guess.
+    const losingSelections: string[] = ((b as unknown as { losingSelections?: string[] }).losingSelections ?? [])
+      .map((s) => s.toLowerCase().trim())
+      .filter(Boolean);
+
+    if (losingSelections.length > 0 && (b.status === 'WON' || b.status === 'LOST')) {
+      for (const item of items) {
+        const haystack = [item.homeTeam, item.awayTeam, item.market, item.selection]
+          .join(' ')
+          .toLowerCase();
+        const isLosing = losingSelections.some((ls) =>
+          haystack.includes(ls) ||
+          item.homeTeam.toLowerCase().includes(ls) ||
+          item.awayTeam.toLowerCase().includes(ls) ||
+          ls.includes(item.homeTeam.toLowerCase()) ||
+          ls.includes(item.awayTeam.toLowerCase()),
+        );
+        item.result = isLosing ? 'LOST' : 'WON';
+      }
+    }
+    // ──────────────────────────────────────────────────────────────────────
 
     const hasError = items.length === 0 || b.stake <= 0;
 
