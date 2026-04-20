@@ -3,8 +3,6 @@ import {
   ActivityIndicator,
   BackHandler,
   FlatList,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -53,11 +51,7 @@ import { BETTING_SITES } from '../../utils/sportAssets';
 
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
 
-const INITIAL_VISIBLE_BOLETINS = 8;
-const VISIBLE_BATCH_SIZE = 8;
-const LOAD_MORE_DELAY_MS = 120;
-const LOAD_MORE_AHEAD_PX = 220;
-const LOAD_MORE_THRESHOLD = 0.35;
+
 
 const STATUS_FILTERS: Array<{ key: BoletinStatus; label: string; activeColor: string; activeBorder: string }> = [
   { key: BoletinStatus.PENDING,  label: '⏳ Pendente',   activeColor: 'rgba(255,149,0,0.15)',  activeBorder: '#FF9500' },
@@ -222,9 +216,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [exactMarket, setExactMarket] = useState<string | null>(null);
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
-  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_BOLETINS);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const loadMoreTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   // Read filter params pushed from the stats screen (e.g. filterTeam, filterSport, etc.)
   const {
@@ -298,14 +290,6 @@ export default function HomeScreen() {
     });
     return () => sub.remove();
   }, [isFilterSheetOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (loadMoreTimeoutRef.current) {
-        clearTimeout(loadMoreTimeoutRef.current);
-      }
-    };
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -592,56 +576,9 @@ export default function HomeScreen() {
     });
   }, [boletins, activeStatuses, searchQuery, exactMarket, filter, sort]);
 
-  useEffect(() => {
-    if (loadMoreTimeoutRef.current) {
-      clearTimeout(loadMoreTimeoutRef.current);
-      loadMoreTimeoutRef.current = null;
-    }
-    setIsLoadingMore(false);
-    setVisibleCount(INITIAL_VISIBLE_BOLETINS);
-  }, [activeStatuses, searchQuery, exactMarket, filter, sort]);
-
-  const visibleBoletins = useMemo(
-    () => filtered.slice(0, visibleCount),
-    [filtered, visibleCount],
-  );
-
-  const remainingBoletinsCount = Math.max(filtered.length - visibleCount, 0);
-  const hasMoreBoletins = visibleCount < filtered.length;
-
-  const triggerLoadMore = useCallback(() => {
-    if (boletinsQuery.isLoading || !hasMoreBoletins || isLoadingMore) return;
-    setIsLoadingMore(true);
-    loadMoreTimeoutRef.current = setTimeout(() => {
-      setVisibleCount((current) => Math.min(current + VISIBLE_BATCH_SIZE, filtered.length));
-      setIsLoadingMore(false);
-      loadMoreTimeoutRef.current = null;
-    }, LOAD_MORE_DELAY_MS);
-  }, [boletinsQuery.isLoading, filtered.length, hasMoreBoletins, isLoadingMore]);
-
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-      const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
-
-      if (distanceFromBottom <= LOAD_MORE_AHEAD_PX) {
-        triggerLoadMore();
-      }
-    },
-    [triggerLoadMore],
-  );
-
-  const loadingMorePlaceholders = useMemo<SlipListItem[]>(() => {
-    if (!isLoadingMore) return [];
-    return Array.from({ length: Math.min(2, remainingBoletinsCount) }, (_, index) => ({
-      id: `loading-more-${index}`,
-      type: 'skeleton' as const,
-    }));
-  }, [isLoadingMore, remainingBoletinsCount]);
-
   const listData: SlipListItem[] = boletinsQuery.isLoading
     ? [{ id: 's1', type: 'skeleton' }, { id: 's2', type: 'skeleton' }, { id: 's3', type: 'skeleton' }]
-    : [...visibleBoletins];
+    : [...filtered];
 
   const summary = useMemo(() => {
     return filtered.reduce(
@@ -683,10 +620,6 @@ export default function HomeScreen() {
           hapticLight();
           void boletinsQuery.refetch();
         }}
-        onEndReached={triggerLoadMore}
-        onEndReachedThreshold={LOAD_MORE_THRESHOLD}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             {/* Title row */}
@@ -950,11 +883,7 @@ export default function HomeScreen() {
         }}
         ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={
-          hasMoreBoletins || isLoadingMore ? (
-            <View style={styles.loadMoreFooter}>
-              <ActivityIndicator color={colors.primary} size="small" />
-            </View>
-          ) : boletinsQuery.isLoading ? null : (
+          boletinsQuery.isLoading ? null : (
             <View style={styles.footerBar}>
               <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
             </View>
@@ -962,9 +891,10 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
         refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
-        windowSize={11}
-        maxToRenderPerBatch={8}
-        initialNumToRender={8}
+        windowSize={21}
+        maxToRenderPerBatch={16}
+        updateCellsBatchingPeriod={10}
+        initialNumToRender={12}
       />
 
       {/* Notification bubble overlay */}
