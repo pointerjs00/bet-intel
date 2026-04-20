@@ -54,6 +54,7 @@ jobs:
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
           SCRAPER_HTTP_PROXY: ${{ secrets.SCRAPER_HTTP_PROXY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           cat > "$RUNNER_TEMP/api.env" <<EOF
           DATABASE_URL=${DATABASE_URL}
@@ -69,6 +70,7 @@ jobs:
           APP_URL=${APP_URL}
           ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
           API_FOOTBALL_KEY=${API_FOOTBALL_KEY}
+          GEMINI_API_KEY=${GEMINI_API_KEY}
           PORT=3000
           NODE_ENV=production
           LOG_LEVEL=${LOG_LEVEL:-info}
