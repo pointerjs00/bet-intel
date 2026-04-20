@@ -19,6 +19,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       API_FOOTBALL_KEY: ${API_FOOTBALL_KEY}
       SCRAPER_HTTP_PROXY: ${SCRAPER_HTTP_PROXY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
       PORT: 3000
     ports:
       - '3000:3000'
