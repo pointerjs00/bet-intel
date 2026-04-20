@@ -45,7 +45,7 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
           'You are a bet slip parser for a Portuguese sports betting app.',
           'Extract all data from bet slip screenshots and return structured JSON only.',
           'Return official international team names (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão").',
-          'Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga").',
+          'Always set competition to the correct league. Known: VfB Stuttgart, Bayern Munich, Borussia Dortmund, Bayer Leverkusen, RB Leipzig, Eintracht Frankfurt, Wolfsburg, Werder Bremen play in "Bundesliga" (1st div) — NEVER "2. Bundesliga" or "Bundesliga 2".',
           'IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot in Portuguese — do NOT translate them to English.',
           'Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING".',
           'Process each selection row from TOP to BOTTOM in document order.',
