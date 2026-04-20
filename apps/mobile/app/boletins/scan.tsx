@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
@@ -40,6 +41,22 @@ export default function ScanScreen() {
   const [parseResult, setParseResult] = useState<BetclicPdfResult | null>(null);
   const [showAllItems, setShowAllItems] = useState(false);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [disclaimerVisible, setDisclaimerVisible] = useState(false);
+  const [disclaimerDontShow, setDisclaimerDontShow] = useState(false);
+
+  // Show disclaimer on first visit unless user opted out
+  useEffect(() => {
+    AsyncStorage.getItem('scan_disclaimer_dismissed').then((val) => {
+      if (val !== 'true') setDisclaimerVisible(true);
+    });
+  }, []);
+
+  const dismissDisclaimer = useCallback(async () => {
+    if (disclaimerDontShow) {
+      await AsyncStorage.setItem('scan_disclaimer_dismissed', 'true');
+    }
+    setDisclaimerVisible(false);
+  }, [disclaimerDontShow]);
 
   const pickImage = useCallback(async () => {
     try {
@@ -130,7 +147,7 @@ export default function ScanScreen() {
         showToast('Nenhuma aposta encontrada. Confirma que é um screenshot de uma aposta.', 'error');
       } else if (processed.errorCount > 0) {
         hapticLight();
-        showToast('Aposta lida com alguns erros. Revê os dados antes de importar.', 'warning');
+        showToast('Aposta lida com alguns erros. Revê os dados antes de importar.', 'info');
       } else {
         hapticSuccess();
         showToast(`${processed.totalFound} aposta(s) encontrada(s)!`, 'success');
@@ -361,6 +378,51 @@ export default function ScanScreen() {
         )}
       </ScrollView>
 
+      {/* AI Disclaimer modal */}
+      <Modal
+        visible={disclaimerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={dismissDisclaimer}
+        statusBarTranslucent
+      >
+        <View style={styles.disclaimerBackdrop}>
+          <View style={[styles.disclaimerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.disclaimerIconWrap, { backgroundColor: `${colors.warning}18` }]}>
+              <MaterialCommunityIcons name="robot-excited-outline" size={36} color={colors.warning} />
+            </View>
+            <Text style={[styles.disclaimerTitle, { color: colors.textPrimary }]}>Leitura por IA</Text>
+            <Text style={[styles.disclaimerBody, { color: colors.textSecondary }]}>
+              {'A análise é feita por inteligência artificial e os resultados '}
+              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'podem não ser 100% precisos'}</Text>
+              {'.'}
+              {'\n\n'}
+              {'Verifica sempre os dados antes de importar — cotas, seleções e datas devem ser confirmadas manualmente. O BetIntel não se responsabiliza por erros de leitura automática.'}
+            </Text>
+            <Pressable
+              onPress={() => setDisclaimerDontShow((v) => !v)}
+              style={styles.disclaimerCheckRow}
+              hitSlop={8}
+            >
+              <View style={[
+                styles.disclaimerCheckbox,
+                { borderColor: disclaimerDontShow ? colors.primary : colors.border },
+                disclaimerDontShow && { backgroundColor: colors.primary },
+              ]}>
+                {disclaimerDontShow && <Ionicons name="checkmark" size={13} color="#fff" />}
+              </View>
+              <Text style={[styles.disclaimerCheckLabel, { color: colors.textSecondary }]}>Não mostrar novamente</Text>
+            </Pressable>
+            <Pressable
+              onPress={dismissDisclaimer}
+              style={[styles.disclaimerBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={styles.disclaimerBtnText}>Entendido</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* Fullscreen image viewer */}
       {imageUri && (
         <Modal
@@ -497,6 +559,17 @@ const styles = StyleSheet.create({
   imageViewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center', alignItems: 'center' },
   imageViewerClose: { position: 'absolute', top: 52, right: 16, zIndex: 10 },
   imageViewerImage: { width: '100%', height: '88%' },
+
+  disclaimerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.60)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  disclaimerCard: { width: '100%', maxWidth: 400, borderRadius: 20, borderWidth: 1, padding: 24, alignItems: 'center', gap: 14 },
+  disclaimerIconWrap: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
+  disclaimerTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  disclaimerBody: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  disclaimerCheckRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start' },
+  disclaimerCheckbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
+  disclaimerCheckLabel: { fontSize: 14 },
+  disclaimerBtn: { width: '100%', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  disclaimerBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   changeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, borderWidth: 1, marginTop: 10, paddingHorizontal: 14, paddingVertical: 7 },
   changeBtnText: { fontSize: 13, fontWeight: '600' },
   processBtn: { marginTop: 20 },
