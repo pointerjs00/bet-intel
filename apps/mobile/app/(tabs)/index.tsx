@@ -641,7 +641,7 @@ export default function HomeScreen() {
 
   const listData: SlipListItem[] = boletinsQuery.isLoading
     ? [{ id: 's1', type: 'skeleton' }, { id: 's2', type: 'skeleton' }, { id: 's3', type: 'skeleton' }]
-    : [...visibleBoletins, ...loadingMorePlaceholders];
+    : [...visibleBoletins];
 
   const summary = useMemo(() => {
     return filtered.reduce(
@@ -946,15 +946,7 @@ export default function HomeScreen() {
             />
           );
 
-          if (index >= INITIAL_VISIBLE_BOLETINS) {
-            return card;
-          }
-
-          return (
-            <Animated.View entering={FadeInDown.delay(300 + index * 25).duration(160).springify()}>
-              {card}
-            </Animated.View>
-          );
+          return card;
         }}
         ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={
@@ -1386,7 +1378,7 @@ const styles = StyleSheet.create({
   filterBtnBadge: { color: '#fff', fontSize: 12, fontWeight: '800' },
   clearFilters: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   skeletonCard: { gap: 14 },
-  loadMoreFooter: { alignItems: 'center', gap: 10, marginTop: 8, paddingBottom: 8, paddingTop: 4 },
+  loadMoreFooter: { alignItems: 'center', gap: 10, marginTop: 8, paddingBottom: 32, paddingTop: 4 },
   loadMoreText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
   batchResolveBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   batchResolveBtnText: { fontSize: 13, fontWeight: '700', flex: 1 },
