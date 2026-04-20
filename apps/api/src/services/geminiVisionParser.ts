@@ -49,68 +49,19 @@ function getGenAI(): GoogleGenerativeAI {
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are an expert at extracting structured data from Portuguese betting site screenshots — specifically Betclic Portugal (betclic.pt).
+const SYSTEM_PROMPT = `Extract bet slip data from this Betclic Portugal screenshot. Return JSON only.
 
-Given a screenshot image of a bet slip or bet result, extract ALL the following information and return it as valid JSON.
+Rules:
+- Text is in Portuguese. Odds are decimal (e.g. 1.50). Dates are DD/MM/YYYY.
+- status: "WON", "LOST", or "PENDING"
+- sport: FOOTBALL, BASKETBALL, TENNIS, HANDBALL, VOLLEYBALL, HOCKEY, RUGBY, AMERICAN_FOOTBALL, BASEBALL, or OTHER
+- eventDate and betDate: ISO 8601 format
+- Extract ALL selections from accumulators
 
-IMPORTANT RULES:
-- The screenshot is from Betclic Portugal. All text is in Portuguese.
-- A bet slip ("boletim") can be a single ("Simples") or accumulator ("Múltipla").
-- Each bet contains one or more selections/picks ("seleções").
-- Extract EVERY selection/pick in the bet slip.
-- Team names should be their full official names (e.g., "SL Benfica", "FC Porto", "Sporting CP", "SC Braga").
-- If the screenshot shows a celebration/result screen, look for the result status (won/lost).
-- Odds are in European decimal format (e.g., 1.50, 2.10).
-- Monetary values use Euro (€) with comma as decimal separator in Portuguese (e.g., "1,50 €").
-- Dates are in DD/MM/YYYY format.
+JSON schema:
+{"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING","items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO"}]}]}
 
-For each selection, determine:
-- homeTeam: The home team (first team listed, or the team playing at home)
-- awayTeam: The away team (second team listed, or the visiting team)
-- competition: The league/competition name (e.g., "Liga Portugal", "Champions League", "Premier League", "Ligue 1")
-- sport: One of: FOOTBALL, BASKETBALL, TENNIS, HANDBALL, VOLLEYBALL, HOCKEY, RUGBY, AMERICAN_FOOTBALL, BASEBALL, OTHER
-- market: The bet market type in Portuguese (e.g., "Resultado (Tempo Regulamentar)" for 1X2, "Resultado Duplo" for double chance, "Golos Acima/Abaixo" for over/under, "Ambas Marcam" for BTTS, "Resultado Intervalo/Final" for HT/FT)
-- selection: The actual selection made (e.g., "SL Benfica vence", "Empate", "Acima de 2,5 golos", "SL Benfica / SL Benfica" for HT/FT)
-- oddValue: The decimal odds for this selection (e.g., 1.50)
-- eventDate: The date of the event in ISO 8601 format if visible (e.g., "2026-04-15T20:00:00.000Z")
-
-For the overall bet slip:
-- stake: The amount wagered in euros (e.g., 1.50)
-- totalOdds: The combined/total odds (product of all individual odds for accumulators)
-- potentialReturn: The potential payout (stake × totalOdds)
-- status: "WON" if the bet was won, "LOST" if lost, "PENDING" if still awaiting results
-- betDate: The date the bet was placed in ISO 8601 format
-
-RESPOND WITH ONLY valid JSON in this exact format (no markdown, no code blocks, no explanation):
-{
-  "boletins": [
-    {
-      "betDate": "2026-04-15T18:30:00.000Z",
-      "stake": 1.50,
-      "totalOdds": 5.25,
-      "potentialReturn": 7.88,
-      "status": "WON",
-      "items": [
-        {
-          "homeTeam": "SL Benfica",
-          "awayTeam": "FC Porto",
-          "competition": "Liga Portugal",
-          "sport": "FOOTBALL",
-          "market": "Resultado (Tempo Regulamentar)",
-          "selection": "SL Benfica vence",
-          "oddValue": 1.75,
-          "eventDate": "2026-04-15T20:00:00.000Z"
-        }
-      ]
-    }
-  ]
-}
-
-If you cannot parse any selections, return:
-{
-  "boletins": [],
-  "error": "Description of what went wrong"
-}`;
+If no bets found: {"boletins":[],"error":"reason"}`;
 
 // ─── Parse function ──────────────────────────────────────────────────────────
 
@@ -118,13 +69,16 @@ export async function parseImageWithGemini(imageBase64: string, mimeType: string
   const ai = getGenAI();
 
   const model = ai.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash-lite',
     safetySettings: [
       { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
       { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
       { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
       { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ],
+    generationConfig: {
+      responseMimeType: 'application/json',
+    },
   });
 
   logger.info('Sending image to Gemini Vision for parsing', {

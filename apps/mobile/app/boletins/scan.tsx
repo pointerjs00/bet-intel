@@ -12,6 +12,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -88,17 +89,19 @@ export default function ScanScreen() {
     if (!imageUri) return;
     setIsProcessing(true);
     try {
-      // Read image as base64 and determine MIME type
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      // Compress & resize to max 1000px wide JPEG 80% — reduces upload & Gemini processing time
+      const compressed = await ImageManipulator.manipulateAsync(
+        imageUri,
+        [{ resize: { width: 1000 } }],
+        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+      );
+
+      // Read compressed image as base64
+      const base64 = await FileSystem.readAsStringAsync(compressed.uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      const lower = imageUri.toLowerCase();
-      const mimeType: 'image/jpeg' | 'image/png' | 'image/webp' = lower.endsWith('.png')
-        ? 'image/png'
-        : lower.endsWith('.webp')
-          ? 'image/webp'
-          : 'image/jpeg';
+      const mimeType = 'image/jpeg';
 
       // Send to backend AI parser
       const result = await scanImageAiRequest(base64, mimeType);
