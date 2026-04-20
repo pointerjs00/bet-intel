@@ -534,22 +534,24 @@ export default function ImportReviewScreen() {
                     >
                       {/* Match number pill + date/time + status */}
                       <View style={styles.matchCardTopRow}>
-                        {item.items.length > 1 && (
-                          <View style={[styles.matchNumberPill, { backgroundColor: colors.primary + '20' }]}>
-                            <Text style={[styles.matchNumberText, { color: colors.primary }]}>
-                              Jogo {selectionIndex + 1}
-                            </Text>
-                          </View>
-                        )}
-                        {selectionItem.eventDate && (
-                          <View style={[styles.matchDatePill, { backgroundColor: colors.surfaceRaised }]}>
-                            <Ionicons name="time-outline" size={11} color={colors.textMuted} />
-                            <Text style={[styles.matchDateText, { color: colors.textMuted }]}>
-                              {formatSelectionDate(selectionItem.eventDate)}
-                            </Text>
-                          </View>
-                        )}
-                        <StatusBadge status={item.status as BoletinStatus} />
+                        <View style={styles.matchCardTopLeft}>
+                          {item.items.length > 1 && (
+                            <View style={[styles.matchNumberPill, { backgroundColor: colors.primary + '20' }]}>
+                              <Text style={[styles.matchNumberText, { color: colors.primary }]}>
+                                Jogo {selectionIndex + 1}
+                              </Text>
+                            </View>
+                          )}
+                          {selectionItem.eventDate && (
+                            <View style={[styles.matchDatePill, { backgroundColor: colors.surfaceRaised }]}>
+                              <Ionicons name="time-outline" size={11} color={colors.textMuted} />
+                              <Text style={[styles.matchDateText, { color: colors.textMuted }]}>
+                                {formatSelectionDate(selectionItem.eventDate)}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <StatusBadge status={(selectionItem.result ?? item.status) as BoletinStatus} />
                       </View>
 
                       {/* Teams face-off row */}
@@ -1007,9 +1009,16 @@ const styles = StyleSheet.create({
   matchCardTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
     paddingTop: 10,
     paddingHorizontal: 12,
+  },
+  matchCardTopLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
     flexWrap: 'wrap',
   },
   matchNumberPill: {
