@@ -141,6 +141,11 @@ const TEAM_ALIASES: Record<string, string> = {
   'le havre': 'Le Havre AC',
   'saint-etienne': 'AS Saint-Étienne',
   'saint etienne': 'AS Saint-Étienne',
+  'lorient': 'FC Lorient',
+  'fc lorient': 'FC Lorient',
+  'metz': 'FC Metz',
+  'caen': 'SM Caen',
+  'guingamp': 'EA Guingamp',
 
   // ── England ───────────────────────────────────────────────────────────────
   'manchester city': 'Manchester City',
@@ -420,6 +425,10 @@ const TEAM_COMPETITION: Record<string, string> = {
   'Angers SCO':          'Ligue 1',
   'Le Havre AC':         'Ligue 1',
   'AS Saint-Étienne':    'Ligue 1',
+  'FC Lorient':          'Ligue 1',
+  'FC Metz':             'Ligue 2',
+  'SM Caen':             'Ligue 2',
+  'EA Guingamp':         'Ligue 2',
 
   // ── Eredivisie ──────────────────────────────────────────────────────────
   'AFC Ajax':       'Eredivisie',
@@ -483,7 +492,13 @@ export function inferCompetition(homeTeam: string, awayTeam: string): string {
   if (!homeTeam || !awayTeam) return '';
   const homeCmp = TEAM_COMPETITION[homeTeam];
   const awayCmp = TEAM_COMPETITION[awayTeam];
+  // Both teams in same league — definitive match
   if (homeCmp && awayCmp && homeCmp === awayCmp) return homeCmp;
+  // Away team unknown — use home team's competition as best guess
+  if (homeCmp && !awayCmp) return homeCmp;
+  // Home team unknown — use away team's competition as best guess
+  if (!homeCmp && awayCmp) return awayCmp;
+  // Both known but different leagues (cup game) — no reliable inference
   return '';
 }
 
