@@ -2416,6 +2416,16 @@ const TEAM_LOGO_ALIASES: Record<string, string> = {
   'Brentford FC':     'Brentford',
   'Southampton FC':   'Southampton',
   'Burnley FC':       'Burnley',
+  // ── Scottish clubs — teamAliases resolves to "FC" suffix; TEAM_LOGOS uses bare name ──
+  'Celtic FC':        'Celtic',
+  'Rangers FC':       'Rangers',
+  // ── French clubs — teamAliases uses short form; TEAM_LOGOS uses full official name ──
+  'Olympique Lyon':      'Olympique Lyonnais',
+  'Olympique Marseille': 'Olympique de Marseille',
+  // ── Turkish clubs — teamAliases adds JK/SK suffix; TEAM_LOGOS uses bare name ──
+  'Galatasaray SK': 'Galatasaray',
+  'Fenerbahçe SK':  'Fenerbahçe',
+  'Beşiktaş JK':    'Beşiktaş',
   // ── Duplicate name variants (same club, different name formats) ──────────
   'Académico de Viseu': 'Académico de Viseu FC',
   'FC Alverca': 'Alverca',

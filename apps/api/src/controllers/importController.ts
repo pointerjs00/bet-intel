@@ -4,6 +4,7 @@ import { createBoletinSchema } from '@betintel/shared';
 import { parseBetclicPdf, type ParsedBetclicBoletin } from '../services/betclicPdfParser';
 import { fetchBetclicBets } from '../services/betclicApiService';
 import { parseImageWithGemini } from '../services/geminiVisionParser';
+import { parseImageWithOpenAI } from '../services/openaiVisionParser';
 import { createBoletin, listUserBoletins } from '../services/boletins/boletinService';
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
@@ -171,7 +172,7 @@ const scanAiSchema = z.object({
 // Maximum image size: 10 MB in base64
 const MAX_IMAGE_BASE64_LENGTH = 14 * 1024 * 1024;
 
-/** POST /api/boletins/import/scan-ai — parses a bet slip screenshot using AI vision (Gemini). */
+/** POST /api/boletins/import/scan-ai — parses a bet slip screenshot using AI vision (Gemini or OpenAI). */
 export async function scanAiHandler(req: Request, res: Response): Promise<void> {
   try {
     requireUserId(req);
@@ -196,9 +197,14 @@ export async function scanAiHandler(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const result = await parseImageWithGemini(imageBase64, mimeType);
+    // AI_PARSER env var selects the backend: 'openai' | 'gemini' (default)
+    const parser = process.env.AI_PARSER ?? 'gemini';
+    const result = parser === 'openai'
+      ? await parseImageWithOpenAI(imageBase64, mimeType)
+      : await parseImageWithGemini(imageBase64, mimeType);
 
     logger.info('AI vision scan completed', {
+      parser,
       totalFound: result.totalFound,
       errorCount: result.errorCount,
     });
@@ -341,6 +347,59 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
       return;
     }
     logger.error('Unknown bulk import error', { error: err });
+    res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+  }
+}
+
+// ─── AI scan feedback ─────────────────────────────────────────────────────────
+
+const scanFeedbackSchema = z.object({
+  imageBase64: z.string().min(1),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  aiOutput: z.unknown(),
+  correctedOutput: z.unknown(),
+});
+
+/** POST /api/boletins/import/scan-feedback — stores an AI scan result alongside user corrections for fine-tuning. */
+export async function scanFeedbackHandler(req: Request, res: Response): Promise<void> {
+  try {
+    requireUserId(req);
+    const userId = requireUserId(req);
+
+    const parsed = scanFeedbackSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(422).json({ success: false, error: 'Dados inválidos' });
+      return;
+    }
+
+    const { imageBase64, mimeType, aiOutput, correctedOutput } = parsed.data;
+
+    // Reject oversized images (same limit as scan-ai)
+    if (imageBase64.length > MAX_IMAGE_BASE64_LENGTH) {
+      res.status(413).json({ success: false, error: 'Imagem demasiado grande' });
+      return;
+    }
+
+    await prisma.scanFeedback.create({
+      data: {
+        userId,
+        imageBase64,
+        mimeType,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        aiOutput: aiOutput as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        correctedOutput: correctedOutput as any,
+      },
+    });
+
+    logger.info('Scan feedback stored', { userId });
+
+    res.status(201).json({ success: true });
+  } catch (err: unknown) {
+    // Log but do NOT surface detailed errors — this endpoint is fire-and-forget on the client
+    if (err instanceof Error) {
+      logger.error('Scan feedback storage error', { error: err.message });
+    }
     res.status(500).json({ success: false, error: 'Erro interno do servidor' });
   }
 }

@@ -67,6 +67,70 @@ If no bets found: {"boletins":[],"error":"reason"}`;
 
 // ─── Parse function ──────────────────────────────────────────────────────────
 
+/**
+ * Normalises a raw JSON object returned by any vision model into a validated
+ * AIParsedResult, filling in defaults and computing error flags.
+ */
+export function normalizeParsedResult(parsed: {
+  boletins?: AIParsedBoletin[];
+  error?: string;
+}): AIParsedResult {
+  if (!parsed.boletins || parsed.boletins.length === 0) {
+    return {
+      boletins: [{
+        reference: `ai-${Date.now()}`,
+        betDate: new Date().toISOString(),
+        stake: 0,
+        totalOdds: 0,
+        potentialReturn: 0,
+        status: 'PENDING',
+        items: [],
+        parseError: true,
+        parseErrorReason: parsed.error ?? 'Nenhuma aposta encontrada no screenshot.',
+      }],
+      totalFound: 0,
+      errorCount: 1,
+    };
+  }
+
+  const boletins: AIParsedBoletin[] = parsed.boletins.map((b, idx) => {
+    const items = (b.items ?? []).map((item) => ({
+      homeTeam: item.homeTeam || 'Equipa desconhecida',
+      homeTeamImageUrl: null,
+      awayTeam: item.awayTeam || 'Equipa desconhecida',
+      awayTeamImageUrl: null,
+      competition: item.competition || 'Competição desconhecida',
+      sport: item.sport || 'FOOTBALL',
+      market: item.market || 'Mercado desconhecido',
+      selection: item.selection || 'Seleção desconhecida',
+      oddValue: typeof item.oddValue === 'number' && item.oddValue > 1 ? item.oddValue : 0,
+      eventDate: item.eventDate || undefined,
+    }));
+
+    const hasError = items.length === 0 || b.stake <= 0;
+
+    return {
+      reference: `ai-${Date.now()}-${idx}`,
+      betDate: b.betDate || new Date().toISOString(),
+      stake: typeof b.stake === 'number' && b.stake > 0 ? b.stake : 0,
+      totalOdds: typeof b.totalOdds === 'number' && b.totalOdds > 0 ? b.totalOdds : 0,
+      potentialReturn: typeof b.potentialReturn === 'number' && b.potentialReturn > 0 ? b.potentialReturn : 0,
+      status: ['WON', 'LOST', 'PENDING'].includes(b.status) ? b.status : 'PENDING',
+      items,
+      parseError: hasError,
+      parseErrorReason: hasError ? 'A IA encontrou a aposta mas alguns dados estão em falta.' : undefined,
+    };
+  });
+
+  const errorCount = boletins.filter((b) => b.parseError).length;
+
+  return {
+    boletins,
+    totalFound: boletins.length,
+    errorCount,
+  };
+}
+
 export async function parseImageWithGemini(imageBase64: string, mimeType: string): Promise<AIParsedResult> {
   const ai = getGenAI();
 
@@ -137,59 +201,5 @@ export async function parseImageWithGemini(imageBase64: string, mimeType: string
     };
   }
 
-  if (!parsed.boletins || parsed.boletins.length === 0) {
-    return {
-      boletins: [{
-        reference: `ai-${Date.now()}`,
-        betDate: new Date().toISOString(),
-        stake: 0,
-        totalOdds: 0,
-        potentialReturn: 0,
-        status: 'PENDING',
-        items: [],
-        parseError: true,
-        parseErrorReason: parsed.error ?? 'Nenhuma aposta encontrada no screenshot.',
-      }],
-      totalFound: 0,
-      errorCount: 1,
-    };
-  }
-
-  // Post-process: add references, validate fields
-  const boletins: AIParsedBoletin[] = parsed.boletins.map((b, idx) => {
-    const items = (b.items ?? []).map((item) => ({
-      homeTeam: item.homeTeam || 'Equipa desconhecida',
-      homeTeamImageUrl: null,
-      awayTeam: item.awayTeam || 'Equipa desconhecida',
-      awayTeamImageUrl: null,
-      competition: item.competition || 'Competição desconhecida',
-      sport: item.sport || 'FOOTBALL',
-      market: item.market || 'Mercado desconhecido',
-      selection: item.selection || 'Seleção desconhecida',
-      oddValue: typeof item.oddValue === 'number' && item.oddValue > 1 ? item.oddValue : 0,
-      eventDate: item.eventDate || undefined,
-    }));
-
-    const hasError = items.length === 0 || b.stake <= 0;
-
-    return {
-      reference: `ai-${Date.now()}-${idx}`,
-      betDate: b.betDate || new Date().toISOString(),
-      stake: typeof b.stake === 'number' && b.stake > 0 ? b.stake : 0,
-      totalOdds: typeof b.totalOdds === 'number' && b.totalOdds > 0 ? b.totalOdds : 0,
-      potentialReturn: typeof b.potentialReturn === 'number' && b.potentialReturn > 0 ? b.potentialReturn : 0,
-      status: ['WON', 'LOST', 'PENDING'].includes(b.status) ? b.status : 'PENDING',
-      items,
-      parseError: hasError,
-      parseErrorReason: hasError ? 'A IA encontrou a aposta mas alguns dados estão em falta.' : undefined,
-    };
-  });
-
-  const errorCount = boletins.filter((b) => b.parseError).length;
-
-  return {
-    boletins,
-    totalFound: boletins.length,
-    errorCount,
-  };
+  return normalizeParsedResult(parsed);
 }

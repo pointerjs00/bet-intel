@@ -15,7 +15,7 @@ import {
   updateBoletinItemHandler,
   updateBoletinItemsHandler,
 } from '../controllers/boletinController';
-import { betclicApiHandler, bulkImportHandler, parsePdfHandler, scanAiHandler } from '../controllers/importController';
+import { betclicApiHandler, bulkImportHandler, parsePdfHandler, scanAiHandler, scanFeedbackHandler } from '../controllers/importController';
 
 const boletinCollectionRouter: Router = Router();
 const betintelRouter: Router = Router();
@@ -28,6 +28,7 @@ boletinCollectionRouter.get('/export', exportBoletinsHandler);
 boletinCollectionRouter.post('/', createBoletinHandler);
 boletinCollectionRouter.post('/import/pdf', json({ limit: '15mb' }), parsePdfHandler);
 boletinCollectionRouter.post('/import/scan-ai', json({ limit: '15mb' }), scanAiHandler);
+boletinCollectionRouter.post('/import/scan-feedback', json({ limit: '15mb' }), scanFeedbackHandler);
 boletinCollectionRouter.post('/import/betclic-api', betclicApiHandler);
 boletinCollectionRouter.post('/import/bulk', bulkImportHandler);
 

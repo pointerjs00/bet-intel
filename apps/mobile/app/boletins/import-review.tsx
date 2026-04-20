@@ -38,6 +38,8 @@ import {
   type BetclicPdfResult,
   type ParsedBetclicBoletin,
   type ParsedBetclicItem,
+  consumeScanFeedbackContext,
+  submitScanFeedbackRequest,
 } from '../../services/importService';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 
@@ -353,6 +355,23 @@ export default function ImportReviewScreen() {
         showToast('Todas as apostas já tinham sido importadas anteriormente', 'info');
       } else {
         showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
+      }
+
+      // Fire-and-forget: send AI output + corrected output for fine-tuning data collection.
+      // Only present when the import came from an AI scan (not PDF/API).
+      const feedbackCtx = consumeScanFeedbackContext();
+      if (feedbackCtx) {
+        const correctedOutput: BetclicPdfResult = {
+          boletins: selectedBoletins,
+          totalFound: selectedBoletins.length,
+          errorCount: 0,
+        };
+        submitScanFeedbackRequest(
+          feedbackCtx.imageBase64,
+          feedbackCtx.mimeType,
+          feedbackCtx.aiOutput,
+          correctedOutput,
+        ).catch(() => { /* silent — never block the user */ });
       }
 
       router.back();

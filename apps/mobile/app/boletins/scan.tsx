@@ -23,7 +23,7 @@ import { PressableScale } from '../../components/ui/PressableScale';
 import { useToast } from '../../components/ui/Toast';
 import { useTheme } from '../../theme/useTheme';
 import type { BetclicPdfResult } from '../../services/importService';
-import { scanImageAiRequest } from '../../services/importService';
+import { scanImageAiRequest, storeScanFeedbackContext } from '../../services/importService';
 import { resolveTeamAlias, inferCompetition } from '../../utils/teamAliases';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
 
@@ -123,6 +123,9 @@ export default function ScanScreen() {
 
       // Send to backend AI parser
       const result = await scanImageAiRequest(base64, mimeType);
+
+      // Store raw AI result + image for silent feedback submission after successful import
+      storeScanFeedbackContext({ imageBase64: base64, mimeType, aiOutput: result });
 
       // Post-process: resolve Portuguese team name aliases + infer missing competitions
       const processed: BetclicPdfResult = {

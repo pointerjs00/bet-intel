@@ -96,6 +96,49 @@ export async function bulkImportRequest(
   return response.data.data;
 }
 
+// ─── AI scan feedback (fine-tuning data collection) ──────────────────────────
+
+interface ScanFeedbackContext {
+  imageBase64: string;
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  aiOutput: BetclicPdfResult;
+}
+
+/** Module-level store — carries scan context from scan.tsx to import-review.tsx. */
+let _pendingScanFeedback: ScanFeedbackContext | null = null;
+
+/** Call in scan.tsx immediately after a successful AI scan, before navigating. */
+export function storeScanFeedbackContext(ctx: ScanFeedbackContext): void {
+  _pendingScanFeedback = ctx;
+}
+
+/**
+ * Call in import-review.tsx after a successful bulk import.
+ * Returns the stored context and clears the module-level variable.
+ */
+export function consumeScanFeedbackContext(): ScanFeedbackContext | null {
+  const ctx = _pendingScanFeedback;
+  _pendingScanFeedback = null;
+  return ctx;
+}
+
+/**
+ * Silently sends the original AI output + user-corrected output to the backend
+ * for fine-tuning data collection. Fire-and-forget — never throw.
+ */
+export async function submitScanFeedbackRequest(
+  imageBase64: string,
+  mimeType: string,
+  aiOutput: BetclicPdfResult,
+  correctedOutput: BetclicPdfResult,
+): Promise<void> {
+  await apiClient.post(
+    '/boletins/import/scan-feedback',
+    { imageBase64, mimeType, aiOutput, correctedOutput },
+    { timeout: 30000 },
+  );
+}
+
 // ─── Hooks ───────────────────────────────────────────────────────────────────
 
 /** Mutation hook for parsing a Betclic PDF. */

@@ -285,3 +285,18 @@ model UserFavourite {
   @@unique([userId, type, sport, targetKey])
   @@index([userId, sport])
 }
+
+// ─── AI Scan Feedback (fine-tuning training data) ─────────────────────────────
+
+model ScanFeedback {
+  id              String   @id @default(cuid())
+  userId          String
+  imageBase64     String   @db.Text
+  mimeType        String   @default("image/jpeg")
+  aiOutput        Json     // raw result from the AI parser before user edits
+  correctedOutput Json     // final user-confirmed output after editing
+  createdAt       DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
