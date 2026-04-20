@@ -958,11 +958,11 @@ export default function HomeScreen() {
         }}
         ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={
-          hasMoreBoletins ? (
+          hasMoreBoletins || isLoadingMore ? (
             <View style={styles.loadMoreFooter}>
               <ActivityIndicator color={colors.primary} size="small" />
             </View>
-          ) : (
+          ) : boletinsQuery.isLoading ? null : (
             <View style={styles.footerBar}>
               <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
             </View>
@@ -970,9 +970,8 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
         refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
-        windowSize={5}
+        windowSize={11}
         maxToRenderPerBatch={8}
-        removeClippedSubviews
         initialNumToRender={8}
       />
 
