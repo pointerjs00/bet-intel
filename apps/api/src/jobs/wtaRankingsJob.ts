@@ -797,10 +797,11 @@ export async function processWTARankingsUpdate(): Promise<{ updated: number; ski
 
   for (const player of players) {
     try {
+      const normalizedName = player.name.trim().replace(/\s+/g, ' ');
       const team = await prisma.team.upsert({
-        where: { name_sport: { name: player.name, sport: Sport.TENNIS } },
+        where: { name_sport: { name: normalizedName, sport: Sport.TENNIS } },
         update: { country: player.country ?? undefined },
-        create: { name: player.name, sport: Sport.TENNIS, country: player.country ?? null },
+        create: { name: normalizedName, sport: Sport.TENNIS, country: player.country ?? null },
       });
 
       await prisma.teamCompetition.upsert({
@@ -810,14 +811,14 @@ export async function processWTARankingsUpdate(): Promise<{ updated: number; ski
       });
 
       if (player.photoUrl) {
-        await redis.set(`wta:photo:${player.name}`, player.photoUrl, 'EX', 7 * 24 * 3600);
+        await redis.set(`wta:photo:${normalizedName}`, player.photoUrl, 'EX', 7 * 24 * 3600);
       } else {
-        await redis.del(`wta:photo:${player.name}`);
+        await redis.del(`wta:photo:${normalizedName}`);
       }
       if (player.displayName) {
-        await redis.set(`wta:display-name:${player.name}`, player.displayName, 'EX', 7 * 24 * 3600);
+        await redis.set(`wta:display-name:${normalizedName}`, player.displayName, 'EX', 7 * 24 * 3600);
       }
-      await redis.set(`wta:rank:${player.name}`, String(player.rank), 'EX', 7 * 24 * 3600);
+      await redis.set(`wta:rank:${normalizedName}`, String(player.rank), 'EX', 7 * 24 * 3600);
 
       updated++;
     } catch {

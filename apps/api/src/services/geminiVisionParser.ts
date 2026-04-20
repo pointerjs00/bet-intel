@@ -39,6 +39,40 @@ export interface AIParsedResult {
   errorCount: number;
 }
 
+// ─── Timezone helpers ────────────────────────────────────────────────────────
+
+/**
+ * Returns the UTC offset of Europe/Lisbon (in ms) at a given UTC instant.
+ * Handles both WET (UTC+0, winter) and WEST (UTC+1, summer) automatically.
+ */
+function getLisbonOffsetMs(utcDate: Date): number {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Lisbon',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(utcDate).map(p => [p.type, p.value]));
+  const h = parseInt(parts.hour!);
+  const lisbonWallMs = Date.UTC(
+    parseInt(parts.year!), parseInt(parts.month!) - 1, parseInt(parts.day!),
+    h === 24 ? 0 : h, parseInt(parts.minute!), parseInt(parts.second!),
+  );
+  return lisbonWallMs - utcDate.getTime();
+}
+
+/**
+ * Gemini reads a Lisbon wall-clock time from the screenshot and returns it as
+ * if it were UTC. This re-interprets it as Lisbon local time and returns the
+ * true UTC ISO string.
+ */
+function aiDateAsLisbonToUTC(dateStr: string | undefined | null): string {
+  if (!dateStr) return new Date().toISOString();
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return new Date().toISOString();
+  return new Date(d.getTime() - getLisbonOffsetMs(d)).toISOString();
+}
+
 // ─── Gemini client ───────────────────────────────────────────────────────────
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -115,7 +149,7 @@ export function normalizeParsedResult(parsed: {
       market: item.market || 'Mercado desconhecido',
       selection: item.selection || 'Seleção desconhecida',
       oddValue: typeof item.oddValue === 'number' && item.oddValue > 1 ? item.oddValue : 0,
-      eventDate: item.eventDate || undefined,
+      eventDate: item.eventDate ? aiDateAsLisbonToUTC(item.eventDate) : undefined,
       result: (['WON', 'LOST', 'VOID', 'PENDING'].includes(item.result ?? '') ? item.result : 'PENDING') as 'WON' | 'LOST' | 'VOID' | 'PENDING',
     }));
 
@@ -149,7 +183,7 @@ export function normalizeParsedResult(parsed: {
 
     return {
       reference: `ai-${Date.now()}-${idx}`,
-      betDate: b.betDate || new Date().toISOString(),
+      betDate: aiDateAsLisbonToUTC(b.betDate),
       stake: typeof b.stake === 'number' && b.stake > 0 ? b.stake : 0,
       totalOdds: typeof b.totalOdds === 'number' && b.totalOdds > 0 ? b.totalOdds : 0,
       potentialReturn: typeof b.potentialReturn === 'number' && b.potentialReturn > 0 ? b.potentialReturn : 0,

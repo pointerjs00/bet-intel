@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
   Image,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -39,10 +39,24 @@ export default function ScanScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseResult, setParseResult] = useState<BetclicPdfResult | null>(null);
-  const [showAllItems, setShowAllItems] = useState(false);
+  const [expandedBoletins, setExpandedBoletins] = useState<Set<number>>(new Set());
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [disclaimerVisible, setDisclaimerVisible] = useState(false);
   const [disclaimerDontShow, setDisclaimerDontShow] = useState(false);
+
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      setImageUri(null);
+      setParseResult(null);
+      setIsProcessing(false);
+      setExpandedBoletins(new Set());
+    }, []),
+  );
 
   // Show disclaimer on first visit unless user opted out
   useEffect(() => {
@@ -183,7 +197,7 @@ export default function ScanScreen() {
   const reset = useCallback(() => {
     setImageUri(null);
     setParseResult(null);
-    setShowAllItems(false);
+    setExpandedBoletins(new Set());
     setImageViewerVisible(false);
   }, []);
 
@@ -198,7 +212,6 @@ export default function ScanScreen() {
   }, [imageUri, reset]);
 
   const hasResult = parseResult && parseResult.boletins.length > 0;
-  const firstBoletin = parseResult?.boletins[0];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -305,80 +318,90 @@ export default function ScanScreen() {
           </Animated.View>
         )}
 
-        {/* Parse result */}
-        {hasResult && firstBoletin && (
-          <Animated.View entering={FadeInDown.delay(80).duration(260).springify()}>
-            <View style={[styles.resultCard, { backgroundColor: colors.surface, borderColor: firstBoletin.parseError ? colors.warning : colors.primary }]}>
-              <View style={[styles.resultHeader, { backgroundColor: firstBoletin.parseError ? `${colors.warning}18` : `${colors.primary}18`, borderColor: firstBoletin.parseError ? `${colors.warning}40` : `${colors.primary}40` }]}>
-                <Ionicons
-                  name={firstBoletin.parseError ? 'warning' : 'checkmark-circle'}
-                  size={20}
-                  color={firstBoletin.parseError ? colors.warning : colors.primary}
-                />
-                <Text style={[styles.resultHeaderText, { color: firstBoletin.parseError ? colors.warning : colors.primary }]}>
-                  {firstBoletin.parseError ? 'Aposta lida com erros' : 'Aposta lida com sucesso!'}
+        {/* Parse result — one card per detected boletin */}
+        {hasResult && parseResult && parseResult.boletins.map((boletin, boletinIdx) => {
+          const isExpanded = expandedBoletins.has(boletinIdx);
+          return (
+            <Animated.View key={boletinIdx} entering={FadeInDown.delay(80 + boletinIdx * 40).duration(260).springify()}>
+              {parseResult.boletins.length > 1 && (
+                <Text style={[styles.boletimCountLabel, { color: colors.textSecondary }]}>
+                  {`Boletim ${boletinIdx + 1} de ${parseResult.boletins.length}`}
                 </Text>
-              </View>
+              )}
+              <View style={[styles.resultCard, { backgroundColor: colors.surface, borderColor: boletin.parseError ? colors.warning : colors.primary }]}>
+                <View style={[styles.resultHeader, { backgroundColor: boletin.parseError ? `${colors.warning}18` : `${colors.primary}18`, borderColor: boletin.parseError ? `${colors.warning}40` : `${colors.primary}40` }]}>
+                  <Ionicons
+                    name={boletin.parseError ? 'warning' : 'checkmark-circle'}
+                    size={20}
+                    color={boletin.parseError ? colors.warning : colors.primary}
+                  />
+                  <Text style={[styles.resultHeaderText, { color: boletin.parseError ? colors.warning : colors.primary }]}>
+                    {boletin.parseError ? 'Aposta lida com erros' : 'Aposta lida com sucesso!'}
+                  </Text>
+                </View>
 
-              <View style={styles.metrics}>
-                <Metric label="Seleções" value={String(firstBoletin.items.length)} colors={colors} />
-                <MetricDivider colors={colors} />
-                <Metric label="Cota" value={firstBoletin.totalOdds > 0 ? firstBoletin.totalOdds.toFixed(2) : '—'} colors={colors} accent={colors.gold} />
-                <MetricDivider colors={colors} />
-                <Metric label="Stake" value={firstBoletin.stake > 0 ? `${firstBoletin.stake.toFixed(2)} €` : '—'} colors={colors} />
-                <MetricDivider colors={colors} />
-                <Metric
-                  label="Estado"
-                  value={firstBoletin.status === 'WON' ? 'Ganhou' : firstBoletin.status === 'LOST' ? 'Perdida' : 'Pendente'}
-                  colors={colors}
-                  accent={firstBoletin.status === 'WON' ? colors.primary : firstBoletin.status === 'LOST' ? colors.danger : colors.warning}
-                />
-              </View>
+                <View style={styles.metrics}>
+                  <Metric label="Seleções" value={String(boletin.items.length)} colors={colors} />
+                  <MetricDivider colors={colors} />
+                  <Metric label="Cota" value={boletin.totalOdds > 0 ? boletin.totalOdds.toFixed(2) : '—'} colors={colors} accent={colors.gold} />
+                  <MetricDivider colors={colors} />
+                  <Metric label="Stake" value={boletin.stake > 0 ? `${boletin.stake.toFixed(2)} €` : '—'} colors={colors} />
+                  <MetricDivider colors={colors} />
+                  <Metric
+                    label="Estado"
+                    value={boletin.status === 'WON' ? 'Ganhou' : boletin.status === 'LOST' ? 'Perdida' : 'Pendente'}
+                    colors={colors}
+                    accent={boletin.status === 'WON' ? colors.primary : boletin.status === 'LOST' ? colors.danger : colors.warning}
+                  />
+                </View>
 
-              <View style={[styles.itemsSection, { borderColor: colors.border }]}>
-                {(showAllItems ? firstBoletin.items : firstBoletin.items.slice(0, 3)).map((item, idx) => (
-                  <View key={idx} style={[styles.itemRow, idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
-                    <View style={styles.itemLeft}>
-                      <Text numberOfLines={2} style={[styles.itemTeams, { color: colors.textPrimary }]}>
-                        {item.selection}
-                      </Text>
-                      <Text numberOfLines={1} style={[styles.itemMarket, { color: colors.textSecondary }]}>
-                        {item.market}
+                <View style={[styles.itemsSection, { borderColor: colors.border }]}>
+                  {(isExpanded ? boletin.items : boletin.items.slice(0, 3)).map((item, idx) => (
+                    <View key={idx} style={[styles.itemRow, idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
+                      <View style={styles.itemLeft}>
+                        <Text numberOfLines={2} style={[styles.itemTeams, { color: colors.textPrimary }]}>
+                          {item.selection}
+                        </Text>
+                        <Text numberOfLines={1} style={[styles.itemMarket, { color: colors.textSecondary }]}>
+                          {item.market}
+                        </Text>
+                      </View>
+                      <Text style={[styles.itemOdd, { color: colors.gold }]}>
+                        {item.oddValue > 0 ? item.oddValue.toFixed(2) : '—'}
                       </Text>
                     </View>
-                    <Text style={[styles.itemOdd, { color: colors.gold }]}>
-                      {item.oddValue > 0 ? item.oddValue.toFixed(2) : '—'}
-                    </Text>
+                  ))}
+                  {boletin.items.length > 3 && (
+                    <Pressable
+                      onPress={() => setExpandedBoletins((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(boletinIdx)) next.delete(boletinIdx); else next.add(boletinIdx);
+                        return next;
+                      })}
+                      style={[styles.expandBtn, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+                    >
+                      <Ionicons
+                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                        size={14}
+                        color={colors.primary}
+                      />
+                      <Text style={[styles.moreItems, { color: colors.primary }]}>
+                        {isExpanded ? 'Mostrar menos' : `+ ${boletin.items.length - 3} mais seleções`}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+
+                {boletin.parseErrorReason && (
+                  <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}12` }]}>
+                    <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
+                    <Text style={[styles.errorText, { color: colors.danger }]}>{boletin.parseErrorReason}</Text>
                   </View>
-                ))}
-                {firstBoletin.items.length > 3 && (
-                  <Pressable
-                    onPress={() => setShowAllItems((v) => !v)}
-                    style={[styles.expandBtn, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
-                  >
-                    <Ionicons
-                      name={showAllItems ? 'chevron-up' : 'chevron-down'}
-                      size={14}
-                      color={colors.primary}
-                    />
-                    <Text style={[styles.moreItems, { color: colors.primary }]}>
-                      {showAllItems
-                        ? 'Mostrar menos'
-                        : `+ ${firstBoletin.items.length - 3} mais seleções`}
-                    </Text>
-                  </Pressable>
                 )}
               </View>
-
-              {firstBoletin.parseErrorReason && (
-                <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}12` }]}>
-                  <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
-                  <Text style={[styles.errorText, { color: colors.danger }]}>{firstBoletin.parseErrorReason}</Text>
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
+            </Animated.View>
+          );
+        })}
       </ScrollView>
 
       {/* Disclaimer modal */}
@@ -552,6 +575,8 @@ const styles = StyleSheet.create({
   pickIconWrap: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   pickLabel: { fontSize: 19, fontWeight: '900' },
   pickSub: { fontSize: 13, fontWeight: '700' },
+
+  boletimCountLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, marginLeft: 2 },
 
   previewSection: { gap: 12 },
   previewCard: { borderRadius: 18, borderWidth: 1, overflow: 'hidden', padding: 12, alignItems: 'center' },

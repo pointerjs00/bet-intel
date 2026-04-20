@@ -529,9 +529,17 @@ export default function ImportReviewScreen() {
 
       if (result.imported === 0 && result.duplicates > 0) {
         showToast('Todas as apostas já tinham sido importadas anteriormente', 'info');
-      } else {
-        showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
+        router.dismiss();
+        return;
       }
+
+      if (result.imported === 0 && result.errors > 0) {
+        const detail = result.errorDetails?.[0];
+        showToast(detail ?? 'Erro ao importar. Verifica os dados e tenta novamente.', 'error');
+        return;
+      }
+
+      showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
 
       const feedbackCtx = consumeScanFeedbackContext();
       if (feedbackCtx) {
@@ -548,7 +556,7 @@ export default function ImportReviewScreen() {
         ).catch(() => {});
       }
 
-      router.replace('/boletins/scan');
+      router.dismiss();
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : 'Erro de ligação. Tenta novamente';

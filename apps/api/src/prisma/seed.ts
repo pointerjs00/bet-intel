@@ -2194,6 +2194,27 @@ export async function seed(): Promise<void> {
 
   // Clear team-competition links so re-seeding removes stale associations (e.g. relegated teams)
   await prisma.teamCompetition.deleteMany({});
+
+  // Remove duplicate tennis players created by scraper runs with slightly different name formatting.
+  // teamCompetition rows are already gone above, so FK constraints won't block deletes.
+  const allTennisTeams = await prisma.team.findMany({
+    where: { sport: Sport.TENNIS },
+    orderBy: { createdAt: 'asc' },
+  });
+  const seenTennisNames = new Map<string, string>();
+  const duplicateTennisIds: string[] = [];
+  for (const t of allTennisTeams) {
+    const key = t.name.trim().toLowerCase().replace(/\s+/g, ' ');
+    if (seenTennisNames.has(key)) {
+      duplicateTennisIds.push(t.id);
+    } else {
+      seenTennisNames.set(key, t.id);
+    }
+  }
+  if (duplicateTennisIds.length > 0) {
+    await prisma.team.deleteMany({ where: { id: { in: duplicateTennisIds } } });
+    console.log(`🧹 Removed ${duplicateTennisIds.length} duplicate tennis player entries`);
+  }
   // Mark all competitions inactive first so renamed countries/tournaments don't leave stale active rows behind.
   await prisma.competition.updateMany({ data: { isActive: false } });
 

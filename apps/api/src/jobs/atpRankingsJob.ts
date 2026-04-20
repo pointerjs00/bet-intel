@@ -137,7 +137,8 @@ function parseATPRankingsHtml(html: string, limit: number): ScrapedPlayer[] {
     });
   }
 
-  return [...new Map(players.map((player) => [player.name, player])).values()]
+  return [...new Map(players.map((player) => [player.name.toLowerCase().trim(), player])).values()]
+    .map((player) => ({ ...player, name: player.name.trim().replace(/\s+/g, ' ') }))
     .sort((left, right) => left.rank - right.rank)
     .slice(0, limit);
 }
@@ -282,10 +283,11 @@ export async function processATPRankingsUpdate(): Promise<{ updated: number; ski
   // Upsert each player into the Team table with sport=TENNIS
   for (const player of players) {
     try {
+      const normalizedName = player.name.trim().replace(/\s+/g, ' ');
       const team = await prisma.team.upsert({
-        where: { name_sport: { name: player.name, sport: Sport.TENNIS } },
+        where: { name_sport: { name: normalizedName, sport: Sport.TENNIS } },
         update: { country: player.country ?? undefined },
-        create: { name: player.name, sport: Sport.TENNIS, country: player.country ?? null },
+        create: { name: normalizedName, sport: Sport.TENNIS, country: player.country ?? null },
       });
 
       await prisma.teamCompetition.upsert({
@@ -304,12 +306,12 @@ export async function processATPRankingsUpdate(): Promise<{ updated: number; ski
 
       // Cache photo URL in Redis so the mobile app can fetch it without a DB column
       if (player.photoUrl) {
-        await redis.set(`atp:photo:${player.name}`, player.photoUrl, 'EX', 7 * 24 * 3600);
+        await redis.set(`atp:photo:${normalizedName}`, player.photoUrl, 'EX', 7 * 24 * 3600);
       }
       if (player.displayName) {
-        await redis.set(`atp:display-name:${player.name}`, player.displayName, 'EX', 7 * 24 * 3600);
+        await redis.set(`atp:display-name:${normalizedName}`, player.displayName, 'EX', 7 * 24 * 3600);
       }
-      await redis.set(`atp:rank:${player.name}`, String(player.rank), 'EX', 7 * 24 * 3600);
+      await redis.set(`atp:rank:${normalizedName}`, String(player.rank), 'EX', 7 * 24 * 3600);
 
       updated++;
     } catch {

@@ -293,7 +293,11 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
             notes: `Importado do Betclic`,
             isPublic: false,
             isFreebet: false,
-            betDate: bet.betDate || undefined,
+            betDate: (() => {
+            if (!bet.betDate) return undefined;
+            const d = new Date(bet.betDate);
+            return isNaN(d.getTime()) ? undefined : d.toISOString();
+          })(),
           };
 
           // Validate with the shared schema
