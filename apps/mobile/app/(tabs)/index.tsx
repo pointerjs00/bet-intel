@@ -49,6 +49,10 @@ import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 
+const INITIAL_VISIBLE_BOLETINS = 15;
+const VISIBLE_BATCH_SIZE = 15;
+const LOAD_MORE_THRESHOLD = 0.4;
+
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
 
 
@@ -216,6 +220,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [exactMarket, setExactMarket] = useState<string | null>(null);
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_BOLETINS);
 
 
   // Read filter params pushed from the stats screen (e.g. filterTeam, filterSport, etc.)
@@ -576,9 +581,26 @@ export default function HomeScreen() {
     });
   }, [boletins, activeStatuses, searchQuery, exactMarket, filter, sort]);
 
+  // Reset visible count only when filters/sort change — never on scrolling
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_BOLETINS);
+  }, [activeStatuses, searchQuery, exactMarket, filter, sort]);
+
+  const visibleBoletins = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount],
+  );
+
+  const hasMoreBoletins = visibleCount < filtered.length;
+
+  const handleLoadMore = useCallback(() => {
+    if (!hasMoreBoletins) return;
+    setVisibleCount((c) => Math.min(c + VISIBLE_BATCH_SIZE, filtered.length));
+  }, [hasMoreBoletins, filtered.length]);
+
   const listData: SlipListItem[] = boletinsQuery.isLoading
     ? [{ id: 's1', type: 'skeleton' }, { id: 's2', type: 'skeleton' }, { id: 's3', type: 'skeleton' }]
-    : [...filtered];
+    : [...visibleBoletins];
 
   const summary = useMemo(() => {
     return filtered.reduce(
@@ -620,6 +642,8 @@ export default function HomeScreen() {
           hapticLight();
           void boletinsQuery.refetch();
         }}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={LOAD_MORE_THRESHOLD}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             {/* Title row */}
@@ -883,7 +907,11 @@ export default function HomeScreen() {
         }}
         ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={
-          boletinsQuery.isLoading ? null : (
+          hasMoreBoletins ? (
+            <View style={styles.loadMoreFooter}>
+              <ActivityIndicator color={colors.primary} size="small" />
+            </View>
+          ) : boletinsQuery.isLoading ? null : (
             <View style={styles.footerBar}>
               <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
             </View>
