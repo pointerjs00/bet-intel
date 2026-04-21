@@ -159,8 +159,21 @@ async function start(): Promise<void> {
     });
   }
 
-  await scheduleATPRankingsJob();
-  await scheduleWTARankingsJob();
+  try {
+    await scheduleATPRankingsJob();
+  } catch (err) {
+    logger.warn('ATP rankings job scheduling skipped — Redis unavailable', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  try {
+    await scheduleWTARankingsJob();
+  } catch (err) {
+    logger.warn('WTA rankings job scheduling skipped — Redis unavailable', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   const server = app.listen(PORT, () => {
     logger.info(`BetIntel API listening on port ${PORT}`, { env: process.env.NODE_ENV });
