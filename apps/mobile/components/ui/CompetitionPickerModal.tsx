@@ -409,9 +409,14 @@ function VisibleCompetitionPickerModal({
 
   const handleSingleSelect = useCallback(
     (value: string) => {
-      if (!onSelect) return;
-      onSelect(value);
+      if (!onSelect) {
+        return;
+      }
+
       onClose();
+      requestAnimationFrame(() => {
+        onSelect(value);
+      });
     },
     [onClose, onSelect],
   );
@@ -738,7 +743,7 @@ function VisibleCompetitionPickerModal({
   return (
     <Modal
       visible={visible}
-      animationType="none"
+      animationType="slide"
       hardwareAccelerated
       statusBarTranslucent
       transparent
