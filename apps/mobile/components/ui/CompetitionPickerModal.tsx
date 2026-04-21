@@ -58,7 +58,6 @@ interface CompetitionPickerModalProps {
   title?: string;
   sections: CompetitionPickerSection[];
   sport?: Sport;
-  performanceMode?: 'default' | 'fast';
   preloadWhenHidden?: boolean;
   /** Multi-select mode */
   multiSelect?: boolean;
@@ -208,7 +207,6 @@ function VisibleCompetitionPickerModal({
   title = 'Competição',
   sections,
   sport,
-  performanceMode = 'default',
   preloadWhenHidden = false,
   multiSelect,
   selectedValues,
@@ -224,7 +222,6 @@ function VisibleCompetitionPickerModal({
   const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set());
   const initialisedRef = React.useRef(false);
   const initialisedSportRef = React.useRef<Sport | string | undefined>(undefined);
-  const fastMode = performanceMode === 'fast';
   const favouriteFeaturesEnabled = Boolean(sport) && !hideFavourites;
 
   // Favourites
@@ -378,7 +375,7 @@ function VisibleCompetitionPickerModal({
 
   const toggleCountry = useCallback((country: string) => {
     hapticLight();
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    LayoutAnimation.configureNext({ duration: 160, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
     setExpandedCountries((prev) => {
       const next = new Set(prev);
       if (next.has(country)) {
@@ -398,7 +395,7 @@ function VisibleCompetitionPickerModal({
       toggleMutation.mutate({ type, sport, targetKey });
       // Auto-expand the country when starring a tournament so it appears expanded at top
       if (!isCurrentlyFav && type === FavouriteType.COMPETITION && countryKey) {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        LayoutAnimation.configureNext({ duration: 160, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
         setExpandedCountries((prev) => {
           if (prev.has(countryKey)) return prev;
           const next = new Set(prev);
@@ -746,7 +743,7 @@ function VisibleCompetitionPickerModal({
   return (
     <Modal
       visible={visible}
-      animationType="fade"
+      animationType="slide"
       hardwareAccelerated
       statusBarTranslucent
       transparent
@@ -789,7 +786,7 @@ function VisibleCompetitionPickerModal({
             <View style={styles.toggleAllRow}>
               <ScalePressable
                 onPress={() => {
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                  LayoutAnimation.configureNext({ duration: 160, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
                   if (expandedCountries.size >= allExpandKeys.length) {
                     setExpandedCountries(new Set());
                   } else {
@@ -848,13 +845,12 @@ function VisibleCompetitionPickerModal({
               keyExtractor={keyExtractor}
               renderItem={renderFlatItem}
               keyboardShouldPersistTaps="always"
-              removeClippedSubviews
               showsVerticalScrollIndicator={false}
               style={{ flex: 1 }}
-              initialNumToRender={fastMode ? 8 : 10}
-              maxToRenderPerBatch={fastMode ? 8 : 10}
-              updateCellsBatchingPeriod={fastMode ? 16 : 24}
-              windowSize={4}
+              initialNumToRender={20}
+              maxToRenderPerBatch={20}
+              updateCellsBatchingPeriod={16}
+              windowSize={10}
             />
           )}
         </View>

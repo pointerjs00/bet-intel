@@ -672,7 +672,6 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
         title="Competição"
         sections={visibleCompetitionSections}
         sport={sportForApi}
-        performanceMode="fast"
         preloadWhenHidden
         defaultExpandedCount={sportForApi === Sport.FOOTBALL ? 6 : 10}
         allowCustomValue

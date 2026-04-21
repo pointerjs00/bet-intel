@@ -952,7 +952,6 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
         title="Competição"
         sections={visibleCompetitionSections}
         sport={sportForApi}
-        performanceMode="fast"
         preloadWhenHidden
         defaultExpandedCount={sportForApi === Sport.FOOTBALL ? 6 : 10}
         allowCustomValue

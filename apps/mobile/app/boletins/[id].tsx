@@ -967,7 +967,6 @@ export default function BoletinDetailScreen() {
                   }}
                   sections={addCompetitionSections}
                   sport={addSport}
-                  performanceMode="fast"
                   preloadWhenHidden
                   defaultExpandedCount={addSport === Sport.FOOTBALL ? 6 : 10}
                   allowCustomValue
