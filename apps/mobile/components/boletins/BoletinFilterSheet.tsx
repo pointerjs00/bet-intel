@@ -1,11 +1,12 @@
 ﻿import React, { useCallback, useMemo, useState } from 'react';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   UIManager,
   View,
 } from 'react-native';
@@ -23,7 +24,6 @@ import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { PressableScale } from '../ui/PressableScale';
 import { TeamBadge } from '../ui/TeamBadge';
 import { SearchableDropdown } from '../ui/SearchableDropdown';
-import { CompetitionPickerModal } from '../ui/CompetitionPickerModal';
 import { useTheme } from '../../theme/useTheme';
 import { DatePickerField } from '../ui/DatePickerField';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
@@ -135,10 +135,11 @@ export function BoletinFilterSheet({
   const [draftSort, setDraftSort] = useState<BoletinSort>(sort);
   const [draftFilter, setDraftFilter] = useState<BoletinFilter>(filter);
   const [sliderKey, setSliderKey] = useState(0);
-  const [showCompModal, setShowCompModal] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [sitesOpen, setSitesOpen] = useState(false);
   const [sportOpen, setSportOpen] = useState(false);
+  const [compOpen, setCompOpen] = useState(false);
+  const [compSearch, setCompSearch] = useState('');
 
   const onSheetChange = useCallback(
     (index: number) => {
@@ -201,22 +202,7 @@ export function BoletinFilterSheet({
     [allTeams, draftFilter.sport],
   );
 
-  const compSections = useMemo(() => {
-    const countryMap = new Map<string, CompetitionEntry[]>();
-    for (const c of visibleCompetitions) {
-      const sport = c.sport;
-      const sportLabel = SPORT_LABELS[sport] ?? sport;
-      if (!countryMap.has(sportLabel)) countryMap.set(sportLabel, []);
-      countryMap.get(sportLabel)!.push(c);
-    }
-    return Array.from(countryMap.entries()).map(([group, comps]) => ({
-      title: group,
-      country: group,
-      data: comps.map((c) => ({ label: c.name, value: c.name })),
-    }));
-  }, [visibleCompetitions]);
-
-  const teamItems = useMemo(
+const teamItems = useMemo(
     () => visibleTeams.map((t) => ({ label: t.name, value: t.name })),
     [visibleTeams],
   );
@@ -369,7 +355,7 @@ export function BoletinFilterSheet({
                 <Ionicons color={colors.textMuted} name={sitesOpen ? 'chevron-up' : 'chevron-down'} size={16} />
               </PressableScale>
               {sitesOpen && (
-                <Animated.View entering={FadeInDown.duration(180).springify()} exiting={FadeOutUp.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+                <Animated.View entering={FadeInDown.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
                   {allSites.map((site, i) => {
                     const active = draftFilter.sites.includes(site.slug);
                     return (
@@ -411,7 +397,7 @@ export function BoletinFilterSheet({
                 <Ionicons color={colors.textMuted} name={sportOpen ? 'chevron-up' : 'chevron-down'} size={16} />
               </PressableScale>
               {sportOpen && (
-                <Animated.View entering={FadeInDown.duration(180).springify()} exiting={FadeOutUp.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+                <Animated.View entering={FadeInDown.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
                   {availableSports.map((s, i) => {
                     const active = draftFilter.sport === s;
                     return (
@@ -437,33 +423,60 @@ export function BoletinFilterSheet({
             <>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Competição</Text>
               <PressableScale
-                onPress={() => setShowCompModal(true)}
-                style={[styles.triggerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                onPress={() => { setCompOpen((v) => !v); setCompSearch(''); }}
+                style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
               >
-                <Ionicons color={colors.textMuted} name="search" size={16} />
-                <Text style={[styles.triggerText, { color: draftFilter.competitions.length > 0 ? colors.textPrimary : colors.textMuted }]}>
+                <Text style={[styles.dropdownHeaderText, { color: draftFilter.competitions.length > 0 ? colors.textPrimary : colors.textMuted }]}>
                   {draftFilter.competitions.length > 0
                     ? `${draftFilter.competitions.length} selecionada${draftFilter.competitions.length > 1 ? 's' : ''}`
-                    : 'Pesquisar competições…'}
+                    : 'Todas as competições'}
                 </Text>
-                <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
+                <Ionicons color={colors.textMuted} name={compOpen ? 'chevron-up' : 'chevron-down'} size={16} />
               </PressableScale>
-              {draftFilter.competitions.length > 0 && (
-                <View style={styles.selectedChips}>
-                  {draftFilter.competitions.map((c) => (
-                    <Pressable
-                      key={c}
-                      onPress={() =>
-                        setDraftFilter((p) => ({ ...p, competitions: p.competitions.filter((x) => x !== c) }))
-                      }
-                      style={[styles.selectedChip, { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}
-                    >
-                      <CompetitionBadge name={c} size={14} />
-                      <Text numberOfLines={1} style={[styles.selectedChipText, { color: colors.primary }]}>{c}</Text>
-                      <Ionicons color={colors.primary} name="close" size={12} />
-                    </Pressable>
-                  ))}
-                </View>
+              {compOpen && (
+                <Animated.View entering={FadeInDown.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+                  <View style={[styles.compSearchRow, { borderBottomColor: colors.border }]}>
+                    <Ionicons color={colors.textMuted} name="search" size={14} />
+                    <TextInput
+                      autoFocus={false}
+                      onChangeText={setCompSearch}
+                      placeholder="Pesquisar…"
+                      placeholderTextColor={colors.textMuted}
+                      style={[styles.compSearchInput, { color: colors.textPrimary }]}
+                      value={compSearch}
+                    />
+                    {compSearch.length > 0 && (
+                      <Pressable hitSlop={8} onPress={() => setCompSearch('')}>
+                        <Ionicons color={colors.textMuted} name="close-circle" size={14} />
+                      </Pressable>
+                    )}
+                  </View>
+                  {visibleCompetitions
+                    .filter((c) => c.name.toLowerCase().includes(compSearch.toLowerCase()))
+                    .map((c, i) => {
+                      const active = draftFilter.competitions.includes(c.name);
+                      return (
+                        <PressableScale
+                          key={c.name}
+                          onPress={() =>
+                            setDraftFilter((prev) => ({
+                              ...prev,
+                              competitions: active
+                                ? prev.competitions.filter((x) => x !== c.name)
+                                : [...prev.competitions, c.name],
+                            }))
+                          }
+                          style={[styles.dropdownItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
+                        >
+                          <CompetitionBadge name={c.name} size={14} />
+                          <Text numberOfLines={1} style={[styles.dropdownItemText, { flex: 1, color: active ? colors.primary : colors.textPrimary }]}>
+                            {c.name}
+                          </Text>
+                          {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
+                        </PressableScale>
+                      );
+                    })}
+                </Animated.View>
               )}
             </>
           )}
@@ -574,18 +587,6 @@ export function BoletinFilterSheet({
         </View>
       </GorhomBottomSheet>
 
-      <CompetitionPickerModal
-        visible={showCompModal}
-        onClose={() => setShowCompModal(false)}
-        title="Competição"
-        sections={compSections}
-        sport={draftFilter.sport ?? undefined}
-        performanceMode="fast"
-        preloadWhenHidden
-        multiSelect
-        selectedValues={draftFilter.competitions}
-        onSelectMultiple={(vals) => setDraftFilter((p) => ({ ...p, competitions: vals }))}
-      />
 
       <SearchableDropdown
         visible={showTeamModal}
@@ -664,4 +665,6 @@ const styles = StyleSheet.create({
   applyBar: { borderTopWidth: 1, marginBottom: 30, paddingBottom: 30, paddingHorizontal: 20, paddingTop: 20 },
   applyBtn: { alignItems: 'center', borderRadius: 14, paddingVertical: 14 },
   applyBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  compSearchRow: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  compSearchInput: { flex: 1, fontSize: 14, padding: 0 },
 });
