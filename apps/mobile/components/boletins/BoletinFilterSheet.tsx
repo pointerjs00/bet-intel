@@ -1,4 +1,5 @@
 ﻿import React, { useCallback, useMemo, useState } from 'react';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import {
   Platform,
   Pressable,
@@ -368,7 +369,7 @@ export function BoletinFilterSheet({
                 <Ionicons color={colors.textMuted} name={sitesOpen ? 'chevron-up' : 'chevron-down'} size={16} />
               </PressableScale>
               {sitesOpen && (
-                <View style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+                <Animated.View entering={FadeInDown.duration(180).springify()} exiting={FadeOutUp.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
                   {allSites.map((site, i) => {
                     const active = draftFilter.sites.includes(site.slug);
                     return (
@@ -391,7 +392,7 @@ export function BoletinFilterSheet({
                       </PressableScale>
                     );
                   })}
-                </View>
+                </Animated.View>
               )}
             </>
           )}
@@ -410,7 +411,7 @@ export function BoletinFilterSheet({
                 <Ionicons color={colors.textMuted} name={sportOpen ? 'chevron-up' : 'chevron-down'} size={16} />
               </PressableScale>
               {sportOpen && (
-                <View style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+                <Animated.View entering={FadeInDown.duration(180).springify()} exiting={FadeOutUp.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
                   {availableSports.map((s, i) => {
                     const active = draftFilter.sport === s;
                     return (
@@ -426,7 +427,7 @@ export function BoletinFilterSheet({
                       </PressableScale>
                     );
                   })}
-                </View>
+                </Animated.View>
               )}
             </>
           )}

@@ -819,31 +819,38 @@ export default function HomeScreen() {
 
             {/* Active filters summary */}
             {hasActiveControls ? (
-              <Pressable
-                onPress={() => {
-                  setSearchQuery('');
-                  setExactMarket(null);
-                  setSort({ by: 'date', dir: 'desc' });
-                  setActiveStatuses(new Set());
-                  setFilter({
-                    stakeRange: [0, dataRanges.maxStake],
-                    oddsRange: [1, dataRanges.maxOdds],
-                    returnRange: [0, dataRanges.maxReturn],
-                    sport: null,
-                    competitions: [],
-                    teams: [],
-                    sites: [],
-                    weekday: null,
-                    legCount: null,
-                    dateFrom: null,
-                    dateTo: null,
-                  });
-                }}
-              >
-                <Text style={[styles.clearFilters, { color: colors.textMuted }]}>
-                  {filtered.length} resultado{filtered.length !== 1 ? 's' : ''} · Limpar filtros
+              <View style={styles.clearFiltersRow}>
+                <Text style={[styles.resultsCount, { color: colors.textSecondary }]}>
+                  {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
                 </Text>
-              </Pressable>
+                <PressableScale
+                  scaleDown={0.94}
+                  onPress={() => {
+                    hapticLight();
+                    setSearchQuery('');
+                    setExactMarket(null);
+                    setSort({ by: 'date', dir: 'desc' });
+                    setActiveStatuses(new Set());
+                    setFilter({
+                      stakeRange: [0, dataRanges.maxStake],
+                      oddsRange: [1, dataRanges.maxOdds],
+                      returnRange: [0, dataRanges.maxReturn],
+                      sport: null,
+                      competitions: [],
+                      teams: [],
+                      sites: [],
+                      weekday: null,
+                      legCount: null,
+                      dateFrom: null,
+                      dateTo: null,
+                    });
+                  }}
+                  style={[styles.clearFiltersBtn, { backgroundColor: `${colors.danger}18`, borderColor: `${colors.danger}50` }]}
+                >
+                  <Ionicons color={colors.danger} name="close-circle" size={14} />
+                  <Text style={[styles.clearFiltersBtnText, { color: colors.danger }]}>Limpar filtros</Text>
+                </PressableScale>
+              </View>
             ) : null}
           </View>
         }
@@ -1335,6 +1342,10 @@ const styles = StyleSheet.create({
   },
   filterBtnBadge: { color: '#fff', fontSize: 12, fontWeight: '800' },
   clearFilters: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  clearFiltersRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 },
+  resultsCount: { fontSize: 13, fontWeight: '600' },
+  clearFiltersBtn: { alignItems: 'center', borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 5, paddingHorizontal: 10, paddingVertical: 5 },
+  clearFiltersBtnText: { fontSize: 12, fontWeight: '700' },
   skeletonCard: { gap: 14 },
   loadMoreFooter: { alignItems: 'center', gap: 10, marginTop: 8, paddingBottom: 32, paddingTop: 4 },
   loadMoreText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },

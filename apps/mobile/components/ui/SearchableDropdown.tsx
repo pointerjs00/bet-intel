@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Animated, { SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
@@ -208,14 +209,14 @@ function VisibleSearchableDropdown({
   return (
     <Modal
       visible={visible}
-      animationType="fade"
+      animationType="none"
       hardwareAccelerated
       statusBarTranslucent
       transparent
       onRequestClose={onClose}
     >
       <View style={[styles.modalOverlay, { paddingTop: insets.top }]}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
+        <Animated.View entering={SlideInDown.springify().damping(22).stiffness(280)} exiting={SlideOutDown.duration(220)} style={[styles.modalContent, { backgroundColor: colors.background }]}>
           <View style={styles.modalHeader}>
             <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{title}</Text>
             <Pressable hitSlop={10} onPress={onClose}>
@@ -351,7 +352,7 @@ function VisibleSearchableDropdown({
               </Text>
             </PressableScale>
           ) : null}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
