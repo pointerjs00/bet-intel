@@ -208,7 +208,7 @@ function VisibleSearchableDropdown({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       hardwareAccelerated
       statusBarTranslucent
       transparent
