@@ -35,6 +35,10 @@ export const atpRankingsQueue = new Bull('atp-rankings', process.env.REDIS_URL!,
   },
 });
 
+atpRankingsQueue.on('error', (err) => {
+  logger.error('[ATP Rankings] Queue error', { error: err.message });
+});
+
 // ─── Scraper ──────────────────────────────────────────────────────────────────
 
 interface ScrapedPlayer {

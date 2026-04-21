@@ -39,6 +39,10 @@ export const wtaRankingsQueue = new Bull('wta-rankings', process.env.REDIS_URL!,
   },
 });
 
+wtaRankingsQueue.on('error', (err) => {
+  logger.error('[WTA Rankings] Queue error', { error: err.message });
+});
+
 // ─── Scraper ──────────────────────────────────────────────────────────────────
 
 interface ScrapedPlayer {
