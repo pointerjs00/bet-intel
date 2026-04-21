@@ -84,6 +84,12 @@ function VisibleSearchableDropdown({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
+  const [localSelected, setLocalSelected] = useState<Set<string>>(() => new Set(selectedValues ?? []));
+
+  useEffect(() => {
+    setLocalSelected(new Set(selectedValues ?? []));
+  }, [selectedValues]);
+
   // Per-section expanded state for sections mode ("Carregar mais")
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   // Flat list visible count for items mode ("Carregar mais")
@@ -159,7 +165,7 @@ function VisibleSearchableDropdown({
   const noResults = sections ? (filteredSections?.length === 0) : filtered.length === 0;
 
   const renderRow = (item: DropdownItem) => {
-    const isSelected = multiSelect && selectedValues?.includes(item.value);
+    const isSelected = multiSelect && localSelected.has(item.value);
     return (
       <PressableScale
         key={item.value}
@@ -168,6 +174,7 @@ function VisibleSearchableDropdown({
             const next = isSelected
               ? selectedValues.filter((v) => v !== item.value)
               : [...selectedValues, item.value];
+            setLocalSelected(new Set(next));
             onSelectMultiple(next);
           } else {
             const accepted = onSelect(item.value);

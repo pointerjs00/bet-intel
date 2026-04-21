@@ -220,9 +220,15 @@ function VisibleCompetitionPickerModal({
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [expandedCountries, setExpandedCountries] = useState<Set<string>>(new Set());
+  const [localSelected, setLocalSelected] = useState<Set<string>>(() => new Set(selectedValues ?? []));
   const initialisedRef = React.useRef(false);
   const initialisedSportRef = React.useRef<Sport | string | undefined>(undefined);
   const favouriteFeaturesEnabled = Boolean(sport) && !hideFavourites;
+
+  // Keep local selection in sync when parent updates (e.g. on open)
+  useEffect(() => {
+    setLocalSelected(new Set(selectedValues ?? []));
+  }, [selectedValues]);
 
   // Favourites
   const sportKey = sport ?? undefined;
@@ -425,21 +431,22 @@ function VisibleCompetitionPickerModal({
     (value: string) => {
       hapticLight();
       if (multiSelect && onSelectMultiple && selectedValues !== undefined) {
-        const isSelected = selectedValues.includes(value);
-        const next = isSelected
+        const isCurrentlySelected = localSelected.has(value);
+        const next = isCurrentlySelected
           ? selectedValues.filter((v) => v !== value)
           : [...selectedValues, value];
+        setLocalSelected(new Set(next));
         onSelectMultiple(next);
       } else {
         handleSingleSelect(value);
       }
     },
-    [handleSingleSelect, multiSelect, onSelectMultiple, selectedValues],
+    [handleSingleSelect, localSelected, multiSelect, onSelectMultiple, selectedValues],
   );
 
   const renderItem = useCallback(
     ({ item }: { item: CompetitionPickerItem & { _sectionCountry?: string; _isVirtualSection?: boolean } }) => {
-      const isSelected = multiSelect && selectedValues?.includes(item.value);
+      const isSelected = multiSelect && localSelected.has(item.value);
       const isFav = favouriteFeaturesEnabled && isFavourite(FavouriteType.COMPETITION, item.value);
 
       const rowChildren = (
