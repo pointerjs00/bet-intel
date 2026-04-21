@@ -2192,11 +2192,13 @@ const NATIONAL_TEAMS: string[] = [
 export async function seed(): Promise<void> {
   console.log('🌱 Seeding reference data...');
 
-  // Clear team-competition links so re-seeding removes stale associations (e.g. relegated teams)
-  await prisma.teamCompetition.deleteMany({});
+  // Clear team-competition links for non-tennis sports to remove stale associations (e.g. relegated teams).
+  // Tennis player-competition links are managed by ATP/WTA ranking jobs — preserve them.
+  await prisma.teamCompetition.deleteMany({
+    where: { team: { sport: { not: Sport.TENNIS } } },
+  });
 
   // Remove duplicate tennis players created by scraper runs with slightly different name formatting.
-  // teamCompetition rows are already gone above, so FK constraints won't block deletes.
   const allTennisTeams = await prisma.team.findMany({
     where: { sport: Sport.TENNIS },
     orderBy: { createdAt: 'asc' },
@@ -2212,6 +2214,8 @@ export async function seed(): Promise<void> {
     }
   }
   if (duplicateTennisIds.length > 0) {
+    // Delete TeamCompetition links for duplicates first (FK constraint), then delete the teams.
+    await prisma.teamCompetition.deleteMany({ where: { teamId: { in: duplicateTennisIds } } });
     await prisma.team.deleteMany({ where: { id: { in: duplicateTennisIds } } });
     console.log(`🧹 Removed ${duplicateTennisIds.length} duplicate tennis player entries`);
   }

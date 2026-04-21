@@ -690,7 +690,7 @@ export default function HomeScreen() {
 
             {/* Summary card */}
             <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
-              <Pressable onPress={() => router.push('/(tabs)/stats')}>
+              <PressableScale onPress={() => router.push('/(tabs)/stats')}>
                 <Card style={[styles.summaryCard, { borderColor: colors.border }]}>
                   <View style={styles.summaryMetric}>
                     <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
@@ -708,13 +708,13 @@ export default function HomeScreen() {
                     <Ionicons color={colors.textMuted} name="chevron-forward" size={16} />
                   </View>
                 </Card>
-              </Pressable>
+              </PressableScale>
             </Animated.View>
 
             {/* Batch resolve shortcut */}
             {pendingCount > 1 && (
               <Animated.View entering={FadeInDown.delay(40).duration(160).springify()}>
-                <Pressable
+                <PressableScale
                   onPress={() => router.push('/boletins/batch-resolve')}
                   style={[styles.batchResolveBtn, { backgroundColor: `${colors.warning}18`, borderColor: colors.warning }]}
                 >
@@ -723,7 +723,7 @@ export default function HomeScreen() {
                     Resolver {pendingCount} pendentes
                   </Text>
                   <Ionicons color={colors.warning} name="chevron-forward" size={16} />
-                </Pressable>
+                </PressableScale>
               </Animated.View>
             )}
 
@@ -1036,7 +1036,7 @@ export default function HomeScreen() {
               { label: 'Importar screenshot',   icon: 'cellphone-screenshot', lib: 'mci' as const, route: '/boletins/scan',        color: colors.info    },
             ] as const).map((opt, i) => (
               <Animated.View key={opt.route} entering={FadeInDown.delay(i * 40).duration(130).springify()}>
-                <Pressable
+                <PressableScale
                   onPress={() => { hapticLight(); setFabOpen(false); router.push(opt.route as never); }}
                   style={[
                     styles.fabMenuItem,
@@ -1051,7 +1051,7 @@ export default function HomeScreen() {
                   </View>
                   <Text style={[styles.fabMenuLabel, { color: colors.textPrimary }]}>{opt.label}</Text>
                   <Ionicons color={colors.textMuted} name="chevron-forward" size={14} />
-                </Pressable>
+                </PressableScale>
               </Animated.View>
             ))}
           </Animated.View>

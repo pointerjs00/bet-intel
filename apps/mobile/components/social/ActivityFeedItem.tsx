@@ -1,9 +1,10 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { FriendFeedItem } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
 import { formatOdds, formatRelativeTime } from '../../utils/formatters';
 import { SocialAvatar } from './SocialAvatar';
+import { PressableScale } from '../ui/PressableScale';
 
 interface ActivityFeedItemProps {
   item: FriendFeedItem;
@@ -16,7 +17,7 @@ export const ActivityFeedItem = React.memo(function ActivityFeedItem({ item, onP
   const displayName = item.user.displayName ?? item.user.username;
 
   return (
-    <Pressable
+    <PressableScale
       disabled={!onPress}
       onPress={onPress}
       style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -35,7 +36,7 @@ export const ActivityFeedItem = React.memo(function ActivityFeedItem({ item, onP
         <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odds</Text>
         <Text style={[styles.metricValue, { color: colors.gold }]}>{formatOdds(item.boletin.totalOdds)}</Text>
       </View>
-    </Pressable>
+    </PressableScale>
   );
 });
 

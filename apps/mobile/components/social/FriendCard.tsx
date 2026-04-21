@@ -1,10 +1,11 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { SocialUser } from '@betintel/shared';
 import { Button } from '../ui/Button';
 import { useTheme } from '../../theme/useTheme';
 import { formatRelativeTime } from '../../utils/formatters';
 import { SocialAvatar } from './SocialAvatar';
+import { PressableScale } from '../ui/PressableScale';
 
 interface FriendCardProps {
   user: SocialUser;
@@ -32,7 +33,7 @@ export function FriendCard({
   const displayName = user.displayName ?? user.username;
 
   return (
-    <Pressable
+    <PressableScale
       disabled={!onPress}
       onPress={onPress}
       style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
@@ -62,7 +63,7 @@ export function FriendCard({
           ) : null}
         </View>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 

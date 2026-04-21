@@ -1,9 +1,10 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/useTheme';
+import { PressableScale } from './PressableScale';
 
 interface HeaderProps {
   title: string;
@@ -37,21 +38,16 @@ export function Header({
     >
       <View style={styles.row}>
         {showBack ? (
-          <Pressable
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Voltar"
             onPress={() => router.back()}
             hitSlop={12}
-            style={({ pressed }) => [
-              styles.backButton,
-              {
-                backgroundColor: colors.surfaceRaised,
-                opacity: pressed ? 0.7 : 1,
-              },
-            ]}
+            scaleDown={0.9}
+            style={[styles.backButton, { backgroundColor: colors.surfaceRaised }]}
           >
             <Ionicons name="chevron-back" size={20} color={colors.textPrimary} />
-          </Pressable>
+          </PressableScale>
         ) : (
           <View style={styles.spacer} />
         )}

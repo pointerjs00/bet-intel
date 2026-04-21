@@ -3,7 +3,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as LocalAuthentication from 'expo-local-authentication';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { PressableScale } from '../components/ui/PressableScale';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -446,7 +447,7 @@ export default function SettingsScreen() {
         <Animated.View entering={FadeInDown.delay(60).duration(160).springify()}>
           <Card style={styles.cardInner}>
             <SectionHeader icon="file-import-outline" title="Dados & Importação" color={colors.primary} textColor={colors.textPrimary} />
-            <Pressable
+            <PressableScale
               onPress={() => importSheetRef.current?.snapToIndex(0)}
               style={[styles.importRow, { borderColor: colors.border }]}
             >
@@ -456,8 +457,8 @@ export default function SettingsScreen() {
                 <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Importa apostas de um PDF exportado</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </Pressable>
-            <Pressable
+            </PressableScale>
+            <PressableScale
               onPress={() => router.push('/boletins/scan')}
               style={[styles.importRow, { borderColor: colors.border }]}
             >
@@ -467,7 +468,7 @@ export default function SettingsScreen() {
                 <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Lê uma aposta a partir de um screenshot Betclic</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </Pressable>
+            </PressableScale>
           </Card>
         </Animated.View>
 
@@ -522,7 +523,7 @@ export default function SettingsScreen() {
           <Text style={[styles.importSheetDesc, { color: colors.textSecondary }]}>
             Importa o teu histórico de apostas diretamente do Betclic. Exporta o ficheiro PDF na tua conta Betclic e seleciona-o aqui.
           </Text>
-          <Pressable
+          <PressableScale
             onPress={() => setImportHelpExpanded((v) => !v)}
             style={[styles.importHelpHeader, { borderColor: colors.border }]}
           >
@@ -532,7 +533,7 @@ export default function SettingsScreen() {
               size={20}
               color={colors.info}
             />
-          </Pressable>
+          </PressableScale>
           {importHelpExpanded && (
             <View style={styles.importHelpSteps}>
               <Text style={[styles.importHelpStep, { color: colors.textSecondary }]}>1. Acede a betclic.pt e inicia sessão</Text>
