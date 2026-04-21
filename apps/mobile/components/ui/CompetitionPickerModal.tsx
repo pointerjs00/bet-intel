@@ -499,7 +499,7 @@ function VisibleCompetitionPickerModal({
         </ScalePressable>
       );
     },
-    [colors, favouriteFeaturesEnabled, handleSelectItem, handleToggleFavourite, isFavourite, multiSelect, selectedValues],
+    [colors, favouriteFeaturesEnabled, handleSelectItem, handleToggleFavourite, isFavourite, localSelected, multiSelect],
   );
 
   // Build a flat list with section headers interspersed for better performance than SectionList

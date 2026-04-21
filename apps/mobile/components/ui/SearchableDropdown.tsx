@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -164,7 +164,7 @@ function VisibleSearchableDropdown({
 
   const noResults = sections ? (filteredSections?.length === 0) : filtered.length === 0;
 
-  const renderRow = (item: DropdownItem) => {
+  const renderRow = useCallback((item: DropdownItem) => {
     const isSelected = multiSelect && localSelected.has(item.value);
     return (
       <PressableScale
@@ -210,7 +210,7 @@ function VisibleSearchableDropdown({
         ) : null}
       </PressableScale>
     );
-  };
+  }, [colors, localSelected, multiSelect, onClose, onSelect, onSelectMultiple, renderItemLeft, renderLeft, selectedValues, setLocalSelected]);
 
   return (
     <Modal

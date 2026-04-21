@@ -34,7 +34,7 @@ interface BoletinItemProps {
 }
 
 /** Renders one selection row in builder and detail contexts. */
-export function BoletinItem({ item, onRemove, onEdit, onResultChange }: BoletinItemProps) {
+function BoletinItemInner({ item, onRemove, onEdit, onResultChange }: BoletinItemProps) {
   const { colors } = useTheme();
   const resultMeta = getResultMeta(item.result, colors);
 
@@ -159,6 +159,8 @@ export function BoletinItem({ item, onRemove, onEdit, onResultChange }: BoletinI
     </View>
   );
 }
+
+export const BoletinItem = React.memo(BoletinItemInner);
 
 interface ResultToggleButtonProps {
   accessibilityLabel: string;

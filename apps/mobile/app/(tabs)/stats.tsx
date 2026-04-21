@@ -678,6 +678,11 @@ export default function StatsScreen() {
       ? (BETTING_SITES.find((s) => s.slug === siteSlugs[0])?.name ?? siteSlugs[0])
       : `${siteSlugs.length} casas`;
 
+  const nonPendingBoletinCount = useMemo(
+    () => (boletinsQuery.data ?? []).filter((b) => b.status !== 'PENDING').length,
+    [boletinsQuery.data],
+  );
+
   const handleExport = useCallback(() => {
     const data = boletinsQuery.data ?? [];
     Alert.alert(
@@ -1088,7 +1093,7 @@ export default function StatsScreen() {
 
               case 'heatmap': return boletinsQuery.data && boletinsQuery.data.length > 0 ? (
                 <Animated.View key="heatmap" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <HeatmapCalendar boletins={boletinsQuery.data} onInfoPress={() => pushInfo('heatmap', (boletinsQuery.data ?? []).filter(b => b.status !== 'PENDING').length)} />
+                  <HeatmapCalendar boletins={boletinsQuery.data} onInfoPress={() => pushInfo('heatmap', nonPendingBoletinCount)} />
                 </Animated.View>
               ) : null;
 
