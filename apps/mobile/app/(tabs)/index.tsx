@@ -328,6 +328,19 @@ export default function HomeScreen() {
     dateTo: null,
   });
 
+  // When data loads and range maxima grow, expand any upper bounds the user hasn't manually narrowed
+  const prevDataRanges = useRef(dataRanges);
+  useEffect(() => {
+    const prev = prevDataRanges.current;
+    prevDataRanges.current = dataRanges;
+    setFilter((f) => ({
+      ...f,
+      stakeRange: [f.stakeRange[0], f.stakeRange[1] >= prev.maxStake ? dataRanges.maxStake : f.stakeRange[1]],
+      oddsRange: [f.oddsRange[0], f.oddsRange[1] >= prev.maxOdds ? dataRanges.maxOdds : f.oddsRange[1]],
+      returnRange: [f.returnRange[0], f.returnRange[1] >= prev.maxReturn ? dataRanges.maxReturn : f.returnRange[1]],
+    }));
+  }, [dataRanges]);
+
   useEffect(() => {
     const hasRouteFilter = [
       filterSport,
