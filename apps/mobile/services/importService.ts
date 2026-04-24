@@ -62,15 +62,16 @@ export async function parseBetclicPdfRequest(pdfBase64: string): Promise<Betclic
   return response.data.data;
 }
 
-/** Sends a screenshot image to the backend for AI-powered parsing (Gemini Vision). */
+/** Sends a screenshot image to the backend for AI-powered parsing. */
 export async function scanImageAiRequest(
   imageBase64: string,
   mimeType: 'image/jpeg' | 'image/png' | 'image/webp' = 'image/jpeg',
+  signal?: AbortSignal,
 ): Promise<BetclicPdfResult> {
   const response = await apiClient.post<ApiEnvelope<BetclicPdfResult>>(
     '/boletins/import/scan-ai',
     { imageBase64, mimeType },
-    { timeout: 60000 }, // Gemini Vision can take up to 30s
+    { timeout: 60000, signal },
   );
   return response.data.data;
 }

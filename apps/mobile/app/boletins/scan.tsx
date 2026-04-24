@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import {
   ActivityIndicator,
   BackHandler,
@@ -8,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -53,6 +53,7 @@ export default function ScanScreen() {
   const [disclaimerVisible, setDisclaimerVisible] = useState(false);
   const [disclaimerDontShow, setDisclaimerDontShow] = useState(false);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
   const isFirstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
@@ -126,11 +127,17 @@ export default function ScanScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sharedImageUri]);
 
+  const cancelScan = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
   const processImage = useCallback(async () => {
     if (!imageUri) return;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsProcessing(true);
     try {
-      // Compress & resize to max 1000px wide JPEG 80% — reduces upload & Gemini processing time
+      // Compress & resize to max 1000px wide JPEG 80% — reduces upload & AI processing time
       const compressed = await ImageManipulator.manipulateAsync(
         imageUri,
         [{ resize: { width: 1000 } }],
@@ -145,7 +152,7 @@ export default function ScanScreen() {
       const mimeType = 'image/jpeg';
 
       // Send to backend AI parser
-      const result = await scanImageAiRequest(base64, mimeType);
+      const result = await scanImageAiRequest(base64, mimeType, controller.signal);
 
       // Store raw AI result + image for silent feedback submission after successful import
       storeScanFeedbackContext({ imageBase64: base64, mimeType, aiOutput: result });
@@ -178,6 +185,7 @@ export default function ScanScreen() {
         showToast(`${processed.totalFound} aposta(s) encontrada(s)!`, 'success');
       }
     } catch (err) {
+      if (axios.isCancel(err)) return;
       hapticError();
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[ScanScreen] scan error:', msg);
@@ -189,6 +197,7 @@ export default function ScanScreen() {
       );
     } finally {
       setIsProcessing(false);
+      abortControllerRef.current = null;
     }
   }, [imageUri, showToast]);
 
@@ -314,16 +323,12 @@ export default function ScanScreen() {
             </View>
 
             {!parseResult && (
-              isProcessing ? (
-                <ScanLoadingCard colors={colors} />
-              ) : (
-                <Button
-                  title="Analisar aposta"
-                  leftSlot={<MaterialCommunityIcons name="text-recognition" size={20} color="#fff" />}
-                  onPress={processImage}
-                  style={styles.processBtn}
-                />
-              )
+              <Button
+                title="Analisar aposta"
+                leftSlot={<MaterialCommunityIcons name="text-recognition" size={20} color="#fff" />}
+                onPress={processImage}
+                style={styles.processBtn}
+              />
             )}
           </Animated.View>
         )}
@@ -481,6 +486,13 @@ export default function ScanScreen() {
         </Modal>
       )}
 
+      {/* Full-screen analysis overlay — blocks all interaction while processing */}
+      {isProcessing && (
+        <View style={styles.scanOverlay}>
+          <ScanLoadingCard colors={colors} onCancel={cancelScan} />
+        </View>
+      )}
+
       {/* Bottom CTA */}
       {hasResult && (
         <Animated.View
@@ -574,13 +586,10 @@ const SCAN_MESSAGES = [
 // reaches ~85% and holds there until the real response arrives.
 const PROGRESS_DURATION_MS = 16_000;
 
-function ScanLoadingCard({ colors }: { colors: Record<string, string> }) {
-  const { width: screenWidth } = useWindowDimensions();
-  // 16px padding on each side + 32px card horizontal padding
-  const barWidth = screenWidth - 16 * 2 - 16 * 2;
-
+function ScanLoadingCard({ colors, onCancel }: { colors: Record<string, string>; onCancel: () => void }) {
   const progress = useSharedValue(0);
   const [msgIdx, setMsgIdx] = useState(0);
+  const [trackWidth, setTrackWidth] = useState(0);
 
   useEffect(() => {
     progress.value = withTiming(0.85, {
@@ -597,52 +606,88 @@ function ScanLoadingCard({ colors }: { colors: Record<string, string> }) {
   }, []);
 
   const fillStyle = useAnimatedStyle(() => ({
-    width: progress.value * barWidth,
+    width: progress.value * trackWidth,
   }));
 
   return (
     <Animated.View
       entering={FadeInDown.duration(220).springify()}
-      style={[scanLoadingStyles.card, { backgroundColor: colors.surface, borderColor: `${colors.primary}40` }]}
+      style={[scanLoadingStyles.card, { backgroundColor: colors.surface }]}
     >
-      <View style={scanLoadingStyles.row}>
-        <ActivityIndicator color={colors.primary} size="small" />
-        <Text style={[scanLoadingStyles.msg, { color: colors.textPrimary }]}>{SCAN_MESSAGES[msgIdx]}</Text>
+      <View style={[scanLoadingStyles.iconWrap, { backgroundColor: `${colors.primary}18` }]}>
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
-      <View style={[scanLoadingStyles.track, { backgroundColor: `${colors.primary}20` }]}>
+      <Text style={[scanLoadingStyles.title, { color: colors.textPrimary }]}>
+        A analisar o boletim…
+      </Text>
+      <Text style={[scanLoadingStyles.msg, { color: colors.textSecondary }]}>
+        {SCAN_MESSAGES[msgIdx]}
+      </Text>
+      <View
+        style={[scanLoadingStyles.track, { backgroundColor: `${colors.primary}20` }]}
+        onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
+      >
         <Animated.View style={[scanLoadingStyles.fill, { backgroundColor: colors.primary }, fillStyle]} />
       </View>
+      <Pressable
+        onPress={onCancel}
+        style={[scanLoadingStyles.cancelBtn, { borderColor: colors.border }]}
+        hitSlop={8}
+      >
+        <Text style={[scanLoadingStyles.cancelText, { color: colors.textSecondary }]}>Cancelar</Text>
+      </Pressable>
     </Animated.View>
   );
 }
 
 const scanLoadingStyles = StyleSheet.create({
   card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    marginTop: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    gap: 14,
-  },
-  row: {
-    flexDirection: 'row',
+    width: '100%',
+    borderRadius: 24,
+    paddingHorizontal: 28,
+    paddingVertical: 32,
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
+  },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    textAlign: 'center',
   },
   msg: {
     fontSize: 14,
-    fontWeight: '600',
-    flex: 1,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   track: {
-    height: 5,
+    width: '100%',
+    height: 6,
     borderRadius: 99,
     overflow: 'hidden',
+    marginTop: 4,
   },
   fill: {
-    height: 5,
+    height: 6,
     borderRadius: 99,
+  },
+  cancelBtn: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 99,
+    paddingHorizontal: 28,
+    paddingVertical: 10,
+  },
+  cancelText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
@@ -718,4 +763,12 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 15, fontWeight: '700' },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  scanOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    zIndex: 50,
+  },
 });
