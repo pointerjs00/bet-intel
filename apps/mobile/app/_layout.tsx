@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
-import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -62,8 +62,6 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const hydrate = useAuthStore((state) => state.hydrate);
   const storeUser = useAuthStore((state) => state.user);
   const refreshUser = useAuthStore((state) => state.refreshUser);
-  const rootNavState = useRootNavigationState();
-
   usePrefetchHomeData(isAuthenticated);
   useSharedImage();
 
@@ -80,10 +78,6 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   }, [isAuthenticated, isHydrating, storeUser, refreshUser]);
 
   useEffect(() => {
-    // rootNavState?.key is only set once the Stack navigator has mounted.
-    // We must wait for it before calling router.replace() to avoid the
-    // "Attempted to navigate before mounting the Root Layout" error.
-    if (!rootNavState?.key) return;
     if (isHydrating) return;
 
     const inAuthGroup = segments[0] === '(auth)';
@@ -102,7 +96,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
         }
       });
     }
-  }, [isAuthenticated, isHydrating, rootNavState?.key, router, segments]);
+  }, [isAuthenticated, isHydrating, router, segments]);
 
   // Determine whether to show the loading overlay.
   // We show it while hydrating OR while waiting for a redirect to (auth) to complete.

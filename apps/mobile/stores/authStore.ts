@@ -160,18 +160,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   async hydrate() {
-    // On cold launch: if the user previously enabled biometric login AND has a
-    // stored session, prompt their fingerprint/face. On success the stored
-    // session is restored directly — no password needed. On cancel/failure the
-    // tokens stay in SecureStore so they can try again via the login screen, but
-    // the user is not authenticated until they explicitly succeed.
-    //
-    // If biometric is NOT enabled, stale tokens are cleared and the user must
-    // sign in with their credentials as before.
-    //
-    // biometricEnabled is declared outside the try so the catch block can still
-    // use it when an error occurs mid-way (e.g. authenticateAsync throws).
-    let biometricEnabled = false;
+    // Show the login screen immediately — do NOT wait for SecureStore.
+    // On some Android devices the first-time Keystore initialisation used by
+    // expo-secure-store v13 blocks the JS thread indefinitely.
+    // Session restoration and biometric prompt continue in the background.
+    set({ isHydrating: false });
+
     try {
       const [accessToken, refreshTokenValue, userJson, biometricFlag] = await Promise.all([
         SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
@@ -180,10 +174,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY),
       ]);
 
-      biometricEnabled = biometricFlag === 'true';
+      const biometricEnabled = biometricFlag === 'true';
 
       if (biometricEnabled && refreshTokenValue) {
-        // Stored session exists + biometric is turned on → show the system prompt.
         const { success } = await LocalAuthentication.authenticateAsync({
           promptMessage: 'Entrar no BetIntel',
           cancelLabel: 'Usar password',
@@ -198,30 +191,26 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             refreshTokenValue,
             isAuthenticated: true,
             biometricEnabled: true,
-            isHydrating: false,
           });
           return;
         }
 
-        // Cancelled or failed — leave tokens in SecureStore for retry via login
-        // screen, but do not restore the session. Expose refreshTokenValue in
-        // state so the login screen biometric button knows a session exists.
-        set({ biometricEnabled: true, refreshTokenValue, accessToken, isHydrating: false });
+        set({ biometricEnabled: true, refreshTokenValue, accessToken });
         return;
       }
 
-      // Biometric disabled (or no stored session) — clear any stale tokens and
-      // require the user to sign in with their credentials.
-      await Promise.all([
-        SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
-        SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
-        SecureStore.deleteItemAsync(USER_KEY),
-      ]);
-      set({ biometricEnabled, isHydrating: false });
+      // Guard: if the user already logged in while SecureStore was loading,
+      // do not wipe their freshly-written tokens.
+      if (!get().isAuthenticated) {
+        await Promise.all([
+          SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY),
+          SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
+          SecureStore.deleteItemAsync(USER_KEY),
+        ]);
+        set({ biometricEnabled });
+      }
     } catch {
-      // Unexpected error (e.g. SecureStore unavailable or authenticateAsync threw).
-      // Preserve whatever biometricEnabled value we managed to read before the error.
-      set({ biometricEnabled, isHydrating: false });
+      // Silently ignore — user logs in fresh via the login screen.
     }
   },
 
@@ -282,18 +271,23 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   async setSession({ user, accessToken, refreshToken }) {
-    await Promise.all([
-      SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
-      SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
-      SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
-    ]);
-
+    // Update auth state immediately so API interceptors have a valid token
+    // before any queued requests fire. SecureStore writes are slow on some
+    // Android devices (same Keystore init issue as hydrate) — do them after.
     set({
       user,
       accessToken,
       refreshTokenValue: refreshToken,
       isAuthenticated: true,
       isHydrating: false,
+    });
+
+    await Promise.all([
+      SecureStore.setItemAsync(ACCESS_TOKEN_KEY, accessToken),
+      SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken),
+      SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
+    ]).catch(() => {
+      // SecureStore failure is non-fatal — session remains in memory for this launch.
     });
   },
 

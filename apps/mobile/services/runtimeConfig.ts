@@ -11,6 +11,10 @@ const expoExtra = Constants.expoConfig?.extra as ExpoExtraConfig | undefined;
 const DEV_DEFAULT_API_BASE_URL =
   Platform.OS === 'android' ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api';
 
+// Hardcoded production URL — used as the final fallback in release builds when
+// env vars are not inlined by Metro (e.g. local Gradle builds outside EAS).
+const PRODUCTION_API_BASE_URL = 'https://betintel-api.stream-intel.online/api';
+
 function normalizeApiBaseUrl(url?: string | null): string | null {
   const trimmed = url?.trim();
   return trimmed ? trimmed.replace(/\/+$/, '') : null;
@@ -46,7 +50,7 @@ function resolveConfiguredApiBaseUrl(): string {
     return devApiBaseUrl;
   }
 
-  return releaseApiBaseUrl ?? devApiBaseUrl ?? DEV_DEFAULT_API_BASE_URL;
+  return releaseApiBaseUrl ?? PRODUCTION_API_BASE_URL;
 }
 
 export const apiBaseUrl = resolveConfiguredApiBaseUrl();
