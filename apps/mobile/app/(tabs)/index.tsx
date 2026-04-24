@@ -3,10 +3,8 @@ import {
   ActivityIndicator,
   BackHandler,
   FlatList,
-  Modal,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,7 +15,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp, FadeIn, FadeOut, SlideInDown, SlideInUp, useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS, interpolate, Extrapolation } from 'react-native-reanimated';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import type GorhomBottomSheet from '@gorhom/bottom-sheet';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { BoletinDetail } from '@betintel/shared';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import type { Notification } from '@betintel/shared';
@@ -25,6 +23,7 @@ import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { ShareCard } from '../../components/boletins/ShareCard';
 import { SwipeableBoletinCard } from '../../components/boletins/SwipeableBoletinCard';
 import { useShareBoletinSheet } from '../../components/social/ShareBoletinProvider';
+import { BottomSheet, GorhomBottomSheet } from '../../components/ui/BottomSheet';
 import {
   BoletinFilterSheet,
   type BoletinFilter,
@@ -218,10 +217,17 @@ export default function HomeScreen() {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
   const filterSheetRef = useRef<GorhomBottomSheet>(null);
+  const imageShareSheetRef = useRef<GorhomBottomSheet>(null);
 
   const [activeStatuses, setActiveStatuses] = useState<Set<BoletinStatus>>(new Set());
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [imageShareBoletin, setImageShareBoletin] = useState<BoletinDetail | null>(null);
+
+  useEffect(() => {
+    if (imageShareBoletin) {
+      imageShareSheetRef.current?.expand();
+    }
+  }, [imageShareBoletin]);
   const [searchQuery, setSearchQuery] = useState('');
   const [exactMarket, setExactMarket] = useState<string | null>(null);
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
@@ -1199,30 +1205,21 @@ export default function HomeScreen() {
         onCancel={() => setShowMarkAllConfirm(false)}
       />
 
-      {/* Image share modal — renders ShareCard with ViewShot capture */}
-      <Modal
-        visible={imageShareBoletin !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setImageShareBoletin(null)}
-        statusBarTranslucent
+      {/* Image share bottom sheet — swipe-to-dismiss, Reanimated-driven */}
+      <BottomSheet
+        ref={imageShareSheetRef}
+        snapPoints={['85%']}
+        onClose={() => setImageShareBoletin(null)}
       >
-        <Pressable
-          style={styles.imageShareBackdrop}
-          onPress={() => setImageShareBoletin(null)}
-        />
-        <View style={[styles.imageShareSheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={[styles.imageShareHandle, { backgroundColor: colors.border }]} />
-          <ScrollView contentContainerStyle={styles.imageShareContent} showsVerticalScrollIndicator={false}>
-            {imageShareBoletin && (
-              <ShareCard
-                boletin={imageShareBoletin}
-                onClose={() => setImageShareBoletin(null)}
-              />
-            )}
-          </ScrollView>
-        </View>
-      </Modal>
+        <BottomSheetScrollView contentContainerStyle={styles.imageShareContent} showsVerticalScrollIndicator={false}>
+          {imageShareBoletin && (
+            <ShareCard
+              boletin={imageShareBoletin}
+              onClose={() => imageShareSheetRef.current?.close()}
+            />
+          )}
+        </BottomSheetScrollView>
+      </BottomSheet>
     </View>
   );
 }
@@ -1434,8 +1431,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   fabMenuLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
-  imageShareBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
-  imageShareSheet: { position: 'absolute', bottom: 0, left: 0, right: 0, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, maxHeight: '92%' },
-  imageShareHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 4 },
-  imageShareContent: { padding: 20, paddingBottom: 36, alignItems: 'center' },
+  imageShareContent: { padding: 4, paddingBottom: 36, alignItems: 'center' },
 });

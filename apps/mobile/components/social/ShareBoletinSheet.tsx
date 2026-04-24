@@ -152,35 +152,37 @@ export const ShareBoletinSheet = React.forwardRef<GorhomBottomSheet, ShareBoleti
             />
           </View>
 
-          {/* Friend list */}
-          <FlatList
-            data={filteredFriends}
-            keyExtractor={(item) => item.friend.id}
-            renderItem={renderFriendItem}
-            style={sheetStyles.list}
-            ListEmptyComponent={
-              <Text style={[sheetStyles.emptyText, { color: colors.textMuted }]}>
-                {friends.length === 0 ? 'Ainda sem amigos para partilhar.' : 'Nenhum resultado.'}
-              </Text>
-            }
-          />
+          {/* Friend list — flex: 1 so it fills space above the fixed send button */}
+          <View style={sheetStyles.listArea}>
+            <FlatList
+              data={filteredFriends}
+              keyExtractor={(item) => item.friend.id}
+              renderItem={renderFriendItem}
+              style={sheetStyles.list}
+              ListEmptyComponent={
+                <Text style={[sheetStyles.emptyText, { color: colors.textMuted }]}>
+                  {friends.length === 0 ? 'Ainda sem amigos para partilhar.' : 'Nenhum resultado.'}
+                </Text>
+              }
+            />
 
-          {/* Message */}
-          {selectedIds.size > 0 ? (
-            <View style={[sheetStyles.messageWrap, { borderColor: colors.border }]}>
-              <TextInput
-                multiline
-                numberOfLines={2}
-                onChangeText={setMessage}
-                placeholder="Mensagem opcional..."
-                placeholderTextColor={colors.textMuted}
-                style={[sheetStyles.messageInput, { color: colors.textPrimary }]}
-                value={message}
-              />
-            </View>
-          ) : null}
+            {/* Message */}
+            {selectedIds.size > 0 ? (
+              <View style={[sheetStyles.messageWrap, { borderColor: colors.border }]}>
+                <TextInput
+                  multiline
+                  numberOfLines={2}
+                  onChangeText={setMessage}
+                  placeholder="Mensagem opcional..."
+                  placeholderTextColor={colors.textMuted}
+                  style={[sheetStyles.messageInput, { color: colors.textPrimary }]}
+                  value={message}
+                />
+              </View>
+            ) : null}
+          </View>
 
-          {/* Send button */}
+          {/* Send button — always pinned at the bottom of the sheet */}
           <Button
             disabled={selectedIds.size === 0}
             loading={sending}
@@ -211,7 +213,8 @@ const sheetStyles = StyleSheet.create({
     paddingVertical: 8,
   },
   searchInput: { flex: 1, fontSize: 14, paddingVertical: 2 },
-  list: { flex: 1, marginBottom: 8 },
+  listArea: { flex: 1, marginBottom: 8 },
+  list: { flex: 1 },
   friendRow: {
     alignItems: 'center',
     borderRadius: 14,

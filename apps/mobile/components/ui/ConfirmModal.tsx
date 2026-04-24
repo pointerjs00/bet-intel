@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
+import { PressableScale } from './PressableScale';
 
 const PREF_PREFIX = 'betintel:confirm:skip:';
 
@@ -91,7 +92,7 @@ export function ConfirmModal({
           <Text style={[styles.message, { color: colors.textSecondary }]}>{message}</Text>
 
           {storageKey ? (
-            <Pressable onPress={() => setChecked((v) => !v)} style={styles.checkRow}>
+            <PressableScale scaleDown={0.97} onPress={() => setChecked((v) => !v)} style={styles.checkRow}>
               <View
                 style={[
                   styles.checkbox,
@@ -106,11 +107,12 @@ export function ConfirmModal({
               <Text style={[styles.checkLabel, { color: colors.textSecondary }]}>
                 Não mostrar novamente
               </Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
 
           <View style={styles.buttons}>
-            <Pressable
+            <PressableScale
+              scaleDown={0.95}
               onPress={onCancel}
               style={[
                 styles.btn,
@@ -119,15 +121,14 @@ export function ConfirmModal({
               ]}
             >
               <Text style={[styles.btnText, { color: colors.textPrimary }]}>{cancelLabel}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                void handleConfirm();
-              }}
+            </PressableScale>
+            <PressableScale
+              scaleDown={0.95}
+              onPress={() => { void handleConfirm(); }}
               style={[styles.btn, { backgroundColor: confirmColor }]}
             >
               <Text style={[styles.btnText, styles.confirmText]}>{confirmLabel}</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         </Pressable>
       </Pressable>
