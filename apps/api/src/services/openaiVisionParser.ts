@@ -51,7 +51,7 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
           'Process each selection row from TOP to BOTTOM in document order.',
           'For each row, check the coloured circle icon to the LEFT of the team name and the text colour: GREEN ✓ + green text = WON; RED ✗ + red text = LOST; no icon + white/grey text = PENDING.',
           'IMPORTANT: also include a "losingSelections" array at the boletin level with the EXACT team name strings (as written) that appear in RED on the screenshot (e.g. ["SC Braga", "FC Arouca"]). Empty array if no red names.',
-          'In a lost accumulator exactly ONE row is red; all others showing green must be WON. Never mark a row LOST just because the overall bet is Perdida.',,
+          'In a lost accumulator exactly ONE row is red; all others showing green must be WON. Never mark a row LOST just because the overall bet is Perdida.',
         ].join(' '),
       },
       {

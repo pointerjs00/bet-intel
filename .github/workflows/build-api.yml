@@ -55,6 +55,9 @@ jobs:
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
           SCRAPER_HTTP_PROXY: ${{ secrets.SCRAPER_HTTP_PROXY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_TUNED_MODEL_ID: ${{ secrets.OPENAI_TUNED_MODEL_ID }}
+          AI_PARSER: ${{ secrets.AI_PARSER }}
         run: |
           cat > "$RUNNER_TEMP/api.env" <<EOF
           DATABASE_URL=${DATABASE_URL}
@@ -78,6 +81,15 @@ jobs:
           # Only write SCRAPER_HTTP_PROXY if the secret is non-empty
           if [ -n "${SCRAPER_HTTP_PROXY}" ]; then
             echo "SCRAPER_HTTP_PROXY=${SCRAPER_HTTP_PROXY}" >> "$RUNNER_TEMP/api.env"
+          fi
+          if [ -n "${OPENAI_API_KEY}" ]; then
+            echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> "$RUNNER_TEMP/api.env"
+          fi
+          if [ -n "${OPENAI_TUNED_MODEL_ID}" ]; then
+            echo "OPENAI_TUNED_MODEL_ID=${OPENAI_TUNED_MODEL_ID}" >> "$RUNNER_TEMP/api.env"
+          fi
+          if [ -n "${AI_PARSER}" ]; then
+            echo "AI_PARSER=${AI_PARSER}" >> "$RUNNER_TEMP/api.env"
           fi
 
       - name: Upload config files to server
