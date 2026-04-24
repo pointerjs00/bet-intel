@@ -329,12 +329,18 @@ export default function HomeScreen() {
   });
 
   // When data loads and range maxima grow, expand any upper bounds the user hasn't manually narrowed.
-  // useLayoutEffect (not useEffect) so the correction fires synchronously before the screen paints,
-  // preventing a one-render flash where activeFilterCount > 0 from stale upper bounds.
+  // useLayoutEffect fires before paint so activeFilterCount never reads > 0 from stale upper bounds.
+  // The early-return guard ensures setFilter is NOT called on initial mount (where prev === current),
+  // which would trigger a synchronous re-render during the navigation transition and get the app stuck.
   const prevDataRanges = useRef(dataRanges);
   useLayoutEffect(() => {
     const prev = prevDataRanges.current;
     prevDataRanges.current = dataRanges;
+    if (
+      dataRanges.maxStake === prev.maxStake &&
+      dataRanges.maxOdds === prev.maxOdds &&
+      dataRanges.maxReturn === prev.maxReturn
+    ) return;
     setFilter((f) => ({
       ...f,
       stakeRange: [f.stakeRange[0], f.stakeRange[1] >= prev.maxStake ? dataRanges.maxStake : f.stakeRange[1]],
