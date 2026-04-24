@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -328,9 +328,11 @@ export default function HomeScreen() {
     dateTo: null,
   });
 
-  // When data loads and range maxima grow, expand any upper bounds the user hasn't manually narrowed
+  // When data loads and range maxima grow, expand any upper bounds the user hasn't manually narrowed.
+  // useLayoutEffect (not useEffect) so the correction fires synchronously before the screen paints,
+  // preventing a one-render flash where activeFilterCount > 0 from stale upper bounds.
   const prevDataRanges = useRef(dataRanges);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const prev = prevDataRanges.current;
     prevDataRanges.current = dataRanges;
     setFilter((f) => ({
