@@ -82,6 +82,7 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
     ],
     response_format: { type: 'json_object' },
     temperature: 0,
+    max_tokens: 800,
   });
 
   const text = response.choices[0]?.message?.content ?? '{"boletins":[]}';

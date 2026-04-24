@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   BackHandler,
   Image,
   Modal,
@@ -7,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,7 +18,14 @@ import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 import { Button } from '../../components/ui/Button';
 import { PressableScale } from '../../components/ui/PressableScale';
@@ -305,14 +314,16 @@ export default function ScanScreen() {
             </View>
 
             {!parseResult && (
-              <Button
-                title={isProcessing ? 'A analisar...' : 'Analisar aposta'}
-                leftSlot={!isProcessing ? <MaterialCommunityIcons name="text-recognition" size={20} color="#fff" /> : undefined}
-                loading={isProcessing}
-                onPress={processImage}
-                disabled={isProcessing}
-                style={styles.processBtn}
-              />
+              isProcessing ? (
+                <ScanLoadingCard colors={colors} />
+              ) : (
+                <Button
+                  title="Analisar aposta"
+                  leftSlot={<MaterialCommunityIcons name="text-recognition" size={20} color="#fff" />}
+                  onPress={processImage}
+                  style={styles.processBtn}
+                />
+              )
             )}
           </Animated.View>
         )}
@@ -551,6 +562,89 @@ function Metric({
 function MetricDivider({ colors }: { colors: Record<string, string> }) {
   return <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />;
 }
+
+const SCAN_MESSAGES = [
+  'A enviar imagem para análise…',
+  'A identificar as apostas…',
+  'A extrair cotas e seleções…',
+  'A verificar resultados…',
+  'A finalizar…',
+];
+// Simulated duration in ms — slightly under typical response time so the bar
+// reaches ~85% and holds there until the real response arrives.
+const PROGRESS_DURATION_MS = 16_000;
+
+function ScanLoadingCard({ colors }: { colors: Record<string, string> }) {
+  const { width: screenWidth } = useWindowDimensions();
+  // 16px padding on each side + 32px card horizontal padding
+  const barWidth = screenWidth - 16 * 2 - 16 * 2;
+
+  const progress = useSharedValue(0);
+  const [msgIdx, setMsgIdx] = useState(0);
+
+  useEffect(() => {
+    progress.value = withTiming(0.85, {
+      duration: PROGRESS_DURATION_MS,
+      easing: Easing.out(Easing.cubic),
+    });
+
+    const interval = setInterval(() => {
+      setMsgIdx((i) => (i + 1) % SCAN_MESSAGES.length);
+    }, PROGRESS_DURATION_MS / SCAN_MESSAGES.length);
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    width: progress.value * barWidth,
+  }));
+
+  return (
+    <Animated.View
+      entering={FadeInDown.duration(220).springify()}
+      style={[scanLoadingStyles.card, { backgroundColor: colors.surface, borderColor: `${colors.primary}40` }]}
+    >
+      <View style={scanLoadingStyles.row}>
+        <ActivityIndicator color={colors.primary} size="small" />
+        <Text style={[scanLoadingStyles.msg, { color: colors.textPrimary }]}>{SCAN_MESSAGES[msgIdx]}</Text>
+      </View>
+      <View style={[scanLoadingStyles.track, { backgroundColor: `${colors.primary}20` }]}>
+        <Animated.View style={[scanLoadingStyles.fill, { backgroundColor: colors.primary }, fillStyle]} />
+      </View>
+    </Animated.View>
+  );
+}
+
+const scanLoadingStyles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    gap: 14,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  msg: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  track: {
+    height: 5,
+    borderRadius: 99,
+    overflow: 'hidden',
+  },
+  fill: {
+    height: 5,
+    borderRadius: 99,
+  },
+});
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
