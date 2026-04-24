@@ -19,6 +19,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import OpenAI from 'openai';
+import sharp from 'sharp';
+
+// Resize images to fit within this box before building the JSONL.
+// OpenAI vision tiles images in 512px squares; a 1080×2340 screenshot at
+// detail:high costs ~1,400 tokens, but at 473×1024 it costs ~425 tokens —
+// a ~70% reduction with no meaningful loss of text legibility.
+const MAX_IMAGE_PX = 1024;
+
+async function resizeImage(base64: string): Promise<string> {
+  const buffer = Buffer.from(base64, 'base64');
+  const resized = await sharp(buffer)
+    .resize(MAX_IMAGE_PX, MAX_IMAGE_PX, { fit: 'inside', withoutEnlargement: true })
+    .toBuffer();
+  return resized.toString('base64');
+}
 
 const prisma = new PrismaClient();
 
@@ -74,30 +89,37 @@ async function main(): Promise<void> {
 
   // ── 2. Build JSONL ───────────────────────────────────────────────────────────
 
-  const examples = rows.map((row: {
-    id: string;
-    mimeType: string;
-    imageBase64: string;
-    correctedOutput: unknown;
-  }) => ({
-    messages: [
-      { role: 'system' as const, content: SYSTEM_PROMPT },
-      {
-        role: 'user' as const,
-        content: [
+  process.stdout.write(`Resizing ${rows.length} images to max ${MAX_IMAGE_PX}px…`);
+  const examples = await Promise.all(
+    rows.map(async (row: {
+      id: string;
+      mimeType: string;
+      imageBase64: string;
+      correctedOutput: unknown;
+    }) => {
+      const imageBase64 = await resizeImage(row.imageBase64);
+      return {
+        messages: [
+          { role: 'system' as const, content: SYSTEM_PROMPT },
           {
-            type: 'image_url',
-            image_url: {
-              url: `data:${row.mimeType};base64,${row.imageBase64}`,
-              detail: 'high',
-            },
+            role: 'user' as const,
+            content: [
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:${row.mimeType};base64,${imageBase64}`,
+                  detail: 'high',
+                },
+              },
+              { type: 'text', text: USER_SCHEMA_TEXT },
+            ],
           },
-          { type: 'text', text: USER_SCHEMA_TEXT },
+          { role: 'assistant' as const, content: JSON.stringify(row.correctedOutput) },
         ],
-      },
-      { role: 'assistant' as const, content: JSON.stringify(row.correctedOutput) },
-    ],
-  }));
+      };
+    }),
+  );
+  console.log(' done');
 
   const outDir = path.join(process.cwd(), 'training-data');
   fs.mkdirSync(outDir, { recursive: true });
