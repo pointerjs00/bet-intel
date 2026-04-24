@@ -91,10 +91,11 @@ export async function fetchBetclicApiRequest(
 /** Sends the selected parsed boletins for bulk creation. */
 export async function bulkImportRequest(
   boletins: ParsedBetclicBoletin[],
+  source = 'betclic',
 ): Promise<BulkImportResult> {
   const response = await apiClient.post<ApiEnvelope<BulkImportResult>>(
     '/boletins/import/bulk',
-    { boletins, source: 'betclic' },
+    { boletins, source },
   );
   return response.data.data;
 }
@@ -172,7 +173,8 @@ export function useBulkImportMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: bulkImportRequest,
+    mutationFn: ({ boletins, source }: { boletins: ParsedBetclicBoletin[]; source?: string }) =>
+      bulkImportRequest(boletins, source),
     onSuccess: () => {
       // Invalidate boletins and stats so list, journal, and stats reflect new data
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });

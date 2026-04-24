@@ -37,6 +37,7 @@ interface BoletinCardProps {
   onPress?: () => void;
   onDelete?: () => void;
   onShare?: () => void;
+  onImageShare?: () => void;
 }
 
 function statusAccentColor(status: BoletinStatus): string {
@@ -73,11 +74,12 @@ function SiteBadge({ slug, colors }: { slug: string; colors: ReturnType<typeof u
 }
 
 /** Summary card used on the user's boletin list. */
-export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare }: BoletinCardProps) {
+export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare, onImageShare }: BoletinCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const chevronRotation = useSharedValue(0);
   const shareScale = useSharedValue(1);
+  const imageShareScale = useSharedValue(1);
   const deleteScale = useSharedValue(1);
 
   // Resolve ATP player photos using the same reference data as the create screen.
@@ -101,6 +103,10 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
 
   const shareButtonStyle = useAnimatedStyle(() => ({
     transform: [{ scale: shareScale.value }],
+  }));
+
+  const imageShareButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: imageShareScale.value }],
   }));
 
   const deleteButtonStyle = useAnimatedStyle(() => ({
@@ -300,15 +306,22 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
             <Pressable
               hitSlop={10}
               onPress={(e) => { e.stopPropagation(); onShare?.(); }}
-              onPressIn={() => {
-                shareScale.value = withTiming(0.9, { duration: 90 });
-              }}
-              onPressOut={() => {
-                shareScale.value = withSpring(1, { damping: 12, stiffness: 260 });
-              }}
+              onPressIn={() => { shareScale.value = withTiming(0.9, { duration: 90 }); }}
+              onPressOut={() => { shareScale.value = withSpring(1, { damping: 12, stiffness: 260 }); }}
               style={[styles.iconBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
             >
               <Ionicons color={colors.textSecondary} name="share-social-outline" size={20} />
+            </Pressable>
+          </Animated.View>
+          <Animated.View style={imageShareButtonStyle}>
+            <Pressable
+              hitSlop={10}
+              onPress={(e) => { e.stopPropagation(); onImageShare?.(); }}
+              onPressIn={() => { imageShareScale.value = withTiming(0.9, { duration: 90 }); }}
+              onPressOut={() => { imageShareScale.value = withSpring(1, { damping: 12, stiffness: 260 }); }}
+              style={[styles.iconBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+            >
+              <Ionicons color={colors.textSecondary} name="image-outline" size={20} />
             </Pressable>
           </Animated.View>
           <Animated.View style={deleteButtonStyle}>

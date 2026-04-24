@@ -37,7 +37,7 @@ const SLIDES: OnboardingSlide[] = [
   {
     id: 'boletin',
     icon: 'create-outline',
-    title: 'Cria o teu primeiro boletin',
+    title: 'Cria o teu primeiro boletim',
     body: 'Toca em "+" no separador Boletins para registar uma aposta. Adiciona o evento, a odd, a stake e joga!\n\nUsa o Registo Rápido para apostas simples em segundos.',
   },
   {

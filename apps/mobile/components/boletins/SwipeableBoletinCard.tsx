@@ -24,6 +24,7 @@ interface SwipeableBoletinCardProps {
   onPress?: () => void;
   onDelete?: () => void;
   onShare?: () => void;
+  onImageShare?: () => void;
   onQuickResolve?: (result: ItemResult) => void;
 }
 
@@ -32,6 +33,7 @@ export const SwipeableBoletinCard = React.memo(function SwipeableBoletinCard({
   onPress,
   onDelete,
   onShare,
+  onImageShare,
   onQuickResolve,
 }: SwipeableBoletinCardProps) {
   const { colors } = useTheme();
@@ -127,6 +129,7 @@ export const SwipeableBoletinCard = React.memo(function SwipeableBoletinCard({
             onPress={onPress}
             onDelete={onDelete}
             onShare={onShare}
+            onImageShare={onImageShare}
           />
 
           {/* Quick resolve buttons — shown inline for PENDING boletins */}
@@ -151,7 +154,7 @@ export const SwipeableBoletinCard = React.memo(function SwipeableBoletinCard({
                 style={[styles.quickBtn, { backgroundColor: `${colors.textMuted}18` }]}
               >
                 <Ionicons name="remove" size={16} color={colors.textMuted} />
-                <Text style={[styles.quickBtnText, { color: colors.textMuted }]}>Void</Text>
+                <Text style={[styles.quickBtnText, { color: colors.textMuted }]}>Cancelado</Text>
               </Pressable>
             </View>
           )}

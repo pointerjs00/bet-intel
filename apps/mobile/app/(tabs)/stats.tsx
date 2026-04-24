@@ -1226,13 +1226,13 @@ export default function StatsScreen() {
                   <SectionTitle color={colors.textPrimary} title="Melhores boletins" />
                   <ScrollView contentContainerStyle={styles.horizontalCards} horizontal showsHorizontalScrollIndicator={false}>
                     {stats.bestBoletins.map((boletin) => (
-                      <MiniBoletinCard key={boletin.id} accentColor={colors.primary} label="Melhor" profitLoss={boletin.profitLoss} stake={boletin.stake} title={boletin.name ?? 'Boletin sem nome'} totalOdds={boletin.totalOdds} onPress={() => router.push(`/boletins/${boletin.id}`)} />
+                      <MiniBoletinCard key={boletin.id} accentColor={colors.primary} label="Melhor" profitLoss={boletin.profitLoss} stake={boletin.stake} title={boletin.name ?? 'Boletim sem nome'} totalOdds={boletin.totalOdds} onPress={() => router.push(`/boletins/${boletin.id}`)} />
                     ))}
                   </ScrollView>
                   <SectionTitle color={colors.textPrimary} title="Piores boletins" />
                   <ScrollView contentContainerStyle={styles.horizontalCards} horizontal showsHorizontalScrollIndicator={false}>
                     {stats.worstBoletins.map((boletin) => (
-                      <MiniBoletinCard key={boletin.id} accentColor={colors.danger} label="Pior" profitLoss={boletin.profitLoss} stake={boletin.stake} title={boletin.name ?? 'Boletin sem nome'} totalOdds={boletin.totalOdds} onPress={() => router.push(`/boletins/${boletin.id}`)} />
+                      <MiniBoletinCard key={boletin.id} accentColor={colors.danger} label="Pior" profitLoss={boletin.profitLoss} stake={boletin.stake} title={boletin.name ?? 'Boletim sem nome'} totalOdds={boletin.totalOdds} onPress={() => router.push(`/boletins/${boletin.id}`)} />
                     ))}
                   </ScrollView>
                 </React.Fragment>

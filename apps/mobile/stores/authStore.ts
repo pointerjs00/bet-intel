@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
@@ -9,6 +10,8 @@ const ACCESS_TOKEN_KEY = 'betintel_access_token';
 const REFRESH_TOKEN_KEY = 'betintel_refresh_token';
 const USER_KEY = 'betintel_user';
 const BIOMETRIC_ENABLED_KEY = 'betintel_biometric_enabled';
+// AsyncStorage key for biometric preference — faster reads than SecureStore on Android.
+const BIOMETRIC_ENABLED_ASYNC_KEY = 'betintel_biometric_enabled_async';
 
 // Module-level reentrancy guard — prevents recursive logout loops that occur when
 // detachDevicePushToken() fails with 401 → interceptor calls clearSession() → logout() again.
@@ -160,21 +163,32 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   async hydrate() {
-    // Show the login screen immediately — do NOT wait for SecureStore.
-    // On some Android devices the first-time Keystore initialisation used by
-    // expo-secure-store v13 blocks the JS thread indefinitely.
-    // Session restoration and biometric prompt continue in the background.
-    set({ isHydrating: false });
+    // Read biometric preference from AsyncStorage (fast, ~1ms) before marking hydration done
+    // so the login screen renders with the correct biometric state on the first paint —
+    // avoiding the layout shift that occurred when SecureStore (~1s) returned later.
+    let biometricEnabled = false;
+    try {
+      const asyncFlag = await AsyncStorage.getItem(BIOMETRIC_ENABLED_ASYNC_KEY);
+      biometricEnabled = asyncFlag === 'true';
+    } catch { /* ignore */ }
+
+    set({ isHydrating: false, biometricEnabled });
 
     try {
-      const [accessToken, refreshTokenValue, userJson, biometricFlag] = await Promise.all([
+      const [accessToken, refreshTokenValue, userJson, legacyFlag] = await Promise.all([
         SecureStore.getItemAsync(ACCESS_TOKEN_KEY),
         SecureStore.getItemAsync(REFRESH_TOKEN_KEY),
         SecureStore.getItemAsync(USER_KEY),
         SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY),
       ]);
 
-      const biometricEnabled = biometricFlag === 'true';
+      // One-time migration: move flag from SecureStore → AsyncStorage for future fast reads.
+      if (legacyFlag === 'true' && !biometricEnabled) {
+        biometricEnabled = true;
+        set({ biometricEnabled: true });
+        await AsyncStorage.setItem(BIOMETRIC_ENABLED_ASYNC_KEY, 'true').catch(() => {});
+        await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY).catch(() => {});
+      }
 
       if (biometricEnabled && refreshTokenValue) {
         const { success } = await LocalAuthentication.authenticateAsync({
@@ -207,7 +221,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY),
           SecureStore.deleteItemAsync(USER_KEY),
         ]);
-        set({ biometricEnabled });
+        // biometricEnabled was already set at the top — no second set() needed.
       }
     } catch {
       // Silently ignore — user logs in fresh via the login screen.
@@ -258,7 +272,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
 
     if (success) {
-      await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'true');
+      await AsyncStorage.setItem(BIOMETRIC_ENABLED_ASYNC_KEY, 'true');
       set({ biometricEnabled: true });
       return true;
     }
@@ -266,7 +280,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   async disableBiometric() {
-    await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY);
+    await AsyncStorage.removeItem(BIOMETRIC_ENABLED_ASYNC_KEY);
+    await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY).catch(() => {});
     set({ biometricEnabled: false });
   },
 

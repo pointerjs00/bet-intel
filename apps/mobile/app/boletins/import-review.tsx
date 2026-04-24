@@ -133,7 +133,7 @@ export default function ImportReviewScreen() {
   const router = useRouter();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
-  const params = useLocalSearchParams<{ data: string }>();
+  const params = useLocalSearchParams<{ data: string; siteSlug?: string }>();
   const bulkImportMutation = useBulkImportMutation();
 
   // Parse the data passed from the profile screen
@@ -525,7 +525,7 @@ export default function ImportReviewScreen() {
       });
 
     try {
-      const result = await bulkImportMutation.mutateAsync(selectedBoletins);
+      const result = await bulkImportMutation.mutateAsync({ boletins: selectedBoletins, source: params.siteSlug ?? 'betclic' });
 
       if (result.imported === 0 && result.duplicates > 0) {
         showToast('Todas as apostas já tinham sido importadas anteriormente', 'info');

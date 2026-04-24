@@ -20,7 +20,7 @@ const STATUS_CONFIG: Record<StatusKey, { label: string; icon: string; colorKey: 
   WON:     { label: 'Ganhou',   icon: 'checkmark-circle', colorKey: 'primary' },
   LOST:    { label: 'Perdeu',   icon: 'close-circle',     colorKey: 'danger' },
   PENDING: { label: 'Pendente', icon: 'time',             colorKey: 'warning' },
-  VOID:    { label: 'Void',     icon: 'ban',              colorKey: 'textMuted' },
+  VOID:    { label: 'Cancelado', icon: 'ban',              colorKey: 'textMuted' },
   PARTIAL: { label: 'Parcial',  icon: 'alert-circle',     colorKey: 'warning' },
   CASHOUT: { label: 'Cashout',  icon: 'cash',             colorKey: 'primary' },
 };

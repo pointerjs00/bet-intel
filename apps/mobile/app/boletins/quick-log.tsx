@@ -55,7 +55,7 @@ const RESULT_OPTIONS: Array<{ value: ItemResult | 'PENDING'; label: string; icon
   { value: 'PENDING', label: 'Pendente', icon: 'time-outline', color: 'warning' },
   { value: 'WON', label: 'Ganhou', icon: 'checkmark-circle', color: 'primary' },
   { value: 'LOST', label: 'Perdeu', icon: 'close-circle', color: 'danger' },
-  { value: 'VOID', label: 'Void', icon: 'ban', color: 'textMuted' },
+  { value: 'VOID', label: 'Cancelado', icon: 'ban', color: 'textMuted' },
 ];
 
 export default function QuickLogScreen() {

@@ -45,9 +45,11 @@ const bulkImportBoletinSchema = z.object({
   items: z.array(bulkImportItemSchema).min(1),
 });
 
+const KNOWN_SITE_SLUGS = ['betclic', 'placard', 'bet365', 'esconline', 'moosh', 'solverde', 'betway', '888sport', 'betano', 'bwin', 'lebull', 'outros'] as const;
+
 const bulkImportSchema = z.object({
   boletins: z.array(bulkImportBoletinSchema).min(1, 'Nenhuma aposta selecionada'),
-  source: z.enum(['betclic']),
+  source: z.enum(KNOWN_SITE_SLUGS).default('betclic'),
 });
 
 // Maximum PDF size: 10 MB in base64 (base64 is ~4/3 of original, so ~13.3 MB)
@@ -242,7 +244,7 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
     }
 
     const { boletins: incoming, source } = parsed.data;
-    const siteSlug = source === 'betclic' ? 'betclic' : undefined;
+    const siteSlug = source !== 'outros' ? source : undefined;
 
     // Fetch existing boletins for duplicate detection
     const existing = await listUserBoletins(userId);
@@ -290,7 +292,7 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
               selection: item.selection,
               oddValue: item.oddValue,
             })),
-            notes: `Importado do Betclic`,
+            notes: siteSlug ? `Importado do ${source}` : 'Importado via BetIntel',
             isPublic: false,
             isFreebet: false,
             betDate: (() => {

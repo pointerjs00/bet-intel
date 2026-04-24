@@ -29,9 +29,9 @@ interface ShareCardProps {
 
 const STATUS_CONFIG: Record<string, { label: string; emoji: string; bg: string }> = {
   WON: { label: 'GANHOU!', emoji: '🎉', bg: '#00C851' },
-  LOST: { label: 'PERDEU', emoji: '💔', bg: '#FF3B30' },
+  LOST: { label: 'PERDEU', emoji: '💸', bg: '#FF3B30' },
   PENDING: { label: 'PENDENTE', emoji: '⏳', bg: '#FF9500' },
-  VOID: { label: 'VOID', emoji: '🚫', bg: '#8E8E93' },
+  VOID: { label: 'CANCELADO', emoji: '🚫', bg: '#8E8E93' },
   PARTIAL: { label: 'PARCIAL', emoji: '⚖️', bg: '#FF9500' },
   CASHOUT: { label: 'CASHOUT', emoji: '💰', bg: '#007AFF' },
 };

@@ -245,13 +245,13 @@ export default function BatchResolveScreen() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Void"
+                accessibilityLabel="Cancelado"
                 disabled={updateItemsMutation.isPending}
                 onPress={() => handleResolveWithUndo('VOID')}
                 style={[styles.actionBtn, { backgroundColor: colors.warning }]}
               >
                 <Ionicons color="#FFFFFF" name="remove-circle" size={28} />
-                <Text style={styles.actionBtnText}>Void</Text>
+                <Text style={styles.actionBtnText}>Cancelado</Text>
               </Pressable>
 
               <Pressable

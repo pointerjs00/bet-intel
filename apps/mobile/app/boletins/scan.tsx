@@ -33,6 +33,7 @@ import { useToast } from '../../components/ui/Toast';
 import { useTheme } from '../../theme/useTheme';
 import type { BetclicPdfResult } from '../../services/importService';
 import { scanImageAiRequest, storeScanFeedbackContext } from '../../services/importService';
+import { BETTING_SITES } from '../../utils/sportAssets';
 import { resolveTeamAlias, inferCompetition, normalizeCompetitionName } from '../../utils/teamAliases';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
 
@@ -46,6 +47,7 @@ export default function ScanScreen() {
   const { sharedImageUri } = useLocalSearchParams<{ sharedImageUri?: string }>();
 
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [selectedSite, setSelectedSite] = useState('betclic');
   const [isProcessing, setIsProcessing] = useState(false);
   const [parseResult, setParseResult] = useState<BetclicPdfResult | null>(null);
   const [expandedBoletins, setExpandedBoletins] = useState<Set<number>>(new Set());
@@ -65,6 +67,7 @@ export default function ScanScreen() {
       setParseResult(null);
       setIsProcessing(false);
       setExpandedBoletins(new Set());
+      setSelectedSite('betclic');
     }, []),
   );
 
@@ -208,14 +211,15 @@ export default function ScanScreen() {
       totalFound: parseResult.totalFound,
       errorCount: parseResult.errorCount,
     };
-    router.push({ pathname: '/boletins/import-review', params: { data: JSON.stringify(pdfResult) } });
-  }, [parseResult, router]);
+    router.push({ pathname: '/boletins/import-review', params: { data: JSON.stringify(pdfResult), siteSlug: selectedSite } });
+  }, [parseResult, router, selectedSite]);
 
   const reset = useCallback(() => {
     setImageUri(null);
     setParseResult(null);
     setExpandedBoletins(new Set());
     setImageViewerVisible(false);
+    setSelectedSite('betclic');
   }, []);
 
   // When an image is loaded, intercept Android hardware back to reset instead of leaving
@@ -277,6 +281,32 @@ export default function ScanScreen() {
               ))}
             </View>
           </Animated.View>
+        )}
+
+        {/* Site picker */}
+        {!imageUri && (
+          <View>
+            <Text style={[styles.sitePickerLabel, { color: colors.textSecondary }]}>Site de apostas</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sitePickerRow}>
+              {BETTING_SITES.map((site) => {
+                const isSelected = selectedSite === site.slug;
+                return (
+                  <Pressable
+                    key={site.slug}
+                    onPress={() => setSelectedSite(site.slug)}
+                    style={[
+                      styles.siteChip,
+                      { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? `${colors.primary}18` : colors.surface },
+                    ]}
+                  >
+                    <Text style={[styles.siteChipText, { color: isSelected ? colors.primary : colors.textSecondary }]}>
+                      {site.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
         )}
 
         {/* Source picker or image preview */}
@@ -736,6 +766,11 @@ const styles = StyleSheet.create({
   disclaimerCheckLabel: { fontSize: 14 },
   disclaimerBtn: { width: '100%', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   disclaimerBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  sitePickerLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  sitePickerRow: { flexDirection: 'row', gap: 8, paddingBottom: 2 },
+  siteChip: { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 7 },
+  siteChipText: { fontSize: 13, fontWeight: '700' },
+
   changeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, borderWidth: 1, marginTop: 10, paddingHorizontal: 14, paddingVertical: 7 },
   changeBtnText: { fontSize: 13, fontWeight: '600' },
   processBtn: { marginTop: 20 },
