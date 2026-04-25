@@ -113,6 +113,7 @@ interface ItemEdits {
   market: string;
   selection: string;
   oddValue: string;
+  eventDate?: string;
 }
 
 function buildEditKey(boletinIdx: number, itemIdx: number): string {
@@ -172,6 +173,7 @@ export default function ImportReviewScreen() {
           market: item.market || '',
           selection: item.selection || '',
           oddValue: item.oddValue != null ? String(item.oddValue) : '',
+          eventDate: item.eventDate ?? undefined,
         });
       });
     });
@@ -284,6 +286,13 @@ export default function ImportReviewScreen() {
     side: 'home' | 'away';
   } | null>(null);
 
+  // Date picker modal state
+  const [datePickerTarget, setDatePickerTarget] = useState<{
+    boletinIdx: number;
+    itemIdx: number;
+  } | null>(null);
+  const [dateDraft, setDateDraft] = useState({ day: '', month: '', year: '', hour: '', minute: '' });
+
   // Market picker modal state
   const [marketPickerTarget, setMarketPickerTarget] = useState<{
     boletinIdx: number;
@@ -303,6 +312,7 @@ export default function ImportReviewScreen() {
           market: '',
           selection: '',
           oddValue: '',
+          eventDate: undefined,
         }
       );
     },
@@ -334,18 +344,54 @@ export default function ImportReviewScreen() {
     { enabled: teamPickerTarget !== null },
   );
 
+  const atpTeamsQuery = useTeams(
+    { sport: Sport.TENNIS, competition: 'ATP Tour' },
+    { enabled: teamPickerTarget !== null && teamPickerSport === Sport.TENNIS },
+  );
+
+  const wtaTeamsQuery = useTeams(
+    { sport: Sport.TENNIS, competition: 'WTA Tour' },
+    { enabled: teamPickerTarget !== null && teamPickerSport === Sport.TENNIS },
+  );
+
   const teamPickerItems = useMemo(() => {
+    if (teamPickerSport === Sport.TENNIS) return [];
     const data = teamsQuery.data ?? [];
     const source =
       teamPickerCompetition && !teamsQuery.isLoading && data.length === 0
         ? allTeamsQuery.data ?? []
         : data;
-    return source.map((team) => ({
-      label: team.displayName ?? team.name,
-      value: team.displayName ?? team.name,
-      imageUrl: team.imageUrl ?? null,
+    const seen = new Set<string>();
+    return source
+      .map((team) => ({
+        label: team.displayName ?? team.name,
+        value: team.displayName ?? team.name,
+        imageUrl: team.imageUrl ?? null,
+      }))
+      .filter((item) => {
+        if (seen.has(item.value)) return false;
+        seen.add(item.value);
+        return true;
+      });
+  }, [teamPickerSport, teamPickerCompetition, teamsQuery.isLoading, teamsQuery.data, allTeamsQuery.data]);
+
+  const playerSections = useMemo(() => {
+    if (teamPickerSport !== Sport.TENNIS) return undefined;
+    const atpItems = (atpTeamsQuery.data ?? []).map((t) => ({
+      label: t.displayName ?? t.name,
+      value: t.displayName ?? t.name,
+      imageUrl: t.imageUrl ?? null,
     }));
-  }, [teamPickerCompetition, teamsQuery.isLoading, teamsQuery.data, allTeamsQuery.data]);
+    const wtaItems = (wtaTeamsQuery.data ?? []).map((t) => ({
+      label: t.displayName ?? t.name,
+      value: t.displayName ?? t.name,
+      imageUrl: t.imageUrl ?? null,
+    }));
+    const sections = [];
+    if (atpItems.length > 0) sections.push({ title: 'ATP', data: atpItems });
+    if (wtaItems.length > 0) sections.push({ title: 'WTA', data: wtaItems });
+    return sections.length > 0 ? sections : undefined;
+  }, [teamPickerSport, atpTeamsQuery.data, wtaTeamsQuery.data]);
 
   // Reference data for competition picker — filtered by sport of the target item
   const competitionPickerSport = useMemo(() => {
@@ -433,6 +479,7 @@ export default function ImportReviewScreen() {
           market: '',
           selection: '',
           oddValue: '',
+          eventDate: undefined,
         };
         next.set(key, { ...existing, ...patch });
         return next;
@@ -440,6 +487,36 @@ export default function ImportReviewScreen() {
     },
     [],
   );
+
+  const openDatePicker = useCallback((boletinIdx: number, itemIdx: number, currentDate?: string) => {
+    const d = currentDate ? new Date(currentDate) : new Date();
+    setDateDraft({
+      day: String(d.getDate()).padStart(2, '0'),
+      month: String(d.getMonth() + 1).padStart(2, '0'),
+      year: String(d.getFullYear()),
+      hour: String(d.getHours()).padStart(2, '0'),
+      minute: String(d.getMinutes()).padStart(2, '0'),
+    });
+    setDatePickerTarget({ boletinIdx, itemIdx });
+  }, []);
+
+  const confirmDatePicker = useCallback(() => {
+    if (!datePickerTarget) return;
+    const { day, month, year, hour, minute } = dateDraft;
+    const d = new Date(
+      parseInt(year, 10),
+      parseInt(month, 10) - 1,
+      parseInt(day, 10),
+      parseInt(hour, 10),
+      parseInt(minute, 10),
+    );
+    if (!isNaN(d.getTime())) {
+      updateItemEdit(datePickerTarget.boletinIdx, datePickerTarget.itemIdx, {
+        eventDate: d.toISOString(),
+      });
+    }
+    setDatePickerTarget(null);
+  }, [datePickerTarget, dateDraft, updateItemEdit]);
 
   const selectedCount = selected.size;
   const errorCount = boletins.filter((b) => b.parseError).length;
@@ -519,6 +596,7 @@ export default function ImportReviewScreen() {
                 ? parseFloat(edits.oddValue.replace(',', '.'))
                 : item.oddValue,
               result: getItemResult(boletinIdx, itemIdx, item.result ?? 'PENDING'),
+              eventDate: edits.eventDate ?? item.eventDate,
             };
           }),
         };
@@ -815,28 +893,31 @@ export default function ImportReviewScreen() {
                               </Text>
                             </View>
                           )}
-                          {selectionItem.eventDate && (
-                            <View
+                          <PressableScale
+                            scaleDown={0.96}
+                            onPress={() => openDatePicker(index, selectionIndex, edits.eventDate ?? selectionItem.eventDate)}
+                            style={[
+                              styles.matchDatePill,
+                              { backgroundColor: colors.surfaceRaised },
+                            ]}
+                          >
+                            <Ionicons
+                              name="time-outline"
+                              size={11}
+                              color={colors.textMuted}
+                            />
+                            <Text
                               style={[
-                                styles.matchDatePill,
-                                { backgroundColor: colors.surfaceRaised },
+                                styles.matchDateText,
+                                { color: edits.eventDate ? colors.primary : colors.textMuted },
                               ]}
                             >
-                              <Ionicons
-                                name="time-outline"
-                                size={11}
-                                color={colors.textMuted}
-                              />
-                              <Text
-                                style={[
-                                  styles.matchDateText,
-                                  { color: colors.textMuted },
-                                ]}
-                              >
-                                {formatSelectionDate(selectionItem.eventDate)}
-                              </Text>
-                            </View>
-                          )}
+                              {(edits.eventDate ?? selectionItem.eventDate)
+                                ? formatSelectionDate(edits.eventDate ?? selectionItem.eventDate!)
+                                : 'Definir data'}
+                            </Text>
+                            <Ionicons name="pencil" size={9} color={colors.primary} />
+                          </PressableScale>
                         </View>
                         <Pressable
                           hitSlop={10}
@@ -858,16 +939,14 @@ export default function ImportReviewScreen() {
                               ) as BoletinStatus
                             }
                           />
-                          {(item.status === 'WON' || item.status === 'LOST') && (
-                            <Text
-                              style={[
-                                styles.tapToChangeTip,
-                                { color: colors.textMuted },
-                              ]}
-                            >
-                              toca para alterar
-                            </Text>
-                          )}
+                          <Text
+                            style={[
+                              styles.tapToChangeTip,
+                              { color: colors.textMuted },
+                            ]}
+                          >
+                            toca para alterar
+                          </Text>
                         </Pressable>
                       </View>
 
@@ -1371,6 +1450,7 @@ export default function ImportReviewScreen() {
       getItemResult,
       cycleItemResult,
       updateItemEdit,
+      openDatePicker,
       dismissNumericKeyboard,
     ],
   );
@@ -1591,7 +1671,8 @@ export default function ImportReviewScreen() {
             ? 'Jogador 2'
             : 'Equipa Fora'
         }
-        items={teamPickerItems}
+        items={teamPickerSport === Sport.TENNIS ? [] : teamPickerItems}
+        sections={teamPickerSport === Sport.TENNIS ? playerSections : undefined}
         renderItemLeft={(dropItem) => (
           <TeamBadge
             disableRemoteFallback
@@ -1605,7 +1686,9 @@ export default function ImportReviewScreen() {
           if (teamPickerTarget) {
             const picked =
               teamsQuery.data?.find((t) => (t.displayName ?? t.name) === val) ??
-              allTeamsQuery.data?.find((t) => (t.displayName ?? t.name) === val);
+              allTeamsQuery.data?.find((t) => (t.displayName ?? t.name) === val) ??
+              atpTeamsQuery.data?.find((t) => (t.displayName ?? t.name) === val) ??
+              wtaTeamsQuery.data?.find((t) => (t.displayName ?? t.name) === val);
             const imageUrl = picked?.imageUrl ?? null;
             if (teamPickerTarget.side === 'home') {
               updateItemEdit(teamPickerTarget.boletinIdx, teamPickerTarget.itemIdx, {
@@ -1622,7 +1705,7 @@ export default function ImportReviewScreen() {
           setTeamPickerTarget(null);
           return true;
         }}
-        isLoading={teamsQuery.isLoading || allTeamsQuery.isLoading}
+        isLoading={teamsQuery.isLoading || allTeamsQuery.isLoading || atpTeamsQuery.isLoading || wtaTeamsQuery.isLoading}
         allowCustomValue
         initialVisibleCount={20}
       />
@@ -1709,6 +1792,113 @@ export default function ImportReviewScreen() {
               })}
             </View>
           </View>
+        </Pressable>
+      </Modal>
+
+      {/* Date Picker Modal */}
+      <Modal
+        visible={datePickerTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDatePickerTarget(null)}
+      >
+        <Pressable
+          style={styles.sportModalBackdrop}
+          onPress={() => setDatePickerTarget(null)}
+        >
+          <Pressable
+            style={[styles.dateModalContent, { backgroundColor: colors.surface }]}
+            onPress={() => {}}
+          >
+            <Text style={[styles.dateModalTitle, { color: colors.textPrimary }]}>
+              Data do jogo
+            </Text>
+            <View style={styles.dateFieldsRow}>
+              <View style={styles.dateFieldGroup}>
+                <Text style={[styles.dateFieldLabel, { color: colors.textMuted }]}>Dia</Text>
+                <TextInput
+                  style={[styles.dateFieldInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                  value={dateDraft.day}
+                  onChangeText={(v) => setDateDraft((p) => ({ ...p, day: v.replace(/\D/g, '').slice(0, 2) }))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="DD"
+                  placeholderTextColor={colors.textMuted}
+                  textAlign="center"
+                />
+              </View>
+              <Text style={[styles.dateSeparator, { color: colors.textMuted }]}>/</Text>
+              <View style={styles.dateFieldGroup}>
+                <Text style={[styles.dateFieldLabel, { color: colors.textMuted }]}>Mês</Text>
+                <TextInput
+                  style={[styles.dateFieldInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                  value={dateDraft.month}
+                  onChangeText={(v) => setDateDraft((p) => ({ ...p, month: v.replace(/\D/g, '').slice(0, 2) }))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="MM"
+                  placeholderTextColor={colors.textMuted}
+                  textAlign="center"
+                />
+              </View>
+              <Text style={[styles.dateSeparator, { color: colors.textMuted }]}>/</Text>
+              <View style={[styles.dateFieldGroup, styles.dateFieldWide]}>
+                <Text style={[styles.dateFieldLabel, { color: colors.textMuted }]}>Ano</Text>
+                <TextInput
+                  style={[styles.dateFieldInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                  value={dateDraft.year}
+                  onChangeText={(v) => setDateDraft((p) => ({ ...p, year: v.replace(/\D/g, '').slice(0, 4) }))}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  placeholder="AAAA"
+                  placeholderTextColor={colors.textMuted}
+                  textAlign="center"
+                />
+              </View>
+            </View>
+            <View style={styles.dateFieldsRow}>
+              <View style={styles.dateFieldGroup}>
+                <Text style={[styles.dateFieldLabel, { color: colors.textMuted }]}>Hora</Text>
+                <TextInput
+                  style={[styles.dateFieldInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                  value={dateDraft.hour}
+                  onChangeText={(v) => setDateDraft((p) => ({ ...p, hour: v.replace(/\D/g, '').slice(0, 2) }))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="HH"
+                  placeholderTextColor={colors.textMuted}
+                  textAlign="center"
+                />
+              </View>
+              <Text style={[styles.dateSeparator, { color: colors.textMuted }]}>:</Text>
+              <View style={styles.dateFieldGroup}>
+                <Text style={[styles.dateFieldLabel, { color: colors.textMuted }]}>Min</Text>
+                <TextInput
+                  style={[styles.dateFieldInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                  value={dateDraft.minute}
+                  onChangeText={(v) => setDateDraft((p) => ({ ...p, minute: v.replace(/\D/g, '').slice(0, 2) }))}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="MM"
+                  placeholderTextColor={colors.textMuted}
+                  textAlign="center"
+                />
+              </View>
+            </View>
+            <View style={styles.dateModalButtons}>
+              <Button
+                variant="ghost"
+                title="Cancelar"
+                onPress={() => setDatePickerTarget(null)}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Confirmar"
+                onPress={confirmDatePicker}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -1971,4 +2161,33 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     gap: 8,
   },
+  dateModalContent: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
+  },
+  dateModalTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  dateFieldsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+    justifyContent: 'center',
+  },
+  dateFieldGroup: { alignItems: 'center', gap: 4 },
+  dateFieldWide: { minWidth: 68 },
+  dateFieldLabel: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  dateFieldInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+    minWidth: 44,
+  },
+  dateSeparator: { fontSize: 20, fontWeight: '700', paddingBottom: 8 },
+  dateModalButtons: { flexDirection: 'row', gap: 10 },
 });
