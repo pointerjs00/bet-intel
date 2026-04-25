@@ -175,8 +175,9 @@ function VisibleSearchableDropdown({
   const renderRow = useCallback((item: DropdownItem) => {
     const isSelected = multiSelect && localSelected.has(item.value);
     return (
-      <Pressable
+      <PressableScale
         key={item.value}
+        scaleDown={0.98}
         onPress={() => {
           if (multiSelect && onSelectMultiple && selectedValues !== undefined) {
             const next = isSelected
@@ -191,11 +192,10 @@ function VisibleSearchableDropdown({
             }
           }
         }}
-        style={({ pressed }) => [
+        style={[
           styles.dropdownRow,
           { borderColor: colors.border },
           isSelected && { backgroundColor: `${colors.primary}18` },
-          pressed && { opacity: 0.6 },
         ]}
       >
         {renderItemLeft ? renderItemLeft(item) : renderLeft ? renderLeft(item.value) : null}
@@ -217,7 +217,7 @@ function VisibleSearchableDropdown({
             <View style={[styles.uncheckCircle, { borderColor: colors.border }]} />
           )
         ) : null}
-      </Pressable>
+      </PressableScale>
     );
   }, [colors, localSelected, multiSelect, onClose, onSelect, onSelectMultiple, renderItemLeft, renderLeft, selectedValues, setLocalSelected]);
 

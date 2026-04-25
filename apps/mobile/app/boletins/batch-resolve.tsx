@@ -148,7 +148,7 @@ export default function BatchResolveScreen() {
 
   const handleFinish = useCallback(() => {
     const resolved = Array.from(resolutions.values()).filter((r) => r !== 'SKIP').length;
-    showToast(`${resolved} boletim${resolved !== 1 ? 'ns' : ''} resolvido${resolved !== 1 ? 's' : ''}.`, 'success');
+    showToast(`${resolved} boletim${resolved !== 1 ? 's' : ''} resolvido${resolved !== 1 ? 's' : ''}.`, 'success');
     router.back();
   }, [resolutions, router, showToast]);
 
