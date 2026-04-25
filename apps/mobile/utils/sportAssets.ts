@@ -737,7 +737,7 @@ export const LEAGUE_LOGOS: Record<string, string> = {
 // This map is the seed layer; the weekly rankings job adds/updates entries at runtime.
 
 const ATP_PHOTO = (id: string) =>
-  `https://www.atptour.com/-/media/alias/player-gladiator-headshot/${id}`;
+  `https://www.atptour.com/-/media/alias/player-headshot/${id}`;
 
 export const PLAYER_PHOTOS: Record<string, string> = {
   'Jannik Sinner':                    ATP_PHOTO('S0AG'),

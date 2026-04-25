@@ -158,7 +158,7 @@ export function TeamBadge({
           style={{ width: size * 0.88, height: size * 0.88, borderRadius }}
           onError={() => {
             setImgFailed(true);
-            if (!disableRemoteFallback && !imageUrl && variant !== 'player' && !fallbackUri) {
+            if (!disableRemoteFallback && !imageUrl && !fallbackUri) {
               void fetchFallbackTeamLogo(name).then((nextUri) => {
                 setFallbackUri(nextUri);
                 if (nextUri) {

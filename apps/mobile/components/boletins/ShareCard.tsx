@@ -104,23 +104,27 @@ export function ShareCard({ boletin, onClose }: ShareCardProps) {
                 </Text>
                 <View style={styles.selectionInfo}>
                   <View style={styles.matchTeamsRow}>
-                    <TeamBadge
-                      name={item.homeTeam}
-                      size={16}
-                      variant={item.sport === 'TENNIS' ? 'player' : 'team'}
-                    />
-                    <Text numberOfLines={1} style={[styles.matchText, { flex: 1 }]}>
-                      {item.homeTeam}
-                    </Text>
+                    <View style={styles.teamGroup}>
+                      <TeamBadge
+                        name={item.homeTeam}
+                        size={16}
+                        variant={item.sport === 'TENNIS' ? 'player' : 'team'}
+                      />
+                      <Text numberOfLines={1} style={styles.matchText}>
+                        {item.homeTeam}
+                      </Text>
+                    </View>
                     <Text style={styles.vsSmall}>vs</Text>
-                    <TeamBadge
-                      name={item.awayTeam}
-                      size={16}
-                      variant={item.sport === 'TENNIS' ? 'player' : 'team'}
-                    />
-                    <Text numberOfLines={1} style={[styles.matchText, { flex: 1 }]}>
-                      {item.awayTeam}
-                    </Text>
+                    <View style={styles.teamGroup}>
+                      <TeamBadge
+                        name={item.awayTeam}
+                        size={16}
+                        variant={item.sport === 'TENNIS' ? 'player' : 'team'}
+                      />
+                      <Text numberOfLines={1} style={styles.matchText}>
+                        {item.awayTeam}
+                      </Text>
+                    </View>
                   </View>
                   <Text numberOfLines={1} style={styles.marketText}>
                     {item.market}: {item.selection}
@@ -224,9 +228,10 @@ const styles = StyleSheet.create({
   selectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   resultIcon: { fontSize: 14, fontWeight: '900', width: 18, textAlign: 'center' },
   selectionInfo: { flex: 1, gap: 2 },
-  matchTeamsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  matchText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-  vsSmall: { fontSize: 9, fontWeight: '600', color: '#888' },
+  matchTeamsRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  teamGroup: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 0 },
+  matchText: { fontSize: 11, fontWeight: '700', color: '#fff', flexShrink: 1 },
+  vsSmall: { fontSize: 9, fontWeight: '600', color: '#888', flexShrink: 0 },
   marketText: { fontSize: 10, fontWeight: '600', color: '#888' },
   oddText: { fontSize: 13, fontWeight: '900', color: '#FFD700' },
   moreText: { fontSize: 11, fontWeight: '600', color: '#666', textAlign: 'center', marginTop: 2 },
