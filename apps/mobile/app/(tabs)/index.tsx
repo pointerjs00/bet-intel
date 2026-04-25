@@ -275,6 +275,9 @@ export default function HomeScreen() {
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
   const [selectedNotif, setSelectedNotif] = useState<Notification | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const flatListRef = useRef<import('react-native').FlatList>(null);
+  const scrollTopOpacity = useSharedValue(0);
 
   const handleQuickResolve = useCallback(
     (boletin: { id: string; items: Array<{ id: string }> }, result: ItemResult) => {
@@ -660,9 +663,25 @@ export default function HomeScreen() {
 
   const hasActiveControls = searchQuery.trim().length > 0 || activeFilterCount > 0 || !isDefaultSort;
 
+  const scrollTopStyle = useAnimatedStyle(() => ({
+    opacity: scrollTopOpacity.value,
+    transform: [{ scale: interpolate(scrollTopOpacity.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) }],
+    pointerEvents: scrollTopOpacity.value > 0.1 ? 'auto' : 'none',
+  }));
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <FlatList
+        ref={flatListRef}
+        onScroll={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          const shouldShow = y > 80;
+          if (shouldShow !== showScrollTop) {
+            setShowScrollTop(shouldShow);
+            scrollTopOpacity.value = withTiming(shouldShow ? 1 : 0, { duration: 200 });
+          }
+        }}
+        scrollEventThrottle={32}
         contentContainerStyle={{
           paddingTop: insets.top + tokens.spacing.md,
           paddingBottom: Math.max(insets.bottom, 12) + 64 + tokens.spacing.lg,
@@ -1205,6 +1224,29 @@ export default function HomeScreen() {
         onCancel={() => setShowMarkAllConfirm(false)}
       />
 
+      {/* Scroll-to-top floating button */}
+      <Animated.View
+        style={[
+          styles.scrollTopBtn,
+          { bottom: Math.max(insets.bottom, 16) + 64 + tokens.spacing.md },
+          scrollTopStyle,
+        ]}
+        pointerEvents={showScrollTop ? 'auto' : 'none'}
+      >
+        <PressableScale
+          scaleDown={0.88}
+          accessibilityRole="button"
+          accessibilityLabel="Ir para o topo"
+          onPress={() => {
+            hapticLight();
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+          }}
+          style={[styles.scrollTopInner, { backgroundColor: colors.primary }]}
+        >
+          <Ionicons color="#fff" name="arrow-up" size={20} />
+        </PressableScale>
+      </Animated.View>
+
       {/* Image share bottom sheet — swipe-to-dismiss, Reanimated-driven */}
       <BottomSheet
         ref={imageShareSheetRef}
@@ -1432,4 +1474,6 @@ const styles = StyleSheet.create({
   },
   fabMenuLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
   imageShareContent: { padding: 4, paddingBottom: 36, alignItems: 'center' },
+  scrollTopBtn: { position: 'absolute', right: tokens.spacing.lg },
+  scrollTopInner: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
 });

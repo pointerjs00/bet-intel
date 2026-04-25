@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +16,8 @@ import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
 
 type Resolution = 'WON' | 'LOST' | 'VOID' | 'SKIP';
+
+const ITEM_RESULT_CYCLE: ItemResult[] = [ItemResult.WON, ItemResult.LOST, ItemResult.VOID];
 
 export default function BatchResolveScreen() {
   const insets = useSafeAreaInsets();
@@ -34,16 +36,25 @@ export default function BatchResolveScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [resolutions, setResolutions] = useState<Map<string, Resolution>>(new Map());
 
-  // Per-item resolution for LOST bets
   const [awaitingItemResolution, setAwaitingItemResolution] = useState(false);
+  const [pendingResolution, setPendingResolution] = useState<Resolution | null>(null);
   const [itemResolutions, setItemResolutions] = useState<Map<string, ItemResult>>(new Map());
 
   const current = pendingBoletins[currentIndex] as BoletinDetail | undefined;
   const total = pendingBoletins.length;
   const resolvedCount = resolutions.size;
 
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [undoAvailable, setUndoAvailable] = useState<string | null>(null);
+
+  const startUndoTimer = useCallback((boletinId: string) => {
+    setUndoAvailable(boletinId);
+    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = setTimeout(() => setUndoAvailable(null), 5000);
+  }, []);
+
   const handleResolve = useCallback(
-    async (resolution: Resolution) => {
+    async (resolution: Resolution, customItemResults?: Map<string, ItemResult>) => {
       if (!current) return;
 
       setResolutions((prev) => new Map(prev).set(current.id, resolution));
@@ -55,7 +66,10 @@ export default function BatchResolveScreen() {
         try {
           await updateItemsMutation.mutateAsync({
             boletinId: current.id,
-            items: current.items.map((item) => ({ id: item.id, result: itemResult })),
+            items: current.items.map((item) => ({
+              id: item.id,
+              result: customItemResults?.get(item.id) ?? itemResult,
+            })),
           });
         } catch {
           showToast('Erro ao resolver boletim.', 'error');
@@ -74,15 +88,6 @@ export default function BatchResolveScreen() {
     },
     [current, currentIndex, total, updateItemsMutation, showToast],
   );
-
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [undoAvailable, setUndoAvailable] = useState<string | null>(null);
-
-  const startUndoTimer = useCallback((boletinId: string) => {
-    setUndoAvailable(boletinId);
-    if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
-    undoTimerRef.current = setTimeout(() => setUndoAvailable(null), 5000);
-  }, []);
 
   const handleUndo = useCallback(async () => {
     if (!undoAvailable) return;
@@ -111,10 +116,12 @@ export default function BatchResolveScreen() {
     async (resolution: Resolution) => {
       if (!current) return;
 
-      // For LOST with multiple items: ask user to specify per-item result
-      if (resolution === 'LOST' && current.items.length > 1) {
-        const initial = new Map(current.items.map((item) => [item.id, ItemResult.LOST]));
+      if (resolution !== 'SKIP' && current.items.length > 1) {
+        const defaultResult =
+          resolution === 'WON' ? ItemResult.WON : resolution === 'LOST' ? ItemResult.LOST : ItemResult.VOID;
+        const initial = new Map(current.items.map((item) => [item.id, defaultResult]));
         setItemResolutions(initial);
+        setPendingResolution(resolution);
         setAwaitingItemResolution(true);
         return;
       }
@@ -128,25 +135,16 @@ export default function BatchResolveScreen() {
   );
 
   const confirmItemResolution = useCallback(async () => {
-    if (!current) return;
+    if (!current || !pendingResolution) return;
     try {
-      await updateItemsMutation.mutateAsync({
-        boletinId: current.id,
-        items: current.items.map((item) => ({
-          id: item.id,
-          result: itemResolutions.get(item.id) ?? ItemResult.LOST,
-        })),
-      });
-      setResolutions((prev) => new Map(prev).set(current.id, 'LOST'));
+      await handleResolve(pendingResolution, itemResolutions);
       setAwaitingItemResolution(false);
+      setPendingResolution(null);
       startUndoTimer(current.id);
-      if (currentIndex < total - 1) {
-        setCurrentIndex((i) => i + 1);
-      }
     } catch {
       showToast('Erro ao resolver boletim.', 'error');
     }
-  }, [current, itemResolutions, updateItemsMutation, startUndoTimer, currentIndex, total, showToast]);
+  }, [current, pendingResolution, itemResolutions, handleResolve, startUndoTimer, showToast]);
 
   const handleFinish = useCallback(() => {
     const resolved = Array.from(resolutions.values()).filter((r) => r !== 'SKIP').length;
@@ -156,6 +154,24 @@ export default function BatchResolveScreen() {
 
   const isLast = currentIndex >= total - 1;
   const currentResolution = current ? resolutions.get(current.id) : undefined;
+
+  const itemResultColor = (result: ItemResult) => {
+    if (result === ItemResult.WON) return colors.primary;
+    if (result === ItemResult.VOID) return colors.warning;
+    return colors.danger;
+  };
+
+  const itemResultLabel = (result: ItemResult) => {
+    if (result === ItemResult.WON) return 'Ganhou';
+    if (result === ItemResult.VOID) return 'Void';
+    return 'Perdeu';
+  };
+
+  const itemResultIcon = (result: ItemResult): keyof typeof Ionicons.glyphMap => {
+    if (result === ItemResult.WON) return 'checkmark';
+    if (result === ItemResult.VOID) return 'remove';
+    return 'close';
+  };
 
   if (total === 0) {
     return (
@@ -178,23 +194,6 @@ export default function BatchResolveScreen() {
       <Stack.Screen options={{ title: 'Resolver boletins' }} />
 
       <View style={[styles.container, { paddingTop: tokens.spacing.md, paddingBottom: insets.bottom + 24 }]}>
-        {/* Progress bar */}
-        <Animated.View entering={FadeInDown.duration(160)} style={styles.progressSection}>
-          <Text style={[styles.progressText, { color: colors.textSecondary }]}>
-            {currentIndex + 1} de {total}
-          </Text>
-          <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: colors.primary,
-                  width: `${((currentIndex + 1) / total) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-        </Animated.View>
 
         {/* Current boletin card */}
         {current && (
@@ -251,6 +250,24 @@ export default function BatchResolveScreen() {
                 )}
               </View>
 
+              {/* Progress bar */}
+              <Animated.View entering={FadeInDown.duration(160)} style={styles.progressSection}>
+                <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+                  {currentIndex + 1} de {total}
+                </Text>
+                <View style={[styles.progressTrack, { backgroundColor: colors.border }]}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        backgroundColor: colors.primary,
+                        width: `${((currentIndex + 1) / total) * 100}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </Animated.View>
+
               {currentResolution && !awaitingItemResolution && (
                 <Text style={[styles.resolvedLabel, {
                   color: currentResolution === 'WON' ? colors.primary :
@@ -269,29 +286,18 @@ export default function BatchResolveScreen() {
           {awaitingItemResolution ? (
             <Animated.View entering={FadeInDown.duration(160)} style={styles.itemResolutionContainer}>
               <Text style={[styles.itemResolutionTitle, { color: colors.textPrimary }]}>
-                Que seleções foram ganhas?
+                Resultado de cada seleção
               </Text>
               <ScrollView style={styles.itemResolutionList} showsVerticalScrollIndicator={false}>
                 {current?.items.map((item) => {
                   const result = itemResolutions.get(item.id) ?? ItemResult.LOST;
-                  const isWon = result === ItemResult.WON;
+                  const color = itemResultColor(result);
                   return (
-                    <PressableScale
+                    <View
                       key={item.id}
-                      scaleDown={0.97}
-                      onPress={() => {
-                        setItemResolutions((prev) => {
-                          const next = new Map(prev);
-                          next.set(item.id, isWon ? ItemResult.LOST : ItemResult.WON);
-                          return next;
-                        });
-                      }}
                       style={[
                         styles.itemResolutionRow,
-                        {
-                          backgroundColor: isWon ? `${colors.primary}18` : `${colors.danger}12`,
-                          borderColor: isWon ? colors.primary : colors.danger,
-                        },
+                        { backgroundColor: `${color}12`, borderColor: color },
                       ]}
                     >
                       <View style={styles.itemResolutionLeft}>
@@ -318,20 +324,42 @@ export default function BatchResolveScreen() {
                           {item.selection}
                         </Text>
                       </View>
-                      <View style={[
-                        styles.itemResultBadge,
-                        { backgroundColor: isWon ? colors.primary : colors.danger },
-                      ]}>
-                        <Ionicons
-                          name={isWon ? 'checkmark' : 'close'}
-                          size={14}
-                          color="#fff"
-                        />
-                        <Text style={styles.itemResultBadgeText}>
-                          {isWon ? 'Ganhou' : 'Perdeu'}
+                      <View style={styles.itemStatusBtns}>
+                        {ITEM_RESULT_CYCLE.map((r) => {
+                          const active = result === r;
+                          const c = itemResultColor(r);
+                          return (
+                            <PressableScale
+                              key={r}
+                              scaleDown={0.88}
+                              onPress={() => {
+                                setItemResolutions((prev) => {
+                                  const next = new Map(prev);
+                                  next.set(item.id, r);
+                                  return next;
+                                });
+                              }}
+                              style={[
+                                styles.itemStatusBtn,
+                                {
+                                  backgroundColor: active ? c : `${c}18`,
+                                  borderColor: c,
+                                },
+                              ]}
+                            >
+                              <Ionicons
+                                name={itemResultIcon(r)}
+                                size={12}
+                                color={active ? '#fff' : c}
+                              />
+                            </PressableScale>
+                          );
+                        })}
+                        <Text style={[styles.itemResultLabel, { color }]}>
+                          {itemResultLabel(result)}
                         </Text>
                       </View>
-                    </PressableScale>
+                    </View>
                   );
                 })}
               </ScrollView>
@@ -339,7 +367,7 @@ export default function BatchResolveScreen() {
                 <Button
                   title="Cancelar"
                   variant="secondary"
-                  onPress={() => setAwaitingItemResolution(false)}
+                  onPress={() => { setAwaitingItemResolution(false); setPendingResolution(null); }}
                   style={{ flex: 1 }}
                 />
                 <Button
@@ -352,7 +380,8 @@ export default function BatchResolveScreen() {
             </Animated.View>
           ) : !currentResolution ? (
             <Animated.View entering={FadeInDown.delay(100).duration(160)} style={styles.actionsGrid}>
-              <Pressable
+              <PressableScale
+                scaleDown={0.93}
                 accessibilityRole="button"
                 accessibilityLabel="Ganhou"
                 disabled={updateItemsMutation.isPending}
@@ -361,9 +390,10 @@ export default function BatchResolveScreen() {
               >
                 <Ionicons color="#FFFFFF" name="checkmark-circle" size={28} />
                 <Text style={styles.actionBtnText}>Ganhou</Text>
-              </Pressable>
+              </PressableScale>
 
-              <Pressable
+              <PressableScale
+                scaleDown={0.93}
                 accessibilityRole="button"
                 accessibilityLabel="Perdeu"
                 disabled={updateItemsMutation.isPending}
@@ -372,9 +402,10 @@ export default function BatchResolveScreen() {
               >
                 <Ionicons color="#FFFFFF" name="close-circle" size={28} />
                 <Text style={styles.actionBtnText}>Perdeu</Text>
-              </Pressable>
+              </PressableScale>
 
-              <Pressable
+              <PressableScale
+                scaleDown={0.93}
                 accessibilityRole="button"
                 accessibilityLabel="Cancelado"
                 disabled={updateItemsMutation.isPending}
@@ -383,9 +414,10 @@ export default function BatchResolveScreen() {
               >
                 <Ionicons color="#FFFFFF" name="remove-circle" size={28} />
                 <Text style={styles.actionBtnText}>Cancelado</Text>
-              </Pressable>
+              </PressableScale>
 
-              <Pressable
+              <PressableScale
+                scaleDown={0.93}
                 accessibilityRole="button"
                 accessibilityLabel="Saltar"
                 disabled={updateItemsMutation.isPending}
@@ -394,12 +426,13 @@ export default function BatchResolveScreen() {
               >
                 <Ionicons color={colors.textSecondary} name="play-skip-forward" size={28} />
                 <Text style={[styles.actionBtnText, { color: colors.textSecondary }]}>Saltar</Text>
-              </Pressable>
+              </PressableScale>
             </Animated.View>
           ) : (
             <Animated.View entering={FadeInLeft.duration(160)} style={styles.navColumn}>
               {undoAvailable === current?.id && (
-                <Pressable
+                <PressableScale
+                  scaleDown={0.96}
                   accessibilityRole="button"
                   accessibilityLabel="Desfazer"
                   onPress={handleUndo}
@@ -407,7 +440,7 @@ export default function BatchResolveScreen() {
                 >
                   <Ionicons name="arrow-undo" size={16} color={colors.info} />
                   <Text style={[styles.undoText, { color: colors.info }]}>Desfazer</Text>
-                </Pressable>
+                </PressableScale>
               )}
               <View style={styles.navRow}>
               {currentIndex > 0 && (
@@ -495,10 +528,9 @@ const styles = StyleSheet.create({
   undoText: { fontSize: 14, fontWeight: '700' },
   finishRow: { alignItems: 'center' },
   summaryText: { fontSize: 13, fontWeight: '700' },
-  // Item resolution styles
   itemResolutionContainer: { gap: 10, flex: 1 },
   itemResolutionTitle: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
-  itemResolutionList: { flex: 1, maxHeight: 200 },
+  itemResolutionList: { flex: 1, maxHeight: 220 },
   itemResolutionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -512,13 +544,14 @@ const styles = StyleSheet.create({
   itemResolutionLeft: { flex: 1, gap: 3 },
   itemResolutionTeams: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
   itemResolutionTeamName: { fontSize: 12, fontWeight: '700', flexShrink: 1 },
-  itemResultBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  itemStatusBtns: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  itemStatusBtn: {
+    width: 26,
+    height: 26,
     borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  itemResultBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  itemResultLabel: { fontSize: 11, fontWeight: '800', marginLeft: 2 },
 });

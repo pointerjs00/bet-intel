@@ -115,6 +115,23 @@ const FOOTBALL_COMPETITIONS: CompetitionSeed[] = [
     ],
   },
   {
+    name: 'Premier League 2',
+    country: 'Inglaterra',
+    sport: Sport.FOOTBALL,
+    tier: 2,
+    teams: [
+      'Arsenal U21', 'Aston Villa U21', 'Chelsea U21', 'Crystal Palace U21',
+      'Everton U21', 'Fulham U21', 'Leeds United U21', 'Leicester City U21',
+      'Liverpool U21', 'Manchester City U21', 'Manchester United U21',
+      'Newcastle United U21', 'Nottingham Forest U21', 'Sunderland U21',
+      'Tottenham Hotspur U21', 'West Ham United U21', 'Wolverhampton Wanderers U21',
+      'Brighton & Hove Albion U21', 'Brentford U21', 'AFC Bournemouth U21',
+      'Southampton U21', 'Ipswich Town U21', 'Burnley U21', 'Middlesbrough U21',
+      'Coventry City U21', 'Sheffield United U21', 'Blackburn Rovers U21',
+      'West Bromwich Albion U21',
+    ],
+  },
+  {
     name: 'FA Cup',
     country: 'Inglaterra',
     sport: Sport.FOOTBALL,
