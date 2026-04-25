@@ -174,13 +174,7 @@ export default function RootLayout() {
                     <Stack.Screen name="settings" options={{ headerShown: true }} />
                     <Stack.Screen name="notifications" />
                     <Stack.Screen name="user/[username]" />
-                    <Stack.Screen name="boletins/[id]" />
-                    <Stack.Screen name="boletins/create" />
-                    <Stack.Screen name="boletins/journal" />
-                    <Stack.Screen name="boletins/import-review" />
-                    <Stack.Screen name="boletins/scan" options={{ headerShown: true }} />
-                    <Stack.Screen name="boletins/quick-log" options={{ headerShown: false }} />
-                    <Stack.Screen name="boletins/batch-resolve" options={{ headerShown: true }} />
+                    <Stack.Screen name="boletins" />
                   </Stack>
                 </View>
               </AuthGate>

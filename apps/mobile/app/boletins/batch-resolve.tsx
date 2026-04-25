@@ -193,7 +193,12 @@ export default function BatchResolveScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Resolver boletins' }} />
 
-      <View style={[styles.container, { paddingTop: tokens.spacing.md, paddingBottom: insets.bottom + 24 }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.container, { paddingTop: tokens.spacing.md, paddingBottom: Math.max(insets.bottom, 24) + 32 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* Current boletin card */}
         {current && (
@@ -481,14 +486,15 @@ export default function BatchResolveScreen() {
             </Text>
           </Animated.View>
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  container: { flex: 1, paddingHorizontal: 16, gap: 18 },
+  scroll: { flex: 1 },
+  container: { paddingHorizontal: 16, gap: 18 },
   emptyCenter: { alignItems: 'center', gap: 16, paddingHorizontal: 32 },
   emptyTitle: { fontSize: 22, fontWeight: '900' },
   emptyMessage: { fontSize: 14, fontWeight: '500', textAlign: 'center' },
@@ -496,7 +502,7 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
   progressTrack: { borderRadius: 4, height: 6, overflow: 'hidden' },
   progressFill: { borderRadius: 4, height: '100%' },
-  cardSection: { flex: 1 },
+  cardSection: {},
   mainCard: { gap: 14, padding: 20 },
   boletinName: { fontSize: 20, fontWeight: '900' },
   metaRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
@@ -528,7 +534,7 @@ const styles = StyleSheet.create({
   undoText: { fontSize: 14, fontWeight: '700' },
   finishRow: { alignItems: 'center' },
   summaryText: { fontSize: 13, fontWeight: '700' },
-  itemResolutionContainer: { gap: 10, flex: 1 },
+  itemResolutionContainer: { gap: 10 },
   itemResolutionTitle: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
   itemResolutionList: { flex: 1, maxHeight: 220 },
   itemResolutionRow: {
