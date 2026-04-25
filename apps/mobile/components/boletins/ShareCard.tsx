@@ -7,6 +7,7 @@ import { BoletinStatus, ItemResult } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
 import { Button } from '../ui/Button';
+import { TeamBadge } from '../ui/TeamBadge';
 
 // Lazy-require to handle builds where the native module is not yet linked.
 type ViewShotType = React.ComponentType<{
@@ -102,9 +103,25 @@ export function ShareCard({ boletin, onClose }: ShareCardProps) {
                   {RESULT_ICON[item.result] ?? '⏳'}
                 </Text>
                 <View style={styles.selectionInfo}>
-                  <Text numberOfLines={1} style={styles.matchText}>
-                    {item.homeTeam} vs {item.awayTeam}
-                  </Text>
+                  <View style={styles.matchTeamsRow}>
+                    <TeamBadge
+                      name={item.homeTeam}
+                      size={16}
+                      variant={item.sport === 'TENNIS' ? 'player' : 'team'}
+                    />
+                    <Text numberOfLines={1} style={[styles.matchText, { flex: 1 }]}>
+                      {item.homeTeam}
+                    </Text>
+                    <Text style={styles.vsSmall}>vs</Text>
+                    <TeamBadge
+                      name={item.awayTeam}
+                      size={16}
+                      variant={item.sport === 'TENNIS' ? 'player' : 'team'}
+                    />
+                    <Text numberOfLines={1} style={[styles.matchText, { flex: 1 }]}>
+                      {item.awayTeam}
+                    </Text>
+                  </View>
                   <Text numberOfLines={1} style={styles.marketText}>
                     {item.market}: {item.selection}
                   </Text>
@@ -206,8 +223,10 @@ const styles = StyleSheet.create({
   selectionsContainer: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
   selectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   resultIcon: { fontSize: 14, fontWeight: '900', width: 18, textAlign: 'center' },
-  selectionInfo: { flex: 1, gap: 1 },
-  matchText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  selectionInfo: { flex: 1, gap: 2 },
+  matchTeamsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  matchText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  vsSmall: { fontSize: 9, fontWeight: '600', color: '#888' },
   marketText: { fontSize: 10, fontWeight: '600', color: '#888' },
   oddText: { fontSize: 13, fontWeight: '900', color: '#FFD700' },
   moreText: { fontSize: 11, fontWeight: '600', color: '#666', textAlign: 'center', marginTop: 2 },

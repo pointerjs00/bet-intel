@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -49,6 +49,7 @@ import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { NumericKeyboard } from '../../components/ui/NumericKeyboard';
 import { useMarkets } from '../../services/referenceService';
 import { humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
+import { getCountryFlagEmoji } from '../../utils/sportAssets';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -68,6 +69,9 @@ const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
 function getSportIcon(sport: string): string {
   return SPORT_OPTIONS.find((o) => o.key === sport)?.icon ?? '🏅';
 }
+
+type BoletinStatusEdit = 'PENDING' | 'WON' | 'LOST' | 'VOID';
+const BOLETIN_STATUS_CYCLE: BoletinStatusEdit[] = ['PENDING', 'WON', 'LOST', 'VOID'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -189,6 +193,12 @@ export default function ImportReviewScreen() {
     return initial;
   });
 
+  // Per-boletin betDate edits
+  const [betDateEdits, setBetDateEdits] = useState<Map<number, string>>(new Map());
+
+  // Per-boletin status overrides
+  const [boletinStatusEdits, setBoletinStatusEdits] = useState<Map<number, BoletinStatusEdit>>(new Map());
+
   // Per-item result overrides — seeded from AI parse, fully user-editable
   type ItemResult = 'WON' | 'LOST' | 'VOID' | 'PENDING';
   const RESULT_CYCLE: ItemResult[] = ['PENDING', 'WON', 'LOST', 'VOID'];
@@ -286,12 +296,17 @@ export default function ImportReviewScreen() {
     side: 'home' | 'away';
   } | null>(null);
 
-  // Date picker modal state
-  const [datePickerTarget, setDatePickerTarget] = useState<{
-    boletinIdx: number;
-    itemIdx: number;
-  } | null>(null);
+  // Date picker modal state — supports selection-level and boletin-level dates
+  type DatePickerTarget =
+    | { kind: 'selection'; boletinIdx: number; itemIdx: number }
+    | { kind: 'boletin'; boletinIdx: number };
+  const [datePickerTarget, setDatePickerTarget] = useState<DatePickerTarget | null>(null);
   const [dateDraft, setDateDraft] = useState({ day: '', month: '', year: '', hour: '', minute: '' });
+
+  // Tennis player dropdown state (shared across home/away picker)
+  const [playerTourTab, setPlayerTourTab] = useState<'ALL' | 'ATP' | 'WTA'>('ALL');
+  const [playerCountryFilter, setPlayerCountryFilter] = useState<string | null>(null);
+  const [showCountryPickerForTeam, setShowCountryPickerForTeam] = useState(false);
 
   // Market picker modal state
   const [marketPickerTarget, setMarketPickerTarget] = useState<{
@@ -377,21 +392,103 @@ export default function ImportReviewScreen() {
 
   const playerSections = useMemo(() => {
     if (teamPickerSport !== Sport.TENNIS) return undefined;
-    const atpItems = (atpTeamsQuery.data ?? []).map((t) => ({
-      label: t.displayName ?? t.name,
-      value: t.displayName ?? t.name,
-      imageUrl: t.imageUrl ?? null,
-    }));
-    const wtaItems = (wtaTeamsQuery.data ?? []).map((t) => ({
-      label: t.displayName ?? t.name,
-      value: t.displayName ?? t.name,
-      imageUrl: t.imageUrl ?? null,
-    }));
+    const atpItems = (atpTeamsQuery.data ?? [])
+      .filter((t) => !playerCountryFilter || t.country === playerCountryFilter)
+      .map((t) => ({
+        label: t.displayName ?? t.name,
+        value: t.displayName ?? t.name,
+        imageUrl: t.imageUrl ?? null,
+        country: t.country ?? undefined,
+        subtitle: [t.country, t.rank ? `ATP Nº${t.rank}` : null].filter(Boolean).join(' · ') || undefined,
+      }));
+    const wtaItems = (wtaTeamsQuery.data ?? [])
+      .filter((t) => !playerCountryFilter || t.country === playerCountryFilter)
+      .map((t) => ({
+        label: t.displayName ?? t.name,
+        value: t.displayName ?? t.name,
+        imageUrl: t.imageUrl ?? null,
+        country: t.country ?? undefined,
+        subtitle: [t.country, t.rank ? `WTA Nº${t.rank}` : null].filter(Boolean).join(' · ') || undefined,
+      }));
     const sections = [];
-    if (atpItems.length > 0) sections.push({ title: 'ATP', data: atpItems });
-    if (wtaItems.length > 0) sections.push({ title: 'WTA', data: wtaItems });
+    if (playerTourTab !== 'WTA' && atpItems.length > 0) sections.push({ title: 'ATP', data: atpItems });
+    if (playerTourTab !== 'ATP' && wtaItems.length > 0) sections.push({ title: 'WTA', data: wtaItems });
     return sections.length > 0 ? sections : undefined;
+  }, [teamPickerSport, atpTeamsQuery.data, wtaTeamsQuery.data, playerTourTab, playerCountryFilter]);
+
+  const availablePlayerCountries = useMemo(() => {
+    if (teamPickerSport !== Sport.TENNIS) return [];
+    const countries = new Set([
+      ...(atpTeamsQuery.data ?? []).map((t) => t.country),
+      ...(wtaTeamsQuery.data ?? []).map((t) => t.country),
+    ].filter((c): c is string => Boolean(c)));
+    return [...countries].sort((a, b) => a.localeCompare(b, 'pt'));
   }, [teamPickerSport, atpTeamsQuery.data, wtaTeamsQuery.data]);
+
+  // Player search header (tabs + country filter) — mirrors create.tsx
+  const playerSearchHeader = teamPickerSport === Sport.TENNIS ? (
+    <View style={{ paddingBottom: 6, gap: 8 }}>
+      <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#444' }}>
+        {(['ALL', 'ATP', 'WTA'] as const).map((tab) => {
+          const active = playerTourTab === tab;
+          return (
+            <PressableScale
+              key={tab}
+              onPress={() => setPlayerTourTab(tab)}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                alignItems: 'center',
+                backgroundColor: active ? '#00C851' : '#2A2A2A',
+                borderRightWidth: tab !== 'WTA' ? 1 : 0,
+                borderRightColor: '#444',
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : '#888', letterSpacing: 0.5 }}>
+                {tab === 'ALL' ? 'Todos' : tab}
+              </Text>
+            </PressableScale>
+          );
+        })}
+      </View>
+      {availablePlayerCountries.length > 0 && (
+        <PressableScale
+          onPress={() => setShowCountryPickerForTeam(true)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 10,
+            backgroundColor: '#2A2A2A',
+            borderWidth: 1,
+            borderColor: playerCountryFilter ? '#00C851' : '#444',
+            gap: 8,
+          }}
+        >
+          <Ionicons name="flag-outline" size={16} color={playerCountryFilter ? '#00C851' : '#888'} />
+          <Text style={{ flex: 1, fontSize: 13, color: playerCountryFilter ? '#fff' : '#888' }}>
+            {playerCountryFilter ? `${getCountryFlagEmoji(playerCountryFilter)} ${playerCountryFilter}` : 'Filtrar por país'}
+          </Text>
+          {playerCountryFilter ? (
+            <Pressable hitSlop={8} onPress={(e) => { e.stopPropagation(); setPlayerCountryFilter(null); }}>
+              <Ionicons name="close-circle" size={16} color="#888" />
+            </Pressable>
+          ) : (
+            <Ionicons name="chevron-down" size={14} color="#888" />
+          )}
+        </PressableScale>
+      )}
+    </View>
+  ) : null;
+
+  // Reset tennis filter state when picker opens for a new target
+  useEffect(() => {
+    if (teamPickerTarget) {
+      setPlayerTourTab('ALL');
+      setPlayerCountryFilter(null);
+    }
+  }, [teamPickerTarget?.boletinIdx, teamPickerTarget?.itemIdx, teamPickerTarget?.side]);
 
   // Reference data for competition picker — filtered by sport of the target item
   const competitionPickerSport = useMemo(() => {
@@ -488,7 +585,7 @@ export default function ImportReviewScreen() {
     [],
   );
 
-  const openDatePicker = useCallback((boletinIdx: number, itemIdx: number, currentDate?: string) => {
+  const openSelectionDatePicker = useCallback((boletinIdx: number, itemIdx: number, currentDate?: string) => {
     const d = currentDate ? new Date(currentDate) : new Date();
     setDateDraft({
       day: String(d.getDate()).padStart(2, '0'),
@@ -497,7 +594,19 @@ export default function ImportReviewScreen() {
       hour: String(d.getHours()).padStart(2, '0'),
       minute: String(d.getMinutes()).padStart(2, '0'),
     });
-    setDatePickerTarget({ boletinIdx, itemIdx });
+    setDatePickerTarget({ kind: 'selection', boletinIdx, itemIdx });
+  }, []);
+
+  const openBoletinDatePicker = useCallback((boletinIdx: number, currentDate?: string) => {
+    const d = currentDate ? new Date(currentDate) : new Date();
+    setDateDraft({
+      day: String(d.getDate()).padStart(2, '0'),
+      month: String(d.getMonth() + 1).padStart(2, '0'),
+      year: String(d.getFullYear()),
+      hour: String(d.getHours()).padStart(2, '0'),
+      minute: String(d.getMinutes()).padStart(2, '0'),
+    });
+    setDatePickerTarget({ kind: 'boletin', boletinIdx });
   }, []);
 
   const confirmDatePicker = useCallback(() => {
@@ -511,9 +620,17 @@ export default function ImportReviewScreen() {
       parseInt(minute, 10),
     );
     if (!isNaN(d.getTime())) {
-      updateItemEdit(datePickerTarget.boletinIdx, datePickerTarget.itemIdx, {
-        eventDate: d.toISOString(),
-      });
+      if (datePickerTarget.kind === 'selection') {
+        updateItemEdit(datePickerTarget.boletinIdx, datePickerTarget.itemIdx, {
+          eventDate: d.toISOString(),
+        });
+      } else {
+        setBetDateEdits((prev) => {
+          const next = new Map(prev);
+          next.set(datePickerTarget.boletinIdx, d.toISOString());
+          return next;
+        });
+      }
     }
     setDatePickerTarget(null);
   }, [datePickerTarget, dateDraft, updateItemEdit]);
@@ -580,6 +697,8 @@ export default function ImportReviewScreen() {
         return {
           ...b,
           stake: stakeOverride ? parseFloat(stakeOverride.replace(',', '.')) || b.stake : b.stake,
+          betDate: betDateEdits.get(boletinIdx) ?? b.betDate,
+          status: boletinStatusEdits.get(boletinIdx) ?? b.status,
           items: b.items.map((item, itemIdx) => {
             const edits = getItemEdit(boletinIdx, itemIdx);
             return {
@@ -645,6 +764,8 @@ export default function ImportReviewScreen() {
     boletins,
     selected,
     stakeEdits,
+    betDateEdits,
+    boletinStatusEdits,
     bulkImportMutation,
     router,
     showToast,
@@ -678,7 +799,7 @@ export default function ImportReviewScreen() {
               },
             ]}
           >
-            {/* Header: checkbox + date + badges — single row */}
+            {/* Header: checkbox + date + status — all tappable */}
             <View style={styles.betCardHeader}>
               <Pressable hitSlop={10} onPress={() => toggleItem(index)}>
                 <Ionicons
@@ -687,15 +808,36 @@ export default function ImportReviewScreen() {
                   color={isSelected ? colors.primary : colors.textMuted}
                 />
               </Pressable>
-              <Text
-                style={[styles.betCardDate, { color: colors.textSecondary }]}
-                numberOfLines={1}
+              <PressableScale
+                scaleDown={0.96}
+                onPress={() => openBoletinDatePicker(index, betDateEdits.get(index) ?? item.betDate)}
+                style={styles.betCardDateBtn}
               >
-                {formatParsedDate(item.betDate)}
-              </Text>
+                <Ionicons name="calendar-outline" size={11} color={colors.textMuted} />
+                <Text
+                  style={[styles.betCardDate, { color: betDateEdits.has(index) ? colors.primary : colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {formatParsedDate(betDateEdits.get(index) ?? item.betDate)}
+                </Text>
+                <Ionicons name="pencil" size={9} color={colors.primary} />
+              </PressableScale>
               <View style={styles.betCardBadges}>
                 {item.parseError && <Badge label="Erro" variant="warning" />}
-                <StatusBadge status={item.status as BoletinStatus} />
+                <PressableScale
+                  scaleDown={0.94}
+                  onPress={() => {
+                    const current = (boletinStatusEdits.get(index) ?? item.status) as BoletinStatusEdit;
+                    const next = BOLETIN_STATUS_CYCLE[(BOLETIN_STATUS_CYCLE.indexOf(current) + 1) % BOLETIN_STATUS_CYCLE.length]!;
+                    setBoletinStatusEdits((prev) => {
+                      const m = new Map(prev);
+                      m.set(index, next);
+                      return m;
+                    });
+                  }}
+                >
+                  <StatusBadge status={(boletinStatusEdits.get(index) ?? item.status) as BoletinStatus} />
+                </PressableScale>
               </View>
             </View>
 
@@ -895,7 +1037,7 @@ export default function ImportReviewScreen() {
                           )}
                           <PressableScale
                             scaleDown={0.96}
-                            onPress={() => openDatePicker(index, selectionIndex, edits.eventDate ?? selectionItem.eventDate)}
+                            onPress={() => openSelectionDatePicker(index, selectionIndex, edits.eventDate ?? selectionItem.eventDate)}
                             style={[
                               styles.matchDatePill,
                               { backgroundColor: colors.surfaceRaised },
@@ -1450,7 +1592,11 @@ export default function ImportReviewScreen() {
       getItemResult,
       cycleItemResult,
       updateItemEdit,
-      openDatePicker,
+      openSelectionDatePicker,
+      openBoletinDatePicker,
+      betDateEdits,
+      boletinStatusEdits,
+      setBoletinStatusEdits,
       dismissNumericKeyboard,
     ],
   );
@@ -1673,6 +1819,7 @@ export default function ImportReviewScreen() {
         }
         items={teamPickerSport === Sport.TENNIS ? [] : teamPickerItems}
         sections={teamPickerSport === Sport.TENNIS ? playerSections : undefined}
+        headerContent={teamPickerSport === Sport.TENNIS ? playerSearchHeader : undefined}
         renderItemLeft={(dropItem) => (
           <TeamBadge
             disableRemoteFallback
@@ -1727,6 +1874,22 @@ export default function ImportReviewScreen() {
         isLoading={marketsQuery.isLoading}
         initialVisibleCount={8}
         allowCustomValue
+      />
+
+      {/* Country picker for tennis player filter */}
+      <SearchableDropdown
+        visible={showCountryPickerForTeam}
+        onClose={() => setShowCountryPickerForTeam(false)}
+        title="Filtrar por país"
+        items={availablePlayerCountries.map((c) => ({
+          label: `${getCountryFlagEmoji(c)} ${c}`,
+          value: c,
+        }))}
+        onSelect={(val) => {
+          setPlayerCountryFilter(val);
+          setShowCountryPickerForTeam(false);
+        }}
+        initialVisibleCount={30}
       />
 
       {/* Sport Picker Modal */}
@@ -1948,7 +2111,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     marginLeft: 'auto',
   },
-  betCardDate: { fontSize: 13, fontWeight: '600', flex: 1 },
+  betCardDate: { fontSize: 12, fontWeight: '600' },
+  betCardDateBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1 },
   betCardEvent: { gap: 4 },
   betCardTeams: { fontSize: 14, fontWeight: '700', flexShrink: 1 },
   betCardMore: { fontSize: 12 },

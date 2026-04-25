@@ -126,7 +126,7 @@ export const ShareBoletinSheet = React.forwardRef<GorhomBottomSheet, ShareBoleti
     }, [onClose, resetForm]);
 
     return (
-      <BottomSheet ref={ref} snapPoints={['55%', '85%']} onChange={onChange} onClose={handleClose}>
+      <BottomSheet ref={ref} snapPoints={['75%', '92%']} onChange={onChange} onClose={handleClose}>
         <View style={sheetStyles.container}>
           <View style={sheetStyles.header}>
             <MaterialCommunityIcons color={colors.primary} name="share-variant-outline" size={22} />

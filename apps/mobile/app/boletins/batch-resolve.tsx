@@ -1,13 +1,15 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInLeft, FadeInRight } from 'react-native-reanimated';
-import { BoletinStatus, ItemResult } from '@betintel/shared';
+import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import type { BoletinDetail } from '@betintel/shared';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { TeamBadge } from '../../components/ui/TeamBadge';
+import { PressableScale } from '../../components/ui/PressableScale';
 import { useToast } from '../../components/ui/Toast';
 import { useBoletins, useUpdateBoletinItemsMutation } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
@@ -31,7 +33,10 @@ export default function BatchResolveScreen() {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [resolutions, setResolutions] = useState<Map<string, Resolution>>(new Map());
-  const [submitting, setSubmitting] = useState(false);
+
+  // Per-item resolution for LOST bets
+  const [awaitingItemResolution, setAwaitingItemResolution] = useState(false);
+  const [itemResolutions, setItemResolutions] = useState<Map<string, ItemResult>>(new Map());
 
   const current = pendingBoletins[currentIndex] as BoletinDetail | undefined;
   const total = pendingBoletins.length;
@@ -43,7 +48,6 @@ export default function BatchResolveScreen() {
 
       setResolutions((prev) => new Map(prev).set(current.id, resolution));
 
-      // If not skipping, apply resolution immediately
       if (resolution !== 'SKIP' && current.items.length > 0) {
         const itemResult =
           resolution === 'WON' ? ItemResult.WON : resolution === 'LOST' ? ItemResult.LOST : ItemResult.VOID;
@@ -55,7 +59,6 @@ export default function BatchResolveScreen() {
           });
         } catch {
           showToast('Erro ao resolver boletim.', 'error');
-          // Remove from resolutions on error
           setResolutions((prev) => {
             const next = new Map(prev);
             next.delete(current.id);
@@ -65,7 +68,6 @@ export default function BatchResolveScreen() {
         }
       }
 
-      // Move to next
       if (currentIndex < total - 1) {
         setCurrentIndex((i) => i + 1);
       }
@@ -105,10 +107,18 @@ export default function BatchResolveScreen() {
     }
   }, [undoAvailable, pendingBoletins, updateItemsMutation, showToast]);
 
-  // Start undo timer after successful resolution
   const handleResolveWithUndo = useCallback(
     async (resolution: Resolution) => {
       if (!current) return;
+
+      // For LOST with multiple items: ask user to specify per-item result
+      if (resolution === 'LOST' && current.items.length > 1) {
+        const initial = new Map(current.items.map((item) => [item.id, ItemResult.LOST]));
+        setItemResolutions(initial);
+        setAwaitingItemResolution(true);
+        return;
+      }
+
       await handleResolve(resolution);
       if (resolution !== 'SKIP') {
         startUndoTimer(current.id);
@@ -116,6 +126,27 @@ export default function BatchResolveScreen() {
     },
     [current, handleResolve, startUndoTimer],
   );
+
+  const confirmItemResolution = useCallback(async () => {
+    if (!current) return;
+    try {
+      await updateItemsMutation.mutateAsync({
+        boletinId: current.id,
+        items: current.items.map((item) => ({
+          id: item.id,
+          result: itemResolutions.get(item.id) ?? ItemResult.LOST,
+        })),
+      });
+      setResolutions((prev) => new Map(prev).set(current.id, 'LOST'));
+      setAwaitingItemResolution(false);
+      startUndoTimer(current.id);
+      if (currentIndex < total - 1) {
+        setCurrentIndex((i) => i + 1);
+      }
+    } catch {
+      showToast('Erro ao resolver boletim.', 'error');
+    }
+  }, [current, itemResolutions, updateItemsMutation, startUndoTimer, currentIndex, total, showToast]);
 
   const handleFinish = useCallback(() => {
     const resolved = Array.from(resolutions.values()).filter((r) => r !== 'SKIP').length;
@@ -146,7 +177,7 @@ export default function BatchResolveScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Resolver boletins' }} />
 
-      <View style={[styles.container, { paddingTop: insets.top + tokens.spacing.md, paddingBottom: insets.bottom + 24 }]}>
+      <View style={[styles.container, { paddingTop: tokens.spacing.md, paddingBottom: insets.bottom + 24 }]}>
         {/* Progress bar */}
         <Animated.View entering={FadeInDown.duration(160)} style={styles.progressSection}>
           <Text style={[styles.progressText, { color: colors.textSecondary }]}>
@@ -185,13 +216,29 @@ export default function BatchResolveScreen() {
                 </Text>
               </View>
 
-              {/* Items preview */}
+              {/* Items preview with team badges */}
               <View style={[styles.itemsList, { borderColor: colors.border }]}>
                 {current.items.slice(0, 5).map((item) => (
                   <View key={item.id} style={[styles.itemRow, { borderColor: colors.border }]}>
-                    <Text numberOfLines={1} style={[styles.itemTeams, { color: colors.textPrimary }]}>
-                      {item.homeTeam} vs {item.awayTeam}
-                    </Text>
+                    <View style={styles.itemTeamsRow}>
+                      <TeamBadge
+                        name={item.homeTeam}
+                        size={22}
+                        variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                      />
+                      <Text numberOfLines={1} style={[styles.itemTeams, { color: colors.textPrimary }]}>
+                        {item.homeTeam}
+                      </Text>
+                      <Text style={[styles.vsText, { color: colors.textMuted }]}>vs</Text>
+                      <TeamBadge
+                        name={item.awayTeam}
+                        size={22}
+                        variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                      />
+                      <Text numberOfLines={1} style={[styles.itemTeams, { color: colors.textPrimary }]}>
+                        {item.awayTeam}
+                      </Text>
+                    </View>
                     <Text style={[styles.itemMarket, { color: colors.textSecondary }]}>
                       {item.market} · {item.selection}
                     </Text>
@@ -204,22 +251,106 @@ export default function BatchResolveScreen() {
                 )}
               </View>
 
-              {currentResolution && (
+              {currentResolution && !awaitingItemResolution && (
                 <Text style={[styles.resolvedLabel, {
                   color: currentResolution === 'WON' ? colors.primary :
                     currentResolution === 'LOST' ? colors.danger :
                     currentResolution === 'VOID' ? colors.warning : colors.textMuted
                 }]}>
-                  {currentResolution === 'SKIP' ? 'Ignorado' : currentResolution}
+                  {currentResolution === 'SKIP' ? 'Ignorado' : currentResolution === 'WON' ? 'Ganhou' : currentResolution === 'LOST' ? 'Perdeu' : 'Cancelado'}
                 </Text>
               )}
             </Card>
           </Animated.View>
         )}
 
-        {/* Action buttons */}
+        {/* Action buttons / item resolution / nav */}
         <View style={styles.actionsSection}>
-          {!currentResolution ? (
+          {awaitingItemResolution ? (
+            <Animated.View entering={FadeInDown.duration(160)} style={styles.itemResolutionContainer}>
+              <Text style={[styles.itemResolutionTitle, { color: colors.textPrimary }]}>
+                Que seleções foram ganhas?
+              </Text>
+              <ScrollView style={styles.itemResolutionList} showsVerticalScrollIndicator={false}>
+                {current?.items.map((item) => {
+                  const result = itemResolutions.get(item.id) ?? ItemResult.LOST;
+                  const isWon = result === ItemResult.WON;
+                  return (
+                    <PressableScale
+                      key={item.id}
+                      scaleDown={0.97}
+                      onPress={() => {
+                        setItemResolutions((prev) => {
+                          const next = new Map(prev);
+                          next.set(item.id, isWon ? ItemResult.LOST : ItemResult.WON);
+                          return next;
+                        });
+                      }}
+                      style={[
+                        styles.itemResolutionRow,
+                        {
+                          backgroundColor: isWon ? `${colors.primary}18` : `${colors.danger}12`,
+                          borderColor: isWon ? colors.primary : colors.danger,
+                        },
+                      ]}
+                    >
+                      <View style={styles.itemResolutionLeft}>
+                        <View style={styles.itemResolutionTeams}>
+                          <TeamBadge
+                            name={item.homeTeam}
+                            size={20}
+                            variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                          />
+                          <Text numberOfLines={1} style={[styles.itemResolutionTeamName, { color: colors.textPrimary }]}>
+                            {item.homeTeam}
+                          </Text>
+                          <Text style={[styles.vsText, { color: colors.textMuted }]}>vs</Text>
+                          <TeamBadge
+                            name={item.awayTeam}
+                            size={20}
+                            variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
+                          />
+                          <Text numberOfLines={1} style={[styles.itemResolutionTeamName, { color: colors.textPrimary }]}>
+                            {item.awayTeam}
+                          </Text>
+                        </View>
+                        <Text numberOfLines={1} style={[styles.itemMarket, { color: colors.textSecondary }]}>
+                          {item.selection}
+                        </Text>
+                      </View>
+                      <View style={[
+                        styles.itemResultBadge,
+                        { backgroundColor: isWon ? colors.primary : colors.danger },
+                      ]}>
+                        <Ionicons
+                          name={isWon ? 'checkmark' : 'close'}
+                          size={14}
+                          color="#fff"
+                        />
+                        <Text style={styles.itemResultBadgeText}>
+                          {isWon ? 'Ganhou' : 'Perdeu'}
+                        </Text>
+                      </View>
+                    </PressableScale>
+                  );
+                })}
+              </ScrollView>
+              <View style={styles.navRow}>
+                <Button
+                  title="Cancelar"
+                  variant="secondary"
+                  onPress={() => setAwaitingItemResolution(false)}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  title="Confirmar"
+                  onPress={confirmItemResolution}
+                  loading={updateItemsMutation.isPending}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </Animated.View>
+          ) : !currentResolution ? (
             <Animated.View entering={FadeInDown.delay(100).duration(160)} style={styles.actionsGrid}>
               <Pressable
                 accessibilityRole="button"
@@ -281,7 +412,7 @@ export default function BatchResolveScreen() {
               <View style={styles.navRow}>
               {currentIndex > 0 && (
                 <Button
-                  onPress={() => setCurrentIndex((i) => i - 1)}
+                  onPress={() => { setCurrentIndex((i) => i - 1); setAwaitingItemResolution(false); }}
                   size="md"
                   title="← Anterior"
                   variant="secondary"
@@ -297,7 +428,7 @@ export default function BatchResolveScreen() {
                 />
               ) : (
                 <Button
-                  onPress={() => setCurrentIndex((i) => i + 1)}
+                  onPress={() => { setCurrentIndex((i) => i + 1); setAwaitingItemResolution(false); }}
                   size="md"
                   style={{ flex: 1 }}
                   title="Próximo →"
@@ -338,8 +469,10 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   metaText: { fontSize: 13, fontWeight: '700' },
   itemsList: { borderTopWidth: 1, gap: 8, paddingTop: 12 },
-  itemRow: { gap: 2 },
-  itemTeams: { fontSize: 14, fontWeight: '700' },
+  itemRow: { gap: 4 },
+  itemTeamsRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  itemTeams: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  vsText: { fontSize: 11, fontWeight: '500' },
   itemMarket: { fontSize: 12, fontWeight: '500' },
   moreItems: { fontSize: 12, fontWeight: '600' },
   resolvedLabel: { fontSize: 18, fontWeight: '900', textAlign: 'center', marginTop: 8 },
@@ -362,4 +495,30 @@ const styles = StyleSheet.create({
   undoText: { fontSize: 14, fontWeight: '700' },
   finishRow: { alignItems: 'center' },
   summaryText: { fontSize: 13, fontWeight: '700' },
+  // Item resolution styles
+  itemResolutionContainer: { gap: 10, flex: 1 },
+  itemResolutionTitle: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
+  itemResolutionList: { flex: 1, maxHeight: 200 },
+  itemResolutionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    gap: 10,
+  },
+  itemResolutionLeft: { flex: 1, gap: 3 },
+  itemResolutionTeams: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  itemResolutionTeamName: { fontSize: 12, fontWeight: '700', flexShrink: 1 },
+  itemResultBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  itemResultBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
 });
