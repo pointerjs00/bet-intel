@@ -421,33 +421,32 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
     return !!homeTeam.trim() && !!awayTeam.trim();
   }, [homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport]);
 
-  const marketSections = useMemo(() => {
-    const fHome = isDoubles && sport === Sport.TENNIS ? `${homeTeam} / ${homeTeam2}` : homeTeam;
-    const fAway = isDoubles && sport === Sport.TENNIS ? `${awayTeam} / ${awayTeam2}` : awayTeam;
+  const rawMarketSections = useMemo(() => {
     const data = marketsQuery.data ?? [];
-    // Group by category
     const grouped = new Map<string, typeof data>();
     for (const m of data) {
       const cat = m.category ?? 'Outro';
       if (!grouped.has(cat)) grouped.set(cat, []);
       grouped.get(cat)!.push(m);
     }
-    // Display order: most popular first
     const ORDER = MARKET_CATEGORY_ORDER;
     const sortedCats = [...grouped.keys()].sort(
       (a, b) => (ORDER.indexOf(a) === -1 ? 99 : ORDER.indexOf(a)) - (ORDER.indexOf(b) === -1 ? 99 : ORDER.indexOf(b)),
     );
-    return sortedCats.map((cat) => ({
-      title: cat,
-      data: (grouped.get(cat) ?? []).map((m) => ({
-        label:
-          fHome && fAway
-            ? humanizeMarket(m.name, fHome, fAway)
-            : m.name,
+    return sortedCats.map((cat) => ({ title: cat, data: grouped.get(cat) ?? [] }));
+  }, [marketsQuery.data]);
+
+  const marketSections = useMemo(() => {
+    const fHome = isDoubles && sport === Sport.TENNIS ? `${homeTeam} / ${homeTeam2}` : homeTeam;
+    const fAway = isDoubles && sport === Sport.TENNIS ? `${awayTeam} / ${awayTeam2}` : awayTeam;
+    return rawMarketSections.map((section) => ({
+      title: section.title,
+      data: section.data.map((m) => ({
+        label: fHome && fAway ? humanizeMarket(m.name, fHome, fAway) : m.name,
         value: m.name,
       })),
     }));
-  }, [marketsQuery.data, homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport]);
+  }, [rawMarketSections, homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport]);
 
   // sportLabel is now derived above as sportLabelObj; keep alias for compatibility
   const sportLabel = sportLabelObj;

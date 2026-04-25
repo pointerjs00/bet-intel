@@ -1,9 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
   Pressable,
-  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -84,18 +83,26 @@ function VisibleSearchableDropdown({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [localSelected, setLocalSelected] = useState<Set<string>>(() => new Set(selectedValues ?? []));
 
   useEffect(() => {
     setLocalSelected(new Set(selectedValues ?? []));
   }, [selectedValues]);
 
+  const handleSearchChange = useCallback((text: string) => {
+    setSearch(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(text), 150);
+  }, []);
+
   // Per-section expanded state for sections mode ("Carregar mais")
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   // Flat list visible count for items mode ("Carregar mais")
   const [flatVisible, setFlatVisible] = useState<number | undefined>(initialVisibleCount);
 
-  const isSearching = search.trim().length > 0;
+  const isSearching = debouncedSearch.trim().length > 0;
 
   // Reset visible count when modal opens / search changes
   useEffect(() => {
@@ -107,7 +114,6 @@ function VisibleSearchableDropdown({
 
   useEffect(() => {
     if (isSearching) {
-      // When searching, show everything
       setFlatVisible(undefined);
     } else {
       setFlatVisible(initialVisibleCount);
@@ -117,17 +123,19 @@ function VisibleSearchableDropdown({
   useEffect(() => {
     if (!visible) {
       setSearch('');
+      setDebouncedSearch('');
+      if (debounceRef.current) clearTimeout(debounceRef.current);
     }
   }, [visible]);
 
   const filteredSections = useMemo(() => {
     if (!sections) return undefined;
-    if (!search.trim()) return sections;
-    const lower = search.toLowerCase();
+    if (!debouncedSearch.trim()) return sections;
+    const lower = debouncedSearch.toLowerCase();
     return sections
       .map((s) => ({ ...s, data: s.data.filter((i) => i.label.toLowerCase().includes(lower)) }))
       .filter((s) => s.data.length > 0);
-  }, [sections, search]);
+  }, [sections, debouncedSearch]);
 
   // Section total counts (before slicing) for "Carregar mais" remaining count
   const sectionTotalCounts = useMemo(() => {
@@ -147,10 +155,10 @@ function VisibleSearchableDropdown({
   }, [filteredSections, initialVisibleCount, expandedSections, isSearching]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return items ?? [];
-    const lower = search.toLowerCase();
+    if (!debouncedSearch.trim()) return items ?? [];
+    const lower = debouncedSearch.toLowerCase();
     return (items ?? []).filter((item) => item.label.toLowerCase().includes(lower));
-  }, [items, search]);
+  }, [items, debouncedSearch]);
 
   // Visible flat items (apply limit when not searching)
   const displayItems = useMemo(() => {
@@ -167,7 +175,7 @@ function VisibleSearchableDropdown({
   const renderRow = useCallback((item: DropdownItem) => {
     const isSelected = multiSelect && localSelected.has(item.value);
     return (
-      <PressableScale
+      <Pressable
         key={item.value}
         onPress={() => {
           if (multiSelect && onSelectMultiple && selectedValues !== undefined) {
@@ -183,10 +191,11 @@ function VisibleSearchableDropdown({
             }
           }
         }}
-        style={[
+        style={({ pressed }) => [
           styles.dropdownRow,
           { borderColor: colors.border },
           isSelected && { backgroundColor: `${colors.primary}18` },
+          pressed && { opacity: 0.6 },
         ]}
       >
         {renderItemLeft ? renderItemLeft(item) : renderLeft ? renderLeft(item.value) : null}
@@ -208,7 +217,7 @@ function VisibleSearchableDropdown({
             <View style={[styles.uncheckCircle, { borderColor: colors.border }]} />
           )
         ) : null}
-      </PressableScale>
+      </Pressable>
     );
   }, [colors, localSelected, multiSelect, onClose, onSelect, onSelectMultiple, renderItemLeft, renderLeft, selectedValues, setLocalSelected]);
 
@@ -236,11 +245,11 @@ function VisibleSearchableDropdown({
               placeholder="Pesquisar..."
               placeholderTextColor={colors.textMuted}
               value={search}
-              onChangeText={setSearch}
+              onChangeText={handleSearchChange}
               style={[styles.searchInput, { color: colors.textPrimary }]}
             />
             {search.length > 0 ? (
-              <Pressable onPress={() => setSearch('')} hitSlop={8}>
+              <Pressable onPress={() => { setSearch(''); setDebouncedSearch(''); }} hitSlop={8}>
                 <MaterialCommunityIcons color={colors.textMuted} name="close-circle" size={16} />
               </Pressable>
             ) : null}
