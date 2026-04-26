@@ -1474,6 +1474,6 @@ const styles = StyleSheet.create({
   },
   fabMenuLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
   imageShareContent: { padding: 4, paddingBottom: 36, alignItems: 'center' },
-  scrollTopBtn: { position: 'absolute', right: tokens.spacing.lg },
+  scrollTopBtn: { position: 'absolute', alignSelf: 'center' },
   scrollTopInner: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
 });

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { createBoletinSchema } from '@betintel/shared';
 import { parseBetclicPdf, type ParsedBetclicBoletin } from '../services/betclicPdfParser';
 import { fetchBetclicBets } from '../services/betclicApiService';
@@ -312,6 +313,17 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
           const createdBoletin = await createBoletin(userId, validated.data);
           imported++;
 
+          // createBoletin recalculates totalOdds by multiplying individual item odds, but the
+          // scanner reads individual odds as rounded values from the slip image. The product of
+          // rounded values often differs from the actual total shown on the slip.
+          // Override with the slip's own totalOdds so the stored values are always consistent.
+          const slipOdds = new Prisma.Decimal(bet.totalOdds).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
+          const slipReturn = new Prisma.Decimal(bet.stake).mul(slipOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+          await prisma.boletin.update({
+            where: { id: createdBoletin.id },
+            data: { totalOdds: slipOdds, potentialReturn: slipReturn },
+          });
+
           // Apply individual item results from the AI parse, then resolve the boletin status.
           // Each item carries its own result (WON/LOST/VOID/PENDING) — do NOT use the boletin
           // status to stamp all items, because in an accumulator only one leg may have lost.
@@ -341,7 +353,8 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
               where: { id: createdBoletin.id },
               data: {
                 status: bet.status,
-                actualReturn: bet.status === 'WON' ? createdBoletin.potentialReturn : '0.00',
+                // Use slipReturn (from the slip's totalOdds) so actualReturn matches what was shown
+                actualReturn: bet.status === 'WON' ? slipReturn : new Prisma.Decimal('0.00'),
               },
             });
           }
