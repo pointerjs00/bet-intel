@@ -41,24 +41,27 @@ export interface AIParsedResult {
 
 // ─── Timezone helpers ────────────────────────────────────────────────────────
 
+/** Last Sunday of a given month (0-indexed) in a given year, returned as day-of-month. */
+function lastSundayOf(year: number, month: number): number {
+  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  for (let d = lastDay; d >= 1; d--) {
+    if (new Date(Date.UTC(year, month, d)).getUTCDay() === 0) return d;
+  }
+  return lastDay;
+}
+
 /**
  * Returns the UTC offset of Europe/Lisbon (in ms) at a given UTC instant.
- * Handles both WET (UTC+0, winter) and WEST (UTC+1, summer) automatically.
+ * Uses hardcoded EU DST rules (last Sun of March at 01:00 UTC → UTC+1,
+ * last Sun of October at 01:00 UTC → UTC+0) instead of Intl.DateTimeFormat
+ * so it works reliably even on servers with minimal ICU data.
  */
 function getLisbonOffsetMs(utcDate: Date): number {
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Lisbon',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hour12: false,
-  });
-  const parts = Object.fromEntries(fmt.formatToParts(utcDate).map(p => [p.type, p.value]));
-  const h = parseInt(parts.hour!);
-  const lisbonWallMs = Date.UTC(
-    parseInt(parts.year!), parseInt(parts.month!) - 1, parseInt(parts.day!),
-    h === 24 ? 0 : h, parseInt(parts.minute!), parseInt(parts.second!),
-  );
-  return lisbonWallMs - utcDate.getTime();
+  const y = utcDate.getUTCFullYear();
+  const dstStart = Date.UTC(y, 2, lastSundayOf(y, 2), 1, 0, 0);  // last Sun of March 01:00 UTC
+  const dstEnd   = Date.UTC(y, 9, lastSundayOf(y, 9), 1, 0, 0);  // last Sun of October 01:00 UTC
+  const t = utcDate.getTime();
+  return (t >= dstStart && t < dstEnd) ? 3_600_000 : 0;
 }
 
 /**
@@ -90,7 +93,15 @@ function getGenAI(): GoogleGenerativeAI {
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Extract bet slip data from this Betclic Portugal screenshot. Return JSON only.
+function getSystemPrompt(): string {
+  const now = new Date();
+  const dd = String(now.getUTCDate()).padStart(2, '0');
+  const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = now.getUTCFullYear();
+  return `Extract bet slip data from this Betclic Portugal screenshot. Return JSON only.
+
+Today's date is ${dd}/${mm}/${yyyy}. When the year is not clearly visible on the screenshot, always use ${yyyy}.
+All times shown on Betclic Portugal screenshots are Europe/Lisbon local time (UTC+0 Nov–Mar, UTC+1 Apr–Oct). Output all dates in UTC ISO 8601 with Z suffix.
 
 Rules:
 - Text is in Portuguese. Odds are decimal (e.g. 1.50). Dates are DD/MM/YYYY.
@@ -109,6 +120,7 @@ JSON schema:
 {"boletins":[{"betDate":"ISO","stake":0.0,"totalOdds":0.0,"potentialReturn":0.0,"status":"PENDING","losingSelections":["team name in red"],"items":[{"homeTeam":"","awayTeam":"","competition":"","sport":"FOOTBALL","market":"","selection":"","oddValue":0.0,"eventDate":"ISO","result":"PENDING"}]}]}
 
 If no bets found: {"boletins":[],"error":"reason"}`;
+}
 
 // ─── Parse function ──────────────────────────────────────────────────────────
 
@@ -228,7 +240,7 @@ export async function parseImageWithGemini(imageBase64: string, mimeType: string
   });
 
   const result = await model.generateContent([
-    { text: SYSTEM_PROMPT },
+    { text: getSystemPrompt() },
     {
       inlineData: {
         mimeType: mimeType as 'image/jpeg' | 'image/png' | 'image/webp',

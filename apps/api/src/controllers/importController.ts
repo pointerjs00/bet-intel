@@ -324,10 +324,15 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
             data: { totalOdds: slipOdds, potentialReturn: slipReturn },
           });
 
-          // Apply individual item results from the AI parse, then resolve the boletin status.
-          // Each item carries its own result (WON/LOST/VOID/PENDING) — do NOT use the boletin
-          // status to stamp all items, because in an accumulator only one leg may have lost.
-          if (bet.status === 'WON' || bet.status === 'LOST' || bet.status === 'VOID') {
+          // Apply individual item results from the import review.
+          // Run whenever any item has a user-set result, OR the boletin itself is resolved.
+          // This preserves WON/LOST items the user manually set even on a PENDING boletin.
+          const resolved = bet.status === 'WON' || bet.status === 'LOST' || bet.status === 'VOID';
+          const hasItemResults = bet.items.some(
+            (item) => item.result && item.result !== 'PENDING',
+          );
+
+          if (resolved || hasItemResults) {
             const dbItems = await prisma.boletinItem.findMany({
               where: { boletinId: createdBoletin.id },
               orderBy: { id: 'asc' },
@@ -335,11 +340,11 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
 
             for (let i = 0; i < dbItems.length; i++) {
               const parsedItem = bet.items[i];
-              // Per-item result from AI; fall back to boletin status only for single-leg bets
+              // Per-item result from user review; fall back to boletin status only for single resolved legs
               const itemResult: 'WON' | 'LOST' | 'VOID' | 'PENDING' =
                 parsedItem?.result && ['WON', 'LOST', 'VOID', 'PENDING'].includes(parsedItem.result)
                   ? (parsedItem.result as 'WON' | 'LOST' | 'VOID' | 'PENDING')
-                  : bet.items.length === 1
+                  : resolved && bet.items.length === 1
                     ? (bet.status as 'WON' | 'LOST' | 'VOID')
                     : 'PENDING';
 
@@ -349,14 +354,15 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
               });
             }
 
-            await prisma.boletin.update({
-              where: { id: createdBoletin.id },
-              data: {
-                status: bet.status,
-                // Use slipReturn (from the slip's totalOdds) so actualReturn matches what was shown
-                actualReturn: bet.status === 'WON' ? slipReturn : new Prisma.Decimal('0.00'),
-              },
-            });
+            if (resolved) {
+              await prisma.boletin.update({
+                where: { id: createdBoletin.id },
+                data: {
+                  status: bet.status as 'WON' | 'LOST' | 'VOID',
+                  actualReturn: bet.status === 'WON' ? slipReturn : new Prisma.Decimal('0.00'),
+                },
+              });
+            }
           }
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : 'Erro desconhecido';

@@ -41,18 +41,26 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
     messages: [
       {
         role: 'system',
-        content: [
-          'You are a bet slip parser for a Portuguese sports betting app.',
-          'Extract all data from bet slip screenshots and return structured JSON only.',
-          'Return official international team names (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão").',
-          'Always set competition to the correct league. Known: VfB Stuttgart, Bayern Munich, Borussia Dortmund, Bayer Leverkusen, RB Leipzig, Eintracht Frankfurt, Wolfsburg, Werder Bremen play in "Bundesliga" (1st div) — NEVER "2. Bundesliga" or "Bundesliga 2".',
-          'IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot in Portuguese — do NOT translate them to English.',
-          'Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING".',
-          'Process each selection row from TOP to BOTTOM in document order.',
-          'For each row, check the coloured circle icon to the LEFT of the team name and the text colour: GREEN ✓ + green text = WON; RED ✗ + red text = LOST; no icon + white/grey text = PENDING.',
-          'IMPORTANT: also include a "losingSelections" array at the boletin level with the EXACT team name strings (as written) that appear in RED on the screenshot (e.g. ["SC Braga", "FC Arouca"]). Empty array if no red names.',
-          'In a lost accumulator exactly ONE row is red; all others showing green must be WON. Never mark a row LOST just because the overall bet is Perdida.',
-        ].join(' '),
+        content: (() => {
+          const now = new Date();
+          const dd = String(now.getUTCDate()).padStart(2, '0');
+          const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+          const yyyy = now.getUTCFullYear();
+          return [
+            'You are a bet slip parser for a Portuguese sports betting app.',
+            'Extract all data from bet slip screenshots and return structured JSON only.',
+            `Today's date is ${dd}/${mm}/${yyyy}. When the year is not clearly visible on the screenshot, always use ${yyyy}.`,
+            'All times shown on Betclic Portugal screenshots are Europe/Lisbon local time (UTC+0 Nov–Mar, UTC+1 Apr–Oct). Output all dates in UTC ISO 8601 with Z suffix.',
+            'Return official international team names (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão").',
+            'Always set competition to the correct league. Known: VfB Stuttgart, Bayern Munich, Borussia Dortmund, Bayer Leverkusen, RB Leipzig, Eintracht Frankfurt, Wolfsburg, Werder Bremen play in "Bundesliga" (1st div) — NEVER "2. Bundesliga" or "Bundesliga 2".',
+            'IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot in Portuguese — do NOT translate them to English.',
+            'Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING".',
+            'Process each selection row from TOP to BOTTOM in document order.',
+            'For each row, check the coloured circle icon to the LEFT of the team name and the text colour: GREEN ✓ + green text = WON; RED ✗ + red text = LOST; no icon + white/grey text = PENDING.',
+            'IMPORTANT: also include a "losingSelections" array at the boletin level with the EXACT team name strings (as written) that appear in RED on the screenshot (e.g. ["SC Braga", "FC Arouca"]). Empty array if no red names.',
+            'In a lost accumulator exactly ONE row is red; all others showing green must be WON. Never mark a row LOST just because the overall bet is Perdida.',
+          ].join(' ');
+        })(),
       },
       {
         role: 'user',
