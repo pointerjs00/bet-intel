@@ -19,6 +19,7 @@
     "maintenance:repair-betclic-fetched-events": "node ../../node_modules/ts-node/dist/bin.js src/scripts/repairBetclicFetchedEvents.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.1",
     "@betintel/shared": "workspace:*",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^5.14.0",

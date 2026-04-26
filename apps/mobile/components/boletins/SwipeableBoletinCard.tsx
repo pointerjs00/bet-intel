@@ -26,6 +26,7 @@ interface SwipeableBoletinCardProps {
   onShare?: () => void;
   onImageShare?: () => void;
   onQuickResolve?: (result: ItemResult) => void;
+  onItemPress?: (item: BoletinDetail['items'][number]) => void;
 }
 
 export const SwipeableBoletinCard = React.memo(function SwipeableBoletinCard({
@@ -35,6 +36,7 @@ export const SwipeableBoletinCard = React.memo(function SwipeableBoletinCard({
   onShare,
   onImageShare,
   onQuickResolve,
+  onItemPress,
 }: SwipeableBoletinCardProps) {
   const { colors } = useTheme();
   const translateX = useSharedValue(0);
@@ -130,6 +132,7 @@ export const SwipeableBoletinCard = React.memo(function SwipeableBoletinCard({
             onDelete={onDelete}
             onShare={onShare}
             onImageShare={onImageShare}
+            onItemPress={onItemPress}
           />
 
           {/* Quick resolve buttons — shown inline for PENDING boletins */}

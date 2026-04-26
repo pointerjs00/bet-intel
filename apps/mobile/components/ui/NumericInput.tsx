@@ -48,12 +48,12 @@ export function NumericInput({
 
   const showKeyboard = () => {
     setOpen(true);
-    kbAnim.value = withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+    kbAnim.value = withTiming(1, { duration: 150, easing: Easing.out(Easing.cubic) });
   };
 
   const hideKeyboard = () => {
-    kbAnim.value = withTiming(0, { duration: 160, easing: Easing.in(Easing.cubic) });
-    setTimeout(() => setOpen(false), 160);
+    kbAnim.value = withTiming(0, { duration: 100, easing: Easing.in(Easing.cubic) });
+    setTimeout(() => setOpen(false), 100);
   };
 
   const hasValue = value !== '';

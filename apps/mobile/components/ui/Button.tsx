@@ -54,10 +54,10 @@ export const Button = React.memo(function Button({
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       disabled={isDisabled}
       onPressIn={() => {
-        scale.value = withSpring(0.97, { damping: 18, stiffness: 600 });
+        scale.value = withSpring(0.97, { damping: 15, stiffness: 800 });
       }}
       onPressOut={() => {
-        scale.value = withSpring(1, { damping: 18, stiffness: 600 });
+        scale.value = withSpring(1, { damping: 15, stiffness: 800 });
       }}
       style={[
         styles.base,

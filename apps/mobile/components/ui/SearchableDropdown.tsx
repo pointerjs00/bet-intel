@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -10,6 +10,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
 import { getCountryFlagEmoji } from '../../utils/sportAssets';
@@ -85,6 +93,29 @@ function VisibleSearchableDropdown({
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sheetTranslateY = useSharedValue(320);
+  const sheetOpacity = useSharedValue(0);
+  useEffect(() => {
+    sheetTranslateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+    sheetOpacity.value = withTiming(1, { duration: 180 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const sheetStyle = useAnimatedStyle(() => ({
+    opacity: sheetOpacity.value,
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
+  const dismissGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (e.translationY > 0) sheetTranslateY.value = e.translationY;
+    })
+    .onEnd((e) => {
+      if (e.translationY > 120 || e.velocityY > 600) {
+        sheetTranslateY.value = withTiming(800, { duration: 220 }, () => runOnJS(onClose)());
+      } else {
+        sheetTranslateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+      }
+    });
   const [localSelected, setLocalSelected] = useState<Set<string>>(() => new Set(selectedValues ?? []));
 
   useEffect(() => {
@@ -186,10 +217,8 @@ function VisibleSearchableDropdown({
             setLocalSelected(new Set(next));
             onSelectMultiple(next);
           } else {
-            const accepted = onSelect(item.value);
-            if (accepted !== false) {
-              onClose();
-            }
+            onClose();
+            startTransition(() => { onSelect(item.value); });
           }
         }}
         style={[
@@ -224,20 +253,28 @@ function VisibleSearchableDropdown({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       hardwareAccelerated
       statusBarTranslucent
       transparent
       onRequestClose={onClose}
     >
-      <View style={[styles.modalOverlay, { paddingTop: insets.top }]}>
-        <View style={[styles.modalContent, { backgroundColor: colors.background }]}>
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{title}</Text>
-            <Pressable hitSlop={10} onPress={onClose}>
-              <Ionicons color={colors.textSecondary} name="close" size={24} />
-            </Pressable>
-          </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={[styles.modalOverlay, { paddingTop: insets.top }]}>
+          <Animated.View style={[styles.modalContent, { backgroundColor: colors.background }, sheetStyle]}>
+            <GestureDetector gesture={dismissGesture}>
+              <View>
+                <View style={styles.dragHandle}>
+                  <View style={[styles.dragHandlePill, { backgroundColor: colors.border }]} />
+                </View>
+                <View style={styles.modalHeader}>
+                  <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>{title}</Text>
+                  <Pressable hitSlop={10} onPress={onClose}>
+                    <Ionicons color={colors.textSecondary} name="close" size={24} />
+                  </Pressable>
+                </View>
+              </View>
+            </GestureDetector>
 
           <View style={[styles.searchWrap, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
             <MaterialCommunityIcons color={colors.textMuted} name="magnify" size={18} />
@@ -268,10 +305,9 @@ function VisibleSearchableDropdown({
               {allowCustomValue && search.trim() ? (
                 <PressableScale
                   onPress={() => {
-                    const accepted = onSelect(search.trim());
-                    if (accepted !== false) {
-                      onClose();
-                    }
+                    const value = search.trim();
+                    onClose();
+                    startTransition(() => { onSelect(value); });
                   }}
                   style={[styles.customValueRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.primary }]}
                 >
@@ -367,8 +403,9 @@ function VisibleSearchableDropdown({
               </Text>
             </PressableScale>
           ) : null}
+          </Animated.View>
         </View>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -382,7 +419,7 @@ const styles = StyleSheet.create({
     marginTop: 60,
     paddingBottom: 16,
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 0,
   },
   modalHeader: {
     alignItems: 'center',
@@ -462,4 +499,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   loadMoreText: { fontSize: 13, fontWeight: '700' },
+  dragHandle: { alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
+  dragHandlePill: { borderRadius: 2, height: 4, width: 36 },
 });

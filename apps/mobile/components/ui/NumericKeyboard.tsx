@@ -53,7 +53,7 @@ function KeyCell({
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    scale.value = withSpring(1, { damping: 12, stiffness: 350 });
+    scale.value = withSpring(1, { damping: 14, stiffness: 500 });
   }, [scale]);
 
   const handlePress = useCallback(() => {

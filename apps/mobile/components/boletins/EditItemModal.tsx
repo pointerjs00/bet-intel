@@ -29,6 +29,7 @@ import { SearchableDropdown } from '../ui/SearchableDropdown';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { useTheme } from '../../theme/useTheme';
+import { getCountryFlagEmoji } from '../../utils/sportAssets';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,9 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
   const [showAwayTeams2, setShowAwayTeams2] = useState(false);
   const [showMarkets, setShowMarkets] = useState(false);
   const [playerTour, setPlayerTour] = useState<'ATP' | 'WTA' | null>(null);
+  const [playerTourTab, setPlayerTourTab] = useState<'ALL' | 'ATP' | 'WTA'>('ALL');
+  const [playerCountryFilter, setPlayerCountryFilter] = useState<string | null>(null);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
 
   // ── Reference data ──────────────────────────────────────────────────────────
   const sportForApi = useMemo(
@@ -225,10 +229,116 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
     }));
   }, [competition, sport, teamsQuery.isLoading, teamsQuery.data, allTeamsQuery.data]);
 
-  const teamItemsByName = useMemo(
-    () => new Map(teamItems.map((i) => [i.value, i])),
-    [teamItems],
-  );
+  const teamItemsByName = useMemo(() => {
+    if (sport === Sport.TENNIS) {
+      // Use raw unfiltered data so imageUrl lookup always works
+      // regardless of active country filter
+      const allAtp = (teamsQuery.data ?? []).map((t) => ({
+        value: t.displayName ?? t.name,
+        imageUrl: t.imageUrl ?? null,
+      }));
+      const allWta = (wtaTeamsQuery.data ?? []).map((t) => ({
+        value: t.displayName ?? t.name,
+        imageUrl: t.imageUrl ?? null,
+      }));
+      return new Map([...allAtp, ...allWta].map((i) => [i.value, i]));
+    }
+    return new Map(teamItems.map((i) => [i.value, i]));
+  }, [sport, teamsQuery.data, wtaTeamsQuery.data, teamItems]);
+
+  const atpPlayerItems = useMemo(() => {
+    if (sport !== Sport.TENNIS) return [];
+    return (teamsQuery.data ?? [])
+      .filter((t) => !playerCountryFilter || t.country === playerCountryFilter)
+      .map((t) => ({
+        label: t.displayName ?? t.name,
+        value: t.displayName ?? t.name,
+        country: t.country ?? undefined,
+        subtitle: [t.country, t.rank ? `ATP Nº${t.rank}` : null].filter(Boolean).join(' · ') || undefined,
+        imageUrl: t.imageUrl ?? null,
+      }));
+  }, [sport, teamsQuery.data, playerCountryFilter]);
+
+  const wtaPlayerItems = useMemo(() => {
+    if (sport !== Sport.TENNIS) return [];
+    return (wtaTeamsQuery.data ?? [])
+      .filter((t) => !playerCountryFilter || t.country === playerCountryFilter)
+      .map((t) => ({
+        label: t.displayName ?? t.name,
+        value: t.displayName ?? t.name,
+        country: t.country ?? undefined,
+        subtitle: [t.country, t.rank ? `WTA Nº${t.rank}` : null].filter(Boolean).join(' · ') || undefined,
+        imageUrl: t.imageUrl ?? null,
+      }));
+  }, [sport, wtaTeamsQuery.data, playerCountryFilter]);
+
+  const playerSections = useMemo(() => {
+    if (sport !== Sport.TENNIS) return undefined;
+    const sections = [];
+    if (playerTourTab !== 'WTA' && atpPlayerItems.length > 0) sections.push({ title: 'ATP', data: atpPlayerItems });
+    if (playerTourTab !== 'ATP' && wtaPlayerItems.length > 0) sections.push({ title: 'WTA', data: wtaPlayerItems });
+    return sections.length > 0 ? sections : undefined;
+  }, [sport, playerTourTab, atpPlayerItems, wtaPlayerItems]);
+
+  const availablePlayerCountries = useMemo(() => {
+    if (sport !== Sport.TENNIS) return [];
+    const countries = new Set([
+      ...(teamsQuery.data ?? []).map((t) => t.country),
+      ...(wtaTeamsQuery.data ?? []).map((t) => t.country),
+    ].filter((c): c is string => Boolean(c)));
+    return [...countries].sort((a, b) => a.localeCompare(b, 'pt'));
+  }, [sport, teamsQuery.data, wtaTeamsQuery.data]);
+
+  const playerSearchHeader = useMemo(() => {
+    if (sport !== Sport.TENNIS) return null;
+    return (
+      <View style={{ paddingBottom: 6, gap: 8 }}>
+        <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: colors.border }}>
+          {(['ALL', 'ATP', 'WTA'] as const).map((tab) => {
+            const active = playerTourTab === tab;
+            return (
+              <PressableScale
+                key={tab}
+                onPress={() => setPlayerTourTab(tab)}
+                style={{
+                  flex: 1, paddingVertical: 8, alignItems: 'center',
+                  backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                  borderRightWidth: tab !== 'WTA' ? 1 : 0,
+                  borderRightColor: colors.border,
+                }}
+              >
+                <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : colors.textSecondary, letterSpacing: 0.5 }}>
+                  {tab === 'ALL' ? 'Todos' : tab}
+                </Text>
+              </PressableScale>
+            );
+          })}
+        </View>
+        {availablePlayerCountries.length > 0 && (
+          <PressableScale
+            onPress={() => setShowCountryPicker(true)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12,
+              paddingVertical: 8, borderRadius: 10, backgroundColor: colors.surfaceRaised,
+              borderWidth: 1, borderColor: playerCountryFilter ? colors.primary : colors.border, gap: 8,
+            }}
+          >
+            <Ionicons name="flag-outline" size={16} color={playerCountryFilter ? colors.primary : colors.textMuted} />
+            <Text style={{ flex: 1, fontSize: 13, color: playerCountryFilter ? colors.textPrimary : colors.textMuted }}>
+              {playerCountryFilter ? `${getCountryFlagEmoji(playerCountryFilter)} ${playerCountryFilter}` : 'Filtrar por país'}
+            </Text>
+            {playerCountryFilter ? (
+              <Pressable hitSlop={8} onPress={(e) => { e.stopPropagation(); setPlayerCountryFilter(null); }}>
+                <Ionicons color={colors.textMuted} name="close-circle" size={16} />
+              </Pressable>
+            ) : (
+              <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
+            )}
+          </PressableScale>
+        )}
+      </View>
+    );
+  }, [sport, playerTourTab, playerCountryFilter, availablePlayerCountries.length, colors]);
 
   const marketSections = useMemo(() => {
     const finalHome = isDoubles && sport === Sport.TENNIS ? `${homeTeam} / ${homeTeam2}` : homeTeam;
@@ -689,15 +799,15 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
         visible={showHomeTeams}
         onClose={() => setShowHomeTeams(false)}
         title={sport === Sport.TENNIS ? (isDoubles ? 'Jogador 1 (Par Casa)' : 'Jogador 1') : 'Equipa Casa'}
-        items={teamItems}
+        items={sport === Sport.TENNIS ? undefined : teamItems}
+        sections={sport === Sport.TENNIS ? playerSections : undefined}
+        headerContent={sport === Sport.TENNIS ? playerSearchHeader : undefined}
         renderItemLeft={(i) => <TeamBadge disableRemoteFallback imageUrl={i.imageUrl} name={i.value} size={30} variant={sport === Sport.TENNIS ? 'player' : 'team'} />}
-          onSelect={(val) => {
-            setHomeTeam(val);
-            if (sport === Sport.TENNIS) {
-              setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
-            }
-          }}
-        isLoading={teamsQuery.isLoading}
+        onSelect={(val) => {
+          setHomeTeam(val);
+          if (sport === Sport.TENNIS) setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+        }}
+        isLoading={teamsQuery.isLoading || wtaTeamsQuery.isLoading}
         allowCustomValue
         initialVisibleCount={20}
       />
@@ -718,15 +828,15 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
         visible={showAwayTeams}
         onClose={() => setShowAwayTeams(false)}
         title={sport === Sport.TENNIS ? (isDoubles ? 'Jogador 1 (Par Fora)' : 'Jogador 2') : 'Equipa Fora'}
-        items={teamItems}
-          renderItemLeft={(i) => <TeamBadge disableRemoteFallback imageUrl={i.imageUrl} name={i.value} size={30} variant={sport === Sport.TENNIS ? 'player' : 'team'} />}
-          onSelect={(val) => {
-            setAwayTeam(val);
-            if (sport === Sport.TENNIS && playerTour === null) {
-              setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
-            }
-          }}
-        isLoading={teamsQuery.isLoading}
+        items={sport === Sport.TENNIS ? undefined : teamItems}
+        sections={sport === Sport.TENNIS ? playerSections : undefined}
+        headerContent={sport === Sport.TENNIS ? playerSearchHeader : undefined}
+        renderItemLeft={(i) => <TeamBadge disableRemoteFallback imageUrl={i.imageUrl} name={i.value} size={30} variant={sport === Sport.TENNIS ? 'player' : 'team'} />}
+        onSelect={(val) => {
+          setAwayTeam(val);
+          if (sport === Sport.TENNIS && playerTour === null) setPlayerTour(wtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+        }}
+        isLoading={teamsQuery.isLoading || wtaTeamsQuery.isLoading}
         allowCustomValue
         initialVisibleCount={20}
       />
@@ -751,6 +861,19 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
         onSelect={setMarket}
         isLoading={marketsQuery.isLoading}
         initialVisibleCount={8}
+      />
+      <SearchableDropdown
+        visible={showCountryPicker}
+        onClose={() => setShowCountryPicker(false)}
+        title="Filtrar por país"
+        items={[
+          { label: '🌍  Todos os países', value: '__ALL__' },
+          ...availablePlayerCountries.map((c) => ({
+            label: `${getCountryFlagEmoji(c)}  ${c}`,
+            value: c,
+          })),
+        ]}
+        onSelect={(val) => setPlayerCountryFilter(val === '__ALL__' ? null : val)}
       />
     </Modal>
   );

@@ -686,10 +686,12 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
             onPress={() => {
               setCompetition('');
               setCompetitionCountry('');
-              setHomeTeam('');
-              setHomeTeam2('');
-              setAwayTeam('');
-              setAwayTeam2('');
+              if (sport !== Sport.TENNIS) {
+                setHomeTeam('');
+                setHomeTeam2('');
+                setAwayTeam('');
+                setAwayTeam2('');
+              }
             }}
           >
             <Ionicons color={colors.textMuted} name="close-circle" size={18} />
@@ -958,11 +960,12 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
           setCompetition(val);
           const found = competitionsQuery.data?.find((c) => c.name === val);
           setCompetitionCountry(found ? getTennisTournamentCountry(found.name, found.country) : '');
-          // Clear teams so the user re-picks from the filtered list
-          setHomeTeam('');
-          setHomeTeam2('');
-          setAwayTeam('');
-          setAwayTeam2('');
+          if (sport !== Sport.TENNIS) {
+            setHomeTeam('');
+            setHomeTeam2('');
+            setAwayTeam('');
+            setAwayTeam2('');
+          }
         }}
       />
       <SearchableDropdown
@@ -1164,7 +1167,6 @@ export default function CreateBoletinScreen() {
       <FlatList
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: insets.top + tokens.spacing.md,
           paddingBottom: tokens.spacing.md,
           paddingHorizontal: tokens.spacing.lg,
         }}

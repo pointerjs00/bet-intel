@@ -614,6 +614,15 @@ export interface StatsTopBoletin {
   }>;
 }
 
+export interface AiReview {
+  strongPoints: string[];
+  weakPoints: string[];
+  patterns: string[];
+  recommendation: string;
+  /** ISO timestamp of when this review was generated */
+  cachedAt: string;
+}
+
 export interface PersonalStats {
   summary: StatsSummary;
   bySport: StatsBySportRow[];

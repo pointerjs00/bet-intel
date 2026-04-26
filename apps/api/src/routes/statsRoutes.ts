@@ -10,6 +10,7 @@ import {
   getStatsByTeamHandler,
   getStatsSummaryHandler,
   getStatsTimelineHandler,
+  getAiReviewHandler,
 } from '../controllers/statsController';
 
 const statsRouter: Router = Router();
@@ -24,5 +25,6 @@ statsRouter.get('/me/by-competition', getStatsByCompetitionHandler);
 statsRouter.get('/me/by-market', getStatsByMarketHandler);
 statsRouter.get('/me/by-odds-range', getStatsByOddsRangeHandler);
 statsRouter.get('/me/timeline', getStatsTimelineHandler);
+statsRouter.get('/me/ai-review', getAiReviewHandler);
 
 export { statsRouter };

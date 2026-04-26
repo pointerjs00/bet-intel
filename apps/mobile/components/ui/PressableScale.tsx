@@ -29,11 +29,11 @@ export const PressableScale = React.memo(function PressableScale({
   return (
     <AnimatedPressable
       onPressIn={(e) => {
-        scale.value = withSpring(scaleDown, { damping: 18, stiffness: 600 });
+        scale.value = withSpring(scaleDown, { damping: 15, stiffness: 800 });
         (props.onPressIn as PressableProps['onPressIn'])?.(e);
       }}
       onPressOut={(e) => {
-        scale.value = withSpring(1, { damping: 18, stiffness: 600 });
+        scale.value = withSpring(1, { damping: 15, stiffness: 800 });
         (props.onPressOut as PressableProps['onPressOut'])?.(e);
       }}
       style={[animatedStyle, style]}

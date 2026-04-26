@@ -347,14 +347,10 @@
 
 ---
 
-### 2.12 Bet Slip Import from Screenshot (OCR) 🟡 Needs work (NEW)
-**What:** User takes a screenshot of their bet slip from a bookmaker site/app. The app uses OCR to extract teams, odds, stake, and pre-fills a new boletin.  
+### 2.12 Bet Slip Import from Screenshot (AI Vision) ✅ Ready — 🟢 BUILT
+**What:** User takes or selects a screenshot of their bet slip from a bookmaker app. Gemini Vision (primary) or GPT-4o Vision (fallback) extracts teams, odds, markets, stake, and bet date, then pre-fills a new boletin via a review screen.  
 **Why:** Dramatically reduces manual entry — the #1 friction point. Most bettors place bets outside the app and then log them.  
-**What's needed:**
-1. OCR library — `@react-native-ml-kit/text-recognition` (on-device, free, no network) or cloud OCR
-2. A parser that maps raw OCR text to structured bet data (regex patterns per bookmaker format)
-3. Confirmation screen where user reviews/corrects parsed data before saving  
-**Effort:** ~10h (3h OCR setup + 4h parser per site + 3h UI). **Risk:** OCR accuracy varies; should be positioned as "best effort" with manual correction.
+**Implementation:** `apps/api/src/services/geminiVisionParser.ts` + `openaiVisionParser.ts` + `importController.ts`. Mobile review screen at `app/boletins/import-review.tsx` — editable table of parsed selections with status controls, team photo lookups (ATP/WTA auto-applied), and freebet/date overrides. Dynamic date injection in prompt prevents year mis-parsing; Europe/Lisbon DST offset handled to ensure correct UTC output.
 
 ---
 
@@ -555,6 +551,252 @@
 
 ---
 
+---
+
+## 4. New Stats & Metrics (Additions)
+
+### 1.23 Opponent Team Performance Breakdown ✅ Ready (NEW)
+**What:** For team-based sports, aggregate ROI and win rate by the *opponent* team (the team the user bet against). E.g. "When you bet against Benfica, you win 62% of the time."
+**Why:** Reveals whether the user has reliable edges against specific opponents — a common hidden pattern in football betting.
+**Feasibility:** `BoletinItem` stores `homeTeam` and `awayTeam`. For 1X2 markets, the opponent is the non-selected team. Group by opponent team, aggregate stats. Filter to sports with team opponents (exclude tennis/individual sports).
+**Effort:** ~3h. New `byOpponentTeam` breakdown in stats API → searchable/sortable `BreakdownTable` with team name, games, win rate, ROI.
+**Mobile:** New table on Stats screen under Sport breakdown. Searchable by team name. Minimum 3 bets filter to avoid noise.
+
+---
+
+### 1.24 Time-to-Resolve Analysis ✅ Ready (NEW)
+**What:** Measure how long after placing a bet the user resolves it. Show average resolution lag and whether faster/slower resolution correlates with accuracy.
+**Why:** Identifies users who "forget" to resolve bets (data quality issue) and also surfaces if resolution delay correlates with errors.
+**Feasibility:** `createdAt` and `resolvedAt` (already proposed in 2.14) give the delta. Bucket into: same-day, 1-2 days, 3-7 days, 7+ days.
+**Effort:** ~2h. Requires `resolvedAt` field from feature 2.14. New `resolutionLag` breakdown in stats → simple bar chart.
+**Mobile:** Small card on Stats screen showing average resolution lag. Warning if >10% of bets take 7+ days ("Tens apostas por resolver há mais de uma semana").
+
+---
+
+### 1.25 Competition League Table Position Tracker 🟡 Needs work
+**What:** Show how the user's own stats rank would place them in a "league table" — i.e., how they compare across their friend group on a per-metric basis.
+**Why:** Gamification of the social layer. More meaningful than raw numbers — "You're 3rd among your friends for ROI this month" is motivating.
+**What's needed:**
+1. Prerequisite: feature 1.9 (Leaderboard vs Friends)
+2. Reuse friend stats data to rank the current user per metric
+3. A compact `LeaguePositionCard` on Stats screen
+**Effort:** ~2h on top of feature 1.9.
+**Mobile:** Small card: "Neste mês estás em 2º lugar entre os teus amigos por ROI 🏆". Tappable to open the full leaderboard.
+
+---
+
+### 1.26 Bet Density by Competition ✅ Ready (NEW)
+**What:** Show which competitions account for the most bets (volume heatmap), overlaid with ROI per competition. Highlight over-concentrated competitions with poor ROI.
+**Why:** Bettors often over-bet the same 2-3 leagues out of habit. This surfaces imbalanced exposure.
+**Feasibility:** `byCompetition` breakdown already exists with count and ROI. Compute a "concentration score" = (bets in competition / total bets). Flag competitions with >20% share + negative ROI.
+**Effort:** ~2h. Extend existing `byCompetition` table with a visual concentration bar, and add an auto-insight for high-concentration/low-ROI competitions.
+**Mobile:** Extend existing competition breakdown table. Each row gets a thin volume bar behind the text. Auto-insight badge: "⚠️ 34% das tuas apostas são na Liga NOS com ROI -12%".
+
+---
+
+### 1.27 Implied Probability vs Market Odds Drift ✅ Ready (NEW)
+**What:** Compare the user's average odd per market type with the market average (hardcoded benchmark odds per market tier). Flag where the user consistently takes below-market odds.
+**Why:** Users who always bet on round/convenient odds (e.g. exactly 2.00) may be leaving value on the table compared to shopping around sites.
+**Feasibility:** Use existing `byOddsRange` and `bySite` data. Compute average odd for each market type and compare to a simple benchmark (median odds by market from historical user data or hardcoded tiers).
+**Effort:** ~3h. New `avgOddByMarket` field in stats → `OddsShoppingCard` component showing average odd vs benchmark per market type.
+**Mobile:** Card with a simple table: Market | Your Avg Odd | Benchmark | Delta. Green if above, red if below. Insight: "Estás a apostar em Over/Under com odds médias de 1.71 vs benchmark 1.79 — considera comparar mais sites."
+
+---
+
+## 5. New App Features (Additions)
+
+### 2.20 Bet Streak Challenges / Micro-Challenges ✅ Ready (NEW)
+**What:** Opt-in daily/weekly challenges: "Place a single bet this week", "Log 3 bets with notes", "Resolve all pending bets before Sunday". Completed challenges earn a badge shown on the profile.
+**Why:** Gamification drives engagement and encourages healthy habits (journaling, timely resolution). Retention mechanism without requiring social features.
+**Feasibility:** Define challenges as rules evaluated against existing data (bet count, journal entries, pending count). Store progress + completion in a `UserChallenge` table or simple AsyncStorage flags for purely client-side challenges.
+**What's needed:**
+1. Stateless challenge definitions (evaluated against stats/boletin data — no new tracking fields needed)
+2. `ChallengeCard` component for home/boletins screen
+3. Optional: badge collection on profile
+**Effort:** ~5h (1h challenge engine + 2h mobile UI + 1h badge display + 1h server-side challenge check endpoint).
+**Mobile:** Dismissable card on Boletins tab: "Desafio da semana: regista 3 apostas com notas 📝 (1/3)". Completion triggers confetti animation + badge.
+
+---
+
+### 2.21 AI Bet Review (Powered by Claude) ✅ Ready — 🟢 BUILT
+**What:** A "Análise IA" card at the bottom of the Stats screen. The user taps "Gerar análise" to send their full all-time stats bundle to Claude (claude-sonnet-4-6) which returns a personalised analysis in Português Europeu: 2-3 pontos fortes, 2-3 pontos fracos, 2-3 padrões identificados, and one concrete recomendação.
+**Why:** Raw stats are data; insights are value. An AI summary converts their numbers into plain-language coaching.
+**Implementation:** 
+- `apps/api/src/services/stats/aiReviewService.ts` — fetches all-time `PersonalStats`, builds a structured Portuguese prompt (sport/market/odds/leg-count/site/home-away/favourite-underdog breakdowns), calls Anthropic SDK (`claude-sonnet-4-6`), parses JSON response, caches result in Redis for 24h per user.
+- `apps/api/src/controllers/statsController.ts` + `routes/statsRoutes.ts` — `GET /api/stats/me/ai-review`
+- `apps/mobile/components/stats/AIReviewCard.tsx` — shows empty/loading/result states. Sections: Pontos Fortes (green), Pontos Fracos (red), Padrões (amber), Recomendação banner. Shows validity timer ("Válida por Xh").
+- `apps/mobile/services/statsService.ts` — `useAiReview()` hook with mutation-based lazy fetch + React Query 24h cache.
+- Wired at bottom of `app/(tabs)/stats.tsx`.
+
+---
+
+### 2.22 Bet Photo Attachment ✅ Ready (NEW)
+**What:** Attach a photo (screenshot of the bet slip from the bookmaker) to any boletin. Stored in cloud storage, viewable in the boletin detail screen.
+**Why:** Many users already screenshot their slips. Linking the screenshot to the logged boletin creates a verifiable record and reduces disputes about what was placed.
+**Feasibility:** Use `expo-image-picker` to capture/select the image. Upload to an S3-compatible bucket (e.g. Hetzner Object Storage). Store the URL on `Boletin.photoUrl` (nullable).
+**What's needed:**
+1. New `photoUrl` nullable String on Boletin model
+2. Presigned upload endpoint: `POST /api/boletins/:id/photo`
+3. Hetzner Object Storage bucket + lifecycle rules (delete on boletin delete)
+4. Image viewer on boletin detail screen
+**Effort:** ~6h (1h schema + 2h API/storage + 1h upload UX + 2h detail screen viewer).
+**Mobile:** Small camera icon on create/edit screen. Uploaded photo shown as a thumbnail in boletin detail. Tap to view full-screen with pinch-to-zoom.
+
+---
+
+### 2.23 Group Boletins / Syndicates 🟡 Needs work (NEW)
+**What:** Create a shared boletin where multiple friends contribute stakes. The boletin is visible to all group members and winnings are tracked per-contributor proportional to stake.
+**Why:** Group betting is extremely common in Portugal (especially workplace pools on Champions League games). Formalising it inside the app is a strong social differentiator.
+**What's needed:**
+1. New `BoletinGroup` model: `{ id, boletinId, members: [{ userId, stake, sharePercent }] }`
+2. Invite flow: boletin creator invites friends → friends accept/decline + confirm their stake
+3. Settlement screen: when boletin resolves, show each member's share of the return
+4. Notifications for group invite, acceptance, result
+**Effort:** ~10h (2h schema + 3h API + 2h invite/accept flow + 2h settlement UI + 1h notifications).
+**Mobile:** "Boletin de grupo" toggle on create screen. Add members from friends list. Each member sees the boletin on their timeline with their personal stake and share highlighted.
+
+---
+
+### 2.24 Boletins Backup & iCloud/Google Drive Sync ✅ Ready (NEW)
+**What:** Weekly automatic export of the user's full betting history to their iCloud Drive (iOS) or Google Drive (Android) as a CSV/JSON file. Opt-in, one-tap setup.
+**Why:** Data portability and peace of mind. Users want to know their data isn't locked in. Also useful if they switch devices or accounts.
+**Feasibility:** `expo-file-system` already used for exports. iOS: `CloudKit` via `expo-apple-authentication` + `expo-file-system` `documentDirectory`. Android: Google Drive API via existing `google-drive` connector. Schedule via Expo BackgroundFetch (once weekly).
+**Effort:** ~5h (2h iOS path + 2h Android path + 1h settings toggle + background job).
+**Mobile:** New toggle in Profile/Settings: "Cópia de segurança semanal" with cloud provider selector. Shows last backup date + "Fazer cópia agora" manual trigger.
+
+---
+
+### 2.25 Bet Comparison vs Public Benchmarks 🟡 Needs work (NEW)
+**What:** Show anonymised aggregate stats from all BetIntel users (opt-in) alongside personal stats. E.g. "BetIntel users average 52% win rate on Liga NOS 1X2 — you have 61%."
+**Why:** Provides external benchmarks that make personal stats meaningful. "Is my 55% win rate good?" is hard to answer without context.
+**What's needed:**
+1. Opt-in `shareAnonymousStats` preference on User model
+2. A background job that aggregates opted-in stats into a `PlatformBenchmarks` table (updated daily)
+3. New `GET /api/stats/benchmarks` endpoint
+4. Delta display on existing stat cards
+**Effort:** ~8h (1h schema + 2h aggregation job + 1h API endpoint + 2h mobile integration + 2h privacy/consent UI).
+**Mobile:** Small "vs média BetIntel" pill next to key metrics (ROI, win rate, avg odd). Tappable to see full benchmark comparison screen. Privacy notice: "Os teus dados são anonimizados."
+
+---
+
+## 6. New Features — Insights Layer
+
+### 2.26 Selection-Level Insights Sheet ✅ Ready — 🟢 BUILT
+**What:** Tapping any selection on the boletim detail screen (or on a boletin card on the home screen) opens a bottom sheet with personalised historical stats for that exact selection. Shows sport/competition/market/team/odds-range performance, implied probability, edge detection (your win rate vs implied prob), and an outcome verdict for resolved items.  
+**Why:** Raw odds don't tell the user if a bet is a good one relative to their own history. Per-selection context is the most actionable insight.  
+**Implementation:** `components/boletins/SelectionInsightsSheet.tsx`. Uses `usePersonalStats('all')` (React Query deduped). `StatCard` subcomponent shows win-rate bar with implied probability marker. `VerdictBanner` shows aligned/surprise/value/novalue variants. Selection rows on `BoletinCard` and `[id].tsx` items are wrapped in `Pressable` to open the sheet.
+
+---
+
+### 2.27 Boletim-Level Insights Section ✅ Ready — 🟢 BUILT
+**What:** A dedicated analytics section in the boletim detail view. Shows: slip implied probability (product of all legs), historical win rate for N-leg accumulators, per-leg implied probability breakdown, metric chips (prob, selections, your win rate, total odds), and an outcome verdict for resolved boletins comparing the result to historical expectation.  
+**Why:** Turns the boletim detail screen into a self-coaching tool — the user can see *before* and *after* the bet whether the stake was well-calibrated.  
+**Implementation:** `components/boletins/BoletinInsightsSection.tsx`. Uses `usePersonalStats('all')` (same React Query key as SelectionInsightsSheet — zero extra API calls). Shows verdict banner: "Este resultado era o mais provável com base nos teus dados históricos." / "Ganhou apesar das odds estarem acima da tua taxa histórica. 🎉" etc.
+
+---
+
+### 2.28 Bet Kick-Off Reminder Notifications ✅ Ready (NEW)
+**What:** For PENDING boletins with a bet date set, send a push notification 15 minutes before the earliest event start time. Tapping the notification opens the boletin detail.  
+**Why:** Users forget to check their open bets. A timely reminder keeps them engaged and reduces the friction of manual result resolution.  
+**Feasibility:** `betDate` already stored. Use Expo Scheduled Notifications (`expo-notifications`) to schedule local notifications when a boletin is created. No backend required — purely client-side local notification.  
+**What's needed:**
+1. Schedule a local notification on boletin creation if `betDate` is in the future
+2. Cancel the notification if the boletin is resolved before then
+3. Notification preference toggle in Profile settings  
+**Effort:** ~3h (1h notification scheduling + 1h cancellation logic + 1h settings toggle).
+
+---
+
+### 2.29 Parlay Optimiser ✅ Ready (NEW)
+**What:** When creating an accumulator with 3+ selections, show a "Optimizar" suggestion: "Removing leg 4 (implied prob 18%) improves expected value by 2.3% based on your historical data." Computes leg-level EV from historical win rates and flags negative-EV legs.  
+**Why:** The most common bettor mistake is adding a weak extra leg to an otherwise decent accumulator because it increases the odds. Quantifying the cost of each leg encourages smarter accumulators.  
+**Feasibility:** All data exists: `byOddsRange` and `bySport` win rates give per-leg historical probabilities. EV per leg = `(historicalWinRate × (1 + oddValue)) - 1`. Already available in `ProjectionCard` data.  
+**Effort:** ~3h. Extend `ProjectionCard` or add a new `ParlayOptimiserCard` below the current odds calculator in the create screen.
+
+---
+
+### 2.30 Tipster Leaderboard (opt-in) 🟡 Needs work (NEW)
+**What:** Opt-in public leaderboard ranking users by verified ROI, win rate, and total staked for the current month. Only users who set their profile to public are included.  
+**Why:** Competitive social feature that rewards consistent performance over luck (minimum sample size gates). Drives daily engagement and organic growth through competitive dynamics.  
+**What's needed:**
+1. Opt-in `showOnLeaderboard` preference on User model
+2. Background job that recomputes monthly leaderboard rankings and stores in a `Leaderboard` table
+3. New `GET /api/leaderboard` endpoint with pagination
+4. New `Leaderboard` tab or screen accessible from Friends tab  
+**Effort:** ~6h (1h schema + 2h aggregation job + 1h API + 2h mobile UI).
+
+---
+
+### 2.31 Live Odds Feed (Multi-Site Comparison) 🔴 Blocked (NEW)
+**What:** For a given team/event, show the current odds across all supported betting sites side-by-side. Highlight which site offers the best value for each market.  
+**Why:** Line shopping (finding the best odds) is the single highest-leverage improvement for any bettor. Even 5% better odds consistently = significantly higher long-term returns.  
+**Blocked by:** No betting site scrapers exist. Requires Betclic/Bet365/Placard scrapers (see 2.5). Once scrapers exist, this is ~4h of additional work.  
+**What's needed:**
+1. Working scrapers for at least 3 sites (prerequisite)
+2. New `OddsComparison` endpoint returning current odds per site
+3. Comparison UI in a bottom sheet from the create/import screens
+
+---
+
+### 2.32 Import from Betclic "My Bets" History 🟡 Needs work (NEW)
+**What:** Instead of scanning one bet at a time, scrape the user's "My Bets" history page directly from Betclic (authenticated) to bulk-import settled bets for a date range.  
+**Why:** Most users have months of betting history they haven't logged. Bulk import lets them immediately see meaningful stats without manual entry.  
+**What's needed:**
+1. In-app WebView that opens Betclic's authenticated "My Bets" page
+2. A Puppeteer/Cheerio scraper to parse the HTML and extract boletins
+3. Deduplication logic (don't reimport already-logged bets)
+4. Bulk review screen showing all detected bets with accept/reject per item  
+**Effort:** ~10h (4h scraper + 2h dedup + 4h bulk review UI). **Legal:** Betclic TOS may prohibit automated scraping — position as a one-time "import assistant".
+
+---
+
+## 7. New UX & Quality-of-Life Improvements (Additions)
+
+### 3.16 Long-Press Preview Cards ✅ Ready (NEW)
+**What:** Long-press on any boletin card in the list to show a haptic peek preview with key stats (stake, odds, return, status, top selections) without navigating to the detail screen. Dismiss with a swipe.
+**Why:** Power users scroll through many boletins. Quick previews reduce the number of navigation round-trips.
+**Feasibility:** `react-native-gesture-handler` (already in project) for long-press + `react-native-reanimated` animated overlay. The preview content is a simplified version of `BoletinDetail`.
+**Effort:** ~3h. New `BoletinPreviewCard` component + long-press handler on `BoletinCard`.
+**Mobile:** On long-press: card expands with a springy animation to show a non-interactive detail overlay (status badge, odds, return, top 2 picks, notes snippet). Lift finger = dismiss.
+
+---
+
+### 3.17 Dynamic App Icon (iOS) ✅ Ready (NEW)
+**What:** Let the user choose from 3–4 alternate app icons (dark, gold, minimal, classic). iOS supports this natively via `UIApplication.setAlternateIconName`.
+**Why:** Aesthetic personalisation increases brand attachment. Popular in fitness and productivity apps.
+**Feasibility:** `expo-alternate-app-icons` or native config via EAS Build. Requires pre-bundled icon assets and the iOS permission in `Info.plist`. Android requires a different approach (Activity aliases) — iOS-first is fine.
+**Effort:** ~3h (1h asset creation + 1h Expo config + 1h settings UI).
+**Mobile:** New "Ícone da aplicação" section in Profile/Settings with 4 icon previews. Tapping one switches immediately (native iOS behaviour).
+
+---
+
+### 3.18 Shake to Undo ✅ Ready (NEW)
+**What:** Shake the device immediately after saving a boletin to undo the creation (same pattern as iOS Notes). Works within a 10-second window after any destructive action (create, resolve, delete).
+**Why:** Quick recovery from accidental taps without having to navigate back and find the undo button. Familiar gesture pattern on iOS.
+**Feasibility:** `expo-sensors` `Accelerometer` to detect shake gesture. Trigger the existing undo/delete API within the time window.
+**Effort:** ~2h. New `useShakeUndo` hook + shake detection logic.
+**Mobile:** After save/resolve: system-style alert "Agitar para desfazer" appears for 8 seconds. Shaking triggers the action.
+
+---
+
+### 3.19 Boletin Result Celebration Animations ✅ Ready (NEW)
+**What:** When marking a boletin as WON (especially big odds), trigger a celebration animation — confetti burst, animated number counter for the return, trophy icon bounce.
+**Why:** Emotional reward moments drive retention. A winning bet is a high point — amplifying it makes the app memorable.
+**Feasibility:** `react-native-reanimated` for number animations. `@shopify/react-native-skia` or a lightweight confetti library for particles. Triggered in the status-change handler.
+**Effort:** ~3h. New `WinCelebration` component with confetti + number counter + haptic burst (`Haptics.notificationAsync(SUCCESS)`).
+**Mobile:** Tiered celebrations: any win → subtle confetti. Odds > 5.00 → full screen burst + "Grande aposta! 🏆" message. Cashout → smaller celebration ("Boa decisão! 💸").
+
+---
+
+### 3.20 Contextual Homescreen (Smart Tab Badges) ✅ Ready (NEW)
+**What:** Show dynamic content at the top of the Boletins tab depending on context: "3 apostas por resolver este fim-de-semana", "O teu melhor período foi esta semana (+€42) 📈", "Vai colocar apostas? Vê as tuas tendências primeiro →".
+**Why:** Surfaces the most relevant information without requiring the user to dig into stats. Contextual prompts improve daily engagement.
+**Feasibility:** Rules-based system evaluating: pending count, recent P&L, days since last bet, current streak. Rotate 1 insight card at top of boletins list. Static content, no new API needed — derives from TanStack Query cached data.
+**Effort:** ~2h. New `ContextualInsightBanner` component at top of boletins list. Dismiss-able, refreshes daily.
+**Mobile:** Dismissable banner card below the search bar. Icon + one line of Portuguese text + optional CTA button. Rotates daily from a pool of ~10 contextual templates.
+
+---
+
 ## 4. Summary: Implementation Priority
 
 | # | Feature | Status | Effort | Impact | Priority | Built |
@@ -610,8 +852,31 @@
 | 1.9 | Leaderboard vs Friends | 🟡 Needs work | ~7h | 🟡 Medium | **P3** | ❌ No |
 | 2.8 | Shared Comments | 🟡 Needs work | ~6h | 🟡 Medium | **P3** | ❌ No |
 | 2.10 | Multi-Currency/Odds | 🟡 Needs work | ~5h | 🟢 Low | **P3** | ❌ No |
-| **2.12** | **OCR Bet Slip Import** | **🟡 Needs work** | **~10h** | **🔴 High** | **P3** | ❌ No |
+| **2.12** | **AI Vision Bet Slip Import** | **✅ Ready** | **~10h** | **🔴 High** | **P0** | 🟢 Yes |
+| **2.26** | **Selection-Level Insights Sheet** | **✅ Ready** | **~6h** | **🔴 High** | **P0** | 🟢 Yes |
+| **2.27** | **Boletim-Level Insights Section** | **✅ Ready** | **~4h** | **🔴 High** | **P0** | 🟢 Yes |
 | 2.6 | Auto-Settlement | 🔴 Blocked | ~32h | 🔴 High | **Future** | ❌ No |
 | 2.5 | Smart Alerts | 🔴 Blocked | ~6h+ | 🔴 High | **Future** | ❌ No |
 | 2.7 | Live Scores | 🔴 Blocked | ~4h+ | 🟡 Medium | **Future** | ❌ No |
 | 3.5 | Home Screen Widget | 🟡 Needs work | ~8h | 🟡 Medium | **Future** | ❌ No |
+| **1.23** | **Opponent Team Breakdown** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
+| **1.26** | **Bet Density by Competition** | **✅ Ready** | **~2h** | **🟡 Medium** | **P1** | ❌ No |
+| **1.27** | **Implied Probability vs Odds Drift** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
+| **2.21** | **AI Bet Review (Claude)** | **✅ Ready** | **~5h** | **🔴 High** | **P0** | 🟢 Yes |
+| **3.19** | **Win Celebration Animations** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
+| **3.20** | **Contextual Homescreen Banner** | **✅ Ready** | **~2h** | **🔴 High** | **P1** | ❌ No |
+| **2.28** | **Bet Kick-Off Reminder Notifications** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
+| **2.29** | **Parlay Optimiser** | **✅ Ready** | **~3h** | **🔴 High** | **P1** | ❌ No |
+| **3.16** | **Long-Press Preview Cards** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | ❌ No |
+| **3.17** | **Dynamic App Icon (iOS)** | **✅ Ready** | **~3h** | **🟢 Low** | **P2** | ❌ No |
+| **3.18** | **Shake to Undo** | **✅ Ready** | **~2h** | **🟢 Low** | **P2** | ❌ No |
+| **2.20** | **Bet Streak Challenges** | **✅ Ready** | **~5h** | **🔴 High** | **P2** | ❌ No |
+| **2.22** | **Bet Photo Attachment** | **✅ Ready** | **~6h** | **🟡 Medium** | **P2** | ❌ No |
+| **1.24** | **Time-to-Resolve Analysis** | **✅ Ready** | **~2h** | **🟢 Low** | **P2** | ❌ No |
+| **2.24** | **Boletins Cloud Backup** | **✅ Ready** | **~5h** | **🟡 Medium** | **P2** | ❌ No |
+| **2.30** | **Tipster Leaderboard** | **🟡 Needs work** | **~6h** | **🔴 High** | **P2** | ❌ No |
+| **2.25** | **Public Benchmark Comparison** | **🟡 Needs work** | **~8h** | **🔴 High** | **P3** | ❌ No |
+| **2.23** | **Group Boletins / Syndicates** | **🟡 Needs work** | **~10h** | **🔴 High** | **P3** | ❌ No |
+| **1.25** | **Friend League Table Position** | **🟡 Needs work** | **~2h+** | **🟡 Medium** | **P3** | ❌ No |
+| **2.32** | **Import from Betclic History** | **🟡 Needs work** | **~10h** | **🔴 High** | **P3** | ❌ No |
+| **2.31** | **Live Odds Comparison** | **🔴 Blocked** | **~4h+** | **🔴 High** | **Future** | ❌ No |

@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AiReview,
   PersonalStats,
   StatsByCompetitionRow,
   StatsByMarketRow,
@@ -18,6 +19,7 @@ interface ApiEnvelope<T> {
 }
 
 export const statsQueryKeys = {
+  aiReview: ['stats', 'ai-review'] as const,
   all: ['stats'] as const,
   me: (period: StatsPeriod, siteSlugs: string[], dateFrom?: string, dateTo?: string) =>
     ['stats', 'me', period, siteSlugs.join(','), dateFrom ?? '', dateTo ?? ''] as const,
@@ -153,4 +155,41 @@ export function useStatsByOddsRange(period: StatsPeriod) {
       return response.data.data;
     },
   });
+}
+
+/**
+ * Returns the AI bet review. Lazy: the query is disabled until `generate()` is called.
+ * Server caches the result for 24h, so repeated calls return the same review within that window.
+ */
+export function useAiReview() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: statsQueryKeys.aiReview,
+    // Don't fetch automatically — user must tap "Gerar análise"
+    enabled: false,
+    staleTime: Infinity,
+    gcTime: 24 * 60 * 60 * 1000,
+    queryFn: async () => {
+      const response = await apiClient.get<ApiEnvelope<AiReview>>('/stats/me/ai-review');
+      return response.data.data;
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.get<ApiEnvelope<AiReview>>('/stats/me/ai-review');
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(statsQueryKeys.aiReview, data);
+    },
+  });
+
+  return {
+    data: (query.data ?? mutation.data) as AiReview | undefined,
+    isLoading: mutation.isPending,
+    error: mutation.error,
+    generate: () => mutation.mutate(),
+  };
 }

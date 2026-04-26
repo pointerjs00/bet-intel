@@ -38,6 +38,7 @@ interface BoletinCardProps {
   onDelete?: () => void;
   onShare?: () => void;
   onImageShare?: () => void;
+  onItemPress?: (item: BoletinDetail['items'][number]) => void;
 }
 
 function statusAccentColor(status: BoletinStatus): string {
@@ -74,7 +75,7 @@ function SiteBadge({ slug, colors }: { slug: string; colors: ReturnType<typeof u
 }
 
 /** Summary card used on the user's boletin list. */
-export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare, onImageShare }: BoletinCardProps) {
+export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare, onImageShare, onItemPress }: BoletinCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
   const chevronRotation = useSharedValue(0);
@@ -86,16 +87,18 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
   // React Query deduplicates concurrent calls and serves cached data (staleTime 24h).
   // Only fetch tennis teams when the boletin actually contains tennis items.
   const hasTennis = useMemo(() => boletin.items.some((i) => i.sport === Sport.TENNIS), [boletin.items]);
-  const { data: tennisTeams } = useTeams({ sport: 'TENNIS', competition: 'ATP Tour' }, { enabled: hasTennis });
+  const { data: atpTeams } = useTeams({ sport: 'TENNIS', competition: 'ATP Tour' }, { enabled: hasTennis });
+  const { data: wtaTeams } = useTeams({ sport: 'TENNIS', competition: 'WTA Tour' }, { enabled: hasTennis });
+
   const tennisPhotoMap = useMemo(() => {
     const map = new Map<string, string | null>();
-    for (const team of tennisTeams ?? []) {
+    for (const team of [...(atpTeams ?? []), ...(wtaTeams ?? [])]) {
       const url = team.imageUrl ?? null;
       if (team.displayName) map.set(team.displayName, url);
       map.set(team.name, url);
     }
     return map;
-  }, [tennisTeams]);
+  }, [atpTeams, wtaTeams]);
 
   const chevronStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${chevronRotation.value}deg` }],
@@ -206,7 +209,11 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
           {boletin.items.slice(0, 3).map((item) => {
             const icon = itemResultIcon(item.result);
             return (
-              <View key={item.id} style={styles.previewRow}>
+              <Pressable
+                key={item.id}
+                onPress={() => onItemPress?.(item)}
+                style={styles.previewRow}
+              >
                 {/* Result dot */}
                 <View style={[styles.resultDot, { backgroundColor: icon.color }]} />
 
@@ -232,7 +239,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
                 <Text numberOfLines={1} style={[styles.previewMeta, { color: colors.textMuted, flex: 1 }]}>
                   {'  '}{item.selection} @ {formatOdds(item.oddValue)}
                 </Text>
-              </View>
+              </Pressable>
             );
           })}
           {boletin.items.length > 3 ? (
@@ -247,8 +254,9 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
           {boletin.items.map((item) => {
             const icon = itemResultIcon(item.result);
             return (
-              <View
+              <Pressable
                 key={item.id}
+                onPress={() => onItemPress?.(item)}
                 style={[
                   styles.expandedItem,
                   {
@@ -292,7 +300,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
                     {item.competition} • {item.market} • {item.selection}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             );
           })}
         </View>

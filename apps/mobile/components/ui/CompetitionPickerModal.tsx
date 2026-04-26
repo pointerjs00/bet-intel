@@ -19,12 +19,14 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { FavouriteType, Sport } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
 import { CompetitionBadge } from './CompetitionBadge';
@@ -224,6 +226,29 @@ function VisibleCompetitionPickerModal({
   const initialisedRef = React.useRef(false);
   const initialisedSportRef = React.useRef<Sport | string | undefined>(undefined);
   const favouriteFeaturesEnabled = Boolean(sport) && !hideFavourites;
+
+  const sheetTranslateY = useSharedValue(320);
+  const sheetOpacity = useSharedValue(0);
+  useEffect(() => {
+    sheetTranslateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+    sheetOpacity.value = withTiming(1, { duration: 180 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const sheetStyle = useAnimatedStyle(() => ({
+    opacity: sheetOpacity.value,
+    transform: [{ translateY: sheetTranslateY.value }],
+  }));
+  const dismissGesture = Gesture.Pan()
+    .onUpdate((e) => {
+      if (e.translationY > 0) sheetTranslateY.value = e.translationY;
+    })
+    .onEnd((e) => {
+      if (e.translationY > 120 || e.velocityY > 600) {
+        sheetTranslateY.value = withTiming(800, { duration: 220 }, () => runOnJS(onClose)());
+      } else {
+        sheetTranslateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+      }
+    });
 
   // Keep local selection in sync when parent updates (e.g. on open)
   useEffect(() => {
@@ -750,21 +775,29 @@ function VisibleCompetitionPickerModal({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="none"
       hardwareAccelerated
       statusBarTranslucent
       transparent
       onRequestClose={onClose}
     >
-      <View style={[styles.overlay, { paddingTop: insets.top }]}>
-        <View style={[styles.content, { backgroundColor: colors.background }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{title}</Text>
-            <Pressable hitSlop={10} onPress={onClose}>
-              <Ionicons color={colors.textSecondary} name="close" size={24} />
-            </Pressable>
-          </View>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <View style={[styles.overlay, { paddingTop: insets.top }]}>
+          <Animated.View style={[styles.content, { backgroundColor: colors.background }, sheetStyle]}>
+            <GestureDetector gesture={dismissGesture}>
+              <View>
+                <View style={styles.dragHandle}>
+                  <View style={[styles.dragHandlePill, { backgroundColor: colors.border }]} />
+                </View>
+                {/* Header */}
+                <View style={styles.header}>
+                  <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>{title}</Text>
+                  <Pressable hitSlop={10} onPress={onClose}>
+                    <Ionicons color={colors.textSecondary} name="close" size={24} />
+                  </Pressable>
+                </View>
+              </View>
+            </GestureDetector>
 
           {/* Search */}
           <View
@@ -860,26 +893,27 @@ function VisibleCompetitionPickerModal({
               windowSize={10}
             />
           )}
-        </View>
+          </Animated.View>
 
-        {/* Done button for multi-select */}
-        {multiSelect ? (
-          <ScalePressable
-            onPress={() => {
-              setSearch('');
-              onClose();
-            }}
-            pressedOpacity={0.92}
-            pressedScale={0.98}
-            style={[styles.doneBtn, { backgroundColor: colors.primary }]}
-          >
-            <Text style={styles.doneBtnText}>
-              Concluir
-              {selectedValues && selectedValues.length > 0 ? ` (${selectedValues.length})` : ''}
-            </Text>
-          </ScalePressable>
-        ) : null}
-      </View>
+          {/* Done button for multi-select */}
+          {multiSelect ? (
+            <ScalePressable
+              onPress={() => {
+                setSearch('');
+                onClose();
+              }}
+              pressedOpacity={0.92}
+              pressedScale={0.98}
+              style={[styles.doneBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={styles.doneBtnText}>
+                Concluir
+                {selectedValues && selectedValues.length > 0 ? ` (${selectedValues.length})` : ''}
+              </Text>
+            </ScalePressable>
+          ) : null}
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -892,7 +926,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 60,
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 0,
   },
   header: {
     alignItems: 'center',
@@ -974,4 +1008,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  dragHandle: { alignItems: 'center', paddingTop: 8, paddingBottom: 4 },
+  dragHandlePill: { borderRadius: 2, height: 4, width: 36 },
 });

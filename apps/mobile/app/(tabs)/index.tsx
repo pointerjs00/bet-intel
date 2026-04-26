@@ -51,6 +51,7 @@ import { getNotificationTarget } from '../../utils/notificationNavigation';
 import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
+import { SelectionInsightsItem, SelectionInsightsSheet } from '../../components/boletins/SelectionInsightsSheet';
 
 const INITIAL_VISIBLE_BOLETINS = 15;
 const VISIBLE_BATCH_SIZE = 15;
@@ -130,7 +131,9 @@ function SwipeableNotifRow({
     .onBegin(() => { scale.value = withTiming(0.96, { duration: 80 }); })
     .onFinalize(() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); })
     .onEnd((event) => {
-      if (translateX.value < -5) {
+      if (translateX.value <= DISMISS_THRESHOLD) {
+        translateX.value = withTiming(-400, { duration: 200 }, () => runOnJS(onDismiss)());
+      } else if (translateX.value < -5) {
         translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
         offset.value = 0;
       } else if (
@@ -158,11 +161,13 @@ function SwipeableNotifRow({
       {/* Red dismiss background */}
       <Animated.View
         style={[
-          { position: 'absolute', right: 0, top: 0, bottom: 0, width: 70, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FF3B3020', borderRadius: 8 },
+          { position: 'absolute', right: 0, top: 0, bottom: 0, width: 70, backgroundColor: '#FF3B3020', borderRadius: 8 },
           revealOpacity,
         ]}
       >
-        <MaterialCommunityIcons name="delete-outline" size={20} color="#FF3B30" />
+        <Pressable onPress={onDismiss} style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <MaterialCommunityIcons name="delete-outline" size={20} color="#FF3B30" />
+        </Pressable>
       </Animated.View>
       <GestureDetector gesture={gesture}>
         <Animated.View
@@ -232,6 +237,7 @@ export default function HomeScreen() {
   const [exactMarket, setExactMarket] = useState<string | null>(null);
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_BOLETINS);
+  const [insightsItem, setInsightsItem] = useState<SelectionInsightsItem | null>(null);
 
 
   // Read filter params pushed from the stats screen (e.g. filterTeam, filterSport, etc.)
@@ -278,6 +284,7 @@ export default function HomeScreen() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const flatListRef = useRef<import('react-native').FlatList>(null);
   const scrollTopOpacity = useSharedValue(0);
+  const fabIconRotation = useSharedValue(0);
 
   const handleQuickResolve = useCallback(
     (boletin: { id: string; items: Array<{ id: string }> }, result: ItemResult) => {
@@ -663,6 +670,10 @@ export default function HomeScreen() {
 
   const hasActiveControls = searchQuery.trim().length > 0 || activeFilterCount > 0 || !isDefaultSort;
 
+  const fabIconStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${fabIconRotation.value}deg` }],
+  }));
+
   const scrollTopStyle = useAnimatedStyle(() => ({
     opacity: scrollTopOpacity.value,
     transform: [{ scale: interpolate(scrollTopOpacity.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) }],
@@ -731,10 +742,18 @@ export default function HomeScreen() {
                   scaleDown={0.88}
                   accessibilityRole="button"
                   accessibilityLabel={fabOpen ? 'Fechar menu' : 'Criar boletim'}
-                  onPress={() => { hapticLight(); setFabOpen((v) => !v); }}
+                  onPress={() => {
+                    hapticLight();
+                    setFabOpen((v) => {
+                      fabIconRotation.value = withSpring(!v ? 45 : 0, { damping: 15, stiffness: 300 });
+                      return !v;
+                    });
+                  }}
                   style={[styles.iconButton, { backgroundColor: fabOpen ? colors.danger : colors.primary }]}
                 >
-                  <Ionicons color="#FFFFFF" name={fabOpen ? 'close' : 'add'} size={20} />
+                  <Animated.View style={fabIconStyle}>
+                    <Ionicons color="#FFFFFF" name="add" size={20} />
+                  </Animated.View>
                 </PressableScale>
               </View>
             </Animated.View>
@@ -954,8 +973,18 @@ export default function HomeScreen() {
           const card = (
             <SwipeableBoletinCard
               boletin={item}
-              onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
               onPress={() => router.push(`/boletins/${item.id}`)}
+              onItemPress={(selection) => setInsightsItem({
+                homeTeam: selection.homeTeam,
+                awayTeam: selection.awayTeam,
+                competition: selection.competition,
+                sport: selection.sport,
+                market: selection.market,
+                selection: selection.selection,
+                oddValue: selection.oddValue,
+                result: selection.result,
+              })}
+              onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
               onShare={() => openShareBoletinSheet({ boletinId: item.id, boletinName: item.name ?? undefined })}
               onImageShare={() => setImageShareBoletin(item)}
               onQuickResolve={item.status === BoletinStatus.PENDING ? (result) => handleQuickResolve(item, result) : undefined}
@@ -994,7 +1023,7 @@ export default function HomeScreen() {
                     style={StyleSheet.absoluteFill}
                   />
           <Animated.View
-            entering={FadeIn.duration(200).springify().damping(18).stiffness(260)}
+            entering={FadeIn.duration(100).springify().damping(18).stiffness(300)}
             exiting={FadeOut.duration(120)}
             style={[
               styles.notifBubble,
@@ -1035,7 +1064,7 @@ export default function HomeScreen() {
                 <ActivityIndicator color={colors.primary} size="small" />
               </View>
             ) : (() => {
-              const visibleItems = (notificationsQuery.data?.items ?? []).filter((n: Notification) => !dismissedNotifIds.has(n.id));
+              const visibleItems = (notificationsQuery.data?.items ?? []).filter((n: Notification) => !n.isRead && !dismissedNotifIds.has(n.id));
               if (visibleItems.length === 0) {
                 return (
                   <View style={styles.notifBubbleEmpty}>
@@ -1080,7 +1109,13 @@ export default function HomeScreen() {
       {/* FAB create menu overlay */}
       {fabOpen && (
         <>
-          <Pressable onPress={() => setFabOpen(false)} style={StyleSheet.absoluteFill} />
+          <Pressable
+            onPress={() => {
+              fabIconRotation.value = withSpring(0, { damping: 15, stiffness: 300 });
+              setFabOpen(false);
+            }}
+            style={StyleSheet.absoluteFill}
+          />
           <Animated.View
             entering={FadeIn.duration(100)}
             exiting={FadeOut.duration(80)}
@@ -1094,9 +1129,9 @@ export default function HomeScreen() {
               { label: 'Registo rápido',        icon: 'flash',                lib: 'ion' as const, route: '/boletins/quick-log',  color: colors.warning },
               { label: 'Importar screenshot',   icon: 'cellphone-screenshot', lib: 'mci' as const, route: '/boletins/scan',        color: colors.info    },
             ] as const).map((opt, i) => (
-              <Animated.View key={opt.route} entering={FadeInDown.delay(i * 40).duration(130).springify()}>
+              <Animated.View key={opt.route} entering={FadeInDown.delay(i * 20).duration(100).springify()}>
                 <PressableScale
-                  onPress={() => { hapticLight(); setFabOpen(false); router.push(opt.route as never); }}
+                  onPress={() => { hapticLight(); setFabOpen(false); fabIconRotation.value = withSpring(0, { damping: 15, stiffness: 300 }); router.push(opt.route as never); }}
                   style={[
                     styles.fabMenuItem,
                     { borderBottomColor: colors.border },
@@ -1262,6 +1297,12 @@ export default function HomeScreen() {
           )}
         </BottomSheetScrollView>
       </BottomSheet>
+      
+      <SelectionInsightsSheet
+        visible={insightsItem !== null}
+        item={insightsItem}
+        onClose={() => setInsightsItem(null)}
+      />
     </View>
   );
 }

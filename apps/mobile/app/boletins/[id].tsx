@@ -42,6 +42,8 @@ import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate } from '../../utils/formatters';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { BETTING_SITES, getCountryFlagEmoji } from '../../utils/sportAssets';
+import { SelectionInsightsSheet, type SelectionInsightsItem } from '../../components/boletins/SelectionInsightsSheet';
+import { BoletinInsightsSection } from '../../components/boletins/BoletinInsightsSection';
 
 const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
   { key: Sport.FOOTBALL, label: 'Futebol', icon: '⚽' },
@@ -82,6 +84,7 @@ export default function BoletinDetailScreen() {
   const [pendingPublic, setPendingPublic] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [insightsItem, setInsightsItem] = useState<SelectionInsightsItem | null>(null);
   const prevStatusRef = useRef<BoletinStatus | undefined>(undefined);
   const boletinQuery = useBoletinDetail(id);
   const updateMutation = useUpdateBoletinMutation();
@@ -111,13 +114,18 @@ export default function BoletinDetailScreen() {
   const [showAddAwayTeams, setShowAddAwayTeams] = useState(false);
   const [showAddAwayTeams2, setShowAddAwayTeams2] = useState(false);
   const [showAddMarkets, setShowAddMarkets] = useState(false);
+  const [addPlayerTourTab, setAddPlayerTourTab] = useState<'ALL' | 'ATP' | 'WTA'>('ALL');
+  const [addPlayerTour, setAddPlayerTour] = useState<'ATP' | 'WTA' | null>(null);
+  const [addPlayerCountryFilter, setAddPlayerCountryFilter] = useState<string | null>(null);
+  const [showAddCountryPicker, setShowAddCountryPicker] = useState(false);
 
   // ── Reference data for add-form ──────────────────────────────────────────
   const addCompetitionsQuery = useCompetitions(addSport);
   const addTeamsQuery = useTeams(addCompetition ? { sport: addSport, competition: addCompetition } : { sport: addSport });
   const addAllTeamsQuery = useTeams({ sport: addSport });
   const addMarketsQuery = useMarkets(addSport);
-  const tennisTeamsQuery = useTeams({ sport: Sport.TENNIS, competition: 'ATP Tour' });
+  const addAtpQuery = useTeams({ sport: Sport.TENNIS, competition: 'ATP Tour' });
+  const addWtaQuery = useTeams({ sport: Sport.TENNIS, competition: 'WTA Tour' });
 
   const boletin = boletinQuery.data;
   const canEdit = Boolean(boletin && currentUserId && boletin.userId === currentUserId);
@@ -144,20 +152,60 @@ export default function BoletinDetailScreen() {
 
   const tennisPhotoLookup = useMemo(() => {
     const lookup = new Map<string, string>();
-
-    for (const team of tennisTeamsQuery.data ?? []) {
-      if (!team.imageUrl) {
-        continue;
-      }
-
+    for (const team of [...(addAtpQuery.data ?? []), ...(addWtaQuery.data ?? [])]) {
+      if (!team.imageUrl) continue;
       lookup.set(team.name, team.imageUrl);
-      if (team.displayName) {
-        lookup.set(team.displayName, team.imageUrl);
-      }
+      if (team.displayName) lookup.set(team.displayName, team.imageUrl);
     }
-
     return lookup;
-  }, [tennisTeamsQuery.data]);
+  }, [addAtpQuery.data, addWtaQuery.data]);
+
+  const addAtpPlayerItems = useMemo(() => {
+    return (addAtpQuery.data ?? [])
+      .filter((t) => !addPlayerCountryFilter || t.country === addPlayerCountryFilter)
+      .map((t) => ({
+        label: t.displayName ?? t.name,
+        value: t.displayName ?? t.name,
+        imageUrl: t.imageUrl ?? null,
+        subtitle: [t.country, t.rank ? `ATP Nº${t.rank}` : null].filter(Boolean).join(' · ') || undefined,
+      }));
+  }, [addAtpQuery.data, addPlayerCountryFilter]);
+
+  const addWtaPlayerItems = useMemo(() => {
+    return (addWtaQuery.data ?? [])
+      .filter((t) => !addPlayerCountryFilter || t.country === addPlayerCountryFilter)
+      .map((t) => ({
+        label: t.displayName ?? t.name,
+        value: t.displayName ?? t.name,
+        imageUrl: t.imageUrl ?? null,
+        subtitle: [t.country, t.rank ? `WTA Nº${t.rank}` : null].filter(Boolean).join(' · ') || undefined,
+      }));
+  }, [addWtaQuery.data, addPlayerCountryFilter]);
+
+  const addPlayerSections = useMemo<DropdownSection[] | undefined>(() => {
+    if (addSport !== Sport.TENNIS) return undefined;
+    const atpItems = addPlayerTourTab !== 'WTA' ? addAtpPlayerItems : [];
+    const wtaItems = addPlayerTourTab !== 'ATP' ? addWtaPlayerItems : [];
+    const sections: DropdownSection[] = [];
+    if (atpItems.length > 0) sections.push({ title: 'ATP', data: atpItems });
+    if (wtaItems.length > 0) sections.push({ title: 'WTA', data: wtaItems });
+    return sections.length > 0 ? sections : undefined;
+  }, [addSport, addPlayerTourTab, addAtpPlayerItems, addWtaPlayerItems]);
+
+  const addWtaPlayerValueSet = useMemo(
+    () => new Set((addWtaQuery.data ?? []).map((t) => t.displayName ?? t.name)),
+    [addWtaQuery.data],
+  );
+
+  const addAvailablePlayerCountries = useMemo(() => {
+    if (addSport !== Sport.TENNIS) return [];
+    const countries = new Set(
+      [...(addAtpQuery.data ?? []), ...(addWtaQuery.data ?? [])]
+        .map((t) => t.country)
+        .filter((c): c is string => Boolean(c)),
+    );
+    return [...countries].sort((a, b) => a.localeCompare(b, 'pt'));
+  }, [addSport, addAtpQuery.data, addWtaQuery.data]);
 
   const addCompetitionSections = useMemo<CompetitionPickerSection[]>(() => {
     const comps = addCompetitionsQuery.data ?? [];
@@ -182,6 +230,17 @@ export default function BoletinDetailScreen() {
     });
     return sections;
   }, [addCompetitionsQuery.data]);
+
+  const addVisibleCompetitionSections = useMemo<CompetitionPickerSection[]>(() => {
+    if (addSport !== Sport.TENNIS || !addPlayerTour) return addCompetitionSections;
+    return addCompetitionSections.map((s) => ({
+      ...s,
+      data: s.data.filter((c) => {
+        const isWta = c.value.toUpperCase().includes('WTA') || c.value === 'Billie Jean King Cup';
+        return addPlayerTour === 'WTA' ? isWta : !isWta;
+      }),
+    })).filter((s) => s.data.length > 0);
+  }, [addSport, addPlayerTour, addCompetitionSections]);
 
   const addTeamItems = useMemo(() => {
     const data = addTeamsQuery.data ?? [];
@@ -427,8 +486,7 @@ export default function BoletinDetailScreen() {
       <Stack.Screen options={{ title: boletin.name ?? 'Boletim' }} />
       <FlatList
         contentContainerStyle={{
-          paddingTop: insets.top + tokens.spacing.md,
-          paddingBottom: insets.bottom + tokens.spacing.xxl,
+          paddingBottom: insets.bottom + tokens.spacing.xxl + (isEditing ? 72 : 0),
           paddingHorizontal: tokens.spacing.lg,
         }}
         data={boletin.items}
@@ -755,6 +813,8 @@ export default function BoletinDetailScreen() {
               </Animated.View>
             ) : null}
 
+            <BoletinInsightsSection boletin={boletin} />
+
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Seleções</Text>
 
             {isEditing ? (
@@ -950,6 +1010,9 @@ export default function BoletinDetailScreen() {
                     setAddHomeTeam2('');
                     setAddAwayTeam('');
                     setAddAwayTeam2('');
+                    setAddPlayerTour(null);
+                    setAddPlayerTourTab('ALL');
+                    setAddPlayerCountryFilter(null);
                   }}
                   title="Desporto"
                   visible={showAddSports}
@@ -960,12 +1023,14 @@ export default function BoletinDetailScreen() {
                     setAddCompetition(val);
                     const found = addCompetitionsQuery.data?.find((c) => c.name === val);
                     setAddCompetitionCountry(found?.country ?? '');
-                    setAddHomeTeam('');
-                    setAddHomeTeam2('');
-                    setAddAwayTeam('');
-                    setAddAwayTeam2('');
+                    if (addSport !== Sport.TENNIS) {
+                      setAddHomeTeam('');
+                      setAddHomeTeam2('');
+                      setAddAwayTeam('');
+                      setAddAwayTeam2('');
+                    }
                   }}
-                  sections={addCompetitionSections}
+                  sections={addVisibleCompetitionSections}
                   sport={addSport}
                   preloadWhenHidden
                   defaultExpandedCount={addSport === Sport.FOOTBALL ? 6 : 10}
@@ -974,10 +1039,41 @@ export default function BoletinDetailScreen() {
                   visible={showAddCompetitions}
                 />
                 <SearchableDropdown
-                  isLoading={addTeamsQuery.isLoading || (addCompetition !== '' && addAllTeamsQuery.isLoading)}
-                  items={addTeamItems}
+                  isLoading={addSport === Sport.TENNIS ? (addAtpQuery.isLoading || addWtaQuery.isLoading) : (addTeamsQuery.isLoading || (addCompetition !== '' && addAllTeamsQuery.isLoading))}
+                  items={addSport === Sport.TENNIS ? [] : addTeamItems}
+                  sections={addPlayerSections}
+                  headerContent={addSport === Sport.TENNIS ? (
+                    <View style={{ paddingBottom: 6, gap: 8 }}>
+                      <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#444' }}>
+                        {(['ALL', 'ATP', 'WTA'] as const).map((tab) => {
+                          const active = addPlayerTourTab === tab;
+                          return (
+                            <PressableScale key={tab} onPress={() => setAddPlayerTourTab(tab)} style={{ flex: 1, paddingVertical: 8, alignItems: 'center', backgroundColor: active ? '#00C851' : '#2A2A2A', borderRightWidth: tab !== 'WTA' ? 1 : 0, borderRightColor: '#444' }}>
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : '#888', letterSpacing: 0.5 }}>{tab === 'ALL' ? 'Todos' : tab}</Text>
+                            </PressableScale>
+                          );
+                        })}
+                      </View>
+                      {addAvailablePlayerCountries.length > 0 && (
+                        <PressableScale onPress={() => setShowAddCountryPicker(true)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#2A2A2A', borderWidth: 1, borderColor: addPlayerCountryFilter ? '#00C851' : '#444', gap: 8 }}>
+                          <Ionicons name="flag-outline" size={16} color={addPlayerCountryFilter ? '#00C851' : '#888'} />
+                          <Text style={{ flex: 1, fontSize: 13, color: addPlayerCountryFilter ? '#fff' : '#888' }}>{addPlayerCountryFilter ? `${getCountryFlagEmoji(addPlayerCountryFilter)} ${addPlayerCountryFilter}` : 'Filtrar por país'}</Text>
+                          {addPlayerCountryFilter ? (
+                            <Pressable hitSlop={8} onPress={(e) => { e.stopPropagation(); setAddPlayerCountryFilter(null); }}><Ionicons name="close-circle" size={16} color="#888" /></Pressable>
+                          ) : (
+                            <Ionicons name="chevron-down" size={14} color="#888" />
+                          )}
+                        </PressableScale>
+                      )}
+                    </View>
+                  ) : undefined}
                   onClose={() => setShowAddHomeTeams(false)}
-                  onSelect={setAddHomeTeam}
+                  onSelect={(val) => {
+                    setAddHomeTeam(val);
+                    if (addSport === Sport.TENNIS) {
+                      setAddPlayerTour(addWtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+                    }
+                  }}
                   renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
                   title={addSport === Sport.TENNIS ? (addIsDoubles ? 'Jogador 1 (Par Casa)' : 'Jogador 1') : 'Equipa Casa'}
                   visible={showAddHomeTeams}
@@ -985,8 +1081,9 @@ export default function BoletinDetailScreen() {
                 />
                 {addIsDoubles && addSport === Sport.TENNIS && (
                   <SearchableDropdown
-                    isLoading={addTeamsQuery.isLoading}
-                    items={addTeamItems}
+                    isLoading={addAtpQuery.isLoading || addWtaQuery.isLoading}
+                    items={[]}
+                    sections={addPlayerSections}
                     onClose={() => setShowAddHomeTeams2(false)}
                     onSelect={setAddHomeTeam2}
                     renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant="player" />}
@@ -996,10 +1093,41 @@ export default function BoletinDetailScreen() {
                   />
                 )}
                 <SearchableDropdown
-                  isLoading={addTeamsQuery.isLoading || (addCompetition !== '' && addAllTeamsQuery.isLoading)}
-                  items={addTeamItems}
+                  isLoading={addSport === Sport.TENNIS ? (addAtpQuery.isLoading || addWtaQuery.isLoading) : (addTeamsQuery.isLoading || (addCompetition !== '' && addAllTeamsQuery.isLoading))}
+                  items={addSport === Sport.TENNIS ? [] : addTeamItems}
+                  sections={addPlayerSections}
+                  headerContent={addSport === Sport.TENNIS ? (
+                    <View style={{ paddingBottom: 6, gap: 8 }}>
+                      <View style={{ flexDirection: 'row', borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#444' }}>
+                        {(['ALL', 'ATP', 'WTA'] as const).map((tab) => {
+                          const active = addPlayerTourTab === tab;
+                          return (
+                            <PressableScale key={tab} onPress={() => setAddPlayerTourTab(tab)} style={{ flex: 1, paddingVertical: 8, alignItems: 'center', backgroundColor: active ? '#00C851' : '#2A2A2A', borderRightWidth: tab !== 'WTA' ? 1 : 0, borderRightColor: '#444' }}>
+                              <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : '#888', letterSpacing: 0.5 }}>{tab === 'ALL' ? 'Todos' : tab}</Text>
+                            </PressableScale>
+                          );
+                        })}
+                      </View>
+                      {addAvailablePlayerCountries.length > 0 && (
+                        <PressableScale onPress={() => setShowAddCountryPicker(true)} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#2A2A2A', borderWidth: 1, borderColor: addPlayerCountryFilter ? '#00C851' : '#444', gap: 8 }}>
+                          <Ionicons name="flag-outline" size={16} color={addPlayerCountryFilter ? '#00C851' : '#888'} />
+                          <Text style={{ flex: 1, fontSize: 13, color: addPlayerCountryFilter ? '#fff' : '#888' }}>{addPlayerCountryFilter ? `${getCountryFlagEmoji(addPlayerCountryFilter)} ${addPlayerCountryFilter}` : 'Filtrar por país'}</Text>
+                          {addPlayerCountryFilter ? (
+                            <Pressable hitSlop={8} onPress={(e) => { e.stopPropagation(); setAddPlayerCountryFilter(null); }}><Ionicons name="close-circle" size={16} color="#888" /></Pressable>
+                          ) : (
+                            <Ionicons name="chevron-down" size={14} color="#888" />
+                          )}
+                        </PressableScale>
+                      )}
+                    </View>
+                  ) : undefined}
                   onClose={() => setShowAddAwayTeams(false)}
-                  onSelect={setAddAwayTeam}
+                  onSelect={(val) => {
+                    setAddAwayTeam(val);
+                    if (addSport === Sport.TENNIS && !addPlayerTour) {
+                      setAddPlayerTour(addWtaPlayerValueSet.has(val) ? 'WTA' : 'ATP');
+                    }
+                  }}
                   renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant={addSport === Sport.TENNIS ? 'player' : 'team'} />}
                   title={addSport === Sport.TENNIS ? (addIsDoubles ? 'Jogador 1 (Par Fora)' : 'Jogador 2') : 'Equipa Fora'}
                   visible={showAddAwayTeams}
@@ -1007,8 +1135,9 @@ export default function BoletinDetailScreen() {
                 />
                 {addIsDoubles && addSport === Sport.TENNIS && (
                   <SearchableDropdown
-                    isLoading={addTeamsQuery.isLoading}
-                    items={addTeamItems}
+                    isLoading={addAtpQuery.isLoading || addWtaQuery.isLoading}
+                    items={[]}
+                    sections={addPlayerSections}
                     onClose={() => setShowAddAwayTeams2(false)}
                     onSelect={setAddAwayTeam2}
                     renderItemLeft={(item) => <TeamBadge disableRemoteFallback imageUrl={item.imageUrl} name={item.value} size={20} variant="player" />}
@@ -1025,12 +1154,40 @@ export default function BoletinDetailScreen() {
                   title="Mercado"
                   visible={showAddMarkets}
                 />
+                <SearchableDropdown
+                  visible={showAddCountryPicker}
+                  onClose={() => setShowAddCountryPicker(false)}
+                  title="Filtrar por país"
+                  items={addAvailablePlayerCountries.map((c) => ({
+                    label: `${getCountryFlagEmoji(c)} ${c}`,
+                    value: c,
+                  }))}
+                  onSelect={(val) => {
+                    setAddPlayerCountryFilter(val);
+                    setShowAddCountryPicker(false);
+                  }}
+                  initialVisibleCount={30}
+                />
               </Card>
             ) : null}
           </View>
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(450 + index * 25).duration(280).springify()}>
+            <Pressable
+              onPress={!isEditing ? () => setInsightsItem({
+                homeTeam: item.homeTeam,
+                awayTeam: item.awayTeam,
+                homeTeamImageUrl: item.sport === Sport.TENNIS ? (tennisPhotoLookup.get(item.homeTeam) ?? null) : null,
+                awayTeamImageUrl: item.sport === Sport.TENNIS ? (tennisPhotoLookup.get(item.awayTeam) ?? null) : null,
+                competition: item.competition,
+                sport: item.sport ?? Sport.FOOTBALL,
+                market: item.market,
+                selection: item.selection,
+                oddValue: item.oddValue,
+                result: item.result,
+              }) : undefined}
+            >
             <BoletinItem
               item={{
                 ...item,
@@ -1080,11 +1237,25 @@ export default function BoletinDetailScreen() {
                 }
               } : undefined}
             />
+            </Pressable>
           </Animated.View>
         )}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.md }} />}
         showsVerticalScrollIndicator={false}
       />
+
+      <SelectionInsightsSheet
+        visible={insightsItem !== null}
+        item={insightsItem}
+        onClose={() => setInsightsItem(null)}
+      />
+
+      {isEditing && (
+        <View style={[styles.stickyEditFooter, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
+          <Button onPress={handleCancelEdit} size="sm" style={{ flex: 1 }} title="Cancelar" variant="ghost" />
+          <Button disabled={updateMutation.isPending} loading={updateMutation.isPending} onPress={handleSave} size="sm" style={{ flex: 2 }} title="Guardar alterações" variant="primary" />
+        </View>
+      )}
 
       <ConfirmModal
         visible={canEdit && pendingPublic}
@@ -1284,5 +1455,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 16,
+  },
+  stickyEditFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

@@ -42,6 +42,9 @@ The app is built as a monorepo (`pnpm workspaces`) with a React Native mobile cl
 - Favourite (star) individual boletins for quick access
 - Advanced filter & sort: by status, sport, competition, team, site, market, date range, odds range
 - Free-text search across all boletins
+- **AI Screenshot Import** (`app/boletins/import-review.tsx`): take or select a screenshot of any Betclic Portugal bet slip; Gemini Vision (primary) / GPT-4o (fallback) extracts selections, odds, markets, stake, and bet date; an editable review screen lets the user correct data and set results before saving. ATP/WTA player photos auto-applied on load.
+- **Selection Insights** (`components/boletins/SelectionInsightsSheet.tsx`): tap any selection on the boletim detail screen or the home screen boletin cards to open a bottom sheet with historical stats for that selection — sport, competition, market, team, and odds-range performance; implied probability; edge detection; and outcome verdict for resolved items.
+- **Boletim Insights** (`components/boletins/BoletinInsightsSection.tsx`): analytics panel inside the boletim detail screen — slip implied probability, N-leg accumulator historical win rate, per-leg probability breakdown, outcome verdict comparing the actual result to historical expectation.
 
 ### Statistics Dashboard
 Full personal analytics engine calculated server-side and rendered with Victory Native charts:
@@ -117,6 +120,7 @@ Token security: 15-min access tokens (HS256 JWT) + 30-day refresh tokens stored 
 | Create Boletin | `app/boletins/create.tsx` | Step-by-step builder to add selections, set stake, name/notes/bet date |
 | Boletin Detail | `app/boletins/[id].tsx` | Full detail view with 6-stat grid (Stake, Total Odds, Return, Profit, ROI, Selections — each with ⓘ info link), per-pick results with implied probability bar, share, edit |
 | Boletin Journal | `app/boletins/journal.tsx` | Filtered list of boletins with notes, sorted by bet date, for narrative betting review |
+| Import Review | `app/boletins/import-review.tsx` | Review and correct AI-parsed bet slip data before saving; per-item result controls, ATP/WTA photo auto-fill |
 | Metric Info | `app/metric-info.tsx` | In-app tooltip explaining a stat formula |
 | Login | `app/(auth)/login.tsx` | Email+password login + Google Sign-In |
 | Register | `app/(auth)/register.tsx` | Account creation + real-time username availability check |
@@ -254,6 +258,9 @@ Weights: `400 / 500 / 600 / 700 / 900`
 | `StakeInput` | `components/boletins/StakeInput.tsx` | Currency-formatted stake field |
 | `StatusBadge` | `components/boletins/StatusBadge.tsx` | Pending / Won / Lost / Cashout / Void chip |
 | `ProjectionCard` | `components/boletins/ProjectionCard.tsx` | ROI projection given current stake & odds |
+| `SelectionInsightsSheet` | `components/boletins/SelectionInsightsSheet.tsx` | Bottom sheet with per-selection historical stats, implied probability, edge detection, and outcome verdict |
+| `BoletinInsightsSection` | `components/boletins/BoletinInsightsSection.tsx` | In-screen analytics section: slip implied prob, N-leg win rate, per-leg probability breakdown, outcome verdict |
+| `WinCelebration` | `components/boletins/WinCelebration.tsx` | Full-screen confetti + animated return counter triggered on boletin resolved as WON |
 | `ROICard` | `components/stats/ROICard.tsx` | Large hero ROI metric card |
 | `WinRateRing` | `components/stats/WinRateRing.tsx` | Circular progress chart |
 | `PnLChart` | `components/stats/PnLChart.tsx` | Area chart (Victory Native) |
@@ -419,6 +426,7 @@ Server state (boletins list, stats, friends, competitions, teams, markets) is al
 | Heatmap calendar | `GET /api/stats/me/heatmap` |
 | Streaks | `GET /api/stats/me/streaks` |
 | Freebets | `GET /api/stats/me/freebets` |
+| Full bundle (all breakdowns) | `GET /api/stats/me/all` — used by `SelectionInsightsSheet` and `BoletinInsightsSection` (React Query deduped) |
 
 ### Boletin Status Flow
 ```

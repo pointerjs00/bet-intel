@@ -369,6 +369,37 @@ export default function ImportReviewScreen() {
     { enabled: teamPickerTarget !== null && teamPickerSport === Sport.TENNIS },
   );
 
+  // Always-loaded ATP/WTA data for auto-resolving player photos after AI parse
+  const atpLookupQuery = useTeams({ sport: Sport.TENNIS, competition: 'ATP Tour' });
+  const wtaLookupQuery = useTeams({ sport: Sport.TENNIS, competition: 'WTA Tour' });
+
+  const tennisPhotoLookup = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const t of [...(atpLookupQuery.data ?? []), ...(wtaLookupQuery.data ?? [])]) {
+      const name = t.displayName ?? t.name;
+      if (name) map.set(name.toLowerCase(), t.imageUrl ?? null);
+    }
+    return map;
+  }, [atpLookupQuery.data, wtaLookupQuery.data]);
+
+  useEffect(() => {
+    if (tennisPhotoLookup.size === 0) return;
+    setItemEdits((prev) => {
+      const next = new Map(prev);
+      let changed = false;
+      for (const [key, edits] of next.entries()) {
+        if (edits.sport !== 'TENNIS') continue;
+        const newHome = edits.homeTeamImageUrl ?? tennisPhotoLookup.get(edits.homeTeam.toLowerCase()) ?? null;
+        const newAway = edits.awayTeamImageUrl ?? tennisPhotoLookup.get(edits.awayTeam.toLowerCase()) ?? null;
+        if (newHome !== edits.homeTeamImageUrl || newAway !== edits.awayTeamImageUrl) {
+          next.set(key, { ...edits, homeTeamImageUrl: newHome, awayTeamImageUrl: newAway });
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [tennisPhotoLookup]);
+
   const teamPickerItems = useMemo(() => {
     if (teamPickerSport === Sport.TENNIS) return [];
     const data = teamsQuery.data ?? [];

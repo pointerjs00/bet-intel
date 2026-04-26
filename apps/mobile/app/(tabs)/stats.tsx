@@ -12,6 +12,7 @@ import { FavouriteUnderdogCard } from '../../components/stats/FavouriteUnderdogC
 import { FreebetCard } from '../../components/stats/FreebetCard';
 import { HeatmapCalendar } from '../../components/stats/HeatmapCalendar';
 import { HomeAwayCard } from '../../components/stats/HomeAwayCard';
+import { AIReviewCard } from '../../components/stats/AIReviewCard';
 import { InsightsCard } from '../../components/stats/InsightsCard';
 import { LegKillChart } from '../../components/stats/LegKillChart';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
@@ -34,7 +35,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { DeltaBadge } from '../../components/stats/DeltaBadge';
 import { CustomMetricCard } from '../../components/stats/CustomMetricCard';
 import StatsCustomizeSheet from '../../components/stats/StatsCustomizeSheet';
-import { usePersonalStats, useStatsTimeline } from '../../services/statsService';
+import { useAiReview, usePersonalStats, useStatsTimeline } from '../../services/statsService';
 import { useCustomMetricsStore } from '../../stores/customMetricsStore';
 import { useStatsDashboardStore } from '../../stores/statsDashboardStore';
 import { useBoletins, exportBoletinsToCsv, exportBoletinsToXlsx } from '../../services/boletinService';
@@ -658,6 +659,8 @@ export default function StatsScreen() {
   const timelineQuery = useStatsTimeline(activePeriod, siteSlugs, activeFrom, activeTo, granularity);
   const timelineData = timelineQuery.data ?? stats?.timeline ?? [];
 
+  const aiReview = useAiReview();
+
   const boletinsQuery = useBoletins();
   const betDateBounds = useMemo(() => {
     const list = boletinsQuery.data ?? [];
@@ -1241,6 +1244,14 @@ export default function StatsScreen() {
               default: return null;
               }
             })}
+
+            {/* AI Review */}
+            <AIReviewCard
+              data={aiReview.data}
+              isLoading={aiReview.isLoading}
+              error={aiReview.error as Error | null}
+              onGenerate={aiReview.generate}
+            />
 
             {/* Custom metrics section */}
             {customMetrics.length > 0 && (
