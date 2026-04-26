@@ -61,7 +61,7 @@ export const googleAuthLimiter = createLimiter({
 /** All other authenticated routes — 500 requests per 15 minutes per IP */
 export const defaultLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 500,
+  max: 2000,
   message: 'Demasiados pedidos. Tenta novamente em 15 minutos.',
   keyPrefix: 'default',
 });
