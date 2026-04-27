@@ -6,6 +6,9 @@ import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatPercentage } from '../../utils/formatters';
 import { getLeagueLogoUrl, getTeamLogoSource, getTeamLogoUrl } from '../../utils/sportAssets';
+import { Sport } from '@betintel/shared';
+import { TeamBadge } from '../ui/TeamBadge';
+import { useTeams } from '../../services/referenceService';
 
 interface BreakdownTableProps<TRow extends StatsBreakdownRow> {
   title: string;
@@ -128,23 +131,45 @@ export function SiteBreakdownLabel({ name, logo }: SiteBreakdownLabelProps) {
   );
 }
 
-/** Team label with crest image (remote URL or bundled source) and text fallback. */
+/** Team label with crest/player image sourced from the same API pool used in the create/index screens. */
 export function TeamBreakdownLabel({ teamName }: { teamName: string }) {
   const { colors } = useTheme();
-  const bundled = getTeamLogoSource(teamName);
-  const remoteUrl = bundled ? null : getTeamLogoUrl(teamName);
-  const source: ImageSourcePropType | null = bundled ?? (remoteUrl ? { uri: remoteUrl } : null);
+
+  // Fetch both ATP and WTA pools — same queries used in AddSelectionForm and SwipeableBoletinCard.
+  const teamQuery = useTeams({ sport: Sport.FOOTBALL });
+  const atpQuery  = useTeams({ sport: Sport.TENNIS, competition: 'ATP Tour' });
+  const wtaQuery  = useTeams({ sport: Sport.TENNIS, competition: 'WTA Tour' });
+
+  // Build a unified name → imageUrl map across all sports pools.
+  const imageUrl = React.useMemo(() => {
+    const allTeams = [
+      ...(teamQuery.data ?? []),
+      ...(atpQuery.data  ?? []),
+      ...(wtaQuery.data  ?? []),
+    ];
+    const match = allTeams.find(
+      (t) => (t.displayName ?? t.name) === teamName,
+    );
+    return match?.imageUrl ?? null;
+  }, [teamQuery.data, atpQuery.data, wtaQuery.data, teamName]);
+
+  // Detect whether this is a tennis player (doubles pairs contain " / ")
+  const isTennis = !!(atpQuery.data ?? wtaQuery.data ?? []).length &&
+    [...(atpQuery.data ?? []), ...(wtaQuery.data ?? [])].some(
+      (t) => (t.displayName ?? t.name) === teamName,
+    );
 
   return (
     <View style={styles.siteLabelWrap}>
-      {source ? (
-        <Image source={source} style={styles.siteLogo} resizeMode="contain" />
-      ) : (
-        <View style={[styles.siteFallback, { backgroundColor: colors.surfaceRaised }]}>
-          <Text style={[styles.siteFallbackText, { color: colors.textMuted }]}>{teamName.slice(0, 2).toUpperCase()}</Text>
-        </View>
-      )}
-      <Text numberOfLines={1} style={[styles.label, { color: colors.textPrimary }]}>{teamName}</Text>
+      <TeamBadge
+        imageUrl={imageUrl}
+        name={teamName}
+        size={22}
+        variant={isTennis ? 'player' : 'team'}
+      />
+      <Text numberOfLines={1} style={[styles.label, { color: colors.textPrimary }]}>
+        {teamName}
+      </Text>
     </View>
   );
 }

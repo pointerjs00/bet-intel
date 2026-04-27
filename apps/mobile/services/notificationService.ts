@@ -169,122 +169,137 @@ export async function setKickoffRemindersEnabled(enabled: boolean): Promise<void
 
 // We track scheduled notification IDs keyed by boletin ID so we can cancel them.
 const KICKOFF_REMINDER_MAP_KEY = '@betintel/kickoff_reminder_map';
-
-async function getScheduledReminderMap(): Promise<Record<string, string>> {
+ 
+// Map structure: boletinId → { notificationIds: string[] }
+interface ReminderEntry {
+  notificationIds: string[];
+}
+ 
+async function getScheduledReminderMap(): Promise<Record<string, ReminderEntry>> {
   try {
     const raw = await AsyncStorage.getItem(KICKOFF_REMINDER_MAP_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    return raw ? (JSON.parse(raw) as Record<string, ReminderEntry>) : {};
   } catch {
     return {};
   }
 }
-
-async function saveScheduledReminderMap(map: Record<string, string>): Promise<void> {
+ 
+async function saveScheduledReminderMap(map: Record<string, ReminderEntry>): Promise<void> {
   try {
     await AsyncStorage.setItem(KICKOFF_REMINDER_MAP_KEY, JSON.stringify(map));
-  } catch {
-    // Non-critical
-  }
+  } catch {}
 }
-
+ 
 /**
- * Schedules a local "kick-off reminder" notification for a boletin.
+ * Schedules two local notifications per selection that has a future eventDate:
+ *   1. 15 minutes before kick-off  — "Jogo em 15 minutos"
+ *   2. At kick-off                 — "Jogo a começar agora!"
  *
- * The notification fires 15 minutes before `betDate`. If a reminder is already
- * scheduled for this boletin (from a previous save/edit), it is cancelled first.
- *
- * Silently no-ops when:
- *  - The user has disabled kickoff reminders in settings
- *  - Notification permission has not been granted
- *  - betDate is null / in the past (including the 15-min window)
+ * Replaces any existing reminders for the boletin (handles edit/reschedule).
+ * Safe to call even when reminders are disabled or permissions are missing.
  */
-export async function scheduleKickoffReminder(
+export async function scheduleSelectionReminders(
   boletinId: string,
-  betDate: string | null | undefined,
+  selections: Array<{ id: string; eventDate: string }>,
   boletinName?: string | null,
 ): Promise<void> {
-  // Always cancel any existing reminder for this boletin first (handles reschedule on edit)
-  await cancelKickoffReminder(boletinId);
-
-  if (!betDate) return;
-
+  // Cancel any previously scheduled reminders for this boletin first
+  await cancelBoletinReminders(boletinId);
+ 
+  if (!selections.length) return;
+ 
   const enabled = await getKickoffRemindersEnabled();
   if (!enabled) return;
-
+ 
   const { status } = await Notifications.getPermissionsAsync();
   if (status !== 'granted') return;
-
-  const eventTime = new Date(betDate).getTime();
-  const reminderTime = eventTime - 15 * 60 * 1000; // 15 minutes before
+ 
   const now = Date.now();
-
-  if (reminderTime <= now) return; // Already past the reminder window
-
-  const title = '⚽ Jogo a começar em breve!';
-  const body = boletinName
-    ? `O teu boletim "${boletinName}" tem um jogo em 15 minutos.`
-    : 'Tens um jogo em 15 minutos. Não te esqueças de verificar o teu boletim.';
-
-  try {
-    const notificationId = await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        sound: 'default',
-        data: {
-          type: 'KICKOFF_REMINDER',
-          boletinId,
-        },
-        // Android channel
-        ...(Platform.OS === 'android' ? { channelId: 'kickoff-reminders' } : {}),
-      },
-      trigger: {
-        date: new Date(reminderTime),
-      } as { date: Date },   // expo-notifications 0.28.x accepts { date: Date } directly
-    });
-
-    // Persist the mapping so we can cancel it later
-    const map = await getScheduledReminderMap();
-    map[boletinId] = notificationId;
-    await saveScheduledReminderMap(map);
-  } catch (err) {
-    if (__DEV__) {
-      console.warn('[BetIntel] Failed to schedule kickoff reminder:', err);
+  const scheduledIds: string[] = [];
+  const label = boletinName ? `"${boletinName}"` : 'o teu boletim';
+ 
+  for (const sel of selections) {
+    const kickoffMs = new Date(sel.eventDate).getTime();
+    if (isNaN(kickoffMs)) continue;
+ 
+    // ── Reminder 1: 15 minutes before ────────────────────────────────────────
+    const warningMs = kickoffMs - 15 * 60 * 1000;
+    if (warningMs > now) {
+      try {
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '⚽ Jogo em 15 minutos!',
+            body: `Um jogo de ${label} começa em breve. Verifica o boletim.`,
+            sound: 'default',
+            data: { type: 'KICKOFF_REMINDER', boletinId, selectionId: sel.id },
+            ...(Platform.OS === 'android' ? { channelId: 'kickoff-reminders' } : {}),
+          },
+          trigger: { date: new Date(warningMs) } as unknown as Notifications.DateTriggerInput,
+        });
+        scheduledIds.push(id);
+      } catch (err) {
+        if (__DEV__) console.warn('[BetIntel] Failed to schedule warning reminder:', err);
+      }
+    }
+ 
+    // ── Reminder 2: At kick-off ───────────────────────────────────────────────
+    if (kickoffMs > now) {
+      try {
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '🟢 Jogo a começar!',
+            body: `Um jogo de ${label} está a começar agora. Acompanha o resultado.`,
+            sound: 'default',
+            data: { type: 'KICKOFF_REMINDER', boletinId, selectionId: sel.id },
+            ...(Platform.OS === 'android' ? { channelId: 'kickoff-reminders' } : {}),
+          },
+          trigger: { date: new Date(kickoffMs) } as unknown as Notifications.DateTriggerInput,
+        });
+        scheduledIds.push(id);
+      } catch (err) {
+        if (__DEV__) console.warn('[BetIntel] Failed to schedule kickoff reminder:', err);
+      }
     }
   }
-}
-
-/**
- * Cancels the kickoff reminder for a specific boletin, if one is scheduled.
- * Safe to call even if no reminder exists for the boletin.
- */
-export async function cancelKickoffReminder(boletinId: string): Promise<void> {
-  try {
+ 
+  if (scheduledIds.length > 0) {
     const map = await getScheduledReminderMap();
-    const notificationId = map[boletinId];
-    if (!notificationId) return;
-
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
-
-    delete map[boletinId];
+    map[boletinId] = { notificationIds: scheduledIds };
     await saveScheduledReminderMap(map);
-  } catch {
-    // Non-critical
   }
 }
-
-/** Cancels all scheduled kickoff reminders across all boletins. */
+ 
+/**
+ * Cancels ALL scheduled reminders for a specific boletin.
+ * Safe to call even if no reminders exist.
+ */
+export async function cancelBoletinReminders(boletinId: string): Promise<void> {
+  try {
+    const map = await getScheduledReminderMap();
+    const entry = map[boletinId];
+    if (!entry) return;
+ 
+    await Promise.all(
+      entry.notificationIds.map((id) =>
+        Notifications.cancelScheduledNotificationAsync(id).catch(() => {}),
+      ),
+    );
+ 
+    delete map[boletinId];
+    await saveScheduledReminderMap(map);
+  } catch {}
+}
+ 
+/** Cancels ALL scheduled kickoff reminders across all boletins. */
 export async function cancelAllKickoffReminders(): Promise<void> {
   try {
     const map = await getScheduledReminderMap();
-    const ids = Object.values(map);
-
+    const allIds = Object.values(map).flatMap((entry) => entry.notificationIds);
+ 
     await Promise.all(
-      ids.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})),
+      allIds.map((id) => Notifications.cancelScheduledNotificationAsync(id).catch(() => {})),
     );
-
+ 
     await saveScheduledReminderMap({});
-  } catch {
-    // Non-critical
-  }
+  } catch {}
 }

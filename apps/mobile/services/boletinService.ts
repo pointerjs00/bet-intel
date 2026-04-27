@@ -11,8 +11,8 @@ import type {
   UpdateBoletinItemInput,
 } from '@betintel/shared';
 import {
-  cancelKickoffReminder,
-  scheduleKickoffReminder,
+  cancelBoletinReminders,
+  scheduleSelectionReminders,
 } from './notificationService';
 import { Alert, Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
@@ -318,10 +318,8 @@ export function useUpdateBoletinMutation() {
       // Keep the kickoff reminder in sync with the updated boletin state.
       // If still PENDING with a future betDate → reschedule (also handles date changes).
       // If resolved/cancelled → cancel any outstanding reminder.
-      if (data.status === 'PENDING') {
-        void scheduleKickoffReminder(data.id, data.betDate, data.name);
-      } else {
-        void cancelKickoffReminder(data.id);
+      if (data.status !== 'PENDING') {
+        void cancelBoletinReminders(data.id);
       }
     },
   });
@@ -355,7 +353,7 @@ export function useDeleteBoletinMutation() {
     onSuccess: (_data: void, id: string) => {
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
-      void cancelKickoffReminder(id);
+      void cancelBoletinReminders(id);
     },
   });
 }
@@ -525,7 +523,7 @@ export function useUpdateBoletinItemMutation() {
       // When all items are resolved, the boletin status changes from PENDING.
       // Cancel the kickoff reminder — the match is already in progress or done.
       if (data.status !== 'PENDING') {
-        void cancelKickoffReminder(data.id);
+        void cancelBoletinReminders(data.id);
       }
     },
   });

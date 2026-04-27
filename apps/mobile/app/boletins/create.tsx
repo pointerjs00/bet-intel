@@ -1126,6 +1126,7 @@ export default function CreateBoletinScreen() {
   const betDate = useBoletinBuilderStore((state) => state.betDate);
   const reset = useBoletinBuilderStore((state) => state.reset);
   const save = useBoletinBuilderStore((state) => state.save);
+  const setItemEventDate = useBoletinBuilderStore((state) => state.setItemEventDate);
 
   const [showSites, setShowSites] = useState(false);
   const selectedSiteName = BETTING_SITES.find((s) => s.slug === siteSlug)?.name;
@@ -1143,6 +1144,9 @@ export default function CreateBoletinScreen() {
   // Confirmation modals
   const [pendingReset, setPendingReset] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+
+  const [selectionEventDateTarget, setSelectionEventDateTarget] = useState<string | null>(null);
+  const [eventDateDraft, setEventDateDraft] = useState({ day: '', month: '', year: '', hour: '', minute: '' });
 
   useEffect(() => {
     if (profileQuery.data) {
@@ -1297,21 +1301,71 @@ export default function CreateBoletinScreen() {
           />
         }
         renderItem={({ item }) => (
-          <BoletinSelectionRow
-            item={{
-              homeTeam: item.homeTeam,
-              homeTeamImageUrl: item.homeTeamImageUrl,
-              awayTeam: item.awayTeam,
-              awayTeamImageUrl: item.awayTeamImageUrl,
-              competition: item.competition,
-              market: item.market,
-              oddValue: String(item.oddValue),
-              result: ItemResult.PENDING,
-              selection: item.selection,
-              sport: item.sport,
-            }}
-            onRemove={() => setRemoveTarget(item.id)}
-          />
+          <View>
+            <BoletinSelectionRow
+              item={{
+                homeTeam: item.homeTeam,
+                homeTeamImageUrl: item.homeTeamImageUrl,
+                awayTeam: item.awayTeam,
+                awayTeamImageUrl: item.awayTeamImageUrl,
+                competition: item.competition,
+                market: item.market,
+                oddValue: String(item.oddValue),
+                result: ItemResult.PENDING,
+                selection: item.selection,
+                sport: item.sport,
+              }}
+              onRemove={() => setRemoveTarget(item.id)}
+            />
+            {/* Kick-off date/time picker button */}
+            <Pressable
+              onPress={() => {
+                const d = item.eventDate ? new Date(item.eventDate) : new Date();
+                setEventDateDraft({
+                  day: String(d.getDate()).padStart(2, '0'),
+                  month: String(d.getMonth() + 1).padStart(2, '0'),
+                  year: String(d.getFullYear()),
+                  hour: String(d.getHours()).padStart(2, '0'),
+                  minute: String(d.getMinutes()).padStart(2, '0'),
+                });
+                setSelectionEventDateTarget(item.id);
+              }}
+              style={[
+                eventDateBtnStyles.btn,
+                {
+                  borderColor: item.eventDate ? colors.primary : colors.border,
+                  backgroundColor: item.eventDate ? `${colors.primary}12` : colors.surfaceRaised,
+                },
+              ]}
+            >
+              <Ionicons
+                name="time-outline"
+                size={13}
+                color={item.eventDate ? colors.primary : colors.textMuted}
+              />
+              <Text
+                style={[
+                  eventDateBtnStyles.btnText,
+                  { color: item.eventDate ? colors.primary : colors.textMuted },
+                ]}
+              >
+                {item.eventDate
+                  ? (() => {
+                      const d = new Date(item.eventDate);
+                      return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                    })()
+                  : 'Definir hora do jogo'}
+              </Text>
+              {item.eventDate && (
+                <Pressable
+                  hitSlop={8}
+                  onPress={(e) => { e.stopPropagation(); setItemEventDate(item.id, null); }}
+                >
+                  <Ionicons name="close-circle" size={14} color={colors.textMuted} />
+                </Pressable>
+              )}
+            </Pressable>
+          </View>
         )}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.md }} />}
         showsVerticalScrollIndicator={false}
@@ -1367,6 +1421,92 @@ export default function CreateBoletinScreen() {
         }}
         onCancel={() => setRemoveTarget(null)}
       />
+      <Modal
+        visible={selectionEventDateTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectionEventDateTarget(null)}
+      >
+        <Pressable
+          style={eventDateModalStyles.backdrop}
+          onPress={() => setSelectionEventDateTarget(null)}
+        >
+          <Pressable style={[eventDateModalStyles.sheet, { backgroundColor: colors.surface }]} onPress={() => {}}>
+            <Text style={[eventDateModalStyles.title, { color: colors.textPrimary }]}>Hora do jogo</Text>
+            <Text style={[eventDateModalStyles.hint, { color: colors.textMuted }]}>
+              Vais receber um lembrete 15 min antes e no início do jogo.
+            </Text>
+ 
+            {/* Date row */}
+            <View style={eventDateModalStyles.fieldsRow}>
+              {[
+                { label: 'Dia', key: 'day' as const, placeholder: 'DD', maxLength: 2 },
+                { label: 'Mês', key: 'month' as const, placeholder: 'MM', maxLength: 2 },
+                { label: 'Ano', key: 'year' as const, placeholder: 'AAAA', maxLength: 4, wide: true },
+              ].map(({ label, key, placeholder, maxLength, wide }) => (
+                <View key={key} style={[eventDateModalStyles.fieldGroup, wide && eventDateModalStyles.fieldGroupWide]}>
+                  <Text style={[eventDateModalStyles.fieldLabel, { color: colors.textMuted }]}>{label}</Text>
+                  <TextInput
+                    style={[eventDateModalStyles.fieldInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                    value={eventDateDraft[key]}
+                    onChangeText={(v) => setEventDateDraft((p) => ({ ...p, [key]: v.replace(/\D/g, '').slice(0, maxLength) }))}
+                    keyboardType="number-pad"
+                    maxLength={maxLength}
+                    placeholder={placeholder}
+                    placeholderTextColor={colors.textMuted}
+                    textAlign="center"
+                  />
+                </View>
+              ))}
+            </View>
+ 
+            {/* Time row */}
+            <View style={eventDateModalStyles.fieldsRow}>
+              {[
+                { label: 'Hora', key: 'hour' as const, placeholder: 'HH', maxLength: 2 },
+                { label: 'Min', key: 'minute' as const, placeholder: 'MM', maxLength: 2 },
+              ].map(({ label, key, placeholder, maxLength }) => (
+                <View key={key} style={eventDateModalStyles.fieldGroup}>
+                  <Text style={[eventDateModalStyles.fieldLabel, { color: colors.textMuted }]}>{label}</Text>
+                  <TextInput
+                    style={[eventDateModalStyles.fieldInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                    value={eventDateDraft[key]}
+                    onChangeText={(v) => setEventDateDraft((p) => ({ ...p, [key]: v.replace(/\D/g, '').slice(0, maxLength) }))}
+                    keyboardType="number-pad"
+                    maxLength={maxLength}
+                    placeholder={placeholder}
+                    placeholderTextColor={colors.textMuted}
+                    textAlign="center"
+                  />
+                </View>
+              ))}
+            </View>
+ 
+            <View style={eventDateModalStyles.buttons}>
+              <Button variant="ghost" title="Cancelar" onPress={() => setSelectionEventDateTarget(null)} style={{ flex: 1 }} />
+              <Button
+                title="Confirmar"
+                style={{ flex: 1 }}
+                onPress={() => {
+                  if (!selectionEventDateTarget) return;
+                  const { day, month, year, hour, minute } = eventDateDraft;
+                  const d = new Date(
+                    parseInt(year, 10),
+                    parseInt(month, 10) - 1,
+                    parseInt(day, 10),
+                    parseInt(hour, 10),
+                    parseInt(minute, 10),
+                  );
+                  if (!isNaN(d.getTime())) {
+                    setItemEventDate(selectionEventDateTarget, d.toISOString());
+                  }
+                  setSelectionEventDateTarget(null);
+                }}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Site selector modal */}
       <SearchableDropdown
@@ -1477,4 +1617,61 @@ const styles = StyleSheet.create({
   siteLogo: { borderRadius: 6, height: 28, width: 28 },
   siteLogoFallback: { alignItems: 'center', borderRadius: 6, height: 28, justifyContent: 'center', width: 28 },
   siteLogoFallbackText: { fontSize: 9, fontWeight: '800' },
+});
+
+const eventDateBtnStyles = StyleSheet.create({
+  btn: {
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  btnText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});
+
+const eventDateModalStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: 20,
+    padding: 20,
+    gap: 14,
+  },
+  title: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
+  hint: { fontSize: 12, textAlign: 'center', lineHeight: 18 },
+  fieldsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  fieldGroup: { alignItems: 'center', gap: 4 },
+  fieldGroupWide: { minWidth: 72 },
+  fieldLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  fieldInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    fontSize: 16,
+    fontWeight: '700',
+    minWidth: 46,
+    textAlign: 'center',
+  },
+  buttons: { flexDirection: 'row', gap: 10, marginTop: 4 },
 });

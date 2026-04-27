@@ -112,6 +112,7 @@ export default function SettingsScreen() {
   ];
 
   const [goals, setGoals] = useState<BettingGoal[]>(DEFAULT_GOALS);
+  const [goalDraftTargets, setGoalDraftTargets] = useState<Record<number, string>>({});
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -172,6 +173,7 @@ export default function SettingsScreen() {
         const saved = profileQuery.data.goals.find((g) => g.type === def.type);
         return saved ? { ...def, ...saved } : def;
       }));
+      setGoalDraftTargets({});
     }
   }, [profileQuery.data, setDefaultPublicPreference, setThemePreference]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -386,13 +388,27 @@ export default function SettingsScreen() {
                       editable={goal.enabled}
                       keyboardType="numeric"
                       onChangeText={(v) => {
-                        const n = parseFloat(v);
+                        // Allow any text while typing — store as draft string
+                        setGoalDraftTargets((prev) => ({ ...prev, [idx]: v }));
+                      }}
+                      onBlur={() => {
+                        // Commit the draft value on blur; fall back to existing target if invalid
+                        const draft = goalDraftTargets[idx];
+                        if (draft === undefined) return;
+                        const n = parseFloat(draft);
                         if (!isNaN(n) && n > 0) {
                           setGoals((prev) => prev.map((g, i) => i === idx ? { ...g, target: n } : g));
                         }
+                        // Clear the draft so value reverts to committed goal.target
+                        setGoalDraftTargets((prev) => {
+                          const next = { ...prev };
+                          delete next[idx];
+                          return next;
+                        });
                       }}
                       style={[styles.goalInput, { color: colors.textPrimary }]}
-                      value={String(goal.target)}
+                      // Show the live draft string while editing; show committed value otherwise
+                      value={goalDraftTargets[idx] !== undefined ? goalDraftTargets[idx] : String(goal.target)}
                     />
                     <Text style={[styles.goalInputUnit, { color: colors.textMuted }]}>{meta.unit}</Text>
                   </View>

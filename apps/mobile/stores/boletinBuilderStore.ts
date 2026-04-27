@@ -3,8 +3,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BoletinDetail, CreateBoletinInput, Sport } from '@betintel/shared';
 import { createBoletinRequest } from '../services/boletinService';
-import { scheduleKickoffReminder } from '../services/notificationService';
 import { parseDDMMYYYYToISO } from '../utils/formatters';
+import { scheduleSelectionReminders } from '../services/notificationService';
 
 function todayDDMMYYYY(): string {
   const d = new Date();
@@ -24,6 +24,8 @@ export interface BoletinBuilderItem {
   market: string;
   selection: string;
   oddValue: number;
+  /** ISO datetime of when this selection's match starts. Used for kick-off reminders. */
+  eventDate?: string | null;
 }
 
 interface BuilderStateValues {
@@ -51,6 +53,7 @@ interface BoletinBuilderStore extends BuilderStateValues {
   setDefaultPublicPreference: (value: boolean) => void;
   setPublic: (value: boolean) => void;
   setFreebet: (value: boolean) => void;
+  setItemEventDate: (itemId: string, eventDate: string | null) => void;
   reset: () => void;
   save: () => Promise<BoletinDetail>;
 }
@@ -110,6 +113,7 @@ function buildCreatePayload(state: BuilderStateValues): CreateBoletinInput {
       market: item.market,
       selection: item.selection,
       oddValue: item.oddValue,
+      eventDate: item.eventDate ?? undefined,
     })),
   };
 }
@@ -166,6 +170,13 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         ),
       setPublic: (isPublic) => set((state) => ({ ...state, isPublic })),
       setFreebet: (isFreebet) => set((state) => ({ ...state, isFreebet })),
+      setItemEventDate: (itemId, eventDate) =>
+        set((state) => ({
+          ...state,
+          items: state.items.map((item) =>
+            item.id === itemId ? { ...item, eventDate } : item,
+          ),
+        })),
       reset: () =>
         set((state) => withComputed({ ...buildDefaultState(state.defaultIsPublic), betDate: todayDDMMYYYY() })),
       save: async () => {
@@ -183,9 +194,11 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
 
         // Schedule a kickoff reminder if the bet date is in the future.
         // Fire-and-forget — a scheduling failure must never block boletin creation.
-        void scheduleKickoffReminder(
+        void scheduleSelectionReminders(
           created.id,
-          created.betDate,
+          state.items
+            .filter((item) => Boolean(item.eventDate))
+            .map((item) => ({ id: item.id, eventDate: item.eventDate! })),
           created.name,
         );
 
