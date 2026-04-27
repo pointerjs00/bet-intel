@@ -155,7 +155,7 @@ export async function getAiReview(userId: string): Promise<AiReview> {
 
   let rawText: string;
   try {
-    const model = getGenAI().getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash-preview-04-17' });
     const result = await model.generateContent(prompt);
     rawText = result.response.text().trim();
   } catch (err) {
