@@ -44,6 +44,7 @@ import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../u
 import { BETTING_SITES, getCountryFlagEmoji } from '../../utils/sportAssets';
 import { SelectionInsightsSheet, type SelectionInsightsItem } from '../../components/boletins/SelectionInsightsSheet';
 import { BoletinInsightsSection } from '../../components/boletins/BoletinInsightsSection';
+import { ExplainBoletinSheet } from '../../components/boletins/ExplainBoletinSheet';
 
 const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
   { key: Sport.FOOTBALL, label: 'Futebol', icon: '⚽' },
@@ -83,6 +84,7 @@ export default function BoletinDetailScreen() {
   const [pendingDelete, setPendingDelete] = useState(false);
   const [pendingPublic, setPendingPublic] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showExplainer, setShowExplainer] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
   const [insightsItem, setInsightsItem] = useState<SelectionInsightsItem | null>(null);
   const prevStatusRef = useRef<BoletinStatus | undefined>(undefined);
@@ -776,7 +778,11 @@ export default function BoletinDetailScreen() {
                   <DatePickerField
                     label="DATA DA APOSTA"
                     value={editBetDate.length === 10 ? parseDDMMYYYYToDate(editBetDate) : null}
-                    onChange={(date) => setEditBetDate(formatDateToDDMMYYYY(date.toISOString()))}
+                    onChange={(date) => {
+                      const dd = String(date.getDate()).padStart(2, '0');
+                      const mm = String(date.getMonth() + 1).padStart(2, '0');
+                      setEditBetDate(`${dd}/${mm}/${date.getFullYear()}`);
+                    }}
                     onClear={() => setEditBetDate('')}
                   />
                   <View style={[styles.toggleRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
@@ -814,6 +820,17 @@ export default function BoletinDetailScreen() {
             ) : null}
 
             <BoletinInsightsSection boletin={boletin} />
+
+            {boletin.status !== BoletinStatus.PENDING && (
+              <Pressable
+                onPress={() => setShowExplainer(true)}
+                style={[styles.explainBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+              >
+                <Ionicons name="search-outline" size={16} color={colors.primary} />
+                <Text style={[styles.explainBtnText, { color: colors.primary }]}>Explica-me esta aposta</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
+              </Pressable>
+            )}
 
             <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Seleções</Text>
 
@@ -1250,6 +1267,14 @@ export default function BoletinDetailScreen() {
         onClose={() => setInsightsItem(null)}
       />
 
+      {showExplainer && (
+        <ExplainBoletinSheet
+          visible={showExplainer}
+          boletin={boletin}
+          onClose={() => setShowExplainer(false)}
+        />
+      )}
+
       {isEditing && (
         <View style={[styles.stickyEditFooter, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + 8 }]}>
           <Button onPress={handleCancelEdit} size="sm" style={{ flex: 1 }} title="Cancelar" variant="ghost" />
@@ -1332,6 +1357,7 @@ export default function BoletinDetailScreen() {
       {showCelebration && boletinStats && (
         <WinCelebration
           profit={boletinStats.displayProfit}
+          totalOdds={boletinStats.totalOdds}
           onDismiss={() => setShowCelebration(false)}
         />
       )}
@@ -1463,4 +1489,14 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  explainBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  explainBtnText: { fontSize: 14, fontWeight: '700', flex: 1 },
 });

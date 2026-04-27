@@ -43,6 +43,7 @@ import { useToast } from '../../components/ui/Toast';
 import { BoletinItem as BoletinSelectionRow } from '../../components/boletins/BoletinItem';
 import { OddsCalculator } from '../../components/boletins/OddsCalculator';
 import { ProjectionCard } from '../../components/boletins/ProjectionCard';
+import { ParlayOptimiserCard } from '../../components/boletins/ParlayOptimiserCard';
 import { StakeInput } from '../../components/boletins/StakeInput';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import type { DropdownItem, DropdownSection } from '../../components/ui/SearchableDropdown';
@@ -1209,6 +1210,12 @@ export default function CreateBoletinScreen() {
             {items.length > 0 && statsQuery.data ? (
               <Animated.View entering={FadeInDown.delay(50).duration(160).springify()}>
                 <ProjectionCard items={items} stats={statsQuery.data} />
+              </Animated.View>
+            ) : null}
+
+            {items.length >= 3 && statsQuery.data ? (
+              <Animated.View entering={FadeInDown.delay(55).duration(160).springify()}>
+                <ParlayOptimiserCard items={items} stats={statsQuery.data} />
               </Animated.View>
             ) : null}
 

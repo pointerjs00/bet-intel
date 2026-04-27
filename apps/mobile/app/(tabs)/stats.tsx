@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated as RNAnimated, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSwipeToDismiss } from '../../hooks/useSwipeToDismiss';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -168,6 +169,7 @@ function ByHourSection({
     hideKeyboard();
     setModalVisible(false);
   };
+  const { panHandlers: swipePanHandlers, animatedStyle: swipeAnimatedStyle } = useSwipeToDismiss(handleClose);
 
   const sortedRows = useMemo(
     () =>
@@ -234,9 +236,11 @@ function ByHourSection({
       >
         <View style={byHourStyles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFillObject} onPress={handleClose} />
-          <View style={[byHourStyles.modalSheet, { backgroundColor: colors.surface, paddingBottom: keyboardVisible ? 10 : 36 }]}>
+          <RNAnimated.View style={[byHourStyles.modalSheet, { backgroundColor: colors.surface, paddingBottom: keyboardVisible ? 10 : 36 }, swipeAnimatedStyle]}>
             {/* Handle */}
-            <View style={[byHourStyles.handle, { backgroundColor: colors.border }]} />
+            <View {...swipePanHandlers} style={byHourStyles.handleArea}>
+              <View style={[byHourStyles.handle, { backgroundColor: colors.border }]} />
+            </View>
 
             {/* Header */}
             <View style={byHourStyles.modalHeader}>
@@ -345,7 +349,7 @@ function ByHourSection({
                 <Text style={byHourStyles.applyBtnText}>Aplicar</Text>
               </Pressable>
             </View>
-          </View>
+          </RNAnimated.View>
 
           {/* Custom numeric keyboard — slides up from screen bottom on focus */}
           {keyboardVisible && (
@@ -429,11 +433,10 @@ const byHourStyles = StyleSheet.create({
     marginLeft: 2,
     width: 2,
   },
+  handleArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
   handle: {
-    alignSelf: 'center',
     borderRadius: 3,
     height: 4,
-    marginBottom: 16,
     width: 40,
   },
   modalHeader: {

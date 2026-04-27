@@ -19,7 +19,8 @@ import { hapticSuccess } from '../../utils/haptics';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const PARTICLE_COUNT = 40;
+const PARTICLE_COUNT_STANDARD = 40;
+const PARTICLE_COUNT_BIG = 70;
 const AUTO_DISMISS_MS = 2800;
 
 const CONFETTI_COLORS = [
@@ -40,9 +41,9 @@ interface Particle {
   shape: 'circle' | 'square';
 }
 
-function generateParticles(): Particle[] {
+function generateParticles(count: number): Particle[] {
   const particles: Particle[] = [];
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
+  for (let i = 0; i < count; i++) {
     particles.push({
       id: i,
       x: Math.random() * SCREEN_W,
@@ -110,6 +111,7 @@ function ConfettiParticle({ particle }: ConfettiParticleProps) {
 
 interface WinCelebrationProps {
   profit: number;
+  totalOdds?: number;
   onDismiss: () => void;
 }
 
@@ -117,9 +119,10 @@ interface WinCelebrationProps {
  * Full-screen win celebration overlay with confetti and profit display.
  * Auto-dismisses after ~3s or on tap.
  */
-export function WinCelebration({ profit, onDismiss }: WinCelebrationProps) {
+export function WinCelebration({ profit, totalOdds, onDismiss }: WinCelebrationProps) {
   const { colors } = useTheme();
-  const particles = useMemo(() => generateParticles(), []);
+  const isBig = (totalOdds ?? 0) >= 5;
+  const particles = useMemo(() => generateParticles(isBig ? PARTICLE_COUNT_BIG : PARTICLE_COUNT_STANDARD), [isBig]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scale = useSharedValue(0.5);
 
@@ -160,8 +163,8 @@ export function WinCelebration({ profit, onDismiss }: WinCelebrationProps) {
         {/* Outer view for layout entering animation, inner view for scale */}
         <Animated.View entering={FadeInDown.delay(50).duration(220).springify()}>
           <Animated.View style={[styles.messageCard, cardStyle]}>
-            <Text style={styles.trophy}>🏆</Text>
-            <Text style={[styles.heading, { color: colors.textPrimary }]}>Boletim Ganho!</Text>
+            <Text style={styles.trophy}>{isBig ? '🔥' : '🏆'}</Text>
+            <Text style={[styles.heading, { color: colors.textPrimary }]}>{isBig ? 'Grande aposta!' : 'Boletim Ganho!'}</Text>
             {profit > 0 && (
               <Text style={[styles.profit, { color: colors.primary }]}>
                 +{formatCurrency(profit)}

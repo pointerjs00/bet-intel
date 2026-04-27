@@ -707,7 +707,7 @@
 
 ---
 
-### 2.29 Parlay Optimiser ✅ Ready (NEW)
+### 2.29 Parlay Optimiser ✅ Ready — 🟢 BUILT
 **What:** When creating an accumulator with 3+ selections, show a "Optimizar" suggestion: "Removing leg 4 (implied prob 18%) improves expected value by 2.3% based on your historical data." Computes leg-level EV from historical win rates and flags negative-EV legs.  
 **Why:** The most common bettor mistake is adding a weak extra leg to an otherwise decent accumulator because it increases the odds. Quantifying the cost of each leg encourages smarter accumulators.  
 **Feasibility:** All data exists: `byOddsRange` and `bySport` win rates give per-leg historical probabilities. EV per leg = `(historicalWinRate × (1 + oddValue)) - 1`. Already available in `ProjectionCard` data.  
@@ -752,7 +752,7 @@
 
 ## 7. New UX & Quality-of-Life Improvements (Additions)
 
-### 3.16 Long-Press Preview Cards ✅ Ready (NEW)
+### 3.16 Long-Press Preview Cards ✅ Ready — 🟢 BUILT
 **What:** Long-press on any boletin card in the list to show a haptic peek preview with key stats (stake, odds, return, status, top selections) without navigating to the detail screen. Dismiss with a swipe.
 **Why:** Power users scroll through many boletins. Quick previews reduce the number of navigation round-trips.
 **Feasibility:** `react-native-gesture-handler` (already in project) for long-press + `react-native-reanimated` animated overlay. The preview content is a simplified version of `BoletinDetail`.
@@ -779,7 +779,7 @@
 
 ---
 
-### 3.19 Boletin Result Celebration Animations ✅ Ready (NEW)
+### 3.19 Boletin Result Celebration Animations ✅ Ready — 🟢 BUILT
 **What:** When marking a boletin as WON (especially big odds), trigger a celebration animation — confetti burst, animated number counter for the return, trophy icon bounce.
 **Why:** Emotional reward moments drive retention. A winning bet is a high point — amplifying it makes the app memorable.
 **Feasibility:** `react-native-reanimated` for number animations. `@shopify/react-native-skia` or a lightweight confetti library for particles. Triggered in the status-change handler.
@@ -788,7 +788,7 @@
 
 ---
 
-### 3.20 Contextual Homescreen (Smart Tab Badges) ✅ Ready (NEW)
+### 3.20 Contextual Homescreen (Smart Tab Badges) ✅ Ready — 🟢 BUILT
 **What:** Show dynamic content at the top of the Boletins tab depending on context: "3 apostas por resolver este fim-de-semana", "O teu melhor período foi esta semana (+€42) 📈", "Vai colocar apostas? Vê as tuas tendências primeiro →".
 **Why:** Surfaces the most relevant information without requiring the user to dig into stats. Contextual prompts improve daily engagement.
 **Feasibility:** Rules-based system evaluating: pending count, recent P&L, days since last bet, current streak. Rotate 1 insight card at top of boletins list. Static content, no new API needed — derives from TanStack Query cached data.

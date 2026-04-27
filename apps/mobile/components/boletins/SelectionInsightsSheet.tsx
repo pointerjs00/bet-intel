@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSwipeToDismiss } from '../../hooks/useSwipeToDismiss';
 import { Ionicons } from '@expo/vector-icons';
 import { ItemResult, Sport } from '@betintel/shared';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -112,6 +113,7 @@ const statCardStyles = StyleSheet.create({
 export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { panHandlers, animatedStyle } = useSwipeToDismiss(onClose);
   const statsQuery = usePersonalStats('all', [], undefined, undefined, visible && item !== null);
   const stats = statsQuery.data;
 
@@ -178,9 +180,11 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.root}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 20 }]}>
+        <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 20 }, animatedStyle]}>
           {/* Handle */}
-          <View style={[styles.handle, { backgroundColor: colors.border }]} />
+          <View {...panHandlers} style={styles.handleArea}>
+            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+          </View>
 
           {/* Header */}
           <View style={styles.headerRow}>
@@ -285,7 +289,7 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
               </View>
             )}
           </ScrollView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -342,7 +346,8 @@ const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '88%', gap: 0 },
-  handle: { alignSelf: 'center', borderRadius: 999, height: 4, marginTop: 10, marginBottom: 6, width: 40 },
+  handleArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
+  handle: { borderRadius: 999, height: 4, width: 40 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
   teamsBlock: { flex: 1, gap: 4 },
   teamsLine: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },

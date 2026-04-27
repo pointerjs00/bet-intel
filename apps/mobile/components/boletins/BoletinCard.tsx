@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import {
   Image,
   LayoutAnimation,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -24,6 +25,7 @@ import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { PressableScale } from '../ui/PressableScale';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatOdds } from '../../utils/formatters';
+import { hapticMedium } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 import { useTeams } from '../../services/referenceService';
 import { StatusBadge } from './StatusBadge';
@@ -78,6 +80,7 @@ function SiteBadge({ slug, colors }: { slug: string; colors: ReturnType<typeof u
 export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare, onImageShare, onItemPress }: BoletinCardProps) {
   const { colors } = useTheme();
   const [expanded, setExpanded] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const chevronRotation = useSharedValue(0);
   const shareScale = useSharedValue(1);
   const imageShareScale = useSharedValue(1);
@@ -126,8 +129,11 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
   };
 
   return (
+    <>
     <PressableScale
       onPress={onPress}
+      onLongPress={() => { hapticMedium(); setShowPreview(true); }}
+      delayLongPress={300}
       scaleDown={0.98}
       style={[
         styles.card,
@@ -364,6 +370,86 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
         </Pressable>
       </View>
     </PressableScale>
+
+    {/* Long-press quick preview modal */}
+    <Modal
+      visible={showPreview}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowPreview(false)}
+      statusBarTranslucent
+    >
+      <Pressable style={previewStyles.backdrop} onPress={() => setShowPreview(false)}>
+        <Pressable onPress={(e) => e.stopPropagation()} style={[previewStyles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* Status header */}
+          <View style={[previewStyles.header, { backgroundColor: statusAccentColor(boletin.status) + '18', borderBottomColor: statusAccentColor(boletin.status) + '35' }]}>
+            <StatusBadge status={boletin.status} />
+            {boletin.siteSlug ? <SiteBadge slug={boletin.siteSlug} colors={colors} /> : null}
+            <Text style={[previewStyles.date, { color: colors.textMuted }]}>
+              {formatLongDate(boletin.betDate ?? boletin.createdAt)}
+            </Text>
+          </View>
+
+          {/* Name */}
+          <Text numberOfLines={2} style={[previewStyles.name, { color: colors.textPrimary }]}>
+            {boletin.name || `Boletim com ${boletin.items.length} seleç${boletin.items.length === 1 ? 'ão' : 'ões'}`}
+          </Text>
+
+          {/* Metrics */}
+          <View style={previewStyles.metrics}>
+            <View style={previewStyles.metric}>
+              <Text style={[previewStyles.metricLabel, { color: colors.textMuted }]}>💰 Stake</Text>
+              <Text style={[previewStyles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
+            </View>
+            <View style={previewStyles.metric}>
+              <Text style={[previewStyles.metricLabel, { color: colors.textMuted }]}>🎯 Odds</Text>
+              <Text style={[previewStyles.metricValue, { color: colors.gold }]}>{formatOdds(boletin.totalOdds)}</Text>
+            </View>
+            <View style={previewStyles.metric}>
+              <Text style={[previewStyles.metricLabel, { color: colors.textMuted }]}>
+                {boletin.status === BoletinStatus.LOST
+                  ? (boletin.isFreebet ? '🎁 Freebet' : '📉 Perdido')
+                  : boletin.status === BoletinStatus.CASHOUT
+                  ? '💵 Cashout'
+                  : '💸 Retorno'}
+              </Text>
+              <Text style={[previewStyles.metricValue, {
+                color: boletin.status === BoletinStatus.LOST
+                  ? (boletin.isFreebet ? colors.info : colors.danger)
+                  : boletin.status === BoletinStatus.CASHOUT
+                  ? colors.gold
+                  : colors.primary,
+              }]}>
+                {boletin.status === BoletinStatus.LOST
+                  ? (boletin.isFreebet ? 'Grátis' : `-${formatCurrency(boletin.stake)}`)
+                  : boletin.status === BoletinStatus.CASHOUT
+                  ? formatCurrency(boletin.cashoutAmount ?? boletin.actualReturn ?? '0')
+                  : formatCurrency(boletin.actualReturn ?? boletin.potentialReturn)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Selections */}
+          <View style={previewStyles.items}>
+            {boletin.items.map((item) => {
+              const icon = itemResultIcon(item.result);
+              return (
+                <View key={item.id} style={[previewStyles.item, { borderBottomColor: colors.border }]}>
+                  <Ionicons name={icon.name} size={14} color={icon.color} />
+                  <Text numberOfLines={1} style={[previewStyles.itemTeams, { color: colors.textSecondary }]}>
+                    {item.homeTeam} vs {item.awayTeam}
+                  </Text>
+                  <Text style={[previewStyles.itemOdds, { color: colors.gold }]}>{formatOdds(item.oddValue)}</Text>
+                </View>
+              );
+            })}
+          </View>
+
+          <Text style={[previewStyles.hint, { color: colors.textMuted }]}>Toca fora para fechar</Text>
+        </Pressable>
+      </Pressable>
+    </Modal>
+    </>
   );
 });
 
@@ -460,4 +546,51 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   expandBtnLabel: { fontSize: 13, fontWeight: '600' },
+});
+
+const previewStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.60)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  sheet: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 22,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  date: { fontSize: 12, fontWeight: '600', marginLeft: 'auto' },
+  name: { fontSize: 18, fontWeight: '900', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 4, lineHeight: 24 },
+  metrics: { flexDirection: 'row', gap: 0, paddingHorizontal: 16, paddingVertical: 12 },
+  metric: { flex: 1, gap: 4 },
+  metricLabel: { fontSize: 11, fontWeight: '600' },
+  metricValue: { fontSize: 15, fontWeight: '800' },
+  items: { paddingHorizontal: 16, paddingBottom: 4 },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  itemTeams: { flex: 1, fontSize: 13, fontWeight: '600' },
+  itemOdds: { fontSize: 13, fontWeight: '800', flexShrink: 0 },
+  hint: { fontSize: 11, fontWeight: '500', textAlign: 'center', paddingVertical: 12 },
 });

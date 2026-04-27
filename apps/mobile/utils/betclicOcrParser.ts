@@ -867,9 +867,9 @@ function parseBetclicDate(str: string): string {
   const m = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/);
   if (!m) return new Date().toISOString();
   const [, day, month, yearRaw, hour, min] = m;
-  const year = yearRaw!.length === 2 ? `20${yearRaw}` : yearRaw!;
-  const iso = `${year}-${month!.padStart(2, '0')}-${day!.padStart(2, '0')}T${hour!.padStart(2, '0')}:${min!}:00`;
-  const d = new Date(iso);
+  const year = yearRaw!.length === 2 ? 2000 + Number(yearRaw) : Number(yearRaw);
+  // Use numeric constructor so the engine treats these as local time, not UTC.
+  const d = new Date(year, Number(month!) - 1, Number(day!), Number(hour!), Number(min!), 0);
   return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 

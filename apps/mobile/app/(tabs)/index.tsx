@@ -52,6 +52,7 @@ import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 import { SelectionInsightsItem, SelectionInsightsSheet } from '../../components/boletins/SelectionInsightsSheet';
+import { ContextualInsightBanner } from '../../components/boletins/ContextualInsightBanner';
 
 const INITIAL_VISIBLE_BOLETINS = 15;
 const VISIBLE_BATCH_SIZE = 15;
@@ -780,6 +781,11 @@ export default function HomeScreen() {
                 </Card>
               </PressableScale>
             </Animated.View>
+
+            {/* Contextual insight banner */}
+            {!boletinsQuery.isLoading && boletins.length > 0 && (
+              <ContextualInsightBanner boletins={boletins} pendingCount={pendingCount} />
+            )}
 
             {/* Batch resolve shortcut */}
             {pendingCount > 1 && (

@@ -1,6 +1,6 @@
 services:
   api:
-    image: ghcr.io/jbsousapsn/bet-intel/betintel-api:latest
+    image: ghcr.io/pointerjs00/bet-intel/betintel-api:latest
     restart: always
     environment:
       DATABASE_URL: ${DATABASE_URL}
