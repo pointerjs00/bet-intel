@@ -746,7 +746,7 @@ export default function HomeScreen() {
                   onPress={() => {
                     hapticLight();
                     setFabOpen((v) => {
-                      fabIconRotation.value = withSpring(!v ? 45 : 0, { damping: 15, stiffness: 300 });
+                      fabIconRotation.value = withSpring(!v ? 45 : 0, { damping: 18, stiffness: 500 });
                       return !v;
                     });
                   }}
@@ -1029,8 +1029,8 @@ export default function HomeScreen() {
                     style={StyleSheet.absoluteFill}
                   />
           <Animated.View
-            entering={FadeIn.duration(100).springify().damping(18).stiffness(300)}
-            exiting={FadeOut.duration(120)}
+            entering={FadeIn.duration(50)}
+            exiting={FadeOut.duration(80)}
             style={[
               styles.notifBubble,
               {
@@ -1123,8 +1123,8 @@ export default function HomeScreen() {
             style={StyleSheet.absoluteFill}
           />
           <Animated.View
-            entering={FadeIn.duration(100)}
-            exiting={FadeOut.duration(80)}
+            entering={FadeIn.duration(50)}
+            exiting={FadeOut.duration(60)}
             style={[
               styles.fabMenu,
               { top: insets.top + 52, backgroundColor: colors.surface, borderColor: colors.border },
@@ -1135,7 +1135,7 @@ export default function HomeScreen() {
               { label: 'Registo rápido',        icon: 'flash',                lib: 'ion' as const, route: '/boletins/quick-log',  color: colors.warning },
               { label: 'Importar screenshot',   icon: 'cellphone-screenshot', lib: 'mci' as const, route: '/boletins/scan',        color: colors.info    },
             ] as const).map((opt, i) => (
-              <Animated.View key={opt.route} entering={FadeInDown.delay(i * 20).duration(100).springify()}>
+              <Animated.View key={opt.route} entering={FadeInDown.delay(i * 10).duration(60).springify().stiffness(400).damping(22)}>
                 <PressableScale
                   onPress={() => { hapticLight(); setFabOpen(false); fabIconRotation.value = withSpring(0, { damping: 15, stiffness: 300 }); router.push(opt.route as never); }}
                   style={[

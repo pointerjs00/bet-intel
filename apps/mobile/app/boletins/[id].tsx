@@ -458,6 +458,7 @@ export default function BoletinDetailScreen() {
   if (boletinQuery.isLoading) {
     return (
       <View style={[styles.loadingScreen, { backgroundColor: colors.background, paddingTop: insets.top + tokens.spacing.lg, paddingHorizontal: tokens.spacing.lg }]}>
+        <Stack.Screen options={{ title: 'Boletim' }} />
         <Skeleton height={36} width="75%" />
         <Card style={{ marginTop: 18, gap: 12 }}>
           <Skeleton height={18} width={120} />
