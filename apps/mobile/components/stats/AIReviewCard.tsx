@@ -1,9 +1,8 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useRef } from 'react';
+import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { AiReview } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
-import { Card } from '../ui/Card';
 import { Skeleton } from '../ui/Skeleton';
 
 interface Props {
@@ -71,10 +70,45 @@ function LoadingSkeleton() {
   );
 }
 
+// ─── Animated CTA button ──────────────────────────────────────────────────────
+
+function GenerateButton({ label, onPress, isLoading, colors }: {
+  label: string;
+  onPress: () => void;
+  isLoading: boolean;
+  colors: ReturnType<typeof useTheme>['colors'];
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true, speed: 30, bounciness: 4 }).start();
+  const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        disabled={isLoading}
+        style={[styles.generateBtn, { borderColor: colors.primary }]}
+      >
+        {isLoading ? (
+          <ActivityIndicator color={colors.primary} size="small" />
+        ) : (
+          <>
+            <Ionicons name="sparkles" size={15} color={colors.primary} />
+            <Text style={[styles.generateBtnText, { color: colors.primary }]}>{label}</Text>
+          </>
+        )}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 // ─── Main card ────────────────────────────────────────────────────────────────
 
 export function AIReviewCard({ data, isLoading, error, onGenerate }: Props) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const cachedAt = data?.cachedAt ? new Date(data.cachedAt) : null;
   const expiresAt = cachedAt ? new Date(cachedAt.getTime() + 24 * 60 * 60 * 1000) : null;
@@ -84,89 +118,89 @@ export function AIReviewCard({ data, isLoading, error, onGenerate }: Props) {
   const canRefresh = !cachedAt || hoursUntilRefresh === 0;
   const showCTA = (!data || canRefresh) && !isLoading;
 
-  return (
-    <Card noPadding>
-      {/* Content area — all padding here so button can bleed to edges */}
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.headerIconWrap, { backgroundColor: colors.primary + '20' }]}>
-            <Ionicons name="sparkles" size={16} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Análise IA</Text>
-            {cachedAt && (
-              <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
-                {canRefresh ? 'Disponível para atualizar' : `Válida por ${hoursUntilRefresh}h`}
-              </Text>
-            )}
-          </View>
-          <View style={[styles.poweredBadge, { borderColor: colors.border }]}>
-            <Text style={[styles.poweredText, { color: colors.textMuted }]}>Claude</Text>
-          </View>
-        </View>
+  const cardStyle: ViewStyle = {
+    backgroundColor: colors.surface,
+    borderColor: isDark ? 'transparent' : colors.border,
+    borderWidth: isDark ? 0 : 1,
+  };
 
-        {/* Body */}
-        {isLoading ? (
-          <LoadingSkeleton />
-        ) : error ? (
-          <View style={[styles.errorBanner, { backgroundColor: colors.danger + '15', borderColor: colors.danger + '40' }]}>
-            <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
-            <Text style={[styles.errorText, { color: colors.danger }]}>
-              {(error as Error & { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Erro ao gerar análise. Tenta novamente.'}
+  const shadowStyle: ViewStyle = Platform.select({
+    ios: { shadowColor: '#000', shadowOffset: { width: 0, height: isDark ? 4 : 2 }, shadowOpacity: isDark ? 0.3 : 0.06, shadowRadius: 8 },
+    android: { elevation: isDark ? 4 : 2 },
+    default: {},
+  }) as ViewStyle;
+
+  return (
+    <View style={[styles.card, cardStyle, shadowStyle]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={[styles.headerIconWrap, { backgroundColor: colors.primary + '20' }]}>
+          <Ionicons name="sparkles" size={16} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Análise IA</Text>
+          {cachedAt && (
+            <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
+              {canRefresh ? 'Disponível para atualizar' : `Válida por ${hoursUntilRefresh}h`}
             </Text>
-          </View>
-        ) : data ? (
-          <View style={styles.sections}>
-            <Section title="Pontos fortes" icon="trending-up" color={colors.primary} bullets={data.strongPoints} />
-            <Section title="Pontos fracos" icon="trending-down" color={colors.danger} bullets={data.weakPoints} />
-            <Section title="Padrões identificados" icon="analytics-outline" color={colors.warning} bullets={data.patterns} />
-            {data.recommendation ? (
-              <View style={[styles.recommendation, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
-                <Ionicons name="bulb-outline" size={16} color={colors.primary} />
-                <Text style={[styles.recommendationText, { color: colors.textPrimary }]}>{data.recommendation}</Text>
-              </View>
-            ) : null}
-          </View>
-        ) : (
-          <View style={[styles.emptyState, { borderColor: colors.border }]}>
-            <Ionicons name="stats-chart-outline" size={32} color={colors.textMuted} />
-            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Análise personalizada</Text>
-            <Text style={[styles.emptyBody, { color: colors.textMuted }]}>
-              Obtém uma análise honesta da tua performance com pontos fortes, fraquezas e uma recomendação específica para ti.
-            </Text>
-          </View>
-        )}
+          )}
+        </View>
+        <View style={[styles.poweredBadge, { borderColor: colors.border }]}>
+          <Text style={[styles.poweredText, { color: colors.textMuted }]}>Claude</Text>
+        </View>
       </View>
 
-      {/* CTA — rendered outside the padded content so its background fills edge-to-edge */}
-      {showCTA && (
-        <>
-          <View style={[styles.ctaDivider, { backgroundColor: colors.border }]} />
-          <Pressable
-            onPress={onGenerate}
-            android_ripple={{ color: 'rgba(255,255,255,0.15)' }}
-            style={({ pressed }) => [styles.generateBtn, { backgroundColor: colors.primary, opacity: pressed ? 0.8 : 1 }]}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="sparkles" size={15} color="#fff" />
-                <Text style={styles.generateBtnText}>
-                  {error ? 'Tenta novamente' : data ? 'Atualizar análise' : 'Gerar análise'}
-                </Text>
-              </>
-            )}
-          </Pressable>
-        </>
+      {/* Body */}
+      {isLoading ? (
+        <LoadingSkeleton />
+      ) : error ? (
+        <View style={[styles.errorBanner, { backgroundColor: colors.danger + '15', borderColor: colors.danger + '40' }]}>
+          <Ionicons name="alert-circle-outline" size={16} color={colors.danger} />
+          <Text style={[styles.errorText, { color: colors.danger }]}>
+            {(error as Error & { response?: { data?: { error?: string } } }).response?.data?.error ?? 'Erro ao gerar análise. Tenta novamente.'}
+          </Text>
+        </View>
+      ) : data ? (
+        <View style={styles.sections}>
+          <Section title="Pontos fortes" icon="trending-up" color={colors.primary} bullets={data.strongPoints} />
+          <Section title="Pontos fracos" icon="trending-down" color={colors.danger} bullets={data.weakPoints} />
+          <Section title="Padrões identificados" icon="analytics-outline" color={colors.warning} bullets={data.patterns} />
+          {data.recommendation ? (
+            <View style={[styles.recommendation, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
+              <Ionicons name="bulb-outline" size={16} color={colors.primary} />
+              <Text style={[styles.recommendationText, { color: colors.textPrimary }]}>{data.recommendation}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <View style={[styles.emptyState, { borderColor: colors.border }]}>
+          <Ionicons name="stats-chart-outline" size={32} color={colors.textMuted} />
+          <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Análise personalizada</Text>
+          <Text style={[styles.emptyBody, { color: colors.textMuted }]}>
+            Obtém uma análise honesta da tua performance com pontos fortes, fraquezas e uma recomendação específica para ti.
+          </Text>
+        </View>
       )}
-    </Card>
+
+      {/* CTA */}
+      {showCTA && (
+        <GenerateButton
+          label={error ? 'Tenta novamente' : data ? 'Atualizar análise' : 'Gerar análise'}
+          onPress={onGenerate}
+          isLoading={isLoading}
+          colors={colors}
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 14, padding: 16 },
+  card: {
+    borderRadius: 14,
+    gap: 14,
+    padding: 16,
+  },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   headerTitle: { fontSize: 15, fontWeight: '800' },
@@ -188,13 +222,14 @@ const styles = StyleSheet.create({
   emptyBody: { fontSize: 13, lineHeight: 20, textAlign: 'center' },
   errorBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 10, borderWidth: 1, padding: 12 },
   errorText: { flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18 },
-  ctaDivider: { height: StyleSheet.hairlineWidth },
   generateBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingVertical: 12,
   },
-  generateBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  generateBtnText: { fontSize: 14, fontWeight: '800' },
 });
