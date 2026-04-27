@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { Easing, FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import type { StatsBreakdownRow, StatsByHourRow, StatsPeriod } from '@betintel/shared';
-import { BreakdownTable } from '../../components/stats/BreakdownTable';
+import { BreakdownTable, CompetitionBreakdownLabel, TeamBreakdownLabel } from '../../components/stats/BreakdownTable';
 import { CalibrationChart } from '../../components/stats/CalibrationChart';
 import { NumericKeyboard } from '../../components/ui/NumericKeyboard';
 import { FavouriteUnderdogCard } from '../../components/stats/FavouriteUnderdogCard';
@@ -44,6 +44,19 @@ import { useTableSort } from '../../hooks/useTableSort';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
+
+const SPORT_EMOJIS: Record<string, string> = {
+  FOOTBALL: '⚽',
+  BASKETBALL: '🏀',
+  TENNIS: '🎾',
+  HANDBALL: '🤾',
+  VOLLEYBALL: '🏐',
+  HOCKEY: '🏒',
+  RUGBY: '🏉',
+  AMERICAN_FOOTBALL: '🏈',
+  BASEBALL: '⚾',
+  OTHER: '🎯',
+};
 
 const PERIOD_OPTIONS: Array<{ key: StatsPeriod; label: string }> = [
   { key: 'week', label: 'Esta Semana' },
@@ -1045,19 +1058,27 @@ export default function StatsScreen() {
 
               case 'by-sport': return (
                 <Animated.View key="by-sport" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.bySport} title="Por desporto" filterTitle="Por desporto" onInfoPress={() => pushInfo('by-sport', stats.bySport.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterSport: row.key } })} renderLabel={(row) => (<Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>{row.label}</Text>)} />
+                  <FilteredBreakdownTable rows={stats.bySport} title="Por desporto" filterTitle="Por desporto" onInfoPress={() => pushInfo('by-sport', stats.bySport.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterSport: row.key } })} renderLabel={(row) => (
+                    <Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>
+                      {SPORT_EMOJIS[row.sport] ?? '🎯'}{'  '}{row.label}
+                    </Text>
+                  )} />
                 </Animated.View>
               );
 
               case 'by-team': return (
                 <Animated.View key="by-team" entering={FadeInDown.delay(130).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byTeam} title="Por equipa" filterTitle="Por equipa" onInfoPress={() => pushInfo('by-team', stats.byTeam.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterTeam: row.label } })} />
+                  <FilteredBreakdownTable rows={stats.byTeam} title="Por equipa" filterTitle="Por equipa" onInfoPress={() => pushInfo('by-team', stats.byTeam.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterTeam: row.label } })} renderLabel={(row) => (
+                    <TeamBreakdownLabel teamName={row.label} />
+                  )} />
                 </Animated.View>
               );
 
               case 'by-competition': return (
                 <Animated.View key="by-competition" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byCompetition} title="Por competição" filterTitle="Por competição" onInfoPress={() => pushInfo('by-competition', stats.byCompetition.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterCompetition: row.label } })} />
+                  <FilteredBreakdownTable rows={stats.byCompetition} title="Por competição" filterTitle="Por competição" onInfoPress={() => pushInfo('by-competition', stats.byCompetition.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterCompetition: row.label } })} renderLabel={(row) => (
+                    <CompetitionBreakdownLabel competitionName={row.label} />
+                  )} />
                 </Animated.View>
               );
 

@@ -5,6 +5,7 @@ import type { StatsBreakdownRow } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatPercentage } from '../../utils/formatters';
+import { getLeagueLogoUrl, getTeamLogoSource, getTeamLogoUrl } from '../../utils/sportAssets';
 
 interface BreakdownTableProps<TRow extends StatsBreakdownRow> {
   title: string;
@@ -123,6 +124,46 @@ export function SiteBreakdownLabel({ name, logo }: SiteBreakdownLabelProps) {
         </View>
       )}
       <Text numberOfLines={1} style={[styles.label, { color: colors.textPrimary }]}>{name}</Text>
+    </View>
+  );
+}
+
+/** Team label with crest image (remote URL or bundled source) and text fallback. */
+export function TeamBreakdownLabel({ teamName }: { teamName: string }) {
+  const { colors } = useTheme();
+  const bundled = getTeamLogoSource(teamName);
+  const remoteUrl = bundled ? null : getTeamLogoUrl(teamName);
+  const source: ImageSourcePropType | null = bundled ?? (remoteUrl ? { uri: remoteUrl } : null);
+
+  return (
+    <View style={styles.siteLabelWrap}>
+      {source ? (
+        <Image source={source} style={styles.siteLogo} resizeMode="contain" />
+      ) : (
+        <View style={[styles.siteFallback, { backgroundColor: colors.surfaceRaised }]}>
+          <Text style={[styles.siteFallbackText, { color: colors.textMuted }]}>{teamName.slice(0, 2).toUpperCase()}</Text>
+        </View>
+      )}
+      <Text numberOfLines={1} style={[styles.label, { color: colors.textPrimary }]}>{teamName}</Text>
+    </View>
+  );
+}
+
+/** Competition label with league logo image and text fallback. */
+export function CompetitionBreakdownLabel({ competitionName }: { competitionName: string }) {
+  const { colors } = useTheme();
+  const logoUrl = getLeagueLogoUrl(competitionName);
+
+  return (
+    <View style={styles.siteLabelWrap}>
+      {logoUrl ? (
+        <Image source={{ uri: logoUrl }} style={styles.siteLogo} resizeMode="contain" />
+      ) : (
+        <View style={[styles.siteFallback, { backgroundColor: colors.surfaceRaised }]}>
+          <Text style={[styles.siteFallbackText, { color: colors.textMuted }]}>{competitionName.slice(0, 2).toUpperCase()}</Text>
+        </View>
+      )}
+      <Text numberOfLines={1} style={[styles.label, { color: colors.textPrimary }]}>{competitionName}</Text>
     </View>
   );
 }

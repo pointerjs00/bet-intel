@@ -122,9 +122,101 @@ function buildPrompt(stats: PersonalStats): string {
   return lines.join('\n');
 }
 
+function buildExportPrompt(stats: PersonalStats): string {
+  const s = stats.summary;
+
+  const topSports = [...(stats.bySport ?? [])].sort((a, b) => b.totalBets - a.totalBets).slice(0, 5);
+  const topMarkets = [...(stats.byMarket ?? [])].sort((a, b) => b.totalBets - a.totalBets).slice(0, 5);
+  const oddsRanges = (stats.byOddsRange ?? []).filter((r) => r.totalBets > 0);
+  const legCounts = [...(stats.byLegCount ?? [])].sort((a, b) => a.legCount - b.legCount);
+  const sites = (stats.bySite ?? []).filter((r) => r.totalBets >= 3);
+
+  let bestSite: (typeof sites)[0] | null = null;
+  let worstSite: (typeof sites)[0] | null = null;
+  if (sites.length > 0) {
+    bestSite = sites.reduce((best, r) => (r.roi > best.roi ? r : best));
+    worstSite = sites.reduce((worst, r) => (r.roi < worst.roi ? r : worst));
+    if (bestSite === worstSite) worstSite = null;
+  }
+
+  const streakLine = s.streaks
+    ? `Série atual: ${s.streaks.currentType === 'WON' ? s.streaks.currentCount + ' vitórias' : s.streaks.currentType === 'LOST' ? s.streaks.currentCount + ' derrotas' : 'nenhuma'} | Melhor série de vitórias: ${s.streaks.longestWin}`
+    : '';
+
+  const lines: string[] = [
+    'Sou um apostador desportivo português e preciso de uma análise honesta da minha performance com base nos seguintes dados históricos de apostas. Analisa como um treinador experiente — identifica pontos fortes, fraquezas, padrões comportamentais e dá-me uma recomendação concreta e acionável.',
+    '',
+    'RESUMO GERAL:',
+    `- Apostas resolvidas: ${s.settledBoletins} | Pendentes: ${s.pendingBoletins}`,
+    `- Taxa de vitória: ${s.winRate.toFixed(1)}%`,
+    `- ROI: ${s.roi.toFixed(1)}%`,
+    `- Lucro/Prejuízo: €${s.profitLoss.toFixed(2)}`,
+    `- Stake total apostado: €${s.totalStaked.toFixed(2)}`,
+    `- Odd média: ${s.averageOdds.toFixed(2)}`,
+    `- Odd média vitórias: ${s.averageWonOdds.toFixed(2)} | Odd média derrotas: ${s.averageLostOdds.toFixed(2)}`,
+    `- Stake médio vencedor: €${s.averageWonStake.toFixed(2)} | Stake médio perdedor: €${s.averageLostStake.toFixed(2)}`,
+  ];
+
+  if (streakLine) lines.push(`- ${streakLine}`);
+
+  if (topSports.length > 0) {
+    lines.push('', 'POR DESPORTO (mais apostados):');
+    for (const r of topSports) lines.push(`- ${r.label}: ${r.totalBets} apostas, ${r.winRate.toFixed(0)}% win, ${r.roi.toFixed(1)}% ROI`);
+  }
+
+  if (topMarkets.length > 0) {
+    lines.push('', 'POR MERCADO (mais apostados):');
+    for (const r of topMarkets) lines.push(`- ${r.market}: ${r.totalBets} apostas, ${r.winRate.toFixed(0)}% win, ${r.roi.toFixed(1)}% ROI`);
+  }
+
+  if (oddsRanges.length > 0) {
+    lines.push('', 'POR RANGE DE ODDS:');
+    for (const r of oddsRanges) lines.push(`- ${r.label}: ${r.totalBets} apostas, ${r.winRate.toFixed(0)}% win, ${r.roi.toFixed(1)}% ROI`);
+  }
+
+  if (legCounts.length > 0) {
+    lines.push('', 'POR NÚMERO DE SELEÇÕES:');
+    for (const r of legCounts) lines.push(`- ${r.legCount} seleção(ões): ${r.totalBets} apostas, ${r.winRate.toFixed(0)}% win, ${r.roi.toFixed(1)}% ROI`);
+  }
+
+  if (bestSite || worstSite) {
+    lines.push('', 'POR SITE:');
+    if (bestSite) lines.push(`- Melhor ROI: ${bestSite.siteSlug} (${bestSite.roi.toFixed(1)}%, ${bestSite.totalBets} apostas)`);
+    if (worstSite) lines.push(`- Pior ROI: ${worstSite.siteSlug} (${worstSite.roi.toFixed(1)}%, ${worstSite.totalBets} apostas)`);
+  }
+
+  if (s.homeBets > 0 || s.awayBets > 0) {
+    lines.push('', 'CASA vs FORA:');
+    if (s.homeBets > 0) lines.push(`- Casa: ${s.homeBets} apostas, ${s.homeWinRate.toFixed(0)}% win, ${s.homeROI.toFixed(1)}% ROI`);
+    if (s.awayBets > 0) lines.push(`- Fora: ${s.awayBets} apostas, ${s.awayWinRate.toFixed(0)}% win, ${s.awayROI.toFixed(1)}% ROI`);
+  }
+
+  if (s.favouriteBets > 0 || s.underdogBets > 0) {
+    lines.push('', 'FAVORITOS vs UNDERDOGS:');
+    if (s.favouriteBets > 0) lines.push(`- Favoritos (odds < 2.00): ${s.favouriteBets} apostas, ${s.favouriteWinRate.toFixed(0)}% win, ${s.favouriteROI.toFixed(1)}% ROI`);
+    if (s.underdogBets > 0) lines.push(`- Underdogs (odds ≥ 2.00): ${s.underdogBets} apostas, ${s.underdogWinRate.toFixed(0)}% win, ${s.underdogROI.toFixed(1)}% ROI`);
+  }
+
+  lines.push(
+    '',
+    'Com base nestes dados, faz uma análise detalhada em texto livre (sem JSON, sem listas técnicas) que cubra:',
+    '1. Os meus pontos fortes, com dados concretos (percentagens, valores em euros)',
+    '2. As minhas fraquezas e onde estou a perder dinheiro',
+    '3. Padrões comportamentais notáveis que identificas',
+    '4. Uma recomendação concreta e acionável específica para mim',
+    '',
+    'Escreve em Português europeu, de forma direta e quantitativa. Sê honesto.',
+    s.settledBoletins < 10
+      ? `Nota: tenho apenas ${s.settledBoletins} apostas resolvidas — refere isso e pede mais dados para uma análise mais precisa.`
+      : '',
+  );
+
+  return lines.filter(Boolean).join('\n');
+}
+
 export async function getAiReviewPrompt(userId: string): Promise<string> {
   const stats = await getPersonalStats(userId, { period: 'all' });
-  return buildPrompt(stats);
+  return buildExportPrompt(stats);
 }
 
 export async function getAiReview(userId: string): Promise<AiReview> {
