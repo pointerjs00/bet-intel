@@ -1,15 +1,17 @@
-import React, { useRef } from 'react';
-import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Platform, Pressable, Share, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { AiReview } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
 import { Skeleton } from '../ui/Skeleton';
+import { fetchAiReviewPrompt } from '../../services/statsService';
 
 interface Props {
   data: AiReview | undefined;
   isLoading: boolean;
   error: Error | null;
   onGenerate: () => void;
+  onExportPrompt?: () => void;
 }
 
 // ─── Bullet list section ──────────────────────────────────────────────────────
@@ -109,6 +111,19 @@ function GenerateButton({ label, onPress, isLoading, colors }: {
 
 export function AIReviewCard({ data, isLoading, error, onGenerate }: Props) {
   const { colors, isDark } = useTheme();
+  const [exportingPrompt, setExportingPrompt] = useState(false);
+
+  async function handleExportPrompt() {
+    setExportingPrompt(true);
+    try {
+      const prompt = await fetchAiReviewPrompt();
+      await Share.share({ message: prompt, title: 'Prompt de análise BetIntel' });
+    } catch {
+      Alert.alert('Erro', 'Não foi possível exportar o prompt. Tenta novamente.');
+    } finally {
+      setExportingPrompt(false);
+    }
+  }
 
   const cachedAt = data?.cachedAt ? new Date(data.cachedAt) : null;
   const expiresAt = cachedAt ? new Date(cachedAt.getTime() + 24 * 60 * 60 * 1000) : null;
@@ -146,8 +161,20 @@ export function AIReviewCard({ data, isLoading, error, onGenerate }: Props) {
           )}
         </View>
         <View style={[styles.poweredBadge, { borderColor: colors.border }]}>
-          <Text style={[styles.poweredText, { color: colors.textMuted }]}>Claude</Text>
+          <Text style={[styles.poweredText, { color: colors.textMuted }]}>Gemini</Text>
         </View>
+        <Pressable
+          onPress={handleExportPrompt}
+          disabled={exportingPrompt}
+          hitSlop={8}
+          style={[styles.exportBtn, { borderColor: colors.border }]}
+        >
+          {exportingPrompt ? (
+            <ActivityIndicator size="small" color={colors.textMuted} />
+          ) : (
+            <Ionicons name="share-outline" size={15} color={colors.textMuted} />
+          )}
+        </Pressable>
       </View>
 
       {/* Body */}
@@ -207,6 +234,7 @@ const styles = StyleSheet.create({
   headerSubtitle: { fontSize: 11, fontWeight: '500', marginTop: 1 },
   poweredBadge: { borderRadius: 6, borderWidth: 1, paddingHorizontal: 7, paddingVertical: 3 },
   poweredText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+  exportBtn: { width: 28, height: 28, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   sections: { gap: 16 },
   recommendation: {
     flexDirection: 'row',

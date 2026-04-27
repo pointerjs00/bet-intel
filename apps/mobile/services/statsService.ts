@@ -193,3 +193,9 @@ export function useAiReview() {
     generate: () => mutation.mutate(),
   };
 }
+
+/** Fetches the raw prompt text that would be sent to the AI model. */
+export async function fetchAiReviewPrompt(): Promise<string> {
+  const response = await apiClient.get<ApiEnvelope<{ prompt: string }>>('/stats/me/ai-review/prompt');
+  return response.data.data.prompt;
+}

@@ -122,6 +122,11 @@ function buildPrompt(stats: PersonalStats): string {
   return lines.join('\n');
 }
 
+export async function getAiReviewPrompt(userId: string): Promise<string> {
+  const stats = await getPersonalStats(userId, { period: 'all' });
+  return buildPrompt(stats);
+}
+
 export async function getAiReview(userId: string): Promise<AiReview> {
   const cacheKey = `${AI_REVIEW_CACHE_PREFIX}${userId}`;
 

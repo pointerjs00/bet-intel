@@ -11,6 +11,7 @@ import {
   getStatsSummaryHandler,
   getStatsTimelineHandler,
   getAiReviewHandler,
+  getAiReviewPromptHandler,
 } from '../controllers/statsController';
 
 const statsRouter: Router = Router();
@@ -26,5 +27,6 @@ statsRouter.get('/me/by-market', getStatsByMarketHandler);
 statsRouter.get('/me/by-odds-range', getStatsByOddsRangeHandler);
 statsRouter.get('/me/timeline', getStatsTimelineHandler);
 statsRouter.get('/me/ai-review', getAiReviewHandler);
+statsRouter.get('/me/ai-review/prompt', getAiReviewPromptHandler);
 
 export { statsRouter };

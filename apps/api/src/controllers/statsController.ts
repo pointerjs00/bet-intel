@@ -11,7 +11,7 @@ import {
   getStatsTimeline,
   type StatsOptions,
 } from '../services/stats/statsService';
-import { getAiReview } from '../services/stats/aiReviewService';
+import { getAiReview, getAiReviewPrompt } from '../services/stats/aiReviewService';
 import { logger } from '../utils/logger';
 
 function ok<T>(res: Response, data: T, meta?: unknown): void {
@@ -182,6 +182,16 @@ export async function getAiReviewHandler(req: Request, res: Response): Promise<v
   try {
     const review = await getAiReview(requireUserId(req));
     ok(res, review);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles GET /api/stats/me/ai-review/prompt. */
+export async function getAiReviewPromptHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const prompt = await getAiReviewPrompt(requireUserId(req));
+    ok(res, { prompt });
   } catch (err) {
     fail(res, err);
   }
