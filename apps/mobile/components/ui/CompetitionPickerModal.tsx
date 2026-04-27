@@ -230,8 +230,8 @@ function VisibleCompetitionPickerModal({
   const sheetTranslateY = useSharedValue(320);
   const sheetOpacity = useSharedValue(0);
   useEffect(() => {
-    sheetTranslateY.value = withSpring(0, { damping: 22, stiffness: 220 });
-    sheetOpacity.value = withTiming(1, { duration: 180 });
+    sheetTranslateY.value = withSpring(0, { damping: 28, stiffness: 180, mass: 1.1 });
+    sheetOpacity.value = withTiming(1, { duration: 240 });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const sheetStyle = useAnimatedStyle(() => ({
@@ -246,7 +246,7 @@ function VisibleCompetitionPickerModal({
       if (e.translationY > 120 || e.velocityY > 600) {
         sheetTranslateY.value = withTiming(800, { duration: 220 }, () => runOnJS(onClose)());
       } else {
-        sheetTranslateY.value = withSpring(0, { damping: 22, stiffness: 220 });
+        sheetTranslateY.value = withSpring(0, { damping: 28, stiffness: 180, mass: 1.1 });
       }
     });
 
@@ -406,7 +406,7 @@ function VisibleCompetitionPickerModal({
 
   const toggleCountry = useCallback((country: string) => {
     hapticLight();
-    LayoutAnimation.configureNext({ duration: 160, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
+    LayoutAnimation.configureNext({ duration: 220, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
     setExpandedCountries((prev) => {
       const next = new Set(prev);
       if (next.has(country)) {
@@ -426,7 +426,7 @@ function VisibleCompetitionPickerModal({
       toggleMutation.mutate({ type, sport, targetKey });
       // Auto-expand the country when starring a tournament so it appears expanded at top
       if (!isCurrentlyFav && type === FavouriteType.COMPETITION && countryKey) {
-        LayoutAnimation.configureNext({ duration: 160, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
+        LayoutAnimation.configureNext({ duration: 220, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
         setExpandedCountries((prev) => {
           if (prev.has(countryKey)) return prev;
           const next = new Set(prev);
@@ -440,14 +440,9 @@ function VisibleCompetitionPickerModal({
 
   const handleSingleSelect = useCallback(
     (value: string) => {
-      if (!onSelect) {
-        return;
-      }
-
+      if (!onSelect) return;
+      onSelect(value);
       onClose();
-      requestAnimationFrame(() => {
-        onSelect(value);
-      });
     },
     [onClose, onSelect],
   );
@@ -826,7 +821,7 @@ function VisibleCompetitionPickerModal({
             <View style={styles.toggleAllRow}>
               <ScalePressable
                 onPress={() => {
-                  LayoutAnimation.configureNext({ duration: 160, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
+                  LayoutAnimation.configureNext({ duration: 220, update: { type: LayoutAnimation.Types.easeInEaseOut }, create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity }, delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity } });
                   if (expandedCountries.size >= allExpandKeys.length) {
                     setExpandedCountries(new Set());
                   } else {

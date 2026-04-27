@@ -1,4 +1,4 @@
-import React, { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   Modal,
@@ -217,8 +217,8 @@ function VisibleSearchableDropdown({
             setLocalSelected(new Set(next));
             onSelectMultiple(next);
           } else {
+            onSelect(item.value);
             onClose();
-            startTransition(() => { onSelect(item.value); });
           }
         }}
         style={[
@@ -306,8 +306,8 @@ function VisibleSearchableDropdown({
                 <PressableScale
                   onPress={() => {
                     const value = search.trim();
+                    onSelect(value);
                     onClose();
-                    startTransition(() => { onSelect(value); });
                   }}
                   style={[styles.customValueRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.primary }]}
                 >
