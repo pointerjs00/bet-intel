@@ -109,7 +109,7 @@ interface AddSelectionFormProps {
   pendingBoletins: BoletinDetail[];
 }
 
-function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
+const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
 
@@ -1092,7 +1092,7 @@ function AddSelectionForm({ onAdd, pendingBoletins }: AddSelectionFormProps) {
       />
     </Card>
   );
-}
+});
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function CreateBoletinScreen() {

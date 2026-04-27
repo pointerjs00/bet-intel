@@ -1,5 +1,5 @@
 import type { AuthProvider as PrismaAuthProvider } from '@prisma/client';
-import type { PublicUser, AuthProvider, Theme } from '@betintel/shared';
+import type { BettingGoal, PublicUser, AuthProvider, Theme } from '@betintel/shared';
 
 /**
  * Prisma `select` object for all fields that make up a PublicUser.
@@ -18,6 +18,7 @@ export const USER_SELECT = {
   theme: true,
   currency: true,
   defaultBoletinsPublic: true,
+  goals: true,
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
@@ -37,6 +38,7 @@ export interface UserRow {
   theme: string;
   currency: string;
   defaultBoletinsPublic: boolean;
+  goals: import('@prisma/client').Prisma.JsonValue;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -61,6 +63,7 @@ export function toPublicUser(user: UserRow): PublicUser {
     theme: user.theme as unknown as Theme,
     currency: user.currency,
     defaultBoletinsPublic: user.defaultBoletinsPublic,
+    goals: Array.isArray(user.goals) ? (user.goals as unknown as BettingGoal[]) : [],
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

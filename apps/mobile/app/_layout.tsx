@@ -209,17 +209,29 @@ function NotificationLifecycleManager() {
     });
 
     const unsubscribeResponse = addNotificationResponseListener((response) => {
-      // Navigate to the relevant screen based on notification data
       const data = response.notification.request.content.data as Record<string, unknown> | undefined;
       if (!data) return;
-
-      if (data.boletinId && typeof data.boletinId === 'string') {
-        // "bet settled" or "boletin shared" → open boletin detail
+  
+      // Kickoff reminder: open the specific boletin detail so the user can resolve it
+      if (data.type === 'KICKOFF_REMINDER' && data.boletinId && typeof data.boletinId === 'string') {
         router.push(`/boletins/${data.boletinId}`);
-      } else if (data.type === 'FRIEND_REQUEST' || data.type === 'FRIEND_ACCEPTED') {
+        return;
+      }
+  
+      // Boletin settled or shared → open boletin detail
+      if (data.boletinId && typeof data.boletinId === 'string') {
+        router.push(`/boletins/${data.boletinId}`);
+        return;
+      }
+  
+      // Social notifications → open notification centre
+      if (data.type === 'FRIEND_REQUEST' || data.type === 'FRIEND_ACCEPTED') {
         router.push('/notifications');
-      } else if (data.notificationId) {
-        // Generic fallback: open notifications screen
+        return;
+      }
+  
+      // Generic fallback
+      if (data.notificationId) {
         router.push('/notifications');
       }
     });

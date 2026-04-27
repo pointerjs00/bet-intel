@@ -60,6 +60,20 @@ export enum NotificationType {
   SYSTEM = 'SYSTEM',
 }
 
+export enum GoalType {
+  ROI = 'ROI',
+  WIN_RATE = 'WIN_RATE',
+  BET_COUNT = 'BET_COUNT',
+  PROFIT = 'PROFIT',
+}
+
+export interface BettingGoal {
+  type: GoalType;
+  /** Target value: ROI/WIN_RATE in %, BET_COUNT as integer, PROFIT in € */
+  target: number;
+  enabled: boolean;
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 // All DateTime fields are typed as string (ISO 8601) — this is how they arrive
 // over JSON from the API. Decimal fields are typed as string to preserve
@@ -88,6 +102,7 @@ export interface User {
   /** ISO 4217 currency code, e.g. "EUR" */
   currency: string;
   defaultBoletinsPublic: boolean;
+  goals: BettingGoal[];
   lastLoginAt: string | null;
   failedLoginAttempts: number;
   /** Brute-force lockout expiry */

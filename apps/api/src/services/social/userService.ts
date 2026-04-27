@@ -78,6 +78,7 @@ export async function updateCurrentUserProfile(
       currency: input.currency,
       theme: input.theme,
       defaultBoletinsPublic: input.defaultBoletinsPublic,
+      ...(input.goals !== undefined && { goals: input.goals }),
     },
     select: USER_SELECT,
   });

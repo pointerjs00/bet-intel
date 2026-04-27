@@ -10,6 +10,10 @@ import type {
   UpdateBoletinInput,
   UpdateBoletinItemInput,
 } from '@betintel/shared';
+import {
+  cancelKickoffReminder,
+  scheduleKickoffReminder,
+} from './notificationService';
 import { Alert, Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
 import * as FileSystem from 'expo-file-system';
@@ -310,6 +314,15 @@ export function useUpdateBoletinMutation() {
       queryClient.setQueryData(boletinQueryKeys.detail(data.id), data);
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
+ 
+      // Keep the kickoff reminder in sync with the updated boletin state.
+      // If still PENDING with a future betDate → reschedule (also handles date changes).
+      // If resolved/cancelled → cancel any outstanding reminder.
+      if (data.status === 'PENDING') {
+        void scheduleKickoffReminder(data.id, data.betDate, data.name);
+      } else {
+        void cancelKickoffReminder(data.id);
+      }
     },
   });
 }
@@ -339,9 +352,10 @@ export function useDeleteBoletinMutation() {
       }
     },
 
-    onSuccess: () => {
+    onSuccess: (_data: void, id: string) => {
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
+      void cancelKickoffReminder(id);
     },
   });
 }
@@ -484,7 +498,7 @@ export function useUpdateBoletinItemMutation() {
           if (item.selection !== undefined) patched.selection = item.selection;
           if (item.oddValue !== undefined) patched.oddValue = String(item.oddValue);
           if (item.result !== undefined) patched.result = item.result;
-          return patched as typeof i;
+          return patched as unknown as typeof i;
         });
         const totalOdds = updatedItems.reduce((acc, i) => acc * parseFloat(i.oddValue), 1);
         queryClient.setQueryData<BoletinDetail>(key, {
@@ -506,7 +520,13 @@ export function useUpdateBoletinItemMutation() {
     onSuccess: (data) => {
       queryClient.setQueryData(boletinQueryKeys.detail(data.id), data);
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
-      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
+ 
+      // When all items are resolved, the boletin status changes from PENDING.
+      // Cancel the kickoff reminder — the match is already in progress or done.
+      if (data.status !== 'PENDING') {
+        void cancelKickoffReminder(data.id);
+      }
     },
   });
 }

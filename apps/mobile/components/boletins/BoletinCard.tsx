@@ -215,11 +215,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
           {boletin.items.slice(0, 3).map((item) => {
             const icon = itemResultIcon(item.result);
             return (
-              <Pressable
-                key={item.id}
-                onPress={() => onItemPress?.(item)}
-                style={styles.previewRow}
-              >
+              <View key={item.id} style={styles.previewRow}>
                 {/* Result dot */}
                 <View style={[styles.resultDot, { backgroundColor: icon.color }]} />
 
@@ -241,11 +237,22 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
                   variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
                 />
 
-                {/* Selection & odds — fills remaining space, truncates gracefully */}
+                {/* Selection & odds */}
                 <Text numberOfLines={1} style={[styles.previewMeta, { color: colors.textMuted, flex: 1 }]}>
                   {'  '}{item.selection} @ {formatOdds(item.oddValue)}
                 </Text>
-              </Pressable>
+
+                {/* Insights button */}
+                {onItemPress ? (
+                  <Pressable
+                    hitSlop={10}
+                    onPress={(e) => { e.stopPropagation(); onItemPress(item); }}
+                    style={[styles.previewInsightsBtn, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30` }]}
+                  >
+                    <Ionicons name="stats-chart-outline" size={13} color={colors.primary} />
+                  </Pressable>
+                ) : null}
+              </View>
             );
           })}
           {boletin.items.length > 3 ? (
@@ -260,9 +267,8 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
           {boletin.items.map((item) => {
             const icon = itemResultIcon(item.result);
             return (
-              <Pressable
+              <View
                 key={item.id}
-                onPress={() => onItemPress?.(item)}
                 style={[
                   styles.expandedItem,
                   {
@@ -306,7 +312,21 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
                     {item.competition} • {item.market} • {item.selection}
                   </Text>
                 </View>
-              </Pressable>
+                {onItemPress ? (
+                  <>
+                    <View style={[styles.expandedInsightsDivider, { backgroundColor: colors.border }]} />
+                    <Pressable
+                      hitSlop={4}
+                      onPress={(e) => { e.stopPropagation(); onItemPress(item); }}
+                      style={styles.expandedInsightsRow}
+                    >
+                      <Ionicons name="stats-chart-outline" size={12} color={colors.primary} />
+                      <Text style={[styles.expandedInsightsLabel, { color: colors.primary }]}>Ver detalhes</Text>
+                      <Ionicons name="chevron-forward" size={12} color={colors.primary} />
+                    </Pressable>
+                  </>
+                ) : null}
+              </View>
             );
           })}
         </View>
@@ -546,6 +566,25 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   expandBtnLabel: { fontSize: 13, fontWeight: '600' },
+  previewInsightsBtn: {
+    alignItems: 'center',
+    borderRadius: 6,
+    borderWidth: 1,
+    justifyContent: 'center',
+    padding: 4,
+  },
+  expandedInsightsDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -10,
+    marginTop: 4,
+  },
+  expandedInsightsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    paddingTop: 6,
+  },
+  expandedInsightsLabel: { flex: 1, fontSize: 11, fontWeight: '700' },
 });
 
 const previewStyles = StyleSheet.create({

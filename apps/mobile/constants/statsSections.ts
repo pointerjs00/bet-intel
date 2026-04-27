@@ -6,6 +6,7 @@ export interface StatsSectionDef {
 
 /** Ordered list of all stat sections. Default order is presentation order. */
 export const STATS_SECTIONS: StatsSectionDef[] = [
+  { id: 'goals', label: 'Objetivos mensais', icon: 'flag-outline' },
   { id: 'roi', label: 'ROI do período', icon: 'trending-up-outline' },
   { id: 'hero-metrics', label: 'Total Apostado / Lucro', icon: 'cash-outline' },
   { id: 'avg-odds', label: 'Odd média (ganhas/perdidas)', icon: 'swap-vertical-outline' },

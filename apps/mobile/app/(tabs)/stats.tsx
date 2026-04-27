@@ -14,6 +14,7 @@ import { FreebetCard } from '../../components/stats/FreebetCard';
 import { HeatmapCalendar } from '../../components/stats/HeatmapCalendar';
 import { HomeAwayCard } from '../../components/stats/HomeAwayCard';
 import { AIReviewCard } from '../../components/stats/AIReviewCard';
+import { GoalProgressCard } from '../../components/stats/GoalProgressCard';
 import { InsightsCard } from '../../components/stats/InsightsCard';
 import { LegKillChart } from '../../components/stats/LegKillChart';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
@@ -918,6 +919,10 @@ export default function StatsScreen() {
               if (!isSectionVisible(sectionId)) return null;
 
               switch (sectionId) {
+              case 'goals': return (
+                <GoalProgressCard key="goals" />
+              );
+
               case 'roi': return (
                 <Animated.View key="roi" entering={FadeInDown.delay(35).duration(160).springify()}>
                   <ROICard summary={stats.summary} title="ROI do período" onInfoPress={() => pushInfo('roi', stats.summary.roi)} />

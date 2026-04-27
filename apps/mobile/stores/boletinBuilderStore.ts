@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BoletinDetail, CreateBoletinInput, Sport } from '@betintel/shared';
 import { createBoletinRequest } from '../services/boletinService';
+import { scheduleKickoffReminder } from '../services/notificationService';
 import { parseDDMMYYYYToISO } from '../utils/formatters';
 
 function todayDDMMYYYY(): string {
@@ -179,6 +180,15 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         }
 
         const created = await createBoletinRequest(buildCreatePayload(state));
+
+        // Schedule a kickoff reminder if the bet date is in the future.
+        // Fire-and-forget — a scheduling failure must never block boletin creation.
+        void scheduleKickoffReminder(
+          created.id,
+          created.betDate,
+          created.name,
+        );
+
         set(withComputed(buildDefaultState(state.defaultIsPublic)));
         return created;
       },

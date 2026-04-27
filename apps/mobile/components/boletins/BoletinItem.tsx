@@ -31,10 +31,11 @@ interface BoletinItemProps {
   onRemove?: () => void;
   onEdit?: () => void;
   onResultChange?: (result: ItemResult) => void;
+  onInsights?: () => void;
 }
 
 /** Renders one selection row in builder and detail contexts. */
-function BoletinItemInner({ item, onRemove, onEdit, onResultChange }: BoletinItemProps) {
+function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }: BoletinItemProps) {
   const { colors } = useTheme();
   const resultMeta = getResultMeta(item.result, colors);
 
@@ -156,6 +157,17 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange }: BoletinIte
           <ImpliedProbability oddValue={item.oddValue} result={item.result} />
         </View>
       </View>
+
+      {onInsights ? (
+        <>
+          <View style={[styles.insightsDivider, { backgroundColor: colors.border }]} />
+          <Pressable hitSlop={4} onPress={onInsights} style={styles.insightsRow}>
+            <Ionicons color={colors.primary} name="stats-chart-outline" size={14} />
+            <Text style={[styles.insightsLabel, { color: colors.primary }]}>Ver detalhes da seleção</Text>
+            <Ionicons color={colors.primary} name="chevron-forward" size={14} />
+          </Pressable>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -396,6 +408,21 @@ const styles = StyleSheet.create({
   },
   metaValue: {
     fontSize: 13,
+    fontWeight: '700',
+  },
+  insightsDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: -14,
+  },
+  insightsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingTop: 2,
+  },
+  insightsLabel: {
+    flex: 1,
+    fontSize: 12,
     fontWeight: '700',
   },
 });

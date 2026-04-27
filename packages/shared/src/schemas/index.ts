@@ -237,6 +237,15 @@ export const updateProfileSchema = z.object({
   currency: z.string().length(3, 'Código de moeda inválido').optional(),
   theme: z.enum(['LIGHT', 'DARK', 'SYSTEM']).optional(),
   defaultBoletinsPublic: z.boolean().optional(),
+  goals: z
+    .array(
+      z.object({
+        type: z.enum(['ROI', 'WIN_RATE', 'BET_COUNT', 'PROFIT']),
+        target: z.number(),
+        enabled: z.boolean(),
+      }),
+    )
+    .optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

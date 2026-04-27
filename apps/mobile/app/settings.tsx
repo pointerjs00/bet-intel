@@ -3,14 +3,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as LocalAuthentication from 'expo-local-authentication';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { PressableScale } from '../components/ui/PressableScale';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
-import { AuthProvider } from '@betintel/shared';
+import { AuthProvider, BettingGoal, GoalType } from '@betintel/shared';
 import {
   useChangePasswordMutation,
   useLinkGoogleAccountMutation,
@@ -36,6 +36,10 @@ import { useAuthStore } from '../stores/authStore';
 import { useBoletinBuilderStore } from '../stores/boletinBuilderStore';
 import { useThemeStore, type ThemePreference } from '../stores/themeStore';
 import { useTheme } from '../theme/useTheme';
+import {
+  getKickoffRemindersEnabled,
+  setKickoffRemindersEnabled,
+} from '../services/notificationService';
 
 const THEME_OPTIONS: Array<{ key: ThemePreference; label: string; icon: string }> = [
   { key: 'light', label: 'Claro', icon: 'white-balance-sunny' },
@@ -43,6 +47,13 @@ const THEME_OPTIONS: Array<{ key: ThemePreference; label: string; icon: string }
   { key: 'system', label: 'Sistema', icon: 'cellphone' },
   { key: 'scheduled', label: 'Agendado', icon: 'clock-outline' },
 ];
+
+const GOAL_LABEL_META: Record<GoalType, { label: string; hint: string; unit: string }> = {
+  [GoalType.ROI]: { label: 'ROI', hint: 'Atingir pelo menos X% de ROI', unit: '%' },
+  [GoalType.WIN_RATE]: { label: 'Taxa de vitória', hint: 'Ganhar pelo menos X% das apostas', unit: '%' },
+  [GoalType.PROFIT]: { label: 'Lucro', hint: 'Lucrar pelo menos €X este mês', unit: '€' },
+  [GoalType.BET_COUNT]: { label: 'Máx. apostas', hint: 'Não ultrapassar X apostas este mês', unit: '' },
+};
 
 function mapThemeToApi(theme: ThemePreference): 'LIGHT' | 'DARK' | 'SYSTEM' {
   switch (theme) {
@@ -92,6 +103,15 @@ export default function SettingsScreen() {
   const [themePreference, setLocalThemePreference] = useState<ThemePreference>(storedThemePreference);
   const [currency, setCurrency] = useState('EUR');
   const [defaultBoletinsPublic, setDefaultBoletinsPublic] = useState(false);
+
+  const DEFAULT_GOALS: BettingGoal[] = [
+    { type: GoalType.ROI, target: 5, enabled: false },
+    { type: GoalType.WIN_RATE, target: 55, enabled: false },
+    { type: GoalType.PROFIT, target: 50, enabled: false },
+    { type: GoalType.BET_COUNT, target: 30, enabled: false },
+  ];
+
+  const [goals, setGoals] = useState<BettingGoal[]>(DEFAULT_GOALS);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -100,6 +120,7 @@ export default function SettingsScreen() {
   const [showUnlinkConfirm, setShowUnlinkConfirm] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [kickoffRemindersEnabled, setKickoffRemindersEnabledState] = useState(true);
 
   const importSheetRef = useRef<GorhomBottomSheet>(null);
   const [importHelpExpanded, setImportHelpExpanded] = useState(false);
@@ -145,7 +166,20 @@ export default function SettingsScreen() {
       setLocalThemePreference(nextThemePreference);
       setThemePreference(nextThemePreference);
     }
+    if (profileQuery.data.goals && profileQuery.data.goals.length > 0) {
+      // Merge server goals into DEFAULT_GOALS to ensure all types are represented
+      setGoals(DEFAULT_GOALS.map((def) => {
+        const saved = profileQuery.data.goals.find((g) => g.type === def.type);
+        return saved ? { ...def, ...saved } : def;
+      }));
+    }
   }, [profileQuery.data, setDefaultPublicPreference, setThemePreference]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    void getKickoffRemindersEnabled().then((enabled) => {
+      setKickoffRemindersEnabledState(enabled);
+    });
+  }, []);
 
   const authProvider = profileQuery.data?.authProvider ?? storedAuthProvider ?? AuthProvider.EMAIL;
   const isGoogleLinked = authProvider === AuthProvider.GOOGLE || authProvider === AuthProvider.HYBRID;
@@ -322,6 +356,65 @@ export default function SettingsScreen() {
           </Card>
         </Animated.View>
 
+        {/* ── Monthly Goals ────────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(25).duration(160).springify()}>
+          <Card style={styles.cardInner}>
+            <SectionHeader icon="flag-outline" title="Objetivos mensais" color={colors.primary} textColor={colors.textPrimary} />
+            <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>
+              Define metas para este mês. O progresso é visível no ecrã de estatísticas.
+            </Text>
+
+            {goals.map((goal, idx) => {
+              const meta = GOAL_LABEL_META[goal.type];
+              return (
+                <View key={goal.type} style={[styles.goalSettingRow, { borderColor: colors.border }]}>
+                  <View style={styles.goalSettingLeft}>
+                    <View style={styles.goalSettingTitleRow}>
+                      <Switch
+                        value={goal.enabled}
+                        onValueChange={(v) => setGoals((prev) => prev.map((g, i) => i === idx ? { ...g, enabled: v } : g))}
+                        trackColor={{ true: colors.primary }}
+                      />
+                      <Text style={[styles.goalSettingLabel, { color: goal.enabled ? colors.textPrimary : colors.textMuted }]}>
+                        {meta.label}
+                      </Text>
+                    </View>
+                    <Text style={[styles.goalSettingHint, { color: colors.textMuted }]}>{meta.hint}</Text>
+                  </View>
+                  <View style={[styles.goalInputWrap, { borderColor: colors.border, backgroundColor: colors.surfaceRaised, opacity: goal.enabled ? 1 : 0.45 }]}>
+                    <TextInput
+                      editable={goal.enabled}
+                      keyboardType="numeric"
+                      onChangeText={(v) => {
+                        const n = parseFloat(v);
+                        if (!isNaN(n) && n > 0) {
+                          setGoals((prev) => prev.map((g, i) => i === idx ? { ...g, target: n } : g));
+                        }
+                      }}
+                      style={[styles.goalInput, { color: colors.textPrimary }]}
+                      value={String(goal.target)}
+                    />
+                    <Text style={[styles.goalInputUnit, { color: colors.textMuted }]}>{meta.unit}</Text>
+                  </View>
+                </View>
+              );
+            })}
+
+            <Button
+              loading={updateProfileMutation.isPending}
+              onPress={async () => {
+                try {
+                  await updateProfileMutation.mutateAsync({ goals });
+                  showToast('Objetivos guardados.', 'success');
+                } catch (error) {
+                  showToast(getApiErrorMessage(error), 'error');
+                }
+              }}
+              title="Guardar objetivos"
+            />
+          </Card>
+        </Animated.View>
+
         {/* ── Account ──────────────────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
           <Card style={styles.cardInner}>
@@ -442,6 +535,42 @@ export default function SettingsScreen() {
             </Card>
           </Animated.View>
         )}
+
+        {/* ── Notifications ────────────────────────────────────────────── */}
+        <Animated.View entering={FadeInDown.delay(58).duration(160).springify()}>
+          <Card style={styles.cardInner}>
+            <SectionHeader
+              icon="bell-outline"
+              title="Notificações"
+              color={colors.primary}
+              textColor={colors.textPrimary}
+            />
+ 
+            <View style={[styles.toggleRow, { borderColor: colors.border }]}>
+              <View style={styles.toggleCopy}>
+                <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>
+                  Lembrete de jogos
+                </Text>
+                <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>
+                  Recebe uma notificação 15 minutos antes do início de cada aposta pendente.
+                </Text>
+              </View>
+              <Switch
+                value={kickoffRemindersEnabled}
+                onValueChange={async (value) => {
+                  setKickoffRemindersEnabledState(value);
+                  await setKickoffRemindersEnabled(value);
+                  showToast(
+                    value
+                      ? 'Lembretes de jogos activados.'
+                      : 'Lembretes de jogos desactivados.',
+                    'success',
+                  );
+                }}
+              />
+            </View>
+          </Card>
+        </Animated.View>
 
         {/* ── Import ───────────────────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(60).duration(160).springify()}>
@@ -593,6 +722,14 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
   infoText: { fontSize: 13, lineHeight: 20, flex: 1 },
   actionsRow: { flexDirection: 'row', gap: 10 },
+  goalSettingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
+  goalSettingLeft: { flex: 1, gap: 2 },
+  goalSettingTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  goalSettingLabel: { fontSize: 14, fontWeight: '700' },
+  goalSettingHint: { fontSize: 12, marginLeft: 52 },
+  goalInputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, gap: 4, minWidth: 72 },
+  goalInput: { fontSize: 15, fontWeight: '700', minWidth: 36, textAlign: 'right' },
+  goalInputUnit: { fontSize: 13, fontWeight: '600' },
   importRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
   importRowText: { flex: 1, gap: 2 },
   importRowLabel: { fontSize: 15, fontWeight: '700' },

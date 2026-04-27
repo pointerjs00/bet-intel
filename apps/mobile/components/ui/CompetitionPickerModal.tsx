@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   GestureResponderEvent,
@@ -441,8 +441,8 @@ function VisibleCompetitionPickerModal({
   const handleSingleSelect = useCallback(
     (value: string) => {
       if (!onSelect) return;
-      onSelect(value);
       onClose();
+      startTransition(() => { onSelect(value); });
     },
     [onClose, onSelect],
   );

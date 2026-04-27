@@ -88,6 +88,7 @@ model User {
   theme               Theme        @default(SYSTEM)
   currency            String       @default("EUR")
   defaultBoletinsPublic Boolean    @default(false)
+  goals               Json         @default("[]")
   lastLoginAt         DateTime?
   failedLoginAttempts Int          @default(0)
   lockedUntil         DateTime?    // brute-force lockout

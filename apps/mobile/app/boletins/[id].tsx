@@ -1192,20 +1192,6 @@ export default function BoletinDetailScreen() {
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(450 + index * 25).duration(280).springify()}>
-            <Pressable
-              onPress={!isEditing ? () => setInsightsItem({
-                homeTeam: item.homeTeam,
-                awayTeam: item.awayTeam,
-                homeTeamImageUrl: item.sport === Sport.TENNIS ? (tennisPhotoLookup.get(item.homeTeam) ?? null) : null,
-                awayTeamImageUrl: item.sport === Sport.TENNIS ? (tennisPhotoLookup.get(item.awayTeam) ?? null) : null,
-                competition: item.competition,
-                sport: item.sport ?? Sport.FOOTBALL,
-                market: item.market,
-                selection: item.selection,
-                oddValue: item.oddValue,
-                result: item.result,
-              }) : undefined}
-            >
             <BoletinItem
               item={{
                 ...item,
@@ -1254,8 +1240,19 @@ export default function BoletinDetailScreen() {
                   showToast(getErrorMessage(error), 'error');
                 }
               } : undefined}
+              onInsights={!isEditing ? () => setInsightsItem({
+                homeTeam: item.homeTeam,
+                awayTeam: item.awayTeam,
+                homeTeamImageUrl: item.sport === Sport.TENNIS ? (tennisPhotoLookup.get(item.homeTeam) ?? null) : null,
+                awayTeamImageUrl: item.sport === Sport.TENNIS ? (tennisPhotoLookup.get(item.awayTeam) ?? null) : null,
+                competition: item.competition,
+                sport: item.sport ?? Sport.FOOTBALL,
+                market: item.market,
+                selection: item.selection,
+                oddValue: item.oddValue,
+                result: item.result,
+              }) : undefined}
             />
-            </Pressable>
           </Animated.View>
         )}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.md }} />}
