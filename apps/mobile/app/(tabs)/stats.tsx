@@ -182,7 +182,7 @@ function ByHourSection({
     hideKeyboard();
     setModalVisible(false);
   };
-  const { panHandlers: swipePanHandlers, animatedStyle: swipeAnimatedStyle } = useSwipeToDismiss(handleClose);
+  const { panHandlers: swipePanHandlers, animatedStyle: swipeAnimatedStyle } = useSwipeToDismiss(handleClose, { visible: modalVisible });
 
   const sortedRows = useMemo(
     () =>
@@ -848,7 +848,9 @@ export default function StatsScreen() {
               >
                 <Ionicons color={showComparison ? colors.info : colors.textSecondary} name="git-compare-outline" size={14} />
                 <Text style={[styles.secondaryBtnText, { color: showComparison ? colors.info : colors.textSecondary }]}>
-                  Comparar
+                  {showComparison
+                    ? period === 'week' ? 'vs semana ant.' : period === 'month' ? 'vs mês ant.' : 'vs ano ant.'
+                    : 'Comparar'}
                 </Text>
               </PressableScale>
             )}

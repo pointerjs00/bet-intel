@@ -1,13 +1,25 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Animated, PanResponder } from 'react-native';
 
 /**
  * Adds swipe-down-to-dismiss behaviour to a bottom sheet.
  * Attach `panHandlers` to the drag handle view.
  * Wrap the sheet in an `Animated.View` with the returned `animatedStyle`.
+ *
+ * Pass `visible` so the translateY resets to 0 each time the sheet opens —
+ * otherwise it stays at the dismissed position and the sheet won't appear.
  */
-export function useSwipeToDismiss(onClose: () => void, { threshold = 80, velocityThreshold = 0.5 } = {}) {
+export function useSwipeToDismiss(
+  onClose: () => void,
+  { threshold = 80, velocityThreshold = 0.5, visible = true } = {},
+) {
   const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      translateY.setValue(0);
+    }
+  }, [visible, translateY]);
 
   const panResponder = useRef(
     PanResponder.create({

@@ -113,7 +113,7 @@ const statCardStyles = StyleSheet.create({
 export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { panHandlers, animatedStyle } = useSwipeToDismiss(onClose);
+  const { panHandlers, animatedStyle } = useSwipeToDismiss(onClose, { visible });
   const statsQuery = usePersonalStats('all', [], undefined, undefined, visible && item !== null);
   const stats = statsQuery.data;
 

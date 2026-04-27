@@ -131,7 +131,7 @@ interface Props {
 export function ExplainBoletinSheet({ visible, boletin, onClose }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { panHandlers, animatedStyle } = useSwipeToDismiss(onClose);
+  const { panHandlers, animatedStyle } = useSwipeToDismiss(onClose, { visible });
   const statsQuery = usePersonalStats('all', [], undefined, undefined, visible);
   const [selectedStat, setSelectedStat] = useState<StatKey>('roi');
 
