@@ -39,43 +39,6 @@ export interface AIParsedResult {
   errorCount: number;
 }
 
-// ─── Timezone helpers ────────────────────────────────────────────────────────
-
-/** Last Sunday of a given month (0-indexed) in a given year, returned as day-of-month. */
-function lastSundayOf(year: number, month: number): number {
-  const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  for (let d = lastDay; d >= 1; d--) {
-    if (new Date(Date.UTC(year, month, d)).getUTCDay() === 0) return d;
-  }
-  return lastDay;
-}
-
-/**
- * Returns the UTC offset of Europe/Lisbon (in ms) at a given UTC instant.
- * Uses hardcoded EU DST rules (last Sun of March at 01:00 UTC → UTC+1,
- * last Sun of October at 01:00 UTC → UTC+0) instead of Intl.DateTimeFormat
- * so it works reliably even on servers with minimal ICU data.
- */
-function getLisbonOffsetMs(utcDate: Date): number {
-  const y = utcDate.getUTCFullYear();
-  const dstStart = Date.UTC(y, 2, lastSundayOf(y, 2), 1, 0, 0);  // last Sun of March 01:00 UTC
-  const dstEnd   = Date.UTC(y, 9, lastSundayOf(y, 9), 1, 0, 0);  // last Sun of October 01:00 UTC
-  const t = utcDate.getTime();
-  return (t >= dstStart && t < dstEnd) ? 3_600_000 : 0;
-}
-
-/**
- * Gemini reads a Lisbon wall-clock time from the screenshot and returns it as
- * if it were UTC. This re-interprets it as Lisbon local time and returns the
- * true UTC ISO string.
- */
-function aiDateAsLisbonToUTC(dateStr: string | undefined | null): string {
-  if (!dateStr) return new Date().toISOString();
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return new Date().toISOString();
-  return new Date(d.getTime() - getLisbonOffsetMs(d)).toISOString();
-}
-
 // ─── Gemini client ───────────────────────────────────────────────────────────
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -161,7 +124,7 @@ export function normalizeParsedResult(parsed: {
       market: item.market || 'Mercado desconhecido',
       selection: item.selection || 'Seleção desconhecida',
       oddValue: typeof item.oddValue === 'number' && item.oddValue > 1 ? item.oddValue : 0,
-      eventDate: item.eventDate ? aiDateAsLisbonToUTC(item.eventDate) : undefined,
+      eventDate: item.eventDate ?? undefined,
       result: (['WON', 'LOST', 'VOID', 'PENDING'].includes(item.result ?? '') ? item.result : 'PENDING') as 'WON' | 'LOST' | 'VOID' | 'PENDING',
     }));
 
@@ -195,7 +158,7 @@ export function normalizeParsedResult(parsed: {
 
     return {
       reference: `ai-${Date.now()}-${idx}`,
-      betDate: aiDateAsLisbonToUTC(b.betDate),
+      betDate: b.betDate ?? new Date().toISOString(),
       stake: typeof b.stake === 'number' && b.stake > 0 ? b.stake : 0,
       totalOdds: typeof b.totalOdds === 'number' && b.totalOdds > 0 ? b.totalOdds : 0,
       potentialReturn: typeof b.potentialReturn === 'number' && b.potentialReturn > 0 ? b.potentialReturn : 0,

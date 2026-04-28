@@ -50,7 +50,7 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
             'You are a bet slip parser for a Portuguese sports betting app.',
             'Extract all data from bet slip screenshots and return structured JSON only.',
             `Today's date is ${dd}/${mm}/${yyyy}. When the year is not clearly visible on the screenshot, always use ${yyyy}.`,
-            'All times shown on Betclic Portugal screenshots are Europe/Lisbon local time (UTC+0 Nov–Mar, UTC+1 Apr–Oct). Output all dates in UTC ISO 8601 with Z suffix.',
+            'Output all dates exactly as shown on screen with Z suffix — do NOT apply any timezone offset conversion. If the screenshot shows "29/04 00:00", output "2026-04-29T00:00:00.000Z" as-is.',
             'Return official international team names (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão").',
             'Always set competition to the correct league. Known: VfB Stuttgart, Bayern Munich, Borussia Dortmund, Bayer Leverkusen, RB Leipzig, Eintracht Frankfurt, Wolfsburg, Werder Bremen play in "Bundesliga" (1st div) — NEVER "2. Bundesliga" or "Bundesliga 2".',
             'IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot in Portuguese — do NOT translate them to English.',
@@ -129,13 +129,14 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
 
   const result = normalizeParsedResult(parsed as Parameters<typeof normalizeParsedResult>[0]);
 
-  logger.info('Normalized result eventDates', {
-    eventDates: result.boletins.flatMap(b =>
-      b.items.map(item => ({
-        homeTeam: item.homeTeam,
-        eventDate: item.eventDate,
-      }))
-    ),
+  const rawBoletins = (parsed as any).boletins ?? [];
+  result.boletins.forEach((boletin, bi) => {
+    const rawItems = (rawBoletins[bi] as any)?.items ?? [];
+    boletin.items.forEach((item, ii) => {
+      if (rawItems[ii]?.eventDate) {
+        item.eventDate = rawItems[ii].eventDate;
+      }
+    });
   });
 
   return result;
