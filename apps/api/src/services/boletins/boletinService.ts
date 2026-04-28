@@ -820,13 +820,11 @@ function serializeBoletinDetail(boletin: Prisma.BoletinGetPayload<{ include: typ
   };
 }
 
-/** Returns all pending boletin items with a future kick-off date, ordered chronologically. */
+/** Returns all pending boletin items that have a kick-off date, ordered chronologically. */
 export async function getAgenda(userId: string): Promise<AgendaItem[]> {
-  const now = new Date();
-
   const items = await prisma.boletinItem.findMany({
     where: {
-      kickoffAt: { gte: now },
+      kickoffAt: { not: null },
       result: ItemResult.PENDING,
       boletin: { userId },
     },

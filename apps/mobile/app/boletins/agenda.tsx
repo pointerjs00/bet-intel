@@ -4,11 +4,24 @@ import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AgendaItem } from '@betintel/shared';
+import { Sport } from '@betintel/shared';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { useAgenda } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
-import { getSportIcon } from '../../utils/sportAssets';
+
+const SPORT_EMOJI: Record<string, string> = {
+  [Sport.FOOTBALL]: '⚽',
+  [Sport.BASKETBALL]: '🏀',
+  [Sport.TENNIS]: '🎾',
+  [Sport.HANDBALL]: '🤾',
+  [Sport.VOLLEYBALL]: '🏐',
+  [Sport.HOCKEY]: '🏒',
+  [Sport.RUGBY]: '🏉',
+  [Sport.AMERICAN_FOOTBALL]: '🏈',
+  [Sport.BASEBALL]: '⚾',
+  [Sport.OTHER]: '🏅',
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -17,21 +30,31 @@ function formatKickoff(iso: string): string {
   return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 }
 
+function isSameDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 function formatSectionDate(iso: string): string {
   const d = new Date(iso);
   const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
 
-  const isSameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-
+  if (isSameDay(d, yesterday)) return 'Ontem';
   if (isSameDay(d, today)) return 'Hoje';
   if (isSameDay(d, tomorrow)) return 'Amanhã';
 
   return d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function isInPast(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now();
 }
 
 function toDateKey(iso: string): string {
@@ -41,14 +64,21 @@ function toDateKey(iso: string): string {
 // ─── Row component ────────────────────────────────────────────────────────────
 
 function AgendaRow({ item, colors, onPress }: { item: AgendaItem; colors: Record<string, string>; onPress: () => void }) {
-  const sportIcon = getSportIcon(item.sport);
+  const sportIcon = SPORT_EMOJI[item.sport] ?? '🏅';
   const time = formatKickoff(item.kickoffAt);
+  const started = isInPast(item.kickoffAt);
 
   return (
-    <PressableScale onPress={onPress} style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <PressableScale onPress={onPress} style={[styles.row, { backgroundColor: colors.surface, borderColor: started ? colors.warning + '40' : colors.border }]}>
       {/* Time column */}
       <View style={styles.timeCol}>
-        <Text style={[styles.timeText, { color: colors.primary }]}>{time}</Text>
+        {started ? (
+          <View style={[styles.livePill, { backgroundColor: colors.danger }]}>
+            <Text style={styles.liveText}>AO VIVO</Text>
+          </View>
+        ) : (
+          <Text style={[styles.timeText, { color: colors.primary }]}>{time}</Text>
+        )}
         <Text style={[styles.sportIcon]}>{sportIcon}</Text>
       </View>
 
@@ -84,6 +114,7 @@ function AgendaRow({ item, colors, onPress }: { item: AgendaItem; colors: Record
 
 interface Section {
   title: string;
+  isPast: boolean;
   data: AgendaItem[];
 }
 
@@ -103,6 +134,7 @@ export default function AgendaScreen() {
     }
     return Array.from(byDay.entries()).map(([, dayItems]) => ({
       title: formatSectionDate(dayItems[0]!.kickoffAt),
+      isPast: isInPast(dayItems[dayItems.length - 1]!.kickoffAt),
       data: dayItems,
     }));
   }, [query.data]);
@@ -138,7 +170,9 @@ export default function AgendaScreen() {
         }}
         renderSectionHeader={({ section }) => (
           <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{section.title}</Text>
+            <Text style={[styles.sectionTitle, { color: section.isPast ? colors.textMuted : colors.textSecondary }]}>
+              {section.title}
+            </Text>
           </View>
         )}
         renderItem={({ item }) => (
@@ -195,6 +229,17 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  livePill: {
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  liveText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   sportIcon: {
     fontSize: 16,
