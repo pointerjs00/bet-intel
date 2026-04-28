@@ -1205,7 +1205,7 @@ export default function BoletinDetailScreen() {
               onRemove={canEdit && isEditing ? () => {
                 setRemoveItemTarget({ boletinId: boletin.id, itemId: item.id });
               } : undefined}
-              onEdit={canEdit && isEditing ? () => {
+              onEdit={canEdit ? () => {
                 setEditItemTarget({
                   id: item.id,
                   homeTeam: item.homeTeam,

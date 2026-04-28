@@ -65,23 +65,25 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
             <TeamBadge
               imageUrl={item.homeTeamImageUrl}
               name={item.homeTeam}
-              size={15}
+              size={28}
               variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
             />
-            <Text numberOfLines={1} style={[styles.teamName, { color: colors.textPrimary }]}>
-              {item.homeTeam}
-            </Text>
             <Text style={[styles.vsText, { color: colors.textSecondary }]}>vs</Text>
-            <Text numberOfLines={1} style={[styles.teamNameAway, { color: colors.textPrimary }]}>
-              {item.awayTeam}
-            </Text>
             <TeamBadge
               imageUrl={item.awayTeamImageUrl}
               name={item.awayTeam}
-              size={15}
+              size={28}
               variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
             />
+            {onEdit ? (
+              <Pressable hitSlop={10} onPress={onEdit} style={styles.editIconBtn}>
+                <Ionicons color={colors.info} name="create-outline" size={17} />
+              </Pressable>
+            ) : null}
           </View>
+          <Text numberOfLines={1} style={[styles.teamsSubtitle, { color: colors.textPrimary }]}>
+            {item.homeTeam} vs {item.awayTeam}
+          </Text>
           <View style={styles.competitionRow}>
             <CompetitionBadge name={item.competition} size={14} />
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -90,55 +92,56 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
           </View>
         </View>
 
-        {onRemove ? (
-          <View style={styles.editRemoveRow}>
-            {onEdit ? (
-              <Pressable hitSlop={10} onPress={onEdit} style={styles.editIconBtn}>
-                <Ionicons color={colors.info} name="create-outline" size={17} />
-              </Pressable>
-            ) : null}
-            <Pressable hitSlop={10} onPress={onRemove}>
-              <Ionicons color={colors.danger} name="trash-outline" size={18} />
-            </Pressable>
-          </View>
-        ) : onResultChange ? (
-          <View style={styles.resultButtons}>
-            <ResultToggleButton
-              accessibilityLabel="Marcar como ganhou"
-              active={item.result === ItemResult.WON}
-              activeBackground="rgba(0,200,81,0.18)"
-              activeColor={colors.primary}
-              icon="checkmark"
-              inactiveBackground={colors.surfaceRaised}
-              inactiveColor={colors.textMuted}
-              onPress={() => onResultChange(item.result === ItemResult.WON ? ItemResult.PENDING : ItemResult.WON)}
-            />
-            <ResultToggleButton
-              accessibilityLabel="Marcar como perdeu"
-              active={item.result === ItemResult.LOST}
-              activeBackground="rgba(255,59,48,0.18)"
-              activeColor={colors.danger}
-              icon="close"
-              inactiveBackground={colors.surfaceRaised}
-              inactiveColor={colors.textMuted}
-              onPress={() => onResultChange(item.result === ItemResult.LOST ? ItemResult.PENDING : ItemResult.LOST)}
-            />
-            <ResultToggleButton
-              accessibilityLabel="Marcar como cancelado"
-              active={item.result === ItemResult.VOID}
-              activeBackground="rgba(0,122,255,0.18)"
-              activeColor={colors.info}
-              icon="remove"
-              inactiveBackground={colors.surfaceRaised}
-              inactiveColor={colors.textMuted}
-              onPress={() => onResultChange(item.result === ItemResult.VOID ? ItemResult.PENDING : ItemResult.VOID)}
-            />
-          </View>
-        ) : (
-          <View accessibilityLabel={resultMeta.a11yLabel} style={[styles.resultIcon, { backgroundColor: resultMeta.background }]}>
-            <Ionicons color={resultMeta.color} name={resultMeta.icon} size={18} />
-          </View>
-        )}
+        <View style={styles.topRightActions}>
+          {(onRemove || onEdit) ? (
+            <View style={styles.editRemoveRow}>
+              {onRemove ? (
+                <Pressable hitSlop={10} onPress={onRemove}>
+                  <Ionicons color={colors.danger} name="trash-outline" size={18} />
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+
+          {onResultChange ? (
+            <View style={styles.resultButtons}>
+              <ResultToggleButton
+                accessibilityLabel="Marcar como ganhou"
+                active={item.result === ItemResult.WON}
+                activeBackground="rgba(0,200,81,0.18)"
+                activeColor={colors.primary}
+                icon="checkmark"
+                inactiveBackground={colors.surfaceRaised}
+                inactiveColor={colors.textMuted}
+                onPress={() => onResultChange(item.result === ItemResult.WON ? ItemResult.PENDING : ItemResult.WON)}
+              />
+              <ResultToggleButton
+                accessibilityLabel="Marcar como perdeu"
+                active={item.result === ItemResult.LOST}
+                activeBackground="rgba(255,59,48,0.18)"
+                activeColor={colors.danger}
+                icon="close"
+                inactiveBackground={colors.surfaceRaised}
+                inactiveColor={colors.textMuted}
+                onPress={() => onResultChange(item.result === ItemResult.LOST ? ItemResult.PENDING : ItemResult.LOST)}
+              />
+              <ResultToggleButton
+                accessibilityLabel="Marcar como cancelado"
+                active={item.result === ItemResult.VOID}
+                activeBackground="rgba(0,122,255,0.18)"
+                activeColor={colors.info}
+                icon="remove"
+                inactiveBackground={colors.surfaceRaised}
+                inactiveColor={colors.textMuted}
+                onPress={() => onResultChange(item.result === ItemResult.VOID ? ItemResult.PENDING : ItemResult.VOID)}
+              />
+            </View>
+          ) : (!onRemove && !onEdit) ? (
+            <View accessibilityLabel={resultMeta.a11yLabel} style={[styles.resultIcon, { backgroundColor: resultMeta.background }]}>
+              <Ionicons color={resultMeta.color} name={resultMeta.icon} size={18} />
+            </View>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.footerRow}>
@@ -324,23 +327,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 5,
-  },
-  teamName: {
     flexShrink: 1,
-    fontSize: 15,
-    fontWeight: '800',
-    minWidth: 0,
   },
   vsText: {
     flexShrink: 0,
     fontSize: 12,
     fontWeight: '600',
-  },
-  teamNameAway: {
-    flexShrink: 1,
-    fontSize: 15,
-    fontWeight: '800',
-    minWidth: 0,
   },
   competitionRow: {
     alignItems: 'center',
@@ -424,5 +416,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontWeight: '700',
+  },
+  topRightActions: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  teamsSubtitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    flexShrink: 1,
   },
 });

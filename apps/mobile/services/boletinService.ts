@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  AgendaItem,
   BoletinDetail,
   BoletinShareDetail,
   BoletinStatus,
@@ -10,6 +11,8 @@ import type {
   UpdateBoletinInput,
   UpdateBoletinItemInput,
 } from '@betintel/shared';
+
+export type { AgendaItem };
 import {
   cancelBoletinReminders,
   scheduleSelectionReminders,
@@ -539,4 +542,21 @@ export function filterBoletinsByStatus(
   }
 
   return boletins.filter((boletin) => boletin.status === status);
+}
+
+/** Returns the user's pending matches with a future kick-off date, ordered chronologically. */
+export async function getAgendaRequest(): Promise<AgendaItem[]> {
+  const response = await apiClient.get<ApiEnvelope<AgendaItem[]>>('/boletins/agenda');
+  return response.data.data;
+}
+
+export const agendaQueryKeys = {
+  all: ['agenda'] as const,
+};
+
+export function useAgenda() {
+  return useQuery({
+    queryKey: agendaQueryKeys.all,
+    queryFn: getAgendaRequest,
+  });
 }

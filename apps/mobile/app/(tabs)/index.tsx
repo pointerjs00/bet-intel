@@ -733,6 +733,15 @@ export default function HomeScreen() {
                 <PressableScale
                   scaleDown={0.88}
                   accessibilityRole="button"
+                  accessibilityLabel="Os meus jogos"
+                  onPress={() => { hapticLight(); router.push('/boletins/agenda'); }}
+                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
+                >
+                  <Ionicons color={colors.textSecondary} name="calendar-outline" size={20} />
+                </PressableScale>
+                <PressableScale
+                  scaleDown={0.88}
+                  accessibilityRole="button"
                   accessibilityLabel="Diário de apostas"
                   onPress={() => router.push('/boletins/journal')}
                   style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}

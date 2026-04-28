@@ -397,12 +397,12 @@
 
 ---
 
-### 2.17 Boletin Cloning / Copy ✅ Ready (NEW)
+### 2.17 Boletin Cloning / Copy ✅ Ready — 🟢 BUILT
 **What:** Duplicate an existing boletin to create a new one with the same selections. Useful for re-betting similar events next matchday.  
 **Why:** Common workflow: "Last week's bet almost hit, want to try again with updated odds."  
 **Feasibility:** Copy `BoletinItem[]` (teams, markets, selections) into builder store. User adjusts odds/stake/date.  
 **Effort:** ~2h. "Duplicar" action on boletin detail → pre-fill builder store → navigate to create screen.  
-**Mobile:** Button on boletin detail screen. Builder loaded with items from the cloned boletin, user updates odds and stake before saving.
+**Implementation:** `app/boletins/[id].tsx` — "Duplicar" button in boletin detail header triggers `handleClone()`, which clones all items into `boletinBuilderStore` with new IDs, then navigates to the create screen. User adjusts odds and stake before saving.
 
 ---
 
@@ -682,9 +682,13 @@
 ## 6. New Features — Insights Layer
 
 ### 2.26 Selection-Level Insights Sheet ✅ Ready — 🟢 BUILT
-**What:** Tapping any selection on the boletim detail screen (or on a boletin card on the home screen) opens a bottom sheet with personalised historical stats for that exact selection. Shows sport/competition/market/team/odds-range performance, implied probability, edge detection (your win rate vs implied prob), and an outcome verdict for resolved items.  
+**What:** A dedicated "Ver detalhes da seleção" button at the bottom of each selection row opens a bottom sheet with personalised historical stats. On `BoletinCard` collapsed rows a small 📊 icon appears per selection; on expanded rows a labelled "Ver detalhes →" row is shown; in `[id].tsx` each `BoletinItem` renders the button row via the `onInsights` prop.  
 **Why:** Raw odds don't tell the user if a bet is a good one relative to their own history. Per-selection context is the most actionable insight.  
-**Implementation:** `components/boletins/SelectionInsightsSheet.tsx`. Uses `usePersonalStats('all')` (React Query deduped). `StatCard` subcomponent shows win-rate bar with implied probability marker. `VerdictBanner` shows aligned/surprise/value/novalue variants. Selection rows on `BoletinCard` and `[id].tsx` items are wrapped in `Pressable` to open the sheet.
+**Implementation:** `components/boletins/SelectionInsightsSheet.tsx`. Uses `usePersonalStats('all')` (React Query deduped, zero extra API calls). Structure:
+- Fixed header: teams + competition, market/selection, odd, implied probability
+- Collapsible toggle **"As tuas estatísticas"** (outside `ScrollView` so always visible); sheet gains `flex: 1` when expanded so `ScrollView` can size correctly
+- When expanded: `ContextChip` pills (Favourite/Underdog, odds range, global win rate), `VerdictBanner` (aligned/surprise/value/novalue), `SectionLabel` headings, and `StatCard` breakdowns for: bet type (favourite `odd<2` / underdog `odd≥2`), sport, competition, market, sport×market cross-cell (`bySportMarket`), odds range, home team, away team
+- Each `StatCard`: win-rate bar with implied-probability marker, ROI, W/L record ("12G · 6P"), P&L, low-data warning if <5 bets
 
 ---
 
@@ -797,7 +801,78 @@
 
 ---
 
-## 4. Summary: Implementation Priority
+## 4. Match Agenda Screen
+
+### 4.1 "Os Meus Jogos" — Upcoming Match Tracker ✅ Ready
+
+**What:** A dedicated screen that aggregates every match the user has an active (PENDING) bet on — extracted from all open boletins — and displays them in a clean, chronological agenda view. Each match entry shows: kick-off date & time, sport icon, competition (with logo), home vs away teams, the user's selection/market, the odd, and how many boletins reference that match. Matches are sorted ascending by kick-off time. The user can group/filter by sport, competition, or date.
+
+**Why:** Right now the only way to know "what matches am I watching today?" is to scroll through the boletins list and mentally reconstruct the schedule. As a bettor with multiple open boletins, each containing several legs, it's impossible to have a quick overview of upcoming action. This screen turns BetIntel into a genuine match companion — the user opens the app before the weekend and instantly sees a schedule of all their action.
+
+**Feasibility:** All data exists. Every `BoletinItem` on a `PENDING` boletin has: `sport`, `competition`, `homeTeam`, `awayTeam`, `market`, `selection`, `oddValue`. The missing piece is a **match kick-off time field** — items currently have no `matchDate` / `kickoffAt` timestamp (distinct from the boletin's `betDate`). Adding this optional field unlocks the agenda view.
+
+**What's needed:**
+1. New optional `kickoffAt DateTime?` field on `BoletinItem` (Prisma migration + API update)
+2. Kick-off time input on the create screen — a compact date+time picker shown per selection (defaults to empty / "Hora não definida")
+3. Update AI screenshot import to attempt to extract kick-off times from bet slip images where available
+4. New `GET /api/boletins/agenda` endpoint: fetches all `BoletinItem`s from `PENDING` boletins that have `kickoffAt` set (or optionally all items, using `betDate` as a fallback), deduplicates matches that appear in multiple boletins, and returns them sorted by `kickoffAt`
+5. New `app/boletins/agenda.tsx` screen
+6. Entry point: a new "Agenda" / calendar icon button in the Boletins tab header (top-right, beside the search/filter icons)
+
+**Effort:** ~6h total (1h schema + 1h API + 1h create-screen picker + 3h mobile screen).
+
+**Mobile Screen Layout:**
+```
+┌────────────────────────────────────────────┐
+│  ← Os Meus Jogos              [Filter ▼]  │
+│  ─────────────────────────────────────────  │
+│  HOJE · Sex, 2 Mai                          │
+│  ┌─────────────────────────────────────┐   │
+│  │ ⚽ 🏆 Liga Portugal · 20:15         │   │
+│  │  Sporting CP  vs  FC Porto          │   │
+│  │  Selecção: Sporting (1) · @1.85     │   │
+│  │  2 boletins                         │   │
+│  └─────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────┐   │
+│  │ 🎾 ATP Masters · 21:00              │   │
+│  │  Alcaraz  vs  Sinner                │   │
+│  │  Selecção: Alcaraz · @2.10          │   │
+│  │  1 boletim                          │   │
+│  └─────────────────────────────────────┘   │
+│  ─────────────────────────────────────────  │
+│  AMANHÃ · Sáb, 3 Mai                        │
+│  ┌─────────────────────────────────────┐   │
+│  │ ⚽ 🏆 Premier League · 15:00        │   │
+│  │  Arsenal  vs  Man City              │   │
+│  │  Selecção: +2.5 Golos · @1.70       │   │
+│  │  1 boletim                          │   │
+│  └─────────────────────────────────────┘   │
+│  ─────────────────────────────────────────  │
+│  DOMINGO · Dom, 4 Mai                       │
+│  ...                                        │
+└────────────────────────────────────────────┘
+```
+
+**Grouping & Filtering:**
+- Default: sorted ascending by `kickoffAt`, grouped by day (section headers: "Hoje", "Amanhã", then weekday + date)
+- Filter pill row: **Tudo · Hoje · Esta semana · Por desporto · Por competição**
+- Matches without a `kickoffAt` shown at the bottom of their day under "Hora não definida", ordered by competition name
+
+**Match Card details:**
+- Sport icon + competition logo (reuse existing Sofascore CDN logo logic)
+- Kick-off time (bold) — if no time set, shows "–:––"
+- `Home vs Away` (bold team names)
+- The user's selection + market label + odd in a muted subtitle row
+- Badge: "N boletins" pill if the same match appears in 2+ boletins (tapping it navigates to a filtered boletins list for that match)
+- Tapping the card navigates to the boletin detail (if only 1 boletin references it) or opens a sheet listing all boletins containing that match
+
+**Empty state:** "Sem jogos agendados. Adiciona a hora dos jogos ao criar ou editar um boletim." with a CTA to the create screen.
+
+**Future enhancement (🔴 Blocked):** When the live scores API (feature 2.7) is available, match cards can show a live score badge and a pulsing "AO VIVO" pill.
+
+---
+
+## 5. Summary: Implementation Priority
 
 | # | Feature | Status | Effort | Impact | Priority | Built |
 |---|---------|--------|--------|--------|----------|-------|
@@ -863,11 +938,11 @@
 | **1.26** | **Bet Density by Competition** | **✅ Ready** | **~2h** | **🟡 Medium** | **P1** | ❌ No |
 | **1.27** | **Implied Probability vs Odds Drift** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
 | **2.21** | **AI Bet Review (Claude)** | **✅ Ready** | **~5h** | **🔴 High** | **P0** | 🟢 Yes |
-| **3.19** | **Win Celebration Animations** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
-| **3.20** | **Contextual Homescreen Banner** | **✅ Ready** | **~2h** | **🔴 High** | **P1** | ❌ No |
+| **3.19** | **Win Celebration Animations** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | 🟢 Yes |
+| **3.20** | **Contextual Homescreen Banner** | **✅ Ready** | **~2h** | **🔴 High** | **P1** | 🟢 Yes |
 | **2.28** | **Bet Kick-Off Reminder Notifications** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
-| **2.29** | **Parlay Optimiser** | **✅ Ready** | **~3h** | **🔴 High** | **P1** | ❌ No |
-| **3.16** | **Long-Press Preview Cards** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | ❌ No |
+| **2.29** | **Parlay Optimiser** | **✅ Ready** | **~3h** | **🔴 High** | **P1** | 🟢 Yes |
+| **3.16** | **Long-Press Preview Cards** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | 🟢 Yes |
 | **3.17** | **Dynamic App Icon (iOS)** | **✅ Ready** | **~3h** | **🟢 Low** | **P2** | ❌ No |
 | **3.18** | **Shake to Undo** | **✅ Ready** | **~2h** | **🟢 Low** | **P2** | ❌ No |
 | **2.20** | **Bet Streak Challenges** | **✅ Ready** | **~5h** | **🔴 High** | **P2** | ❌ No |
@@ -880,3 +955,4 @@
 | **1.25** | **Friend League Table Position** | **🟡 Needs work** | **~2h+** | **🟡 Medium** | **P3** | ❌ No |
 | **2.32** | **Import from Betclic History** | **🟡 Needs work** | **~10h** | **🔴 High** | **P3** | ❌ No |
 | **2.31** | **Live Odds Comparison** | **🔴 Blocked** | **~4h+** | **🔴 High** | **Future** | ❌ No |
+| **4.1** | **"Os Meus Jogos" Match Agenda** | **✅ Ready** | **~6h** | **🔴 High** | **P1** | ❌ No |

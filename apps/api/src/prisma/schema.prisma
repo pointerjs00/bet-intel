@@ -203,8 +203,10 @@ model BoletinItem {
   selection   String
   oddValue    Decimal    @db.Decimal(10, 2)
   result      ItemResult @default(PENDING)
+  kickoffAt   DateTime?
 
   @@index([boletinId])
+  @@index([kickoffAt])
 }
 
 model Friendship {

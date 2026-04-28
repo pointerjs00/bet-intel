@@ -142,6 +142,8 @@ export const createBoletinItemSchema = z.object({
     .number({ invalid_type_error: 'Odd inválida' })
     .min(1.01, 'Odd mínima é 1.01')
     .max(1000, 'Odd máxima é 1000'),
+  /** ISO-8601 datetime for the match kick-off */
+  kickoffAt: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 export type CreateBoletinItemInput = z.infer<typeof createBoletinItemSchema>;
@@ -206,6 +208,7 @@ export const updateBoletinItemSchema = z.object({
   selection: z.string().min(1).optional(),
   oddValue: z.number().min(0).max(1000).optional(),
   result: z.nativeEnum(ItemResult).optional(),
+  kickoffAt: z.string().datetime({ offset: true }).nullable().optional(),
 });
 
 export type UpdateBoletinItemInput = z.infer<typeof updateBoletinItemSchema>;
@@ -230,7 +233,7 @@ export const updateProfileSchema = z.object({
   avatarUrl: z.string().url('URL de avatar inválido').optional(),
   expoPushToken: z
     .string()
-    .regex(/^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$/, 'Token Expo inválido')
+    .regex(/^(Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]|fcm:.+)$/, 'Token push inválido')
     .nullable()
     .optional(),
   /** ISO 4217 currency code */

@@ -43,7 +43,7 @@ The app is built as a monorepo (`pnpm workspaces`) with a React Native mobile cl
 - Advanced filter & sort: by status, sport, competition, team, site, market, date range, odds range
 - Free-text search across all boletins
 - **AI Screenshot Import** (`app/boletins/import-review.tsx`): take or select a screenshot of any Betclic Portugal bet slip; Gemini Vision (primary) / GPT-4o (fallback) extracts selections, odds, markets, stake, and bet date; an editable review screen lets the user correct data and set results before saving. ATP/WTA player photos auto-applied on load.
-- **Selection Insights** (`components/boletins/SelectionInsightsSheet.tsx`): tap any selection on the boletim detail screen or the home screen boletin cards to open a bottom sheet with historical stats for that selection — sport, competition, market, team, and odds-range performance; implied probability; edge detection; and outcome verdict for resolved items.
+- **Selection Insights** (`components/boletins/SelectionInsightsSheet.tsx`): a dedicated "Ver detalhes da seleção" button at the bottom of each selection row opens a bottom sheet. On `BoletinCard` collapsed rows a small 📊 icon appears; on expanded rows a "Ver detalhes →" row is shown; in `[id].tsx` each `BoletinItem` has the row at the bottom. The sheet shows market/selection + implied probability and a collapsible **"As tuas estatísticas"** section with: context chips (Favourite/Underdog, odds range, global win rate), an outcome verdict banner (aligned/surprise/value/novalue), and `StatCard` breakdowns for sport, competition, market, sport×market cross-cell, odds range, and both teams — each showing win-rate bar vs implied probability, W/L record, and P&L. Favourite/underdog classification is `odd < 2.0`; the sheet auto-resets its collapsed state on new item.
 - **Boletim Insights** (`components/boletins/BoletinInsightsSection.tsx`): analytics panel inside the boletim detail screen — slip implied probability, N-leg accumulator historical win rate, per-leg probability breakdown, outcome verdict comparing the actual result to historical expectation.
 
 ### Statistics Dashboard
@@ -251,14 +251,14 @@ Weights: `400 / 500 / 600 / 700 / 900`
 | `SearchableDropdown` | `components/ui/SearchableDropdown.tsx` | Searchable, sectioned picker modal |
 | `CompetitionPickerModal` | `components/ui/CompetitionPickerModal.tsx` | Sectioned competition picker by country |
 | `RangeSlider` | `components/ui/RangeSlider.tsx` | Dual-handle slider for odds/date range filters |
-| `BoletinCard` | `components/boletins/BoletinCard.tsx` | Compact boletin summary card |
-| `BoletinItem` | `components/boletins/BoletinItem.tsx` | Single pick row in detail view; includes inline **ImpliedProbability** bar: `(1 / odds) × 100 %`, color-coded green ≥60% / amber 35–59% / red <35% |
+| `BoletinCard` | `components/boletins/BoletinCard.tsx` | Compact boletin summary card; collapsed preview rows have a 📊 icon button per selection; expanded rows have a "Ver detalhes →" row per selection — both trigger `SelectionInsightsSheet` via `onItemPress` |
+| `BoletinItem` | `components/boletins/BoletinItem.tsx` | Single pick row in detail view; inline **ImpliedProbability** bar `(1/odds)×100%`, colour-coded green ≥60% / amber 35–59% / red <35%; optional `onInsights` prop renders a "Ver detalhes da seleção" button row at the bottom |
 | `BoletinFilterSheet` | `components/boletins/BoletinFilterSheet.tsx` | Advanced filter bottom sheet |
 | `OddsCalculator` | `components/boletins/OddsCalculator.tsx` | Live total odds + return display |
 | `StakeInput` | `components/boletins/StakeInput.tsx` | Currency-formatted stake field |
 | `StatusBadge` | `components/boletins/StatusBadge.tsx` | Pending / Won / Lost / Cashout / Void chip |
 | `ProjectionCard` | `components/boletins/ProjectionCard.tsx` | ROI projection given current stake & odds |
-| `SelectionInsightsSheet` | `components/boletins/SelectionInsightsSheet.tsx` | Bottom sheet with per-selection historical stats, implied probability, edge detection, and outcome verdict |
+| `SelectionInsightsSheet` | `components/boletins/SelectionInsightsSheet.tsx` | Bottom sheet with per-selection historical stats; collapsible "As tuas estatísticas" section with context chips, verdict banner, and StatCards for sport / competition / market / sport×market / odds range / teams, each with W/L record, P&L, win-rate bar vs implied probability |
 | `BoletinInsightsSection` | `components/boletins/BoletinInsightsSection.tsx` | In-screen analytics section: slip implied prob, N-leg win rate, per-leg probability breakdown, outcome verdict |
 | `WinCelebration` | `components/boletins/WinCelebration.tsx` | Full-screen confetti + animated return counter triggered on boletin resolved as WON |
 | `ROICard` | `components/stats/ROICard.tsx` | Large hero ROI metric card |

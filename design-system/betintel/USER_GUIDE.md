@@ -11,7 +11,7 @@
 2. [Separadores Principais](#2-separadores-principais)
 3. [Boletins — Lista Principal](#3-boletins--lista-principal)
 4. [Criar Boletin](#4-criar-boletin)
-5. [Detalhe do Boletin](#5-detalhe-do-boletin)
+5. [Detalhe do Boletin](#5-detalhe-do-boletin) *(inclui 5.5 Insights de Seleção)*
 6. [Registo Rápido](#6-registo-rápido)
 7. [Diário de Apostas](#7-diário-de-apostas)
 8. [Resolver em Lote](#8-resolver-em-lote)
@@ -123,7 +123,7 @@ Cada card mostra:
 - Data + nome opcional
 - Número de selecções + odds totais
 - Stake → Retorno potencial (ou real se resolvido) + P&L
-- Pré-visualização de até 3 eventos
+- Pré-visualização de até 3 eventos, cada uma com ícone 📊 no lado direito para abrir os insights dessa seleção
 
 ### 3.2 Filtrar e pesquisar
 
@@ -152,6 +152,8 @@ Cada card mostra:
 **Desliza para a direita** → partilha o boletin.
 
 **Desliza para a esquerda** → apaga o boletin (pede confirmação).
+
+**Ícone de estatísticas** (📊 em cada linha de seleção no card): abre o painel de insights daquela seleção com estatísticas históricas personalizadas (ver secção 5.5).
 
 **Resolução rápida** (directamente no card, sem abrir detalhe):
 - Botões WON / LOST / VOID visíveis em cada card de boletin pendente
@@ -221,10 +223,10 @@ Se tentares sair com o formulário preenchido, aparece um modal de confirmação
 - **Resumo**: Stake | Odds totais | Retorno potencial/real | ROI %
 - **Lista de selecções** — cada linha mostra:
   - Ícone de resultado (✓ / ✗ / ⏳ / 🚫)
-  - Match (Casa vs Fora)
+  - Match (Casa vs Fora) com crests/fotos das equipas
   - Mercado + selecção
-  - Casa de apostas
-  - Valor da odd
+  - Valor da odd + barra de probabilidade implícita (verde ≥60% / âmbar 35–59% / vermelho <35%)
+  - Botão **"Ver detalhes da seleção"** (ícone de stats + chevron) no rodapé de cada seleção → abre o painel de insights (ver secção 5.5)
 - **Notas** — secção recolhível (só aparece se tiveres notas)
 - **WinCelebration** — animação ao marcar como ganho
 
@@ -249,6 +251,29 @@ Para marcar o resultado de um boletin pendente:
 
 - **Partilhar**: toca em "Partilhar" → abre o bottom sheet de partilha com amigos
 - **Apagar**: toca no ícone de lixo → modal de confirmação
+
+### 5.5 Insights de seleção
+
+**Como aceder:** Toca em **"Ver detalhes da seleção"** no rodapé de qualquer seleção (tanto no ecrã de detalhe como nos cards expandidos da lista principal).
+
+O painel de insights abre na parte inferior do ecrã e mostra:
+- Equipa da casa vs equipa visitante + competição (com crest/logo)
+- Mercado · Seleção + odd em destaque + probabilidade implícita
+
+Toca no botão **"As tuas estatísticas"** para expandir a secção de análise:
+- **Chips de contexto**: Favorito (odd < 2.00) ou Azarão (odd ≥ 2.00), gama de odds, taxa de vitória global
+- **Banner de veredicto** (se tiveres dados suficientes): "Valor positivo — taxa histórica acima da odd implícita" / "Resultado apoiado pelo teu histórico" / etc.
+- **Cards de estatísticas** por contexto, cada um com taxa de vitória, ROI, barra de progresso vs probabilidade implícita, registo G/P e P&L:
+  - Tipo de aposta (Favoritos / Azarões)
+  - Desporto
+  - Competição
+  - Mercado
+  - Desporto × Mercado (combinação)
+  - Gama de odds
+  - Equipa da casa
+  - Equipa visitante
+- Aviso ⚠ se o contexto tem menos de 5 apostas (dados insuficientes)
+- Estado vazio se ainda não tens dados neste contexto
 
 ---
 
@@ -678,6 +703,8 @@ Abre um ecrã dedicado com:
 - **Freebet**: ao criar boletin, activa o toggle "Freebet" para rastrear apostas gratuitas separadamente
 - **Apostas passadas**: usa o campo "Data da aposta" ao criar para registar apostas históricas com a data correcta
 - **Notas e diário**: preenche o campo "Notas" num boletin → aparece no Diário de Apostas
+- **Insights de seleção** (lista): toca no ícone 📊 em qualquer linha de seleção no card → painel de estatísticas históricas
+- **Insights de seleção** (detalhe): toca em "Ver detalhes da seleção" no rodapé de qualquer seleção → expande "As tuas estatísticas" para ver ROI, taxa de vitória, W/L e P&L por desporto, competição, mercado e equipas
 
 ---
 

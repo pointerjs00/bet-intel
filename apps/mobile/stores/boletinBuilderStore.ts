@@ -113,7 +113,7 @@ function buildCreatePayload(state: BuilderStateValues): CreateBoletinInput {
       market: item.market,
       selection: item.selection,
       oddValue: item.oddValue,
-      eventDate: item.eventDate ?? undefined,
+      kickoffAt: item.eventDate ?? undefined,
     })),
   };
 }

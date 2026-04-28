@@ -1,5 +1,6 @@
 ﻿import { Prisma, BoletinStatus, NotificationType, ItemResult, Sport } from '@prisma/client';
 import type {
+  AgendaItem,
   BoletinDetail,
   BoletinItemDetail,
   BoletinShareDetail,
@@ -105,6 +106,7 @@ export async function createBoletin(userId: string, input: CreateBoletinInput): 
           selection: item.selection.trim(),
           oddValue: new Prisma.Decimal(item.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
           result: ItemResult.PENDING,
+          kickoffAt: item.kickoffAt ? new Date(item.kickoffAt) : null,
         })),
       },
     },
@@ -412,6 +414,7 @@ export async function addBoletinItem(
           selection: input.selection.trim(),
           oddValue: newOddValue,
           result: ItemResult.PENDING,
+          kickoffAt: input.kickoffAt ? new Date(input.kickoffAt) : null,
         },
       },
     },
@@ -508,6 +511,9 @@ export async function updateBoletinItem(
         ? new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
         : undefined,
       result: input.result !== undefined ? (input.result as ItemResult) : undefined,
+      kickoffAt: input.kickoffAt !== undefined
+        ? (input.kickoffAt ? new Date(input.kickoffAt) : null)
+        : undefined,
     },
   });
 
@@ -741,6 +747,7 @@ function serializeItem(item: {
   selection: string;
   oddValue: Prisma.Decimal;
   result: ItemResult;
+  kickoffAt?: Date | null;
 }): BoletinItemDetail {
   return {
     id: item.id,
@@ -753,6 +760,7 @@ function serializeItem(item: {
     selection: item.selection,
     oddValue: item.oddValue.toString(),
     result: item.result as unknown as SharedItemResult,
+    kickoffAt: item.kickoffAt ? item.kickoffAt.toISOString() : null,
   };
 }
 
@@ -810,4 +818,36 @@ function serializeBoletinDetail(boletin: Prisma.BoletinGetPayload<{ include: typ
     items: boletin.items.map(serializeItem),
     shares: boletin.sharedWith.map(serializeShare),
   };
+}
+
+/** Returns all pending boletin items with a future kick-off date, ordered chronologically. */
+export async function getAgenda(userId: string): Promise<AgendaItem[]> {
+  const now = new Date();
+
+  const items = await prisma.boletinItem.findMany({
+    where: {
+      kickoffAt: { gte: now },
+      result: ItemResult.PENDING,
+      boletin: { userId },
+    },
+    include: {
+      boletin: { select: { id: true, name: true } },
+    },
+    orderBy: { kickoffAt: 'asc' },
+  });
+
+  return items.map((item) => ({
+    kickoffAt: item.kickoffAt!.toISOString(),
+    boletinId: item.boletin.id,
+    boletinName: item.boletin.name,
+    itemId: item.id,
+    homeTeam: item.homeTeam,
+    awayTeam: item.awayTeam,
+    competition: item.competition,
+    sport: item.sport as unknown as SharedSport,
+    market: item.market,
+    selection: item.selection,
+    oddValue: item.oddValue.toString(),
+    result: item.result as unknown as SharedItemResult,
+  }));
 }

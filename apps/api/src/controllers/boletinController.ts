@@ -12,6 +12,7 @@ import {
   createBoletin,
   deleteBoletin,
   deleteBoletinItem,
+  getAgenda,
   getBoletinDetail,
   listSharedBoletins,
   listUserBoletins,
@@ -324,4 +325,13 @@ function csvEscape(value: string): string {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
+}
+
+export async function getAgendaHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const items = await getAgenda(requireUserId(req));
+    ok(res, items);
+  } catch (err) {
+    fail(res, err);
+  }
 }

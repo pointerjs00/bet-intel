@@ -14,6 +14,7 @@ export default function BoletinsLayout() {
       }}
     >
       <Stack.Screen name="[id]" />
+      <Stack.Screen name="agenda" options={{ title: 'Os Meus Jogos' }} />
       <Stack.Screen name="create" />
       <Stack.Screen name="journal" />
       <Stack.Screen name="import-review" />

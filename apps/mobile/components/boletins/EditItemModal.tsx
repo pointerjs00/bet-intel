@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -375,18 +375,27 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
 
   // Auto-fill selection for self-describing markets
   useEffect(() => {
+    // If the current selection still matches what was seeded, don't overwrite it.
+    // This protects the seeded value from being cleared by market/team changes on open.
+    if (seededSelection.current !== null && selection === seededSelection.current) {
+      return;
+    }
+    seededSelection.current = null; // user has changed something, stop protecting
+
     if (!useCustomMarket && isSelfDescribing(market)) {
       setSelection(humanizeMarket(market, finalHomeTeam, finalAwayTeam));
     } else if (!useCustomMarket && !isDoubles) {
-      // Don't clear in the middle of doubles entry when one player is still empty
       setSelection('');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [market, homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport, useCustomMarket]);
 
+
+  const seededSelection = useRef<string | null>(null);
   // Seed from item on open
   useEffect(() => {
     if (!item || !visible) return;
+    seededSelection.current = item.selection;
 
     const detectedDoubles = item.sport === Sport.TENNIS && item.homeTeam.includes(' / ');
     setIsDoubles(detectedDoubles);
@@ -717,7 +726,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
 
           {/* ── Selection + Odd ─────────────────────────────────────────── */}
           <View style={styles.inlineRow}>
-            {(useCustomMarket || (!isSelfDescribing(market) && market.trim() !== selection.trim())) && (
+            {(useCustomMarket || !isSelfDescribing(market) || selection.trim() !== '') && (
               <View style={{ flex: 2 }}>
                 <Input label="Seleção" placeholder="Ex: 1, X, Over 2.5" value={selection} onChangeText={setSelection} />
               </View>
@@ -789,10 +798,12 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
           setCompetition(val);
           const found = competitionsQuery.data?.find((c) => c.name === val);
           setCompetitionCountry(found ? getTennisTournamentCountry(found.name, found.country) : '');
-          setHomeTeam('');
-          setHomeTeam2('');
-          setAwayTeam('');
-          setAwayTeam2('');
+          if (sport !== Sport.TENNIS) {
+            setHomeTeam('');
+            setHomeTeam2('');
+            setAwayTeam('');
+            setAwayTeam2('');
+          }
         }}
       />
       <SearchableDropdown

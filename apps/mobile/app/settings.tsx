@@ -38,7 +38,10 @@ import { useThemeStore, type ThemePreference } from '../stores/themeStore';
 import { useTheme } from '../theme/useTheme';
 import {
   getKickoffRemindersEnabled,
+  getPushNotificationStatus,
+  sendTestPush,
   setKickoffRemindersEnabled,
+  syncDevicePushToken,
 } from '../services/notificationService';
 
 const THEME_OPTIONS: Array<{ key: ThemePreference; label: string; icon: string }> = [
@@ -122,6 +125,9 @@ export default function SettingsScreen() {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [kickoffRemindersEnabled, setKickoffRemindersEnabledState] = useState(true);
+  const [pushPermission, setPushPermission] = useState<'granted' | 'denied' | 'undetermined' | null>(null);
+  const [pushTokenPrefix, setPushTokenPrefix] = useState<string | null>(null);
+  const [testPushLoading, setTestPushLoading] = useState(false);
 
   const importSheetRef = useRef<GorhomBottomSheet>(null);
   const [importHelpExpanded, setImportHelpExpanded] = useState(false);
@@ -182,6 +188,32 @@ export default function SettingsScreen() {
       setKickoffRemindersEnabledState(enabled);
     });
   }, []);
+
+  useEffect(() => {
+    void (async () => {
+      // Ensure token is synced, then read status
+      await syncDevicePushToken();
+      const status = await getPushNotificationStatus();
+      setPushPermission(status.permission);
+      setPushTokenPrefix(status.token ? status.token.slice(0, 24) + '…' : null);
+    })();
+  }, []);
+
+  async function handleTestPush() {
+    setTestPushLoading(true);
+    try {
+      const result = await sendTestPush();
+      if (!result.hasToken) {
+        showToast('Sem token registado — as notificações push não estão activas neste dispositivo.', 'error');
+      } else {
+        showToast('Notificação de teste enviada! Deves recebê-la em segundos.', 'success');
+      }
+    } catch {
+      showToast('Erro ao enviar notificação de teste.', 'error');
+    } finally {
+      setTestPushLoading(false);
+    }
+  }
 
   const authProvider = profileQuery.data?.authProvider ?? storedAuthProvider ?? AuthProvider.EMAIL;
   const isGoogleLinked = authProvider === AuthProvider.GOOGLE || authProvider === AuthProvider.HYBRID;
@@ -585,6 +617,36 @@ export default function SettingsScreen() {
                 }}
               />
             </View>
+
+            {/* Push notification diagnostics */}
+            <View style={[styles.toggleRow, { borderColor: colors.border }]}>
+              <View style={[styles.toggleCopy, { flex: 1 }]}>
+                <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>
+                  Estado das notificações push
+                </Text>
+                <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>
+                  {pushPermission === null
+                    ? 'A verificar…'
+                    : pushPermission === 'granted'
+                      ? pushTokenPrefix
+                        ? `Activo · Token: ${pushTokenPrefix}`
+                        : 'Permissão concedida, sem token registado'
+                      : 'Permissões negadas — activa nas definições do sistema'}
+                </Text>
+              </View>
+              <PressableScale
+                onPress={handleTestPush}
+                disabled={testPushLoading}
+                style={[
+                  styles.testPushBtn,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <Text style={[styles.testPushLabel, { color: testPushLoading ? colors.textMuted : colors.primary }]}>
+                  {testPushLoading ? '…' : 'Testar'}
+                </Text>
+              </PressableScale>
+            </View>
           </Card>
         </Animated.View>
 
@@ -759,4 +821,6 @@ const styles = StyleSheet.create({
   loadingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 100 },
   loadingOverlayCard: { alignItems: 'center', gap: 12, paddingHorizontal: 32, paddingVertical: 24 },
   loadingOverlayText: { fontSize: 14, fontWeight: '600' },
+  testPushBtn: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  testPushLabel: { fontSize: 13, fontWeight: '700' },
 });

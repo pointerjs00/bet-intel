@@ -206,6 +206,23 @@ export interface BoletinItem {
   /** Decimal serialised as string */
   oddValue: string;
   result: ItemResult;
+  /** ISO-8601 datetime of the match kick-off (null if unknown) */
+  kickoffAt: string | null;
+}
+
+export interface AgendaItem {
+  kickoffAt: string;
+  boletinId: string;
+  boletinName: string | null;
+  itemId: string;
+  homeTeam: string;
+  awayTeam: string;
+  competition: string;
+  sport: Sport;
+  market: string;
+  selection: string;
+  oddValue: string;
+  result: ItemResult;
 }
 
 export interface Friendship {
