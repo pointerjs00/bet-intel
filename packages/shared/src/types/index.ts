@@ -214,6 +214,8 @@ export interface AgendaItem {
   kickoffAt: string;
   boletinId: string;
   boletinName: string | null;
+  boletinIds: string[];
+  boletinNames: (string | null)[];
   itemId: string;
   homeTeam: string;
   awayTeam: string;

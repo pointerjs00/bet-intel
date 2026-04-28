@@ -1,5 +1,13 @@
-import React, { useMemo } from 'react';
-import { RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,21 +15,29 @@ import type { AgendaItem } from '@betintel/shared';
 import { Sport } from '@betintel/shared';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PressableScale } from '../../components/ui/PressableScale';
+import { CompetitionBadge } from '../../components/ui/CompetitionBadge';
+import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useAgenda } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
 
-const SPORT_EMOJI: Record<string, string> = {
-  [Sport.FOOTBALL]: '⚽',
-  [Sport.BASKETBALL]: '🏀',
-  [Sport.TENNIS]: '🎾',
-  [Sport.HANDBALL]: '🤾',
-  [Sport.VOLLEYBALL]: '🏐',
-  [Sport.HOCKEY]: '🏒',
-  [Sport.RUGBY]: '🏉',
-  [Sport.AMERICAN_FOOTBALL]: '🏈',
-  [Sport.BASEBALL]: '⚾',
-  [Sport.OTHER]: '🏅',
+// ─── Sport config ─────────────────────────────────────────────────────────────
+
+const SPORT_META: Record<string, { emoji: string; accent: string }> = {
+  [Sport.FOOTBALL]:          { emoji: '⚽', accent: '#22C55E' },
+  [Sport.BASKETBALL]:        { emoji: '🏀', accent: '#F97316' },
+  [Sport.TENNIS]:            { emoji: '🎾', accent: '#EAB308' },
+  [Sport.HANDBALL]:          { emoji: '🤾', accent: '#3B82F6' },
+  [Sport.VOLLEYBALL]:        { emoji: '🏐', accent: '#8B5CF6' },
+  [Sport.HOCKEY]:            { emoji: '🏒', accent: '#06B6D4' },
+  [Sport.RUGBY]:             { emoji: '🏉', accent: '#A16207' },
+  [Sport.AMERICAN_FOOTBALL]: { emoji: '🏈', accent: '#DC2626' },
+  [Sport.BASEBALL]:          { emoji: '⚾', accent: '#64748B' },
+  [Sport.OTHER]:             { emoji: '🏅', accent: '#6B7280' },
 };
+
+function getSportMeta(sport: string) {
+  return SPORT_META[sport] ?? SPORT_META[Sport.OTHER]!;
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -45,11 +61,9 @@ function formatSectionDate(iso: string): string {
   yesterday.setDate(today.getDate() - 1);
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
-
   if (isSameDay(d, yesterday)) return 'Ontem';
   if (isSameDay(d, today)) return 'Hoje';
   if (isSameDay(d, tomorrow)) return 'Amanhã';
-
   return d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
@@ -61,51 +75,147 @@ function toDateKey(iso: string): string {
   return iso.slice(0, 10);
 }
 
-// ─── Row component ────────────────────────────────────────────────────────────
+// ─── Multi-boletin sheet ──────────────────────────────────────────────────────
 
-function AgendaRow({ item, colors, onPress }: { item: AgendaItem; colors: Record<string, string>; onPress: () => void }) {
-  const sportIcon = SPORT_EMOJI[item.sport] ?? '🏅';
-  const time = formatKickoff(item.kickoffAt);
-  const started = isInPast(item.kickoffAt);
-
+function BoletinPickerSheet({
+  item,
+  colors,
+  onClose,
+  onPick,
+}: {
+  item: AgendaItem;
+  colors: Record<string, string>;
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  const insets = useSafeAreaInsets();
   return (
-    <PressableScale onPress={onPress} style={[styles.row, { backgroundColor: colors.surface, borderColor: started ? colors.warning + '40' : colors.border }]}>
-      {/* Time column */}
-      <View style={styles.timeCol}>
-        {started ? (
-          <View style={[styles.livePill, { backgroundColor: colors.danger }]}>
-            <Text style={styles.liveText}>AO VIVO</Text>
-          </View>
-        ) : (
-          <Text style={[styles.timeText, { color: colors.primary }]}>{time}</Text>
-        )}
-        <Text style={[styles.sportIcon]}>{sportIcon}</Text>
-      </View>
-
-      {/* Match info */}
-      <View style={styles.matchCol}>
-        <Text style={[styles.matchup, { color: colors.textPrimary }]} numberOfLines={1}>
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+      <View
+        style={[
+          styles.sheet,
+          { backgroundColor: colors.surface, paddingBottom: insets.bottom + 16 },
+        ]}
+      >
+        <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+        <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>
           {item.homeTeam} vs {item.awayTeam}
         </Text>
-        <Text style={[styles.competition, { color: colors.textMuted }]} numberOfLines={1}>
-          {item.competition}
+        <Text style={[styles.sheetSubtitle, { color: colors.textMuted }]}>
+          Este jogo está em {item.boletinIds.length} boletins
         </Text>
-        <View style={styles.betRow}>
-          <Text style={[styles.betLabel, { color: colors.textSecondary }]} numberOfLines={1}>
-            {item.market} · {item.selection}
-          </Text>
-          <Text style={[styles.odd, { color: colors.warning ?? '#FF9500', backgroundColor: (colors.warning ?? '#FF9500') + '18' }]}>
-            {parseFloat(item.oddValue).toFixed(2)}
-          </Text>
-        </View>
-        {item.boletinName ? (
-          <Text style={[styles.boletinName, { color: colors.textMuted }]} numberOfLines={1}>
-            {item.boletinName}
-          </Text>
-        ) : null}
-      </View>
 
-      <Ionicons color={colors.textMuted} name="chevron-forward" size={16} />
+        {item.boletinIds.map((id, idx) => (
+          <PressableScale
+            key={id}
+            onPress={() => { onClose(); onPick(id); }}
+            style={[styles.sheetRow, { borderColor: colors.border }]}
+          >
+            <Ionicons name="receipt-outline" size={18} color={colors.primary} />
+            <Text style={[styles.sheetRowText, { color: colors.textPrimary }]} numberOfLines={1}>
+              {item.boletinNames[idx] || `Boletim ${idx + 1}`}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+          </PressableScale>
+        ))}
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Card ─────────────────────────────────────────────────────────────────────
+
+function AgendaRow({
+  item,
+  colors,
+  onPress,
+}: {
+  item: AgendaItem;
+  colors: Record<string, string>;
+  onPress: () => void;
+}) {
+  const { emoji, accent } = getSportMeta(item.sport);
+  const time = formatKickoff(item.kickoffAt);
+  const started = isInPast(item.kickoffAt);
+  const timeColor = started ? '#EF4444' : accent;
+  const count = item.boletinIds.length;
+
+  return (
+    <PressableScale onPress={onPress} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      {/* Coloured left accent bar */}
+      <View style={[styles.accentBar, { backgroundColor: accent }]} />
+
+      <View style={styles.cardInner}>
+        {/* Header: competition + time */}
+        <View style={styles.headerRow}>
+          <View style={styles.competitionRow}>
+            <CompetitionBadge name={item.competition} size={14} />
+            <Text style={[styles.competitionText, { color: colors.textMuted }]} numberOfLines={1}>
+              {item.competition}
+            </Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* N boletins badge */}
+            {count > 1 && (
+              <View style={[styles.countBadge, { backgroundColor: accent }]}>
+                <Text style={styles.countText}>{count} boletins</Text>
+              </View>
+            )}
+            <View style={[styles.timeBadge, { backgroundColor: timeColor + '18' }]}>
+              {started ? (
+                <>
+                  <View style={[styles.liveDot, { backgroundColor: '#EF4444' }]} />
+                  <Text style={[styles.liveLabel, { color: '#EF4444' }]}>AO VIVO</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.sportEmoji}>{emoji}</Text>
+                  <Text style={[styles.timeLabel, { color: timeColor }]}>{time}</Text>
+                </>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* Teams */}
+        <View style={styles.teamsRow}>
+          <View style={styles.teamBlock}>
+            <TeamBadge name={item.homeTeam} size={36} variant="team" />
+            <Text style={[styles.teamName, { color: colors.textPrimary }]} numberOfLines={2}>
+              {item.homeTeam}
+            </Text>
+          </View>
+          <View style={styles.vsBlock}>
+            <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
+          </View>
+          <View style={styles.teamBlock}>
+            <TeamBadge name={item.awayTeam} size={36} variant="team" />
+            <Text style={[styles.teamName, { color: colors.textPrimary }]} numberOfLines={2}>
+              {item.awayTeam}
+            </Text>
+          </View>
+        </View>
+
+        {/* Bet chips */}
+        <View style={[styles.betChipRow, { borderTopColor: colors.border }]}>
+          <View style={[styles.marketChip, { backgroundColor: colors.surfaceRaised }]}>
+            <Text style={[styles.marketChipText, { color: colors.textSecondary }]} numberOfLines={1}>
+              {item.market}
+            </Text>
+          </View>
+          <View style={[styles.selectionChip, { backgroundColor: accent + '20' }]}>
+            <Text style={[styles.selectionChipText, { color: accent }]} numberOfLines={1}>
+              {item.selection}
+            </Text>
+          </View>
+          <View style={[styles.oddBadge, { backgroundColor: accent }]}>
+            <Text style={styles.oddText}>{parseFloat(item.oddValue).toFixed(2)}</Text>
+          </View>
+          <Ionicons color={colors.textMuted} name="chevron-forward" size={14} style={{ marginLeft: 'auto' }} />
+        </View>
+      </View>
     </PressableScale>
   );
 }
@@ -123,6 +233,7 @@ export default function AgendaScreen() {
   const router = useRouter();
   const { colors, tokens: t } = useTheme();
   const query = useAgenda();
+  const [sheetItem, setSheetItem] = useState<AgendaItem | null>(null);
 
   const sections = useMemo<Section[]>(() => {
     const items = query.data ?? [];
@@ -139,6 +250,14 @@ export default function AgendaScreen() {
     }));
   }, [query.data]);
 
+  function handleRowPress(item: AgendaItem) {
+    if (item.boletinIds.length > 1) {
+      setSheetItem(item);
+    } else {
+      router.push(`/boletins/${item.boletinId}`);
+    }
+  }
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen
@@ -147,7 +266,7 @@ export default function AgendaScreen() {
           headerShown: true,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,
-          headerTitleStyle: { color: colors.textPrimary },
+          headerTitleStyle: { color: colors.textPrimary, fontWeight: '800' },
         }}
       />
 
@@ -165,25 +284,22 @@ export default function AgendaScreen() {
           paddingTop: t.spacing.md,
           paddingBottom: insets.bottom + 100,
           paddingHorizontal: t.spacing.lg,
-          gap: 0,
           flexGrow: 1,
         }}
         renderSectionHeader={({ section }) => (
           <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
-            <Text style={[styles.sectionTitle, { color: section.isPast ? colors.textMuted : colors.textSecondary }]}>
-              {section.title}
-            </Text>
+            <View style={[styles.sectionPill, { backgroundColor: section.isPast ? colors.surfaceRaised : colors.primary + '18' }]}>
+              <Text style={[styles.sectionTitle, { color: section.isPast ? colors.textMuted : colors.primary }]}>
+                {section.title.toUpperCase()}
+              </Text>
+            </View>
           </View>
         )}
         renderItem={({ item }) => (
-          <AgendaRow
-            item={item}
-            colors={colors}
-            onPress={() => router.push(`/boletins/${item.boletinId}`)}
-          />
+          <AgendaRow item={item} colors={colors} onPress={() => handleRowPress(item)} />
         )}
-        SectionSeparatorComponent={() => <View style={{ height: 8 }} />}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        SectionSeparatorComponent={() => <View style={{ height: 6 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         ListEmptyComponent={
           query.isLoading ? null : (
             <EmptyState
@@ -194,6 +310,15 @@ export default function AgendaScreen() {
           )
         }
       />
+
+      {sheetItem && (
+        <BoletinPickerSheet
+          item={sheetItem}
+          colors={colors}
+          onClose={() => setSheetItem(null)}
+          onPick={(id) => router.push(`/boletins/${id}`)}
+        />
+      )}
     </View>
   );
 }
@@ -202,78 +327,65 @@ export default function AgendaScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  sectionHeader: {
-    paddingBottom: 6,
-    paddingTop: 4,
+
+  sectionHeader: { paddingBottom: 10, paddingTop: 6 },
+  sectionPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
+  sectionTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+
+  card: { borderRadius: 16, borderWidth: 1, flexDirection: 'row', overflow: 'hidden' },
+  accentBar: { width: 4 },
+  cardInner: { flex: 1, paddingHorizontal: 14, paddingVertical: 12, gap: 12 },
+
+  headerRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
+  competitionRow: { alignItems: 'center', flexDirection: 'row', flex: 1, gap: 6 },
+  competitionText: { flex: 1, fontSize: 12, fontWeight: '600' },
+
+  countBadge: {
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  row: {
+  countText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  timeBadge: { alignItems: 'center', borderRadius: 20, flexDirection: 'row', gap: 5, paddingHorizontal: 10, paddingVertical: 4 },
+  sportEmoji: { fontSize: 13 },
+  timeLabel: { fontSize: 13, fontWeight: '800', letterSpacing: 0.3 },
+  liveDot: { borderRadius: 4, height: 7, width: 7 },
+  liveLabel: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+
+  teamsRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  teamBlock: { alignItems: 'center', flex: 1, gap: 6 },
+  teamName: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  vsBlock: { alignItems: 'center', width: 32 },
+  vsText: { fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+
+  betChipRow: { alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 10 },
+  marketChip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  marketChipText: { fontSize: 11, fontWeight: '600' },
+  selectionChip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  selectionChipText: { fontSize: 11, fontWeight: '700' },
+  oddBadge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  oddText: { color: '#fff', fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
+
+  // Sheet
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
+  sheetHandle: { alignSelf: 'center', borderRadius: 3, height: 4, marginBottom: 4, width: 36 },
+  sheetTitle: { fontSize: 17, fontWeight: '800' },
+  sheetSubtitle: { fontSize: 13, marginTop: -4 },
+  sheetRow: {
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
-  timeCol: {
-    alignItems: 'center',
-    gap: 2,
-    width: 44,
-  },
-  timeText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  livePill: {
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  liveText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.3,
-  },
-  sportIcon: {
-    fontSize: 16,
-  },
-  matchCol: {
-    flex: 1,
-    gap: 2,
-  },
-  matchup: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  competition: {
-    fontSize: 12,
-  },
-  betRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 2,
-  },
-  betLabel: {
-    flex: 1,
-    fontSize: 12,
-  },
-  odd: {
-    borderRadius: 6,
-    fontSize: 12,
-    fontWeight: '700',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  boletinName: {
-    fontSize: 11,
-    marginTop: 1,
-  },
+  sheetRowText: { flex: 1, fontSize: 15, fontWeight: '600' },
 });

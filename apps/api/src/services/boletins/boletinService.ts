@@ -820,7 +820,7 @@ function serializeBoletinDetail(boletin: Prisma.BoletinGetPayload<{ include: typ
   };
 }
 
-/** Returns all pending boletin items that have a kick-off date, ordered chronologically. */
+/** Returns pending boletin items with a kick-off date, deduplicated by match, ordered chronologically. */
 export async function getAgenda(userId: string): Promise<AgendaItem[]> {
   const items = await prisma.boletinItem.findMany({
     where: {
@@ -834,18 +834,35 @@ export async function getAgenda(userId: string): Promise<AgendaItem[]> {
     orderBy: { kickoffAt: 'asc' },
   });
 
-  return items.map((item) => ({
-    kickoffAt: item.kickoffAt!.toISOString(),
-    boletinId: item.boletin.id,
-    boletinName: item.boletin.name,
-    itemId: item.id,
-    homeTeam: item.homeTeam,
-    awayTeam: item.awayTeam,
-    competition: item.competition,
-    sport: item.sport as unknown as SharedSport,
-    market: item.market,
-    selection: item.selection,
-    oddValue: item.oddValue.toString(),
-    result: item.result as unknown as SharedItemResult,
-  }));
+  // Deduplicate by match identity: same teams + same kickoff minute
+  const matchMap = new Map<string, typeof items>();
+  for (const item of items) {
+    // Round kickoffAt to the minute so minor second differences don't split groups
+    const kickoffMinute = new Date(item.kickoffAt!);
+    kickoffMinute.setSeconds(0, 0);
+    const key = `${item.homeTeam.toLowerCase()}|${item.awayTeam.toLowerCase()}|${kickoffMinute.toISOString()}`;
+    if (!matchMap.has(key)) matchMap.set(key, []);
+    matchMap.get(key)!.push(item);
+  }
+
+  // Use the first item as the representative; attach all boletinIds
+  return Array.from(matchMap.values()).map((group) => {
+    const first = group[0]!;
+    return {
+      kickoffAt: first.kickoffAt!.toISOString(),
+      boletinId: first.boletin.id,
+      boletinName: first.boletin.name,
+      boletinIds: group.map((i) => i.boletin.id),
+      boletinNames: group.map((i) => i.boletin.name),
+      itemId: first.id,
+      homeTeam: first.homeTeam,
+      awayTeam: first.awayTeam,
+      competition: first.competition,
+      sport: first.sport as unknown as SharedSport,
+      market: first.market,
+      selection: first.selection,
+      oddValue: first.oddValue.toString(),
+      result: first.result as unknown as SharedItemResult,
+    };
+  });
 }
