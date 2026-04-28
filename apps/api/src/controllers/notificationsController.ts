@@ -4,6 +4,7 @@ import {
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  sendTestPushToUser,
 } from '../services/social/notificationService';
 import { logger } from '../utils/logger';
 
@@ -73,6 +74,16 @@ export async function markNotificationReadHandler(req: Request, res: Response): 
 export async function markAllNotificationsReadHandler(req: Request, res: Response): Promise<void> {
   try {
     const result = await markAllNotificationsRead(requireUserId(req));
+    ok(res, result);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles POST /api/notifications/test-push — sends a test push to the caller's registered device. */
+export async function testPushHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await sendTestPushToUser(requireUserId(req));
     ok(res, result);
   } catch (err) {
     fail(res, err);

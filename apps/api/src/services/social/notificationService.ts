@@ -1,3 +1,4 @@
+import * as admin from 'firebase-admin';
 import { NotificationType, Prisma } from '@prisma/client';
 import type {
   Notification as SharedNotification,
@@ -8,6 +9,9 @@ import type {
 import { prisma } from '../../prisma';
 import { emitNotificationNew } from '../../sockets/notificationSocket';
 import { logger } from '../../utils/logger';
+
+// FCM token prefix used to distinguish direct-FCM tokens from Expo push tokens.
+const FCM_PREFIX = 'fcm:';
 
 type NotificationRow = Prisma.NotificationGetPayload<Record<string, never>>;
 
@@ -184,34 +188,146 @@ function toPrismaJson(value?: Record<string, unknown> | null): Prisma.InputJsonV
   return value as Prisma.InputJsonValue;
 }
 
-async function sendExpoPushNotifications(deliveries: NotificationDelivery[]): Promise<void> {
-  if (deliveries.length === 0) {
-    return;
-  }
+// ─── Push routing ─────────────────────────────────────────────────────────────
 
-  const userIds = [...new Set(deliveries.map((delivery) => delivery.userId))];
+async function sendExpoPushNotifications(deliveries: NotificationDelivery[]): Promise<void> {
+  if (deliveries.length === 0) return;
+
+  const userIds = [...new Set(deliveries.map((d) => d.userId))];
+
   const users = await prisma.user.findMany({
-    where: {
-      id: { in: userIds },
-      expoPushToken: { not: null },
-    },
-    select: {
-      id: true,
-      expoPushToken: true,
-    },
+    where: { id: { in: userIds }, expoPushToken: { not: null } },
+    select: { id: true, expoPushToken: true },
+  });
+
+  logger.info('[Push] Preparing push notifications', {
+    deliveries: deliveries.length,
+    targetUsers: userIds.length,
+    usersWithToken: users.length,
+    userIdsWithoutToken: userIds.filter((id) => !users.find((u) => u.id === id)),
   });
 
   const tokenByUserId = new Map(
-    users
-      .filter((user) => Boolean(user.expoPushToken))
-      .map((user) => [user.id, user.expoPushToken as string]),
+    users.filter((u) => Boolean(u.expoPushToken)).map((u) => [u.id, u.expoPushToken as string]),
   );
 
+  if (tokenByUserId.size === 0) {
+    logger.info('[Push] No push tokens found — skipping');
+    return;
+  }
+
+  // Split deliveries by token type: raw FCM (Android) vs Expo gateway (iOS / legacy)
+  const fcmDeliveries: NotificationDelivery[] = [];
+  const expoDeliveries: NotificationDelivery[] = [];
+
+  for (const delivery of deliveries) {
+    const token = tokenByUserId.get(delivery.userId);
+    if (!token) continue;
+    if (token.startsWith(FCM_PREFIX)) {
+      fcmDeliveries.push(delivery);
+    } else {
+      expoDeliveries.push(delivery);
+    }
+  }
+
+  await Promise.all([
+    fcmDeliveries.length > 0 ? sendViaFirebaseAdmin(fcmDeliveries, tokenByUserId) : Promise.resolve(),
+    expoDeliveries.length > 0 ? sendViaExpoPush(expoDeliveries, tokenByUserId) : Promise.resolve(),
+  ]);
+}
+
+// ─── Firebase Admin (Android / FCM V1) ───────────────────────────────────────
+
+async function sendViaFirebaseAdmin(
+  deliveries: NotificationDelivery[],
+  tokenByUserId: Map<string, string>,
+): Promise<void> {
+  if (!admin.apps.length) {
+    logger.warn('[Push/FCM] Firebase Admin not initialised — skipping FCM deliveries');
+    return;
+  }
+
+  const messages: admin.messaging.TokenMessage[] = deliveries.flatMap((delivery) => {
+    const prefixedToken = tokenByUserId.get(delivery.userId);
+    if (!prefixedToken) return [];
+    const rawToken = prefixedToken.slice(FCM_PREFIX.length);
+
+    return [{
+      token: rawToken,
+      notification: {
+        title: delivery.notification.title,
+        body: delivery.notification.body,
+      },
+      // FCM data payload values must all be strings
+      data: Object.fromEntries(
+        Object.entries({
+          notificationId: delivery.notification.id,
+          type: delivery.notification.type,
+          ...(delivery.notification.data ?? {}),
+        }).map(([k, v]) => [k, String(v)]),
+      ),
+      android: {
+        priority: 'high' as const,
+        notification: { channelId: 'default', sound: 'default' },
+      },
+    }];
+  });
+
+  if (messages.length === 0) return;
+
+  logger.info('[Push/FCM] Sending via Firebase Admin', { count: messages.length });
+
+  try {
+    const result = await admin.messaging().sendEach(messages);
+
+    logger.info('[Push/FCM] Firebase Admin result', {
+      success: result.successCount,
+      failed: result.failureCount,
+    });
+
+    await Promise.all(
+      result.responses.map(async (r, i) => {
+        if (r.success) return;
+        const errorCode = r.error?.code ?? 'unknown';
+        const rawToken = messages[i]?.token ?? '';
+        logger.warn('[Push/FCM] Message failed', {
+          errorCode,
+          tokenPrefix: rawToken.slice(0, 20) + '…',
+        });
+        const staleTokenCodes = [
+          'messaging/registration-token-not-registered',
+          'messaging/invalid-registration-token',
+        ];
+        if (rawToken && staleTokenCodes.includes(errorCode)) {
+          logger.info('[Push/FCM] Clearing stale token', { tokenPrefix: rawToken.slice(0, 20) + '…' });
+          await prisma.user.updateMany({
+            where: { expoPushToken: `${FCM_PREFIX}${rawToken}` },
+            data: { expoPushToken: null },
+          });
+        }
+      }),
+    );
+  } catch (err) {
+    logger.warn('[Push/FCM] sendEach threw an exception', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+// ─── Expo push gateway (iOS / legacy Expo push tokens) ───────────────────────
+
+async function sendViaExpoPush(
+  deliveries: NotificationDelivery[],
+  tokenByUserId: Map<string, string>,
+): Promise<void> {
   const messages = buildExpoPushMessages(deliveries, tokenByUserId);
 
   if (messages.length === 0) {
+    logger.info('[Push/Expo] No messages to send');
     return;
   }
+
+  logger.info('[Push/Expo] Sending via Expo gateway', { count: messages.length });
 
   try {
     const response = await fetch('https://exp.host/--/api/v2/push/send', {
@@ -225,17 +341,24 @@ async function sendExpoPushNotifications(deliveries: NotificationDelivery[]): Pr
     });
 
     const payload = (await response.json()) as ExpoPushResponse;
+
     if (!response.ok) {
-      logger.warn('Expo push send request failed', {
+      logger.warn('[Push/Expo] Non-OK status from Expo gateway', {
         status: response.status,
         errors: payload.errors,
       });
       return;
     }
 
-    await handleExpoPushTickets(messages, payload.data ?? []);
+    const tickets = payload.data ?? [];
+    logger.info('[Push/Expo] Gateway response', {
+      ok: tickets.filter((t) => t.status === 'ok').length,
+      errors: tickets.filter((t) => t.status === 'error').length,
+    });
+
+    await handleExpoPushTickets(messages, tickets);
   } catch (error) {
-    logger.warn('Expo push send threw an error', {
+    logger.warn('[Push/Expo] Gateway request threw an exception', {
       error: error instanceof Error ? error.message : String(error),
     });
   }
@@ -247,15 +370,13 @@ async function handleExpoPushTickets(
 ): Promise<void> {
   await Promise.all(
     tickets.map(async (ticket, index) => {
-      if (ticket.status !== 'error') {
-        return;
-      }
+      if (ticket.status !== 'error') return;
 
       const token = messages[index]?.to;
-      logger.warn('Expo push ticket returned an error', {
-        token,
+      logger.warn('[Push/Expo] Ticket error', {
+        tokenPrefix: token ? token.slice(0, 30) + '…' : null,
+        errorCode: ticket.details?.error,
         message: ticket.message,
-        details: ticket.details,
       });
 
       if (ticket.details?.error === 'DeviceNotRegistered' && token) {
@@ -266,6 +387,44 @@ async function handleExpoPushTickets(
       }
     }),
   );
+}
+
+/** Sends a test SYSTEM push notification to the authenticated user's registered device. */
+export async function sendTestPushToUser(userId: string): Promise<{
+  hasToken: boolean;
+  tokenPrefix: string | null;
+  notificationId: string | null;
+}> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { expoPushToken: true },
+  });
+
+  const token = user?.expoPushToken ?? null;
+
+  logger.info('[Push] Test push requested', {
+    userId,
+    hasToken: Boolean(token),
+    tokenPrefix: token ? token.slice(0, 30) + '…' : null,
+  });
+
+  if (!token) {
+    return { hasToken: false, tokenPrefix: null, notificationId: null };
+  }
+
+  const notification = await createNotification({
+    userId,
+    type: 'SYSTEM',
+    title: '🔔 Teste de notificação',
+    body: 'Push notifications estão a funcionar correctamente!',
+    data: { test: true },
+  });
+
+  return {
+    hasToken: true,
+    tokenPrefix: token.slice(0, 30) + '…',
+    notificationId: notification.id,
+  };
 }
 
 interface ExpoPushMessage {

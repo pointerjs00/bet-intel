@@ -12,6 +12,7 @@ import type {
 } from '@betintel/shared';
 import { prisma } from '../../prisma';
 import { USER_SELECT, toPublicUser } from '../../utils/userSerializer';
+import { logger } from '../../utils/logger';
 
 const SOCIAL_USER_SELECT = {
   id: true,
@@ -68,6 +69,14 @@ export async function updateCurrentUserProfile(
   userId: string,
   input: UpdateProfileInput,
 ): Promise<PublicUser> {
+  if (input.expoPushToken !== undefined) {
+    logger.info('[Push] Push token update', {
+      userId,
+      action: input.expoPushToken ? 'register' : 'deregister',
+      tokenPrefix: input.expoPushToken ? input.expoPushToken.slice(0, 30) + '…' : null,
+    });
+  }
+
   const updated = await prisma.user.update({
     where: { id: userId },
     data: {

@@ -41,13 +41,20 @@ export async function syncDevicePushToken(): Promise<string | null> {
       return null;
     }
 
-    const projectId = resolveExpoProjectId();
-    if (!projectId) {
-      return null;
-    }
+    let nextToken: string;
 
-    const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
-    const nextToken = tokenResponse.data;
+    if (Platform.OS === 'android') {
+      // Android: use raw FCM token so the API can send via Firebase Admin directly
+      // (no Expo gateway dependency for Android push delivery).
+      const tokenResponse = await Notifications.getDevicePushTokenAsync();
+      nextToken = `fcm:${tokenResponse.data}`;
+    } else {
+      // iOS: use Expo push token — routed via Expo gateway → APNs.
+      const projectId = resolveExpoProjectId();
+      if (!projectId) return null;
+      const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+      nextToken = tokenResponse.data;
+    }
 
     if (!nextToken || cachedExpoPushToken === nextToken) {
       return nextToken ?? null;
@@ -87,6 +94,38 @@ export async function detachDevicePushToken(): Promise<void> {
 /** Clears the local notification registration cache. */
 export function resetDevicePushTokenCache(): void {
   cachedExpoPushToken = null;
+}
+
+/** Returns the locally cached Expo push token (null if not yet registered this session). */
+export function getCachedPushToken(): string | null {
+  return cachedExpoPushToken;
+}
+
+/** Returns the current notification permission status and cached push token. */
+export async function getPushNotificationStatus(): Promise<{
+  permission: 'granted' | 'denied' | 'undetermined';
+  token: string | null;
+}> {
+  const { status } = await Notifications.getPermissionsAsync();
+  return {
+    permission: status as 'granted' | 'denied' | 'undetermined',
+    token: cachedExpoPushToken,
+  };
+}
+
+/** Asks the API to send a test push notification to this device. */
+export async function sendTestPush(): Promise<{
+  hasToken: boolean;
+  tokenPrefix: string | null;
+  notificationId: string | null;
+}> {
+  interface Envelope<T> { data: T }
+  const response = await apiClient.post<Envelope<{
+    hasToken: boolean;
+    tokenPrefix: string | null;
+    notificationId: string | null;
+  }>>('/notifications/test-push');
+  return response.data.data;
 }
 
 /** Subscribes to foreground notification deliveries. */
