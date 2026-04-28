@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Sport } from '@betintel/shared';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePersonalStats } from '../../services/statsService';
+import { useTeams } from '../../services/referenceService';
 import { useTheme } from '../../theme/useTheme';
 import { TeamBadge } from '../ui/TeamBadge';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
@@ -28,6 +29,8 @@ export interface SelectionInsightsItem {
   selection: string;
   oddValue: string | number;
   result?: string;
+  /** ISO date string for the match kickoff — shown in the sheet header */
+  kickoffAt?: string | null;
 }
 
 interface Props {
@@ -224,6 +227,36 @@ const chipStyles = StyleSheet.create({
   text: { fontSize: 12, fontWeight: '700' },
 });
 
+// ─── Tennis photo hook ────────────────────────────────────────────────────────
+
+/**
+ * Fetches ATP + WTA player photo URLs and returns a name→imageUrl lookup map.
+ * Only fires when the sheet is visible and the sport is tennis.
+ */
+function useTennisPhotoLookup(sport: string, enabled: boolean): Map<string, string> {
+  const isTennis = sport === Sport.TENNIS && enabled;
+
+  const atpQuery = useTeams(
+    { sport: Sport.TENNIS, competition: 'ATP Tour' },
+    { enabled: isTennis },
+  );
+  const wtaQuery = useTeams(
+    { sport: Sport.TENNIS, competition: 'WTA Tour' },
+    { enabled: isTennis },
+  );
+
+  return useMemo(() => {
+    if (!isTennis) return new Map();
+    const map = new Map<string, string>();
+    for (const t of [...(atpQuery.data ?? []), ...(wtaQuery.data ?? [])]) {
+      if (!t.imageUrl) continue;
+      map.set(t.name, t.imageUrl);
+      if (t.displayName) map.set(t.displayName, t.imageUrl);
+    }
+    return map;
+  }, [isTennis, atpQuery.data, wtaQuery.data]);
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
@@ -238,6 +271,17 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
   useEffect(() => {
     if (item !== null) setInsightsExpanded(false);
   }, [item]);
+
+  // ── Tennis photo resolution ───────────────────────────────────────────────
+  // Fetch ATP/WTA photos internally so this sheet works correctly from ANY
+  // parent (home screen, detail screen, etc.) regardless of whether the caller
+  // passes imageUrl props.
+  const tennisLookup = useTennisPhotoLookup(item?.sport ?? '', visible && item !== null);
+
+  // Resolve final image URLs: prefer explicitly passed props, then fall back to
+  // the internally-fetched lookup map.
+  const homeTeamImageUrl = item?.homeTeamImageUrl ?? (item ? (tennisLookup.get(item.homeTeam) ?? null) : null);
+  const awayTeamImageUrl = item?.awayTeamImageUrl ?? (item ? (tennisLookup.get(item.awayTeam) ?? null) : null);
 
   const odd = item ? (typeof item.oddValue === 'string' ? parseFloat(item.oddValue) : item.oddValue) : 1;
   const impliedProb = odd > 1 ? (1 / odd) * 100 : 0;
@@ -321,7 +365,7 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
               <View style={styles.teamsLine}>
                 <TeamBadge
                   name={item.homeTeam}
-                  imageUrl={item.homeTeamImageUrl}
+                  imageUrl={homeTeamImageUrl}
                   size={20}
                   variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
                 />
@@ -330,7 +374,7 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
                 <Text numberOfLines={1} style={[styles.teamName, { color: colors.textPrimary }]}>{item.awayTeam}</Text>
                 <TeamBadge
                   name={item.awayTeam}
-                  imageUrl={item.awayTeamImageUrl}
+                  imageUrl={awayTeamImageUrl}
                   size={20}
                   variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
                 />
@@ -346,6 +390,25 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
               <Ionicons name="close-circle" size={24} color={colors.textMuted} />
             </Pressable>
           </View>
+
+          {/* Kickoff date/time */}
+          {item.kickoffAt ? (() => {
+            const d = new Date(item.kickoffAt);
+            const past = d.getTime() < Date.now();
+            const dd = String(d.getDate()).padStart(2, '0');
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const hh = String(d.getHours()).padStart(2, '0');
+            const min = String(d.getMinutes()).padStart(2, '0');
+            const kickoffColor = past ? colors.danger : colors.textSecondary;
+            return (
+              <View style={[styles.kickoffBadge, { backgroundColor: kickoffColor + '18', borderColor: kickoffColor + '40', marginHorizontal: 16, marginBottom: 4 }]}>
+                <Ionicons name={past ? 'radio-button-on' : 'time-outline'} size={13} color={kickoffColor} />
+                <Text style={[styles.kickoffBadgeText, { color: kickoffColor }]}>
+                  {past ? 'Em curso · ' : ''}{`${dd}/${mm}  ${hh}:${min}`}
+                </Text>
+              </View>
+            );
+          })() : null}
 
           {/* Odd + implied probability */}
           <View style={[styles.oddRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
@@ -592,6 +655,17 @@ const styles = StyleSheet.create({
   vsText: { fontSize: 11, fontWeight: '600' },
   competitionLine: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   competitionText: { fontSize: 12, fontWeight: '600' },
+  kickoffBadge: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+  },
+  kickoffBadgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
   oddRow: {
     flexDirection: 'row',
     alignItems: 'center',

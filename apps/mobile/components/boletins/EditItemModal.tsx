@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +45,7 @@ export interface EditItemInitialValues {
   /** Decimal serialised as string */
   oddValue: string;
   result: ItemResult;
+  kickoffAt?: string | null;
 }
 
 interface EditItemModalProps {
@@ -102,6 +104,9 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
   const [selection, setSelection] = useState('');
   const [oddRaw, setOddRaw] = useState('');
   const [result, setResult] = useState<ItemResult>(ItemResult.PENDING);
+  const [kickoffAt, setKickoffAt] = useState<string | null>(null);
+  const [kickoffDraft, setKickoffDraft] = useState({ day: '', month: '', year: '', hour: '', minute: '' });
+  const [showKickoffPicker, setShowKickoffPicker] = useState(false);
 
   // ── Dropdown visibility ─────────────────────────────────────────────────────
   const [showSports, setShowSports] = useState(false);
@@ -408,6 +413,20 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
     setOddRaw(String(parseFloat(item.oddValue)));
     setResult(item.result);
 
+    setKickoffAt(item.kickoffAt ?? null);
+    if (item.kickoffAt) {
+      const d = new Date(item.kickoffAt);
+      setKickoffDraft({
+        day: String(d.getDate()).padStart(2, '0'),
+        month: String(d.getMonth() + 1).padStart(2, '0'),
+        year: String(d.getFullYear()),
+        hour: String(d.getHours()).padStart(2, '0'),
+        minute: String(d.getMinutes()).padStart(2, '0'),
+      });
+    } else {
+      setKickoffDraft({ day: '', month: '', year: '', hour: '', minute: '' });
+    }
+
     if (detectedDoubles) {
       const homeParts = parseDoublesTeam(item.homeTeam);
       const awayParts = parseDoublesTeam(item.awayTeam);
@@ -454,6 +473,9 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
     if (trimSelection !== item.selection) changes.selection = trimSelection;
     if (oddNum !== parseFloat(item.oddValue)) changes.oddValue = oddNum;
     if (result !== item.result) changes.result = result;
+    const newKickoff = kickoffAt ?? null;
+    if (newKickoff !== (item.kickoffAt ?? null)) changes.kickoffAt = newKickoff;
+
 
     if (Object.keys(changes).length === 0) {
       onClose();
@@ -735,6 +757,128 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
               <Input label="Odd" placeholder="1.85" keyboardType="decimal-pad" value={oddRaw} onChangeText={setOddRaw} />
             </View>
           </View>
+
+          {/* ── Kick-off date/time ─────────────────────────────────────────── */}
+          <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>Hora do jogo</Text>
+          <Pressable
+            onPress={() => setShowKickoffPicker(true)}
+            style={[
+              styles.fieldBtn,
+              {
+                borderColor: kickoffAt ? colors.primary : colors.border,
+                backgroundColor: kickoffAt ? `${colors.primary}12` : colors.surfaceRaised,
+              },
+            ]}
+          >
+            <Ionicons
+              name="time-outline"
+              size={16}
+              color={kickoffAt ? colors.primary : colors.textMuted}
+            />
+            <Text style={[styles.fieldBtnValue, { color: kickoffAt ? colors.primary : colors.textMuted, flex: 1 }]}>
+              {kickoffAt
+                ? (() => {
+                    const d = new Date(kickoffAt);
+                    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}  ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                  })()
+                : 'Definir hora do jogo (opcional)'}
+            </Text>
+            {kickoffAt && (
+              <Pressable
+                hitSlop={8}
+                onPress={(e) => { e.stopPropagation(); setKickoffAt(null); }}
+              >
+                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+              </Pressable>
+            )}
+          </Pressable>
+
+          {/* Kickoff picker modal */}
+          <Modal
+            visible={showKickoffPicker}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setShowKickoffPicker(false)}
+          >
+            <Pressable
+              style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
+              onPress={() => setShowKickoffPicker(false)}
+            >
+              <Pressable
+                style={{ width: '100%', maxWidth: 360, borderRadius: 20, padding: 20, gap: 14, backgroundColor: colors.surface }}
+                onPress={() => {}}
+              >
+                <Text style={{ fontSize: 17, fontWeight: '700', textAlign: 'center', color: colors.textPrimary }}>Hora do jogo</Text>
+
+                {/* Date row */}
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, justifyContent: 'center' }}>
+                  {[
+                    { label: 'Dia', key: 'day' as const, placeholder: 'DD', maxLength: 2 },
+                    { label: 'Mês', key: 'month' as const, placeholder: 'MM', maxLength: 2 },
+                    { label: 'Ano', key: 'year' as const, placeholder: 'AAAA', maxLength: 4, wide: true },
+                  ].map(({ label, key, placeholder, maxLength, wide }) => (
+                    <View key={key} style={[{ alignItems: 'center', gap: 4 }, wide && { minWidth: 72 }]}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: colors.textMuted }}>{label}</Text>
+                      <TextInput
+                        style={{ borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 10, fontSize: 16, fontWeight: '700', minWidth: 46, textAlign: 'center', color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }}
+                        value={kickoffDraft[key]}
+                        onChangeText={(v) => setKickoffDraft((p) => ({ ...p, [key]: v.replace(/\D/g, '').slice(0, maxLength) }))}
+                        keyboardType="number-pad"
+                        maxLength={maxLength}
+                        placeholder={placeholder}
+                        placeholderTextColor={colors.textMuted}
+                        textAlign="center"
+                      />
+                    </View>
+                  ))}
+                </View>
+
+                {/* Time row */}
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8, justifyContent: 'center' }}>
+                  {[
+                    { label: 'Hora', key: 'hour' as const, placeholder: 'HH', maxLength: 2 },
+                    { label: 'Min', key: 'minute' as const, placeholder: 'MM', maxLength: 2 },
+                  ].map(({ label, key, placeholder, maxLength }) => (
+                    <View key={key} style={{ alignItems: 'center', gap: 4 }}>
+                      <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: colors.textMuted }}>{label}</Text>
+                      <TextInput
+                        style={{ borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 10, fontSize: 16, fontWeight: '700', minWidth: 46, textAlign: 'center', color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }}
+                        value={kickoffDraft[key]}
+                        onChangeText={(v) => setKickoffDraft((p) => ({ ...p, [key]: v.replace(/\D/g, '').slice(0, maxLength) }))}
+                        keyboardType="number-pad"
+                        maxLength={maxLength}
+                        placeholder={placeholder}
+                        placeholderTextColor={colors.textMuted}
+                        textAlign="center"
+                      />
+                    </View>
+                  ))}
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                  <Button variant="ghost" title="Cancelar" onPress={() => setShowKickoffPicker(false)} style={{ flex: 1 }} />
+                  <Button
+                    title="Confirmar"
+                    style={{ flex: 1 }}
+                    onPress={() => {
+                      const { day, month, year, hour, minute } = kickoffDraft;
+                      const d = new Date(
+                        parseInt(year, 10),
+                        parseInt(month, 10) - 1,
+                        parseInt(day, 10),
+                        parseInt(hour, 10),
+                        parseInt(minute, 10),
+                      );
+                      if (!isNaN(d.getTime())) {
+                        setKickoffAt(d.toISOString());
+                      }
+                      setShowKickoffPicker(false);
+                    }}
+                  />
+                </View>
+              </Pressable>
+            </Pressable>
+          </Modal>
 
           {/* ── Result ─────────────────────────────────────────────────── */}
           <Text style={[styles.sectionDivider, { color: colors.textSecondary }]}>Resultado</Text>

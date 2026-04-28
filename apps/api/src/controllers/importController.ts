@@ -35,6 +35,13 @@ const bulkImportItemSchema = z.object({
   oddValue: z.number().min(1.01).max(1000),
   /** Per-item result from the AI parse — used to set individual selection outcomes. */
   result: z.enum(['WON', 'LOST', 'VOID', 'PENDING']).optional(),
+  /**
+   * ISO date string for the individual match kickoff.
+   * Set by the user in the import review screen and stored as `kickoffAt`
+   * on the BoletinItem so it appears in agenda, BoletinItem cards, and
+   * the SelectionInsightsSheet.
+   */
+  eventDate: z.string().datetime({ offset: true }).optional().nullable(),
 });
 
 const bulkImportBoletinSchema = z.object({
@@ -279,7 +286,9 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
         }
 
         try {
-          // Map to CreateBoletinInput
+          // Map to CreateBoletinInput — kickoffAt is NOT part of the shared
+          // createBoletinSchema (it lives on BoletinItem), so we create the
+          // boletin first and then patch each item's kickoffAt individually.
           const input = {
             name: undefined,
             siteSlug,
@@ -297,10 +306,10 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
             isPublic: false,
             isFreebet: false,
             betDate: (() => {
-            if (!bet.betDate) return undefined;
-            const d = new Date(bet.betDate);
-            return isNaN(d.getTime()) ? undefined : d.toISOString();
-          })(),
+              if (!bet.betDate) return undefined;
+              const d = new Date(bet.betDate);
+              return isNaN(d.getTime()) ? undefined : d.toISOString();
+            })(),
           };
 
           // Validate with the shared schema
@@ -319,43 +328,67 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
           // Override with the slip's own totalOdds so the stored values are always consistent.
           const slipOdds = new Prisma.Decimal(bet.totalOdds).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
           const slipReturn = new Prisma.Decimal(bet.stake).mul(slipOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-          await prisma.boletin.update({
+          await tx.boletin.update({
             where: { id: createdBoletin.id },
             data: { totalOdds: slipOdds, potentialReturn: slipReturn },
           });
 
-          // Apply individual item results from the import review.
-          // Run whenever any item has a user-set result, OR the boletin itself is resolved.
-          // This preserves WON/LOST items the user manually set even on a PENDING boletin.
+          // Fetch the created items in insertion order so we can match them
+          // to the incoming items by position.
+          const dbItems = await tx.boletinItem.findMany({
+            where: { boletinId: createdBoletin.id },
+            orderBy: { id: 'asc' },
+          });
+
+          // Apply individual item results AND kickoffAt (eventDate) from the
+          // import review. Run whenever any item has a result or date set, OR
+          // the boletin itself is resolved.
           const resolved = bet.status === 'WON' || bet.status === 'LOST' || bet.status === 'VOID';
           const hasItemResults = bet.items.some(
             (item) => item.result && item.result !== 'PENDING',
           );
+          const hasItemDates = bet.items.some((item) => Boolean(item.eventDate));
 
-          if (resolved || hasItemResults) {
-            const dbItems = await prisma.boletinItem.findMany({
-              where: { boletinId: createdBoletin.id },
-              orderBy: { id: 'asc' },
-            });
-
+          if (resolved || hasItemResults || hasItemDates) {
             for (let i = 0; i < dbItems.length; i++) {
               const parsedItem = bet.items[i];
-              // Per-item result from user review; fall back to boletin status only for single resolved legs
+              if (!parsedItem) continue;
+
+              // ── Result ────────────────────────────────────────────────────
+              // Per-item result from user review; fall back to boletin status
+              // only for single resolved legs.
               const itemResult: 'WON' | 'LOST' | 'VOID' | 'PENDING' =
-                parsedItem?.result && ['WON', 'LOST', 'VOID', 'PENDING'].includes(parsedItem.result)
+                parsedItem.result && ['WON', 'LOST', 'VOID', 'PENDING'].includes(parsedItem.result)
                   ? (parsedItem.result as 'WON' | 'LOST' | 'VOID' | 'PENDING')
                   : resolved && bet.items.length === 1
                     ? (bet.status as 'WON' | 'LOST' | 'VOID')
                     : 'PENDING';
 
-              await prisma.boletinItem.update({
+              // ── kickoffAt ─────────────────────────────────────────────────
+              // The user sets this via the date picker in import-review.tsx.
+              // It is sent as `eventDate` (an ISO string) on each item and
+              // stored as `kickoffAt` on BoletinItem so it shows in the agenda,
+              // BoletinItem cards, and the SelectionInsightsSheet.
+              const kickoffAt: Date | null = (() => {
+                if (!parsedItem.eventDate) return null;
+                const d = new Date(parsedItem.eventDate);
+                return isNaN(d.getTime()) ? null : d;
+              })();
+
+              await tx.boletinItem.update({
                 where: { id: dbItems[i]!.id },
-                data: { result: itemResult },
+                data: {
+                  result: itemResult,
+                  // Only write kickoffAt when the user has actually set a date.
+                  // Passing undefined leaves the existing DB value unchanged;
+                  // passing null explicitly clears it.
+                  ...(kickoffAt !== null ? { kickoffAt } : {}),
+                },
               });
             }
 
             if (resolved) {
-              await prisma.boletin.update({
+              await tx.boletin.update({
                 where: { id: createdBoletin.id },
                 data: {
                   status: bet.status as 'WON' | 'LOST' | 'VOID',

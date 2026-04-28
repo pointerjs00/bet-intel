@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
+  PanResponder,
   Pressable,
   RefreshControl,
   SectionList,
@@ -89,16 +91,51 @@ function BoletinPickerSheet({
   onPick: (id: string) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, { dy }) => dy > 5,
+      onPanResponderMove: (_, { dy }) => {
+        if (dy > 0) translateY.setValue(dy);
+      },
+      onPanResponderRelease: (_, { dy, vy }) => {
+        if (dy > 120 || vy > 0.8) {
+          Animated.timing(translateY, {
+            toValue: 600,
+            duration: 250,
+            useNativeDriver: true,
+          }).start(onClose);
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 4,
+          }).start();
+        }
+      },
+    }),
+  ).current;
+
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View
+      <Animated.View
         style={[
           styles.sheet,
-          { backgroundColor: colors.surface, paddingBottom: insets.bottom + 16 },
+          {
+            backgroundColor: colors.surface,
+            paddingBottom: insets.bottom + 16,
+            transform: [{ translateY }],
+          },
         ]}
       >
-        <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+        {/* Drag handle — entire handle area is the pan target */}
+        <View {...panResponder.panHandlers} style={styles.sheetHandleArea}>
+          <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+        </View>
+
         <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>
           {item.homeTeam} vs {item.awayTeam}
         </Text>
@@ -119,7 +156,7 @@ function BoletinPickerSheet({
             <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
           </PressableScale>
         ))}
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
@@ -375,7 +412,13 @@ const styles = StyleSheet.create({
   // Sheet
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, gap: 12 },
-  sheetHandle: { alignSelf: 'center', borderRadius: 3, height: 4, marginBottom: 4, width: 36 },
+  sheetHandleArea: {
+    alignItems: 'center',
+    marginBottom: 4,
+    marginHorizontal: -20, // extend tap area to card edges
+    paddingVertical: 8,
+  },
+  sheetHandle: { borderRadius: 3, height: 4, width: 36 },
   sheetTitle: { fontSize: 17, fontWeight: '800' },
   sheetSubtitle: { fontSize: 13, marginTop: -4 },
   sheetRow: {

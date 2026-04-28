@@ -27,11 +27,27 @@ interface BoletinItemProps {
     awayTeamImageUrl?: string | null;
     competition: string;
     sport?: Sport;
+    kickoffAt?: string | null;
   };
   onRemove?: () => void;
   onEdit?: () => void;
   onResultChange?: (result: ItemResult) => void;
   onInsights?: () => void;
+}
+
+/** Formats a kickoff ISO string as "DD/MM  HH:MM" */
+function formatKickoff(iso: string): string {
+  const d = new Date(iso);
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}  ${hh}:${min}`;
+}
+
+/** Returns true if the kickoff time is in the past */
+function isKickoffPast(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now();
 }
 
 /** Renders one selection row in builder and detail contexts. */
@@ -40,6 +56,9 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
   const resultMeta = getResultMeta(item.result, colors);
 
   const a11yLabel = `${item.selection}, odds ${item.oddValue}, ${item.homeTeam} vs ${item.awayTeam}, ${item.competition}`;
+
+  const kickoffPast = item.kickoffAt ? isKickoffPast(item.kickoffAt) : false;
+  const kickoffColor = kickoffPast ? colors.danger : colors.textMuted;
 
   return (
     <View
@@ -81,9 +100,26 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
               </Pressable>
             ) : null}
           </View>
+
           <Text numberOfLines={1} style={[styles.teamsSubtitle, { color: colors.textPrimary }]}>
             {item.homeTeam} vs {item.awayTeam}
           </Text>
+
+          {/* ── Kickoff date/time — own dedicated row ───────────────── */}
+          {item.kickoffAt ? (
+            <View style={styles.kickoffRow}>
+              <Ionicons
+                name={kickoffPast ? 'radio-button-on' : 'time-outline'}
+                size={12}
+                color={kickoffColor}
+              />
+              <Text style={[styles.kickoffText, { color: kickoffColor }]}>
+                {kickoffPast ? 'Em curso · ' : ''}{formatKickoff(item.kickoffAt)}
+              </Text>
+            </View>
+          ) : null}
+
+          {/* ── Competition row ─────────────────────────────────────── */}
           <View style={styles.competitionRow}>
             <CompetitionBadge name={item.competition} size={14} />
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -334,11 +370,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  // ── Kickoff — dedicated row so it's always clearly visible ──────────────────
+  kickoffRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 1,
+  },
+  kickoffText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+  // ────────────────────────────────────────────────────────────────────────────
   competitionRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
-    marginTop: 2,
+    marginTop: 1,
   },
   subtitle: {
     fontSize: 12,

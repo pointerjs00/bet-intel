@@ -1216,6 +1216,7 @@ export default function BoletinDetailScreen() {
                   selection: item.selection,
                   oddValue: item.oddValue,
                   result: item.result,
+                  kickoffAt: item.kickoffAt ?? null,
                 });
               } : undefined}
               onResultChange={canEdit && !isEditing ? async (result) => {

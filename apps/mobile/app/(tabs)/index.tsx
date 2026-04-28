@@ -616,9 +616,31 @@ export default function HomeScreen() {
           valB = b.items.length;
           break;
         case 'date':
-        default:
-          valA = new Date(a.betDate ?? a.createdAt).getTime();
-          valB = new Date(b.betDate ?? b.createdAt).getTime();
+        default: {
+          // Primary: bet date (day granularity). Secondary: earliest kickoffAt among items.
+          const dateA = new Date(a.betDate ?? a.createdAt);
+          const dateB = new Date(b.betDate ?? b.createdAt);
+          // Normalise to midnight so same-day boletins compare by kickoff
+          dateA.setHours(0, 0, 0, 0);
+          dateB.setHours(0, 0, 0, 0);
+          if (dateA.getTime() !== dateB.getTime()) {
+            valA = dateA.getTime();
+            valB = dateB.getTime();
+          } else {
+            // Same day — sort by earliest kickoff among items; boletins without kickoff sort last
+            const kickoffA = a.items
+              .map((i) => i.kickoffAt ? new Date(i.kickoffAt).getTime() : null)
+              .filter((t): t is number => t !== null)
+              .sort((x, y) => x - y)[0] ?? Infinity;
+            const kickoffB = b.items
+              .map((i) => i.kickoffAt ? new Date(i.kickoffAt).getTime() : null)
+              .filter((t): t is number => t !== null)
+              .sort((x, y) => x - y)[0] ?? Infinity;
+            valA = kickoffA;
+            valB = kickoffB;
+          }
+          break;
+        }
       }
       return sort.dir === 'asc' ? valA - valB : valB - valA;
     });
@@ -998,6 +1020,7 @@ export default function HomeScreen() {
                 selection: selection.selection,
                 oddValue: selection.oddValue,
                 result: selection.result,
+                kickoffAt: selection.kickoffAt ?? null,
               })}
               onDelete={() => setDeleteTarget({ id: item.id, name: item.name ?? undefined })}
               onShare={() => openShareBoletinSheet({ boletinId: item.id, boletinName: item.name ?? undefined })}
