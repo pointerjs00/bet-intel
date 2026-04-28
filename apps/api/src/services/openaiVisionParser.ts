@@ -101,6 +101,10 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
     finishReason: response.choices[0]?.finish_reason,
   });
 
+  logger.info('OpenAI raw parsed content', {
+    rawText: text.slice(0, 2000),
+  });
+
   let parsed: { boletins?: unknown[]; error?: string };
   try {
     parsed = JSON.parse(text);
@@ -123,5 +127,16 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
     };
   }
 
-  return normalizeParsedResult(parsed as Parameters<typeof normalizeParsedResult>[0]);
+  const result = normalizeParsedResult(parsed as Parameters<typeof normalizeParsedResult>[0]);
+
+  logger.info('Normalized result eventDates', {
+    eventDates: result.boletins.flatMap(b =>
+      b.items.map(item => ({
+        homeTeam: item.homeTeam,
+        eventDate: item.eventDate,
+      }))
+    ),
+  });
+
+  return result;
 }

@@ -75,31 +75,38 @@ const BOLETIN_STATUS_CYCLE: BoletinStatusEdit[] = ['PENDING', 'WON', 'LOST', 'VO
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatParsedDate(iso: string): string {
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('pt-PT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  } catch {
-    return '—';
-  }
-}
-
 function formatSelectionDate(iso: string): string {
   try {
     const d = new Date(iso);
+    const opts = { timeZone: 'Europe/Lisbon' } as const;
     return (
       d.toLocaleDateString('pt-PT', {
+        ...opts,
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
       }) +
       ' ' +
-      d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+      d.toLocaleTimeString('pt-PT', {
+        ...opts,
+        hour: '2-digit',
+        minute: '2-digit',
+      })
     );
+  } catch {
+    return '—';
+  }
+}
+
+function formatParsedDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('pt-PT', {
+      timeZone: 'Europe/Lisbon',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
   } catch {
     return '—';
   }
@@ -149,6 +156,15 @@ export default function ImportReviewScreen() {
       return null;
     }
   }, [params.data]);
+
+  useEffect(() => {
+    if (!pdfResult) return;
+    pdfResult.boletins.forEach((b, bi) => {
+      b.items.forEach((item, ii) => {
+        console.log(`[eventDate raw type check] "${item.eventDate}" ends with Z: ${item.eventDate?.endsWith('Z')}`);
+      });
+    });
+  }, [pdfResult]);
 
   const boletins = pdfResult?.boletins ?? [];
 
@@ -616,49 +632,92 @@ export default function ImportReviewScreen() {
     [],
   );
 
-  const openSelectionDatePicker = useCallback((boletinIdx: number, itemIdx: number, currentDate?: string) => {
-    const d = currentDate ? new Date(currentDate) : new Date();
-    setDateDraft({
-      day: String(d.getDate()).padStart(2, '0'),
-      month: String(d.getMonth() + 1).padStart(2, '0'),
-      year: String(d.getFullYear()),
-      hour: String(d.getHours()).padStart(2, '0'),
-      minute: String(d.getMinutes()).padStart(2, '0'),
-    });
-    setDatePickerTarget({ kind: 'selection', boletinIdx, itemIdx });
-  }, []);
+  function parseDateForPicker(iso: string): { day: number; month: number; year: number; hour: number; minute: number } {
+    const d = new Date(iso);
+    // Use Intl to extract fields in Lisbon time
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Lisbon',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(d);
+    const get = (type: string) => parseInt(parts.find(p => p.type === type)?.value ?? '0', 10);
+    return {
+      day: get('day'),
+      month: get('month'),
+      year: get('year'),
+      hour: get('hour'),
+      minute: get('minute'),
+    };
+  }
 
-  const openBoletinDatePicker = useCallback((boletinIdx: number, currentDate?: string) => {
-    const d = currentDate ? new Date(currentDate) : new Date();
-    setDateDraft({
-      day: String(d.getDate()).padStart(2, '0'),
-      month: String(d.getMonth() + 1).padStart(2, '0'),
-      year: String(d.getFullYear()),
-      hour: String(d.getHours()).padStart(2, '0'),
-      minute: String(d.getMinutes()).padStart(2, '0'),
-    });
-    setDatePickerTarget({ kind: 'boletin', boletinIdx });
-  }, []);
+  const openSelectionDatePicker = useCallback(
+    (boletinIdx: number, itemIdx: number, currentDate?: string) => {
+      const parts = currentDate ? parseDateForPicker(currentDate) : (() => {
+        const p = parseDateForPicker(new Date().toISOString());
+        return p;
+      })();
+      setDateDraft({
+        day: String(parts.day).padStart(2, '0'),
+        month: String(parts.month).padStart(2, '0'),
+        year: String(parts.year),
+        hour: String(parts.hour).padStart(2, '0'),
+        minute: String(parts.minute).padStart(2, '0'),
+      });
+      setDatePickerTarget({ kind: 'selection', boletinIdx, itemIdx });
+    },
+    [],
+  );
+
+  const openBoletinDatePicker = useCallback(
+    (boletinIdx: number, currentDate?: string) => {
+      const parts = currentDate
+        ? parseDateForPicker(currentDate)
+        : parseDateForPicker(new Date().toISOString());
+      setDateDraft({
+        day: String(parts.day).padStart(2, '0'),
+        month: String(parts.month).padStart(2, '0'),
+        year: String(parts.year),
+        hour: String(parts.hour).padStart(2, '0'),
+        minute: String(parts.minute).padStart(2, '0'),
+      });
+      setDatePickerTarget({ kind: 'boletin', boletinIdx });
+    },
+    [],
+  );
 
   const confirmDatePicker = useCallback(() => {
     if (!datePickerTarget) return;
     const { day, month, year, hour, minute } = dateDraft;
-    const d = new Date(
-      parseInt(year, 10),
-      parseInt(month, 10) - 1,
-      parseInt(day, 10),
-      parseInt(hour, 10),
-      parseInt(minute, 10),
-    );
-    if (!isNaN(d.getTime())) {
+    // Construct as Lisbon local time → UTC
+    const isoLocal = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}T${hour.padStart(2,'0')}:${minute.padStart(2,'0')}:00`;
+    // Use Intl trick: format a date in Lisbon and find offset
+    const probe = new Date(isoLocal + 'Z'); // treat as UTC first
+    const lisbon = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Lisbon',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+    });
+    // Binary-search-free approach: use the offset at that moment
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Europe/Lisbon',
+      timeZoneName: 'shortOffset',
+    });
+    const offsetStr = formatter.formatToParts(probe).find(p => p.type === 'timeZoneName')?.value ?? 'GMT+1';
+    const offsetMatch = offsetStr.match(/GMT([+-]\d+)(?::(\d+))?/);
+    const offsetHours = offsetMatch ? parseInt(offsetMatch[1], 10) : 1;
+    const offsetMinutes = offsetMatch?.[2] ? parseInt(offsetMatch[2], 10) : 0;
+    const utcMs = probe.getTime() - (offsetHours * 60 + offsetMinutes) * 60_000;
+    const utcDate = new Date(utcMs);
+
+    if (!isNaN(utcDate.getTime())) {
       if (datePickerTarget.kind === 'selection') {
         updateItemEdit(datePickerTarget.boletinIdx, datePickerTarget.itemIdx, {
-          eventDate: d.toISOString(),
+          eventDate: utcDate.toISOString(),
         });
       } else {
         setBetDateEdits((prev) => {
           const next = new Map(prev);
-          next.set(datePickerTarget.boletinIdx, d.toISOString());
+          next.set(datePickerTarget.boletinIdx, utcDate.toISOString());
           return next;
         });
       }
