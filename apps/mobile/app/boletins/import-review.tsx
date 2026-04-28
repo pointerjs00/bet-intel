@@ -78,17 +78,16 @@ const BOLETIN_STATUS_CYCLE: BoletinStatusEdit[] = ['PENDING', 'WON', 'LOST', 'VO
 function formatSelectionDate(iso: string): string {
   try {
     const d = new Date(iso);
-    const opts = { timeZone: 'Europe/Lisbon' } as const;
     return (
       d.toLocaleDateString('pt-PT', {
-        ...opts,
+        timeZone: 'UTC',
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',
       }) +
       ' ' +
       d.toLocaleTimeString('pt-PT', {
-        ...opts,
+        timeZone: 'UTC',
         hour: '2-digit',
         minute: '2-digit',
       })
@@ -102,7 +101,7 @@ function formatParsedDate(iso: string): string {
   try {
     const d = new Date(iso);
     return d.toLocaleDateString('pt-PT', {
-      timeZone: 'Europe/Lisbon',
+      timeZone: 'UTC',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -634,19 +633,12 @@ export default function ImportReviewScreen() {
 
   function parseDateForPicker(iso: string): { day: number; month: number; year: number; hour: number; minute: number } {
     const d = new Date(iso);
-    // Use Intl to extract fields in Lisbon time
-    const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Lisbon',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-    }).formatToParts(d);
-    const get = (type: string) => parseInt(parts.find(p => p.type === type)?.value ?? '0', 10);
     return {
-      day: get('day'),
-      month: get('month'),
-      year: get('year'),
-      hour: get('hour'),
-      minute: get('minute'),
+      day: d.getUTCDate(),
+      month: d.getUTCMonth() + 1,
+      year: d.getUTCFullYear(),
+      hour: d.getUTCHours(),
+      minute: d.getUTCMinutes(),
     };
   }
 
@@ -688,36 +680,22 @@ export default function ImportReviewScreen() {
   const confirmDatePicker = useCallback(() => {
     if (!datePickerTarget) return;
     const { day, month, year, hour, minute } = dateDraft;
-    // Construct as Lisbon local time → UTC
-    const isoLocal = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}T${hour.padStart(2,'0')}:${minute.padStart(2,'0')}:00`;
-    // Use Intl trick: format a date in Lisbon and find offset
-    const probe = new Date(isoLocal + 'Z'); // treat as UTC first
-    const lisbon = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Europe/Lisbon',
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', hour12: false,
-    });
-    // Binary-search-free approach: use the offset at that moment
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Europe/Lisbon',
-      timeZoneName: 'shortOffset',
-    });
-    const offsetStr = formatter.formatToParts(probe).find(p => p.type === 'timeZoneName')?.value ?? 'GMT+1';
-    const offsetMatch = offsetStr.match(/GMT([+-]\d+)(?::(\d+))?/);
-    const offsetHours = offsetMatch ? parseInt(offsetMatch[1], 10) : 1;
-    const offsetMinutes = offsetMatch?.[2] ? parseInt(offsetMatch[2], 10) : 0;
-    const utcMs = probe.getTime() - (offsetHours * 60 + offsetMinutes) * 60_000;
-    const utcDate = new Date(utcMs);
-
-    if (!isNaN(utcDate.getTime())) {
+    const d = new Date(Date.UTC(
+      parseInt(year, 10),
+      parseInt(month, 10) - 1,
+      parseInt(day, 10),
+      parseInt(hour, 10),
+      parseInt(minute, 10),
+    ));
+    if (!isNaN(d.getTime())) {
       if (datePickerTarget.kind === 'selection') {
         updateItemEdit(datePickerTarget.boletinIdx, datePickerTarget.itemIdx, {
-          eventDate: utcDate.toISOString(),
+          eventDate: d.toISOString(),
         });
       } else {
         setBetDateEdits((prev) => {
           const next = new Map(prev);
-          next.set(datePickerTarget.boletinIdx, utcDate.toISOString());
+          next.set(datePickerTarget.boletinIdx, d.toISOString());
           return next;
         });
       }

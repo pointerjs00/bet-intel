@@ -56,9 +56,9 @@ export async function parseImageWithOpenAI(imageBase64: string, mimeType: string
             'IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot in Portuguese — do NOT translate them to English.',
             'Each item has its own "result" field: "WON", "LOST", "VOID", or "PENDING".',
             'Process each selection row from TOP to BOTTOM in document order.',
-            'For each row, check the coloured circle icon to the LEFT of the team name and the text colour: GREEN ✓ + green text = WON; RED ✗ + red text = LOST; no icon + white/grey text = PENDING.',
+            'Each item has its own "result" field. In Betclic screenshots, the status indicators for each selection are small circular icons displayed horizontally in a row near the top of the bet slip, next to the "Múltipla" or "Simples" label — one icon per selection, in the same top-to-bottom order as the selections listed below. Read each icon left-to-right: GREEN filled circle = "WON"; RED filled circle = "LOST"; GREY circle = "VOID"; CLOCK/outline circle = "PENDING". Then match each icon position to the corresponding selection by order. Also check the selection text colour as a secondary signal: green text = WON, red text = LOST, grey text = VOID, white/default = PENDING.',
             'IMPORTANT: also include a "losingSelections" array at the boletin level with the EXACT team name strings (as written) that appear in RED on the screenshot (e.g. ["SC Braga", "FC Arouca"]). Empty array if no red names.',
-            'In a lost accumulator exactly ONE row is red; all others showing green must be WON. Never mark a row LOST just because the overall bet is Perdida.',
+            'In a lost accumulator exactly ONE row is red (LOST); all others showing green must be WON. Never mark a row LOST just because the overall bet is Perdida.',
           ].join(' ');
         })(),
       },
