@@ -12,6 +12,7 @@ export const STATS_SECTIONS: StatsSectionDef[] = [
   { id: 'avg-odds', label: 'Odd média (ganhas/perdidas)', icon: 'swap-vertical-outline' },
   { id: 'win-rate', label: 'Taxa de Vitória', icon: 'trophy-outline' },
   { id: 'streaks', label: 'Sequências', icon: 'flame-outline' },
+  { id: 'recent-form', label: 'Forma Recente', icon: 'pulse-outline' },
   { id: 'stake-by-outcome', label: 'Stake média por resultado', icon: 'analytics-outline' },
   { id: 'totals', label: 'Total boletins / Stake média', icon: 'layers-outline' },
   { id: 'averages', label: 'Odd média geral / Ganhos', icon: 'stats-chart-outline' },

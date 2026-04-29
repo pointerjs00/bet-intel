@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/authenticate';
 import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   getPersonalStatsHandler,
+  getRecentFormHandler,
   getStatsByCompetitionHandler,
   getStatsByMarketHandler,
   getStatsByOddsRangeHandler,
@@ -28,5 +29,6 @@ statsRouter.get('/me/by-odds-range', getStatsByOddsRangeHandler);
 statsRouter.get('/me/timeline', getStatsTimelineHandler);
 statsRouter.get('/me/ai-review', getAiReviewHandler);
 statsRouter.get('/me/ai-review/prompt', getAiReviewPromptHandler);
+statsRouter.get('/me/recent-form', getRecentFormHandler);
 
 export { statsRouter };

@@ -37,7 +37,8 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { DeltaBadge } from '../../components/stats/DeltaBadge';
 import { CustomMetricCard } from '../../components/stats/CustomMetricCard';
 import StatsCustomizeSheet from '../../components/stats/StatsCustomizeSheet';
-import { useAiReview, usePersonalStats, useStatsTimeline } from '../../services/statsService';
+import { useAiReview, usePersonalStats, useRecentForm, useStatsTimeline } from '../../services/statsService';
+import { RecentFormCard } from '../../components/stats/RecentFormCard';
 import { useCustomMetricsStore } from '../../stores/customMetricsStore';
 import { useStatsDashboardStore } from '../../stores/statsDashboardStore';
 import { useBoletins, exportBoletinsToCsv, exportBoletinsToXlsx } from '../../services/boletinService';
@@ -676,6 +677,7 @@ export default function StatsScreen() {
   const timelineQuery = useStatsTimeline(activePeriod, siteSlugs, activeFrom, activeTo, granularity);
   const timelineData = timelineQuery.data ?? stats?.timeline ?? [];
 
+  const recentFormQuery = useRecentForm();
   const aiReview = useAiReview();
 
   const boletinsQuery = useBoletins();
@@ -976,6 +978,12 @@ export default function StatsScreen() {
               case 'streaks': return (
                 <Animated.View key="streaks" entering={FadeInDown.delay(45).duration(160).springify()}>
                   <StreakCard streaks={stats.summary.streaks} onInfoPress={() => pushInfo('streaks', stats.summary.streaks.currentType === 'WON' ? stats.summary.streaks.currentCount : stats.summary.streaks.currentType === 'LOST' ? -stats.summary.streaks.currentCount : 0)} />
+                </Animated.View>
+              );
+
+              case 'recent-form': return (
+                <Animated.View key="recent-form" entering={FadeInDown.delay(45).duration(160).springify()}>
+                  <RecentFormCard windows={recentFormQuery.data ?? []} onInfoPress={() => pushInfo('recent-form', 0)} />
                 </Animated.View>
               );
 

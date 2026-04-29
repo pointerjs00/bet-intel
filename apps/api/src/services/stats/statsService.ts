@@ -1,6 +1,7 @@
 import { BoletinStatus, ItemResult, Prisma, Sport } from '@prisma/client';
 import type {
   PersonalStats,
+  RollingWindowStats,
   SiteMonthlyROI,
   StatsByCompetitionRow,
   StatsByHourRow,
@@ -137,6 +138,58 @@ export async function getStatsByOddsRange(userId: string, opts: StatsOptions | S
 export async function getStatsTimeline(userId: string, opts: StatsOptions | StatsPeriod, siteSlug?: string): Promise<StatsTimelinePoint[]> {
   const stats = await getPersonalStats(userId, opts, siteSlug);
   return stats.timeline;
+}
+
+/** Returns rolling-window stats for the last 10, 20, and 30 resolved boletins (period-independent). */
+export async function getRecentForm(userId: string): Promise<RollingWindowStats[]> {
+  const resolved = await prisma.boletin.findMany({
+    where: { userId, status: { not: BoletinStatus.PENDING } },
+    orderBy: [{ betDate: 'asc' }, { createdAt: 'asc' }],
+    select: { status: true, stake: true, actualReturn: true },
+  });
+
+  return ([10, 20, 30] as const).map((n) => computeRollingWindow(resolved, n));
+}
+
+function computeRollingWindow(
+  allResolved: Array<{ status: BoletinStatus; stake: Prisma.Decimal; actualReturn: Prisma.Decimal | null }>,
+  n: number,
+): RollingWindowStats {
+  const slice = allResolved.slice(-n);
+  const count = slice.length;
+
+  if (count === 0) {
+    return { window: n, count: 0, roi: 0, winRate: 0, profitLoss: 0, wonCount: 0, lostCount: 0, voidCount: 0, results: [] };
+  }
+
+  let wonCount = 0, lostCount = 0, voidCount = 0;
+  let totalStake = 0, totalReturn = 0;
+  const results: Array<'WON' | 'LOST' | 'VOID'> = [];
+
+  for (const b of slice) {
+    totalStake += b.stake.toNumber();
+    totalReturn += b.actualReturn?.toNumber() ?? 0;
+    if (b.status === BoletinStatus.WON || b.status === BoletinStatus.PARTIAL) {
+      wonCount++; results.push('WON');
+    } else if (b.status === BoletinStatus.LOST) {
+      lostCount++; results.push('LOST');
+    } else {
+      voidCount++; results.push('VOID');
+    }
+  }
+
+  const settledCount = wonCount + lostCount;
+  return {
+    window: n,
+    count,
+    roi: totalStake > 0 ? ((totalReturn - totalStake) / totalStake) * 100 : 0,
+    winRate: settledCount > 0 ? (wonCount / settledCount) * 100 : 0,
+    profitLoss: totalReturn - totalStake,
+    wonCount,
+    lostCount,
+    voidCount,
+    results,
+  };
 }
 
 /** Normalises the overloaded opts parameter into a StatsOptions object. */

@@ -604,6 +604,21 @@ export interface StatsROITrendPoint {
   roi: number;
 }
 
+export interface RollingWindowStats {
+  /** Number of bets in this window definition (10, 20, or 30) */
+  window: number;
+  /** Actual count of resolved bets available (may be less than window) */
+  count: number;
+  roi: number;
+  winRate: number;
+  profitLoss: number;
+  wonCount: number;
+  lostCount: number;
+  voidCount: number;
+  /** Chronological result sequence (oldest → newest) for the bead strip */
+  results: Array<'WON' | 'LOST' | 'VOID'>;
+}
+
 export interface StatsInsight {
   id: string;
   /** Icon name (Ionicons) */

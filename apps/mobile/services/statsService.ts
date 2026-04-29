@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AiReview,
   PersonalStats,
+  RollingWindowStats,
   StatsByCompetitionRow,
   StatsByMarketRow,
   StatsByOddsRangeRow,
@@ -20,6 +21,7 @@ interface ApiEnvelope<T> {
 
 export const statsQueryKeys = {
   aiReview: ['stats', 'ai-review'] as const,
+  recentForm: ['stats', 'recent-form'] as const,
   all: ['stats'] as const,
   me: (period: StatsPeriod, siteSlugs: string[], dateFrom?: string, dateTo?: string) =>
     ['stats', 'me', period, siteSlugs.join(','), dateFrom ?? '', dateTo ?? ''] as const,
@@ -192,6 +194,18 @@ export function useAiReview() {
     error: mutation.error,
     generate: () => mutation.mutate(),
   };
+}
+
+/** Returns rolling-window stats for the last 10, 20, and 30 resolved boletins. Period-independent. */
+export function useRecentForm() {
+  return useQuery({
+    queryKey: statsQueryKeys.recentForm,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const response = await apiClient.get<ApiEnvelope<RollingWindowStats[]>>('/stats/me/recent-form');
+      return response.data.data;
+    },
+  });
 }
 
 /** Fetches the raw prompt text that would be sent to the AI model. */

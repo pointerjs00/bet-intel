@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { statsQuerySchema } from '@betintel/shared';
 import {
   getPersonalStats,
+  getRecentForm,
   getStatsByCompetition,
   getStatsByMarket,
   getStatsByOddsRange,
@@ -192,6 +193,16 @@ export async function getAiReviewPromptHandler(req: Request, res: Response): Pro
   try {
     const prompt = await getAiReviewPrompt(requireUserId(req));
     ok(res, { prompt });
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** Handles GET /api/stats/me/recent-form. */
+export async function getRecentFormHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const data = await getRecentForm(requireUserId(req));
+    ok(res, data);
   } catch (err) {
     fail(res, err);
   }
