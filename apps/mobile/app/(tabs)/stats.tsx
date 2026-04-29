@@ -39,6 +39,7 @@ import { CustomMetricCard } from '../../components/stats/CustomMetricCard';
 import StatsCustomizeSheet from '../../components/stats/StatsCustomizeSheet';
 import { useAiReview, usePersonalStats, useRecentForm, useStatsTimeline } from '../../services/statsService';
 import { RecentFormCard } from '../../components/stats/RecentFormCard';
+import { StatsShareCard } from '../../components/stats/StatsShareCard';
 import { useCustomMetricsStore } from '../../stores/customMetricsStore';
 import { useStatsDashboardStore } from '../../stores/statsDashboardStore';
 import { useBoletins, exportBoletinsToCsv, exportBoletinsToXlsx } from '../../services/boletinService';
@@ -616,6 +617,8 @@ export default function StatsScreen() {
   const [showComparison, setShowComparison] = useState(false);
   // Customise panel
   const [showCustomize, setShowCustomize] = useState(false);
+  // Stats share card
+  const [showShareCard, setShowShareCard] = useState(false);
 
   const isSectionVisible = useStatsDashboardStore((s) => s.isSectionVisible);
   const getEffectiveOrder = useStatsDashboardStore((s) => s.getEffectiveOrder);
@@ -760,6 +763,11 @@ export default function StatsScreen() {
             <TouchableOpacity onPress={handleExport} hitSlop={8} style={styles.headerIconBtn}>
               <Ionicons color={colors.textSecondary} name="download-outline" size={22} />
             </TouchableOpacity>
+            {stats && (
+              <TouchableOpacity onPress={() => setShowShareCard(true)} hitSlop={8} style={styles.headerIconBtn}>
+                <Ionicons color={colors.textSecondary} name="share-outline" size={22} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -1326,6 +1334,30 @@ export default function StatsScreen() {
         )}
       </ScrollView>
 
+      {/* Stats share card modal */}
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setShowShareCard(false)}
+        transparent
+        visible={showShareCard}
+      >
+        <View style={styles.shareModalBackdrop}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setShowShareCard(false)} />
+          <View style={[styles.shareModalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.shareModalHandle, { backgroundColor: colors.border }]} />
+            <Text style={[styles.shareModalTitle, { color: colors.textPrimary }]}>Partilhar estatísticas</Text>
+            {stats && (
+              <StatsShareCard
+                summary={stats.summary}
+                bestBoletin={stats.bestBoletins[0]}
+                period={activePeriod}
+                onClose={() => setShowShareCard(false)}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+
       {/* Rendered last so it paints on top of the ScrollView */}
       <StatsCustomizeSheet visible={showCustomize} onClose={() => setShowCustomize(false)} />
     </View>
@@ -1440,4 +1472,8 @@ const styles = StyleSheet.create({
   placeholderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
   placeholderTitle: { fontSize: 14, fontWeight: '700' },
   placeholderText: { fontSize: 13, lineHeight: 19 },
+  shareModalBackdrop: { backgroundColor: 'rgba(0,0,0,0.6)', flex: 1, justifyContent: 'flex-end' },
+  shareModalSheet: { alignItems: 'center', borderTopLeftRadius: 28, borderTopRightRadius: 28, gap: 16, paddingBottom: 36, paddingHorizontal: 20, paddingTop: 12 },
+  shareModalHandle: { borderRadius: 3, height: 4, width: 40 },
+  shareModalTitle: { fontSize: 18, fontWeight: '900' },
 });
