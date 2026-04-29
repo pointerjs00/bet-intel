@@ -237,6 +237,9 @@ importers:
       expo-local-authentication:
         specifier: ~14.0.1
         version: 14.0.1(expo@51.0.39(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(react-native@0.74.5(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
+      expo-media-library:
+        specifier: ~16.0.5
+        version: 16.0.5(expo@51.0.39(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(react-native@0.74.5(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
       expo-notifications:
         specifier: ~0.28.3
         version: 0.28.19(expo@51.0.39(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(react-native@0.74.5(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
@@ -3911,6 +3914,11 @@ packages:
 
   expo-manifests@0.14.3:
     resolution: {integrity: sha512-L3b5/qocBPiQjbW0cpOHfnqdKZbTJS7sA3mgeDJT+mWga/xYsdpma1EfNmsuvrOzjLGjStr1k1fceM9Bl49aqQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-media-library@16.0.5:
+    resolution: {integrity: sha512-O9RUqBWgJVRF0mO6EiLSBFyfb5wR1/ZqovbT43V0TAo5sgcjrHRs+0NID/U6BWDRuiFeX2AU516JgNDutNUFSw==}
     peerDependencies:
       expo: '*'
 
@@ -12146,6 +12154,10 @@ snapshots:
       expo-json-utils: 0.13.1
     transitivePeerDependencies:
       - supports-color
+
+  expo-media-library@16.0.5(expo@51.0.39(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(react-native@0.74.5(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)):
+    dependencies:
+      expo: 51.0.39(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(react-native@0.74.5(@babel/core@7.29.0)(@babel/preset-env@7.29.2(@babel/core@7.29.0))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)
 
   expo-modules-autolinking@1.11.3:
     dependencies:

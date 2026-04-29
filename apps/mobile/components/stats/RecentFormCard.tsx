@@ -42,9 +42,14 @@ export const RecentFormCard = React.memo(function RecentFormCard({ windows, onIn
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
               onPress={() => setActiveWindow(w)}
-              style={[styles.tab, isActive && { backgroundColor: colors.primary }]}
+              style={[
+                styles.tab,
+                isActive
+                  ? { backgroundColor: colors.surface, borderWidth: 0.5, borderColor: colors.primary }
+                  : { borderWidth: 0.5, borderColor: 'transparent' },
+              ]}
             >
-              <Text style={[styles.tabText, { color: isActive ? '#fff' : colors.textSecondary }]}>
+              <Text style={[styles.tabText, { color: isActive ? colors.primary : colors.textSecondary }]}>
                 Últ. {w}
               </Text>
             </Pressable>
@@ -61,36 +66,48 @@ export const RecentFormCard = React.memo(function RecentFormCard({ windows, onIn
           {/* Metrics */}
           <View style={styles.metricsRow}>
             <View style={styles.metric}>
-              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>ROI</Text>
+              <Text style={[styles.metricLabel, { color: colors.textMuted }]}>ROI</Text>
               <Text style={[styles.metricValue, { color: roiColor }]}>
                 {data.roi >= 0 ? '+' : ''}{data.roi.toFixed(1)}%
               </Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={styles.metric}>
-              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Taxa vitória</Text>
+              <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Taxa vitória</Text>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>
                 {data.winRate.toFixed(0)}%
               </Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={styles.metric}>
-              <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>P&L</Text>
+              <Text style={[styles.metricLabel, { color: colors.textMuted }]}>P&L</Text>
               <Text style={[styles.metricValue, { color: plColor }]}>
                 {data.profitLoss >= 0 ? '+' : ''}{formatCurrency(data.profitLoss)}
               </Text>
             </View>
           </View>
 
-          {/* W/L/V tally */}
-          <View style={styles.tallyRow}>
-            <Text style={[styles.tallyWon, { color: colors.primary }]}>{data.wonCount}G</Text>
-            <Text style={[styles.tallySep, { color: colors.textMuted }]}> · </Text>
-            <Text style={[styles.tallyLost, { color: colors.danger }]}>{data.lostCount}P</Text>
+          {/* W/L tally pill */}
+          <View style={[styles.tallyPill, { backgroundColor: colors.surfaceRaised }]}>
+            <View style={styles.tallyItem}>
+              <View style={[styles.tallyDot, { backgroundColor: colors.primary }]} />
+              <Text style={[styles.tallyCount, { color: colors.primary }]}>{data.wonCount}</Text>
+              <Text style={[styles.tallyLabel, { color: colors.textSecondary }]}>ganhos</Text>
+            </View>
+            <Text style={[styles.tallySep, { color: colors.border }]}>·</Text>
+            <View style={styles.tallyItem}>
+              <View style={[styles.tallyDot, { backgroundColor: colors.danger }]} />
+              <Text style={[styles.tallyCount, { color: colors.danger }]}>{data.lostCount}</Text>
+              <Text style={[styles.tallyLabel, { color: colors.textSecondary }]}>perdidos</Text>
+            </View>
             {data.voidCount > 0 && (
               <>
-                <Text style={[styles.tallySep, { color: colors.textMuted }]}> · </Text>
-                <Text style={[styles.tallyVoid, { color: colors.textMuted }]}>{data.voidCount}V</Text>
+                <Text style={[styles.tallySep, { color: colors.border }]}>·</Text>
+                <View style={styles.tallyItem}>
+                  <View style={[styles.tallyDot, { backgroundColor: colors.textMuted }]} />
+                  <Text style={[styles.tallyCount, { color: colors.textMuted }]}>{data.voidCount}</Text>
+                  <Text style={[styles.tallyLabel, { color: colors.textSecondary }]}>void</Text>
+                </View>
               </>
             )}
           </View>
@@ -144,10 +161,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     flexDirection: 'row',
     padding: 3,
+    gap: 3,
   },
   tab: {
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 9,
     flex: 1,
     paddingVertical: 7,
   },
@@ -168,36 +186,57 @@ const styles = StyleSheet.create({
   metric: {
     alignItems: 'center',
     flex: 1,
-    gap: 3,
+    gap: 4,
   },
   metricLabel: {
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   metricValue: {
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: '900',
+    letterSpacing: -0.5,
   },
   divider: {
-    height: 30,
-    width: 1,
+    height: 32,
+    width: StyleSheet.hairlineWidth,
     marginHorizontal: 4,
   },
-  tallyRow: {
+  tallyPill: {
+    alignItems: 'center',
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  tallyItem: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'center',
+    gap: 5,
   },
-  tallyWon: { fontSize: 13, fontWeight: '800' },
-  tallyLost: { fontSize: 13, fontWeight: '800' },
-  tallyVoid: { fontSize: 13, fontWeight: '800' },
-  tallySep: { fontSize: 13 },
+  tallyDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  tallyCount: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  tallyLabel: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  tallySep: {
+    fontSize: 14,
+  },
   beadStrip: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 5,
+    gap: 6,
   },
   bead: {
     borderRadius: 5,
