@@ -948,3 +948,182 @@
 | **2.32** | **Import from Betclic History** | **🟡 Needs work** | **~10h** | **🔴 High** | **P3** | ❌ No |
 | **2.31** | **Live Odds Comparison** | **🔴 Blocked** | **~4h+** | **🔴 High** | **Future** | ❌ No |
 | **4.1** | **"Os Meus Jogos" Match Agenda** | **✅ Ready** | **~6h** | **🔴 High** | **P1** | 🟢 Yes |
+| **1.28** | **"Forma Recente" — Rolling Window Stats** | **✅ Ready** | **~3h** | **🔴 High** | **P1** | 🟢 Yes |
+| **1.29** | **Bet Recency Decay Score** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | ❌ No |
+| **1.30** | **Break-Even Tracker** | **✅ Ready** | **~2h** | **🟡 Medium** | **P1** | ❌ No |
+| **1.31** | **Compound Growth Simulator** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | ❌ No |
+| **2.33** | **AI Boletin Coach (Post-Bet Review)** | **✅ Ready** | **~5h** | **🔴 High** | **P1** | ❌ No |
+| **2.34** | **Rival Tracking** | **🟡 Needs work** | **~6h** | **🔴 High** | **P2** | ❌ No |
+| **2.35** | **Bet Mood / Context Tags** | **✅ Ready** | **~4h** | **🟡 Medium** | **P2** | ❌ No |
+| **2.36** | **Weekly Digest Notification** | **✅ Ready** | **~4h** | **🔴 High** | **P1** | ❌ No |
+| **2.37** | **Multi-Bookmaker Odds Arbitrage Alert** | **🔴 Blocked** | **~10h** | **🔴 High** | **Future** | ❌ No |
+| **3.21** | **Boletin Reaction Emojis** | **✅ Ready** | **~4h** | **🟡 Medium** | **P2** | ❌ No |
+| **3.22** | **Stats "Modo Público" — Shareable Profile Card** | **✅ Ready** | **~4h** | **🔴 High** | **P1** | 🟢 Yes |
+| **4.2** | **"Desafios Semanais" — Weekly Challenges** | **✅ Ready** | **~6h** | **🔴 High** | **P2** | ❌ No |
+| **4.3** | **"BetBot" — AI Chatbot Assistant** | **✅ Ready** | **~8h** | **🔴 High** | **P2** | ❌ No |
+| **4.4** | **Intelligent Stake Suggester** | **✅ Ready** | **~4h** | **🔴 High** | **P1** | ❌ No |
+| **4.5** | **PDF/Image Import for All Bookmakers** | **🟡 Needs work** | **~8h** | **🔴 High** | **P1** | ❌ No |
+
+---
+
+## 6. New Feature Proposals (Added April 29th 2026)
+
+---
+
+### 1.28 "Forma Recente" — Rolling Window Stats ✅ Ready — 🟢 BUILT
+
+**What:** A dedicated "Recent Form" section on the Stats screen showing the last 10, 20, and 30 resolved boletins as a mini-dashboard (ROI, win rate, P&L, streak) — completely independent of the period filter.  
+**Why:** Global stats can mask trends. A user might have a great all-time ROI but be on a brutal 15-bet losing skid right now. Rolling stats are how professional traders monitor live performance.  
+**Feasibility:** Sort resolved boletins by `betDate`/`resolvedAt`, take the last N, compute summary stats on that slice. Zero new data needed.  
+**Effort:** ~3h. New `rollingWindow` breakdown in stats API (parameterised by `n=10|20|30`) → new `RecentFormCard` component with three columns and a mini win/loss sparkline.  
+**Mobile:** Card on Stats screen with pill tabs (Últimos 10 / 20 / 30). Shows ROI, win rate, P&L, and a small bead strip (🟢🔴🟢🟢🔴...) visualising the last N results.
+
+**Implementation:** `RollingWindowStats` type in `packages/shared/src/types/index.ts`. `getRecentForm` + `computeRollingWindow` in `apps/api/src/services/stats/statsService.ts`. `GET /stats/me/recent-form` route. `useRecentForm()` React Query hook in `apps/mobile/services/statsService.ts`. `RecentFormCard.tsx` with three-tab pill switcher, ROI/win-rate/P&L metrics, W/L/V tally, and bead strip. Wired into `stats.tsx` after the Sequências card.
+
+---
+
+### 1.29 Bet Recency Decay Score ✅ Ready
+
+**What:** A composite "confidence score" that weights recent bets more heavily than older ones (exponential decay). Displayed as a single coloured score (e.g. 68/100) with a delta vs. last week.  
+**Why:** A bettor who had a great 2023 but has been losing steadily since January 2025 should not feel falsely reassured by their all-time numbers. Recency decay punishes stale edge.  
+**Feasibility:** Apply exponential weight `w = e^(-λ·daysAgo)` to each resolved boletin's P&L. Tune λ so bets 30 days ago weigh ~50% of today's bets. Sum weighted P&L, normalise to 0–100 scale.  
+**Effort:** ~3h backend + ~1h mobile. One new field `decayScore` in `StatsSummary` → metric card with colour gradient (green ≥ 60, amber 40–59, red < 40) and week-over-week delta.
+
+---
+
+### 1.30 Break-Even Tracker ✅ Ready
+
+**What:** A persistent banner/card on the Stats screen showing how many bets (at the user's average stake and win rate) are needed to recover from the current deficit, or — if in profit — how many the user can lose before going negative.  
+**Why:** Concrete, forward-looking framing. "Precisas de ganhar 7 apostas para recuperar o teu défice" is more actionable than just seeing "-€42".  
+**Feasibility:** Simple algebra on existing `StatsSummary` fields: `betsToBreakEven = abs(currentPL) / avgProfit`. Requires `avgProfitPerWin` and `avgLossPerLoss` which can be derived from existing `averageWonStake` / `averageLostStake` data.  
+**Effort:** ~2h. Add two computed fields to `StatsSummary` → new `BreakEvenCard` component. Also doubles as a responsible gambling nudge.
+
+---
+
+### 1.31 Compound Growth Simulator ✅ Ready
+
+**What:** Interactive "what-if" chart on the Stats screen. Given the user's actual win rate and average odds, simulate what their bankroll would look like under three staking strategies: flat staking (what they actually do), proportional (1% bankroll per bet), and Kelly. Show three lines over 100 simulated bets.  
+**Why:** Viscerally demonstrates the power of proper bankroll management. Users who see the Kelly simulation growing 3× faster than flat staking are far more likely to adopt it.  
+**Feasibility:** Monte Carlo simulation using existing `winRate`, `avgOdds` from `StatsSummary`. Run N=500 simulations per strategy, plot median and 10th/90th percentile bands. Runs entirely client-side.  
+**Effort:** ~3h. New `SimulatorCard` component with an interactive starting bankroll input (default: user's total staked). Uses `recharts` / Victory Native for three-line overlay.
+
+---
+
+### 2.33 AI Boletin Coach (Post-Bet Review) ✅ Ready
+
+**What:** After a boletin is resolved (won or lost), an AI-generated review card appears on the boletin detail screen. For losses, it explains which leg was weakest and why, based on the user's historical data for that market/sport/odds range. For wins, it evaluates whether the bet was genuinely well-placed or a value miss that happened to win.  
+**Why:** The gap between "won/lost" and "was this a good decision?" is where learning happens. Automated coaching turns every bet into a lesson. This is the "smart trainer" differentiator for BetIntel vs basic tracking apps.  
+**Feasibility:** Choose a free AI model option that fits. Pass: boletin selections + user's historical stats for each relevant dimension (sport, market, odds range). Prompt: produce a 2–3 sentence coach review in Portuguese.  
+**Effort:** ~5h (2h API endpoint + 2h mobile component + 1h prompt tuning).  
+**Mobile:** `BetCoachCard` inside boletin detail — collapsed by default ("Ver análise do BetCoach"), expands to show AI text with contextual data chips. Cached server-side so it doesn't regenerate on each view.
+
+---
+
+### 2.34 Rival Tracking 🟡 Needs work
+
+**What:** A user can designate one or more friends as "rivals". The app tracks head-to-head stats vs each rival: who has better ROI, win rate, and P&L over shared time periods. A dedicated "Rival" tab inside the Amigos screen.  
+**Why:** Healthy competitive framing drives retention. Fantasy sports proved this — having a specific person to beat is far more motivating than beating an abstract average.  
+**What's needed:**
+1. New `Rival` Prisma model: `{ id, userId, rivalId, createdAt }` (directional — A marks B as rival, B doesn't need to know)
+2. New endpoint `GET /api/stats/rival/:rivalId?period=month` — returns side-by-side stats summary for both users (only reveals public stats)
+3. `RivalCard` component inside the Friends screen with a head-to-head stat comparison
+4. Privacy gate: only compare against stats the rival has set to public  
+**Effort:** ~6h (1.5h schema + 2h API + 2.5h mobile).
+
+---
+
+### 2.35 Bet Mood / Context Tags ✅ Ready
+
+**What:** Optional one-tap mood/context selector when creating or resolving a boletin. Options: 😤 Tilt | 😎 Confiante | 🤔 Análise | 📱 Ao Vivo | 🍺 Social | 💤 Cansado | 🎯 Valor. Stats breakdown by mood tag shows which mental states correlate with profit/loss.  
+**Why:** Tilt betting is the #1 reason disciplined bettors lose money. If the app can show "100% of your bets placed when tilted ended in a loss", that is genuinely behaviour-changing data.  
+**Feasibility:** Add `mood String?` field to `Boletin` model. Enum stored as a string slug. New `byMood` breakdown in stats API. Tag picker is a single horizontal scroll row of emoji chips — zero friction.  
+**Effort:** ~4h (30min schema + 1h API + 2.5h mobile).  
+**Mobile:** Emoji chip row on the create/edit screen below the "Notas" field. New "Por humor" breakdown in Stats screen showing P&L, ROI, and win rate per mood bucket.
+
+---
+
+### 2.36 Weekly Digest Notification ✅ Ready
+
+**What:** Every Monday morning, the app sends a push notification summarising last week's performance: "Semana passada: 4 boletins · ROI +12.4% · Lucro €18.20 🟢. A tua melhor semana em 3 meses!" (or a commiserating message if down). Tapping opens a one-screen weekly recap.  
+**Why:** Re-engagement for users who haven't opened the app in a few days. Also reinforces positive performance — users who had a good week are much more likely to return and log the next bet.  
+**Feasibility:** Backend cron job (via BullMQ, already available) running Monday 09:00 Europe/Lisbon. Query last 7 days stats per user → generate personalised push notification via Expo Push API.  
+**Effort:** ~4h (2h backend job + 1h notification logic + 1h deep-link recap screen).  
+**Mobile:** Tapping the notification opens a modal "Resumo da Semana" with a mini P&L bar, streak info, best and worst boletin of the week, and a "Começar esta semana" CTA.
+
+---
+
+### 2.37 Multi-Bookmaker Odds Arbitrage Alert 🔴 Blocked
+
+**What:** When the user is creating a boletin with a specific selection, the app checks live odds across all supported bookmakers and flags if a better price is available elsewhere. If two opposing outcomes across bookmakers form an arb (guaranteed profit), show an "ARB" badge.  
+**Why:** The most commercially valuable feature for serious bettors. Even showing a better price on a single selection adds meaningful value.  
+**What's needed:**
+1. Live odds API integration (OddsAPI, BetsAPI, or RapidAPI odds feeds) — this is the blocker
+2. New `OddsCache` Redis layer with 60-second TTL per event/market
+3. Match user's `homeTeam + awayTeam + market` to API event
+4. Arb calculation: if `1/oddsA + 1/oddsB < 1` → profitable arb  
+**Effort:** ~10h once an odds API is selected and contracted. Blocked until then.
+
+---
+
+### 3.21 Boletin Reaction Emojis ✅ Ready
+
+**What:** Friends can react to public boletins in the activity feed with a quick emoji (🔥 🎯 💸 😬 😱). Reactions are shown as a row of emoji counts below the boletin card in the feed.  
+**Why:** Lowest-friction social interaction. Reactions are faster than comments and dramatically increase engagement with the social feed. Makes the feed feel alive even if nobody is typing.  
+**Feasibility:** New `BoletinReaction` model: `{ id, boletinId, userId, emoji, createdAt }`. Unique constraint on `(boletinId, userId)` — one reaction per user per boletin (or allow changing). Socket.io already supports real-time updates via `boletin:reaction` event.  
+**Effort:** ~4h (1h schema + 1.5h API + 1.5h mobile).  
+**Mobile:** Row of emoji pills under boletin card in feed. Tap to toggle your reaction. Long-press shows who reacted with which emoji.
+
+---
+
+### 3.22 Stats "Modo Público" — Shareable Profile Card ✅ Ready — 🟢 BUILT
+
+**What:** A beautifully designed shareable image card ("BetCard") showing the user's best stats for a given period: ROI, win rate, best boletin, streak, total profit. Generated as a PNG and shared natively via the OS share sheet. Think "Spotify Wrapped" but for bets.  
+**Why:** Organic growth / word-of-mouth. A user who shares their monthly stats card on Twitter/WhatsApp is free marketing. The "share card" feature is already built for individual boletins (feature 3.13) — this extends it to profile/period level.  
+**Feasibility:** Use `react-native-view-shot` (already a likely dep) to screenshot a stylised `StatsShareCard` component. Supports "Este Mês", "Este Ano", "Melhor mês", and "Tudo" modes.  
+**Effort:** ~4h. New `StatsShareCard` component (dark theme, BetIntel branding, gradient background) → trigger from Stats screen share button.
+
+**Implementation:** `StatsShareSheet.tsx` — swipe-to-dismiss bottom sheet with mode tabs (Resumido / Detalhado) and period tabs (Semana / Mês / Ano / Sempre). Fetches stats independently so the selected period is decoupled from the main screen filter. `StatsShareCard.tsx` — dark-theme card captured via `react-native-view-shot` and shared through the OS sheet. Simple mode: ROI hero, win rate / P&L / boletins, streak badge, best boletin, avg odds. Detailed mode: same header + full breakdowns for top/bottom 5 boletins, sport, competition, team, market, and best/worst weekday by P&L. Share icon in Stats screen header triggers the sheet.
+
+---
+
+### 4.2 "Desafios Semanais" — Weekly Challenges ✅ Ready
+
+**What:** A set of weekly challenges that reset every Monday. Examples: "Termina a semana com ROI positivo", "Regista 5 boletins esta semana", "Ganha 3 boletins consecutivos", "Tenta um mercado novo esta semana". Each completed challenge earns a badge shown on the user's public profile.  
+**Why:** Gamification drives consistent engagement and habit-building. Challenges reward the behaviours the app wants to reinforce: logging bets, diversifying markets, maintaining discipline.  
+**Feasibility:** Challenges are evaluated server-side against existing stats data at the end of each week (BullMQ cron). No new tracking data needed. Badges stored in a new `UserBadge` model.  
+**Effort:** ~6h (1h challenge definitions + 1.5h evaluation engine + 1h badge model + 2.5h mobile UI).  
+**Mobile:** New "Desafios" card on the Stats screen with a progress bar per challenge. Completed challenges trigger a confetti animation (reuse existing win celebration). Badges appear on the public profile.
+
+---
+
+### 4.3 "BetBot" — In-App AI Assistant ✅ Ready
+
+**What:** A floating chat bubble on the main screen that opens a conversational AI assistant. The assistant has full read access to the user's betting history and stats. Example questions: "Qual é o meu desporto mais lucrativo?", "Quando foi a minha última série de 5 vitórias?", "Devo continuar a apostar no mercado Over/Under?", "Faz-me um resumo do mês de março."  
+**Why:** Natural language is often faster than navigating charts. Power users will unlock deep insights. Casual users get answers to questions they wouldn't know how to find in the stats UI. Differentiates BetIntel from every competitor.  
+**Feasibility:** Claude API with a system prompt that includes the user's full `StatsSummary` + last 20 boletins as context. Stream responses into a chat UI. Tool calling can be used to fetch specific breakdowns on demand.  
+**Effort:** ~8h (2h API layer + 2h context preparation + 4h mobile chat UI with streaming).  
+**Mobile:** FAB long-press → opens `BetBotSheet`. Chat-style UI with streaming responses. Pre-seeded quick prompts: "Resumo da semana", "Onde estou a perder mais?", "Qual o meu padrão?".
+
+---
+
+### 4.4 Intelligent Stake Suggester ✅ Ready
+
+**What:** On the boletin creation screen, after the user finishes adding selections, the app suggests an optimal stake range. Based on: the user's average stake on similar bets (same sport/market/odds range), their current month's P&L status, and the configured monthly goal (if set). Shows as a chip: "Sugestão: €10–15 (baseado no teu histórico neste mercado)".  
+**Why:** One of the most requested features by serious bettors. Takes the guesswork out of sizing. Combines multiple data points that are already computed.  
+**Feasibility:** After `totalOdds` is known, cross-reference: (1) `byOddsRange` average stake for that odds bucket, (2) current month budget remaining from `MonthlyGoal`. Generate a conservative range (±20% of historical average).  
+**Effort:** ~4h (1h computation logic + 1h API endpoint + 2h mobile integration on create screen).  
+**Mobile:** Appears as a tappable suggestion chip below the Stake input on the create screen. Tapping auto-fills the midpoint. Includes a small ⓘ explaining why that amount was suggested.
+
+---
+
+### 4.5 PDF/Image Import for All Bookmakers 🟡 Needs work
+
+**What:** Extend the existing Betclic import to support more Portuguese bookmakers: Betano, Placard, ESC Online, Solverde. Each has a different PDF layout and app screenshot format. A unified import modal auto-detects the bookmaker from the document structure and routes to the appropriate parser.  
+**Why:** The AI Vision import (feature 2.12) handles screenshots generically, but structured PDF parsing (for history exports) needs bookmaker-specific logic. Betclic PDF import is already built — adding more sites unlocks the full history of multi-site bettors.  
+**What's needed:**
+1. PDF layout reverse-engineering for each new bookmaker (1–2h each)
+2. Bookmaker detection heuristic in `importController.ts`
+3. Per-bookmaker parser functions (extend the Betclic parser pattern)
+4. Test fixtures from real exports of each site  
+**Effort:** ~8h total (2h per new bookmaker × 3 + 2h detection + integration).  
+**Mobile:** Import modal gains a "Origem" step: auto-detected with manual override. Rest of the review flow (`import-review.tsx`) remains identical.
