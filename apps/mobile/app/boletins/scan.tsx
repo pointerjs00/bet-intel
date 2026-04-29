@@ -46,12 +46,13 @@ export default function ScanScreen() {
   const { showToast } = useToast();
   const { sharedImageUri } = useLocalSearchParams<{ sharedImageUri?: string }>();
 
-  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [selectedSite, setSelectedSite] = useState('betclic');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | null>(null);
   const [parseResult, setParseResult] = useState<BetclicPdfResult | null>(null);
   const [expandedBoletins, setExpandedBoletins] = useState<Set<number>>(new Set());
-  const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [viewingImageIdx, setViewingImageIdx] = useState<number | null>(null);
   const [disclaimerVisible, setDisclaimerVisible] = useState(false);
   const [disclaimerDontShow, setDisclaimerDontShow] = useState(false);
 
@@ -63,7 +64,7 @@ export default function ScanScreen() {
         isFirstFocus.current = false;
         return;
       }
-      setImageUri(null);
+      setImageUris([]);
       setParseResult(null);
       setIsProcessing(false);
       setExpandedBoletins(new Set());
@@ -90,13 +91,13 @@ export default function ScanScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 1,
-        allowsMultipleSelection: false,
+        allowsMultipleSelection: true,
         allowsEditing: false,
       });
 
-      if (!result.canceled && result.assets[0]) {
+      if (!result.canceled && result.assets.length > 0) {
         hapticLight();
-        setImageUri(result.assets[0].uri);
+        setImageUris((prev) => [...prev, ...result.assets.map((a) => a.uri)]);
         setParseResult(null);
       }
     } catch {
@@ -114,7 +115,7 @@ export default function ScanScreen() {
 
       if (!result.canceled && result.assets[0]) {
         hapticLight();
-        setImageUri(result.assets[0].uri);
+        setImageUris((prev) => [...prev, result.assets[0]!.uri]);
         setParseResult(null);
       }
     } catch {
@@ -124,8 +125,8 @@ export default function ScanScreen() {
 
   // Auto-load image when screen is opened via Android share intent
   useEffect(() => {
-    if (sharedImageUri && !imageUri) {
-      setImageUri(sharedImageUri);
+    if (sharedImageUri && imageUris.length === 0) {
+      setImageUris([sharedImageUri]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sharedImageUri]);
@@ -135,35 +136,42 @@ export default function ScanScreen() {
   }, []);
 
   const processImage = useCallback(async () => {
-    if (!imageUri) return;
+    if (imageUris.length === 0) return;
     const controller = new AbortController();
     abortControllerRef.current = controller;
     setIsProcessing(true);
+
+    const allBoletins: BetclicPdfResult['boletins'] = [];
+    let totalFound = 0;
+    let errorCount = 0;
+
     try {
-      // Compress & resize to max 1000px wide JPEG 80% — reduces upload & AI processing time
-      const compressed = await ImageManipulator.manipulateAsync(
-        imageUri,
-        [{ resize: { width: 1000 } }],
-        { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-      );
+      for (let i = 0; i < imageUris.length; i++) {
+        setScanProgress({ current: i + 1, total: imageUris.length });
+        const uri = imageUris[i]!;
 
-      // Read compressed image as base64
-      const base64 = await FileSystem.readAsStringAsync(compressed.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+        // Compress & resize to max 1000px wide JPEG 80% — reduces upload & AI processing time
+        const compressed = await ImageManipulator.manipulateAsync(
+          uri,
+          [{ resize: { width: 1000 } }],
+          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+        );
 
-      const mimeType = 'image/jpeg';
+        // Read compressed image as base64
+        const base64 = await FileSystem.readAsStringAsync(compressed.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
 
-      // Send to backend AI parser
-      const result = await scanImageAiRequest(base64, mimeType, controller.signal);
+        const mimeType = 'image/jpeg';
 
-      // Store raw AI result + image for silent feedback submission after successful import
-      storeScanFeedbackContext({ imageBase64: base64, mimeType, aiOutput: result });
+        // Send to backend AI parser
+        const result = await scanImageAiRequest(base64, mimeType, controller.signal);
 
-      // Post-process: resolve Portuguese team name aliases + infer missing competitions
-      const processed: BetclicPdfResult = {
-        ...result,
-        boletins: result.boletins.map((b) => ({
+        // Store raw AI result + image for silent feedback submission after successful import
+        storeScanFeedbackContext({ imageBase64: base64, mimeType, aiOutput: result });
+
+        // Post-process: resolve Portuguese team name aliases + infer missing competitions
+        const processed = result.boletins.map((b) => ({
           ...b,
           items: b.items.map((item) => {
             const home = resolveTeamAlias(item.homeTeam);
@@ -173,19 +181,25 @@ export default function ScanScreen() {
               normalizeCompetitionName(item.competition);
             return { ...item, homeTeam: home, awayTeam: away, competition };
           }),
-        })),
-      };
-      setParseResult(processed);
+        }));
 
-      if (processed.boletins.length === 0) {
+        allBoletins.push(...processed);
+        totalFound += result.totalFound;
+        errorCount += result.errorCount;
+      }
+
+      const merged: BetclicPdfResult = { boletins: allBoletins, totalFound, errorCount };
+      setParseResult(merged);
+
+      if (allBoletins.length === 0) {
         hapticError();
         showToast('Nenhuma aposta encontrada. Confirma que é um screenshot de uma aposta.', 'error');
-      } else if (processed.errorCount > 0) {
+      } else if (errorCount > 0) {
         hapticLight();
-        showToast('Aposta lida com alguns erros. Revê os dados antes de importar.', 'info');
+        showToast('Apostas lidas com alguns erros. Revê os dados antes de importar.', 'info');
       } else {
         hapticSuccess();
-        showToast(`${processed.totalFound} aposta(s) encontrada(s)!`, 'success');
+        showToast(`${totalFound} aposta(s) encontrada(s)!`, 'success');
       }
     } catch (err) {
       if (axios.isCancel(err)) return;
@@ -200,9 +214,10 @@ export default function ScanScreen() {
       );
     } finally {
       setIsProcessing(false);
+      setScanProgress(null);
       abortControllerRef.current = null;
     }
-  }, [imageUri, showToast]);
+  }, [imageUris, showToast]);
 
   const navigateToReview = useCallback(() => {
     if (!parseResult || parseResult.boletins.length === 0) return;
@@ -215,24 +230,25 @@ export default function ScanScreen() {
   }, [parseResult, router, selectedSite]);
 
   const reset = useCallback(() => {
-    setImageUri(null);
+    setImageUris([]);
     setParseResult(null);
     setExpandedBoletins(new Set());
-    setImageViewerVisible(false);
+    setViewingImageIdx(null);
     setSelectedSite('betclic');
   }, []);
 
-  // When an image is loaded, intercept Android hardware back to reset instead of leaving
+  // When images are loaded, intercept Android hardware back to reset instead of leaving
   useEffect(() => {
-    if (!imageUri) return;
+    if (imageUris.length === 0) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       reset();
       return true;
     });
     return () => sub.remove();
-  }, [imageUri, reset]);
+  }, [imageUris, reset]);
 
   const hasResult = parseResult && parseResult.boletins.length > 0;
+  const hasImages = imageUris.length > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -243,9 +259,9 @@ export default function ScanScreen() {
           headerTintColor: colors.textPrimary,
           headerShadowVisible: false,
           headerBackTitle: '',
-          // Disable swipe-back when an image is loaded so it resets to empty state instead
-          gestureEnabled: !imageUri,
-          headerLeft: imageUri
+          // Disable swipe-back when images are loaded so it resets to empty state instead
+          gestureEnabled: !hasImages,
+          headerLeft: hasImages
             ? ({ tintColor }) => (
                 <Pressable hitSlop={12} onPress={reset} style={{ paddingRight: 8 }}>
                   <Ionicons name="arrow-back" size={24} color={tintColor ?? colors.textPrimary} />
@@ -260,14 +276,14 @@ export default function ScanScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero banner */}
-        {!imageUri && (
+        {!hasImages && (
           <Animated.View entering={FadeInUp.duration(300).springify()} style={[styles.hero, { backgroundColor: `${colors.primary}12` }]}>
             <View style={[styles.heroIconWrap, { backgroundColor: `${colors.primary}20` }]}>
               <MaterialCommunityIcons name="barcode-scan" size={44} color={colors.primary} />
             </View>
             <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Importar Screenshot</Text>
             <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-              Seleciona um screenshot de uma aposta Betclic e o BetIntel extrai os dados automaticamente.
+              Seleciona um ou mais screenshots de apostas Betclic e o BetIntel extrai os dados automaticamente.
             </Text>
             <View style={styles.steps}>
               {STEPS.map((step, i) => (
@@ -284,7 +300,7 @@ export default function ScanScreen() {
         )}
 
         {/* Site picker */}
-        {!imageUri && (
+        {!hasImages && (
           <View>
             <Text style={[styles.sitePickerLabel, { color: colors.textSecondary }]}>Site de apostas</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sitePickerRow}>
@@ -309,8 +325,8 @@ export default function ScanScreen() {
           </View>
         )}
 
-        {/* Source picker or image preview */}
-        {!imageUri ? (
+        {/* Source picker or image previews */}
+        {!hasImages ? (
           <View style={styles.pickRow}>
             <Animated.View entering={FadeInDown.delay(130).duration(380).springify()} style={styles.pickTileWrapper}>
               <PickTile
@@ -335,26 +351,54 @@ export default function ScanScreen() {
           </View>
         ) : (
           <Animated.View entering={FadeInDown.delay(60).duration(220).springify()} style={styles.previewSection}>
+            {/* Thumbnail strip */}
             <View style={[styles.previewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Pressable onPress={() => setImageViewerVisible(true)} style={styles.previewImagePressable}>
-                <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />
-                <View style={styles.imageZoomHint}>
-                  <Ionicons name="expand-outline" size={16} color="rgba(255,255,255,0.85)" />
-                  <Text style={styles.imageZoomHintText}>Toca para ampliar</Text>
-                </View>
-              </Pressable>
-              <Pressable
-                onPress={reset}
-                style={[styles.changeBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbnailStrip}
               >
-                <Ionicons name="refresh" size={15} color={colors.textSecondary} />
-                <Text style={[styles.changeBtnText, { color: colors.textSecondary }]}>Trocar imagem</Text>
-              </Pressable>
+                {imageUris.map((uri, idx) => (
+                  <View key={`${uri}-${idx}`} style={styles.thumbnailWrap}>
+                    <Pressable onPress={() => setViewingImageIdx(idx)} style={styles.thumbnailPressable}>
+                      <Image source={{ uri }} style={styles.thumbnail} resizeMode="cover" />
+                      <View style={styles.thumbnailZoomHint}>
+                        <Ionicons name="expand-outline" size={13} color="rgba(255,255,255,0.85)" />
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        setImageUris((prev) => prev.filter((_, i) => i !== idx));
+                        setParseResult(null);
+                      }}
+                      style={styles.thumbnailRemove}
+                      hitSlop={6}
+                    >
+                      <Ionicons name="close-circle" size={22} color="#EF4444" />
+                    </Pressable>
+                  </View>
+                ))}
+
+                {/* Add more button */}
+                <Pressable
+                  onPress={pickImage}
+                  style={[styles.thumbnailAdd, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                >
+                  <Ionicons name="add" size={28} color={colors.primary} />
+                  <Text style={[styles.thumbnailAddText, { color: colors.primary }]}>Mais</Text>
+                </Pressable>
+              </ScrollView>
+
+              {imageUris.length > 1 && (
+                <Text style={[styles.imageCountLabel, { color: colors.textMuted }]}>
+                  {imageUris.length} screenshots selecionados
+                </Text>
+              )}
             </View>
 
             {!parseResult && (
               <Button
-                title="Analisar aposta"
+                title={imageUris.length > 1 ? `Analisar ${imageUris.length} screenshots` : 'Analisar aposta'}
                 leftSlot={<MaterialCommunityIcons name="text-recognition" size={20} color="#fff" />}
                 onPress={processImage}
                 style={styles.processBtn}
@@ -495,23 +539,28 @@ export default function ScanScreen() {
       </Modal>
 
       {/* Fullscreen image viewer */}
-      {imageUri && (
+      {viewingImageIdx !== null && imageUris[viewingImageIdx] && (
         <Modal
-          visible={imageViewerVisible}
+          visible
           transparent
           animationType="fade"
-          onRequestClose={() => setImageViewerVisible(false)}
+          onRequestClose={() => setViewingImageIdx(null)}
           statusBarTranslucent
         >
           <View style={styles.imageViewerBackdrop}>
             <Pressable
               style={styles.imageViewerClose}
-              onPress={() => setImageViewerVisible(false)}
+              onPress={() => setViewingImageIdx(null)}
               hitSlop={16}
             >
               <Ionicons name="close-circle" size={36} color="rgba(255,255,255,0.9)" />
             </Pressable>
-            <Image source={{ uri: imageUri }} style={styles.imageViewerImage} resizeMode="contain" />
+            <Image source={{ uri: imageUris[viewingImageIdx] }} style={styles.imageViewerImage} resizeMode="contain" />
+            {imageUris.length > 1 && (
+              <Text style={styles.imageViewerCount}>
+                {viewingImageIdx + 1} / {imageUris.length}
+              </Text>
+            )}
           </View>
         </Modal>
       )}
@@ -519,7 +568,7 @@ export default function ScanScreen() {
       {/* Full-screen analysis overlay — blocks all interaction while processing */}
       {isProcessing && (
         <View style={styles.scanOverlay}>
-          <ScanLoadingCard colors={colors} onCancel={cancelScan} />
+          <ScanLoadingCard colors={colors} onCancel={cancelScan} scanProgress={scanProgress} />
         </View>
       )}
 
@@ -545,7 +594,7 @@ export default function ScanScreen() {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const STEPS: Array<{ icon: 'image-outline' | 'text-recognition' | 'check-circle-outline'; label: string }> = [
-  { icon: 'image-outline', label: 'Escolhe o screenshot' },
+  { icon: 'image-outline', label: 'Escolhe os screenshots' },
   { icon: 'text-recognition', label: 'Análise automática' },
   { icon: 'check-circle-outline', label: 'Revê e importa' },
 ];
@@ -616,7 +665,15 @@ const SCAN_MESSAGES = [
 // reaches ~85% and holds there until the real response arrives.
 const PROGRESS_DURATION_MS = 16_000;
 
-function ScanLoadingCard({ colors, onCancel }: { colors: Record<string, string>; onCancel: () => void }) {
+function ScanLoadingCard({
+  colors,
+  onCancel,
+  scanProgress,
+}: {
+  colors: Record<string, string>;
+  onCancel: () => void;
+  scanProgress: { current: number; total: number } | null;
+}) {
   const progress = useSharedValue(0);
   const [msgIdx, setMsgIdx] = useState(0);
   const [trackWidth, setTrackWidth] = useState(0);
@@ -639,6 +696,8 @@ function ScanLoadingCard({ colors, onCancel }: { colors: Record<string, string>;
     width: progress.value * trackWidth,
   }));
 
+  const isMulti = scanProgress && scanProgress.total > 1;
+
   return (
     <Animated.View
       entering={FadeInDown.duration(220).springify()}
@@ -648,7 +707,9 @@ function ScanLoadingCard({ colors, onCancel }: { colors: Record<string, string>;
         <ActivityIndicator color={colors.primary} size="large" />
       </View>
       <Text style={[scanLoadingStyles.title, { color: colors.textPrimary }]}>
-        A analisar o boletim…
+        {isMulti
+          ? `Imagem ${scanProgress.current} de ${scanProgress.total}…`
+          : 'A analisar o boletim…'}
       </Text>
       <Text style={[scanLoadingStyles.msg, { color: colors.textSecondary }]}>
         {SCAN_MESSAGES[msgIdx]}
@@ -747,14 +808,45 @@ const styles = StyleSheet.create({
   boletimCountLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, marginLeft: 2 },
 
   previewSection: { gap: 12 },
-  previewCard: { borderRadius: 18, borderWidth: 1, overflow: 'hidden', padding: 12, alignItems: 'center' },
-  previewImagePressable: { width: '100%', position: 'relative' },
-  previewImage: { width: '100%', height: 360, borderRadius: 12 },
-  imageZoomHint: { position: 'absolute', bottom: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
-  imageZoomHintText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.85)' },
+  previewCard: { borderRadius: 18, borderWidth: 1, padding: 12 },
+
+  // Thumbnail strip
+  thumbnailStrip: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingBottom: 4 },
+  thumbnailWrap: { position: 'relative' },
+  thumbnailPressable: { position: 'relative' },
+  thumbnail: { width: 110, height: 170, borderRadius: 10 },
+  thumbnailZoomHint: {
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.50)',
+    borderRadius: 6,
+    padding: 4,
+  },
+  thumbnailRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 11,
+  },
+  thumbnailAdd: {
+    width: 110,
+    height: 170,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  thumbnailAddText: { fontSize: 12, fontWeight: '700' },
+  imageCountLabel: { fontSize: 12, fontWeight: '600', marginTop: 8, textAlign: 'center' },
+
   imageViewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center', alignItems: 'center' },
   imageViewerClose: { position: 'absolute', top: 52, right: 16, zIndex: 10 },
   imageViewerImage: { width: '100%', height: '88%' },
+  imageViewerCount: { position: 'absolute', bottom: 40, color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '700' },
 
   disclaimerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.60)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   disclaimerCard: { width: '100%', maxWidth: 400, borderRadius: 20, borderWidth: 1, padding: 24, alignItems: 'center', gap: 14 },
@@ -771,8 +863,6 @@ const styles = StyleSheet.create({
   siteChip: { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 7 },
   siteChipText: { fontSize: 13, fontWeight: '700' },
 
-  changeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, borderWidth: 1, marginTop: 10, paddingHorizontal: 14, paddingVertical: 7 },
-  changeBtnText: { fontSize: 13, fontWeight: '600' },
   processBtn: { marginTop: 20 },
 
   resultCard: { borderRadius: 20, borderWidth: 1.5, overflow: 'hidden' },
@@ -795,9 +885,6 @@ const styles = StyleSheet.create({
   errorText: { fontSize: 12, fontWeight: '600', flex: 1, lineHeight: 16 },
 
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  cancelText: { fontSize: 15, fontWeight: '700' },
-  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   scanOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.65)',
