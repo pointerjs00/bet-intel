@@ -73,6 +73,29 @@ function isInPast(iso: string): boolean {
   return new Date(iso).getTime() < Date.now();
 }
 
+const MATCH_DURATION_MINUTES: Record<string, number> = {
+  [Sport.FOOTBALL]: 105,
+  [Sport.BASKETBALL]: 150,
+  [Sport.TENNIS]: 120,
+  [Sport.HANDBALL]: 90,
+  [Sport.VOLLEYBALL]: 120,
+  [Sport.HOCKEY]: 90,
+  [Sport.RUGBY]: 100,
+  [Sport.AMERICAN_FOOTBALL]: 210,
+  [Sport.BASEBALL]: 180,
+  [Sport.OTHER]: 120,
+};
+
+type KickoffStatus = 'future' | 'live' | 'finished';
+
+function getKickoffStatus(iso: string, sport?: string): KickoffStatus {
+  const kickoffMs = new Date(iso).getTime();
+  const now = Date.now();
+  if (kickoffMs > now) return 'future';
+  const durationMs = (MATCH_DURATION_MINUTES[sport ?? Sport.OTHER] ?? 120) * 60 * 1000;
+  return kickoffMs + durationMs < now ? 'finished' : 'live';
+}
+
 function toDateKey(iso: string): string {
   return iso.slice(0, 10);
 }
@@ -174,8 +197,8 @@ function AgendaRow({
 }) {
   const { emoji, accent } = getSportMeta(item.sport);
   const time = formatKickoff(item.kickoffAt);
-  const started = isInPast(item.kickoffAt);
-  const timeColor = started ? '#EF4444' : accent;
+  const status = getKickoffStatus(item.kickoffAt, item.sport);
+  const timeColor = status === 'future' ? accent : '#EF4444';
   const count = item.boletinIds.length;
 
   return (
@@ -201,10 +224,15 @@ function AgendaRow({
               </View>
             )}
             <View style={[styles.timeBadge, { backgroundColor: timeColor + '18' }]}>
-              {started ? (
+              {status === 'live' ? (
                 <>
                   <View style={[styles.liveDot, { backgroundColor: '#EF4444' }]} />
                   <Text style={[styles.liveLabel, { color: '#EF4444' }]}>AO VIVO</Text>
+                </>
+              ) : status === 'finished' ? (
+                <>
+                  <Ionicons name="checkmark-circle-outline" size={13} color={colors.textMuted} />
+                  <Text style={[styles.liveLabel, { color: colors.textMuted }]}>FIM</Text>
                 </>
               ) : (
                 <>

@@ -45,9 +45,28 @@ function formatKickoff(iso: string): string {
   return `${dd}/${mm}  ${hh}:${min}`;
 }
 
-/** Returns true if the kickoff time is in the past */
-function isKickoffPast(iso: string): boolean {
-  return new Date(iso).getTime() < Date.now();
+/** Estimated match durations in minutes per sport */
+const MATCH_DURATION_MINUTES: Record<string, number> = {
+  [Sport.FOOTBALL]: 105,        // 90 min + avg stoppage
+  [Sport.BASKETBALL]: 150,      // ~2.5h for NBA with breaks
+  [Sport.TENNIS]: 120,          // avg 2h
+  [Sport.HANDBALL]: 90,         // 60 min + breaks
+  [Sport.VOLLEYBALL]: 120,      // up to 5 sets
+  [Sport.HOCKEY]: 90,           // 60 min + breaks
+  [Sport.RUGBY]: 100,           // 80 min + breaks
+  [Sport.AMERICAN_FOOTBALL]: 210, // ~3.5h for NFL
+  [Sport.BASEBALL]: 180,        // ~3h
+  [Sport.OTHER]: 120,
+};
+
+type KickoffStatus = 'future' | 'live' | 'finished';
+
+function getKickoffStatus(iso: string, sport?: Sport): KickoffStatus {
+  const kickoffMs = new Date(iso).getTime();
+  const now = Date.now();
+  if (kickoffMs > now) return 'future';
+  const durationMs = (MATCH_DURATION_MINUTES[sport ?? Sport.OTHER] ?? 120) * 60 * 1000;
+  return kickoffMs + durationMs < now ? 'finished' : 'live';
 }
 
 /** Renders one selection row in builder and detail contexts. */
@@ -57,8 +76,8 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
 
   const a11yLabel = `${item.selection}, odds ${item.oddValue}, ${item.homeTeam} vs ${item.awayTeam}, ${item.competition}`;
 
-  const kickoffPast = item.kickoffAt ? isKickoffPast(item.kickoffAt) : false;
-  const kickoffColor = kickoffPast ? colors.danger : colors.textMuted;
+  const kickoffStatus = item.kickoffAt ? getKickoffStatus(item.kickoffAt, item.sport) : 'future';
+  const kickoffColor = kickoffStatus === 'live' ? colors.danger : colors.textMuted;
 
   return (
     <View
@@ -109,12 +128,12 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
           {item.kickoffAt ? (
             <View style={styles.kickoffRow}>
               <Ionicons
-                name={kickoffPast ? 'radio-button-on' : 'time-outline'}
+                name={kickoffStatus === 'live' ? 'radio-button-on' : kickoffStatus === 'finished' ? 'checkmark-circle-outline' : 'time-outline'}
                 size={12}
                 color={kickoffColor}
               />
               <Text style={[styles.kickoffText, { color: kickoffColor }]}>
-                {kickoffPast ? 'Em curso · ' : ''}{formatKickoff(item.kickoffAt)}
+                {kickoffStatus === 'live' ? 'Em curso · ' : kickoffStatus === 'finished' ? 'Terminado · ' : ''}{formatKickoff(item.kickoffAt)}
               </Text>
             </View>
           ) : null}
