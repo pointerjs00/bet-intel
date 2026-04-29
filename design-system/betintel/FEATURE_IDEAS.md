@@ -173,15 +173,11 @@
 
 ---
 
-### 1.18 Monthly Targets / Goals ✅ Ready (NEW)
+### 1.18 Monthly Targets / Goals ✅ Ready (NEW) — 🟢 BUILT
 **What:** User sets monthly goals (e.g. "target ROI: +5%", "max 30 bets", "max stake per bet: €20"). Track progress against goals with a progress bar.  
 **Why:** Encourages disciplined betting. Professional bettors always have targets and limits. The progress visualisation creates positive reinforcement loops.  
 **Feasibility:** Store goals in a new `UserGoal` model or simpler as JSON in a user preference field. Compare current-month stats summary against targets. All underlying stats already computed.  
-**What's needed:**
-1. New `goals` JSON field on User model (or separate `UserGoal` table for history)
-2. Goal-setting UI in profile/settings
-3. `GoalProgressCard` on Stats screen showing bars for each active goal  
-**Effort:** ~4h total (1h schema + 1h API + 2h mobile).
+**Implementation:** `goals Json @default("[]")` on User model. Goal-setting UI in `settings.tsx`. `components/stats/GoalProgressCard.tsx` on Stats screen — supports ROI, Win Rate, Profit, and Bet Count goal types with progress bars.
 
 ---
 
@@ -375,7 +371,8 @@
 1. New `resolvedAt` DateTime field on Boletin
 2. Toast with "Desfazer" button shown for 5 seconds after resolving
 3. Edit button on resolved boletins that opens a confirmation modal  
-**Effort:** ~3h total (30min schema + 1h API + 1.5h mobile).
+**Effort:** ~3h total (30min schema + 1h API + 1.5h mobile).  
+**Status:** Not yet implemented — `resolvedAt` field and undo toast are absent from the current schema and boletin detail screen.
 
 ---
 
@@ -699,15 +696,10 @@
 
 ---
 
-### 2.28 Bet Kick-Off Reminder Notifications ✅ Ready (NEW)
+### 2.28 Bet Kick-Off Reminder Notifications ✅ Ready (NEW) — 🟢 BUILT
 **What:** For PENDING boletins with a bet date set, send a push notification 15 minutes before the earliest event start time. Tapping the notification opens the boletin detail.  
 **Why:** Users forget to check their open bets. A timely reminder keeps them engaged and reduces the friction of manual result resolution.  
-**Feasibility:** `betDate` already stored. Use Expo Scheduled Notifications (`expo-notifications`) to schedule local notifications when a boletin is created. No backend required — purely client-side local notification.  
-**What's needed:**
-1. Schedule a local notification on boletin creation if `betDate` is in the future
-2. Cancel the notification if the boletin is resolved before then
-3. Notification preference toggle in Profile settings  
-**Effort:** ~3h (1h notification scheduling + 1h cancellation logic + 1h settings toggle).
+**Implementation:** `apps/mobile/services/notificationService.ts` — dedicated Android channel "kickoff-reminders". Schedules two local notifications per kickoff: 15 minutes before and at the exact kickoff time. Cancellation logic removes scheduled notifications when a boletin is resolved. User preference stored in AsyncStorage. Notification tap deep-links to the boletin detail via `KICKOFF_REMINDER` type handler in `app/_layout.tsx`.
 
 ---
 
@@ -803,7 +795,7 @@
 
 ## 4. Match Agenda Screen
 
-### 4.1 "Os Meus Jogos" — Upcoming Match Tracker ✅ Ready
+### 4.1 "Os Meus Jogos" — Upcoming Match Tracker ✅ Ready — 🟢 BUILT
 
 **What:** A dedicated screen that aggregates every match the user has an active (PENDING) bet on — extracted from all open boletins — and displays them in a clean, chronological agenda view. Each match entry shows: kick-off date & time, sport icon, competition (with logo), home vs away teams, the user's selection/market, the odd, and how many boletins reference that match. Matches are sorted ascending by kick-off time. The user can group/filter by sport, competition, or date.
 
@@ -911,9 +903,9 @@
 | 1.6 | EV Tracking | 🟡 Needs work | ~6h | 🔴 High | **P2** | ❌ No |
 | 2.4 | Bankroll Management | 🟡 Needs work | ~5h | 🔴 High | **P2** | ❌ No |
 | **1.19** | **Variance / StdDev Tracker** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | 🟢 Yes |
-| **1.18** | **Monthly Targets / Goals** | **✅ Ready** | **~4h** | **🟡 Medium** | **P2** | ❌ No |
+| **1.18** | **Monthly Targets / Goals** | **✅ Ready** | **~4h** | **🟡 Medium** | **P2** | 🟢 Yes |
 | **2.13** | **Bet Tagging** | **🟡 Needs work** | **~5h** | **🟡 Medium** | **P2** | ❌ No |
-| **2.14** | **Undo / Edit Resolved Bets** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | 🟢 Yes |
+| **2.14** | **Undo / Edit Resolved Bets** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | ❌ No |
 | **2.18** | **Responsible Gambling Tools** | **🟡 Needs work** | **~6h** | **🔴 High** | **P2** | ❌ No |
 | **2.11** | **Recurring Bet Templates** | **🟡 Needs work** | **~4h** | **🟡 Medium** | **P2** | ❌ No |
 | **3.7** | **Pull-to-Refresh + Smart Sync** | **✅ Ready** | **~2h** | **🟢 Low** | **P2** | 🟢 Yes |
@@ -940,7 +932,7 @@
 | **2.21** | **AI Bet Review (Claude)** | **✅ Ready** | **~5h** | **🔴 High** | **P0** | 🟢 Yes |
 | **3.19** | **Win Celebration Animations** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | 🟢 Yes |
 | **3.20** | **Contextual Homescreen Banner** | **✅ Ready** | **~2h** | **🔴 High** | **P1** | 🟢 Yes |
-| **2.28** | **Bet Kick-Off Reminder Notifications** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | ❌ No |
+| **2.28** | **Bet Kick-Off Reminder Notifications** | **✅ Ready** | **~3h** | **🟡 Medium** | **P1** | 🟢 Yes |
 | **2.29** | **Parlay Optimiser** | **✅ Ready** | **~3h** | **🔴 High** | **P1** | 🟢 Yes |
 | **3.16** | **Long-Press Preview Cards** | **✅ Ready** | **~3h** | **🟡 Medium** | **P2** | 🟢 Yes |
 | **3.17** | **Dynamic App Icon (iOS)** | **✅ Ready** | **~3h** | **🟢 Low** | **P2** | ❌ No |
@@ -955,4 +947,4 @@
 | **1.25** | **Friend League Table Position** | **🟡 Needs work** | **~2h+** | **🟡 Medium** | **P3** | ❌ No |
 | **2.32** | **Import from Betclic History** | **🟡 Needs work** | **~10h** | **🔴 High** | **P3** | ❌ No |
 | **2.31** | **Live Odds Comparison** | **🔴 Blocked** | **~4h+** | **🔴 High** | **Future** | ❌ No |
-| **4.1** | **"Os Meus Jogos" Match Agenda** | **✅ Ready** | **~6h** | **🔴 High** | **P1** | ❌ No |
+| **4.1** | **"Os Meus Jogos" Match Agenda** | **✅ Ready** | **~6h** | **🔴 High** | **P1** | 🟢 Yes |
