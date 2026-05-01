@@ -52,7 +52,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { boletinQueryKeys, useBoletins } from '../../services/boletinService';
 import { useMeProfile } from '../../services/socialService';
 import { usePersonalStats } from '../../services/statsService';
-import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
+import { useCompetitions, useTeams, useMarkets, useUpcomingFixtures } from '../../services/referenceService';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { useBoletinBuilderStore, type BoletinBuilderItem } from '../../stores/boletinBuilderStore';
@@ -134,6 +134,7 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
       setSelection('');
     }
   }, [market, homeTeam, homeTeam2, awayTeam, awayTeam2, isDoubles, sport, useCustomMarket]);
+
   const [oddValue, setOddValue] = useState('');
 
   const [showCompetitions, setShowCompetitions] = useState(false);
@@ -152,6 +153,10 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
   const [playerTour, setPlayerTour] = useState<'ATP' | 'WTA' | null>(null);
   // Tab selection for the player search header (ALL shows both sections)
   const [playerTourTab, setPlayerTourTab] = useState<'ALL' | 'ATP' | 'WTA'>('ALL');
+
+  // Kickoff auto-suggest
+  const [suggestedKickoff, setSuggestedKickoff] = useState<string | null>(null);
+  const [kickoffBannerDismissed, setKickoffBannerDismissed] = useState(false);
 
   // Map custom-typed sport strings to Sport.OTHER for API queries
   const sportForApi = useMemo(
@@ -176,6 +181,26 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
   // Fallback pool — used only when the competition-scoped query returns nothing (cups, intl comps).
   const allTeamsQuery = useTeams({ sport: sportForApi });
   const marketsQuery = useMarkets(sportForApi);
+  // Upcoming fixtures for kickoff auto-suggestion (football only, 30-day window)
+  const fixturesQuery = useUpcomingFixtures(30);
+
+  // Auto-suggest kickoff time from fixture data when both teams are selected (football only)
+  useEffect(() => {
+    if (sport !== Sport.FOOTBALL || !homeTeam || !awayTeam || !fixturesQuery.data?.length) {
+      setSuggestedKickoff(null);
+      setKickoffBannerDismissed(false);
+      return;
+    }
+    const homeLower = homeTeam.toLowerCase();
+    const awayLower = awayTeam.toLowerCase();
+    const match = fixturesQuery.data.find(
+      (f) =>
+        (f.homeTeam.toLowerCase() === homeLower && f.awayTeam.toLowerCase() === awayLower) ||
+        (f.homeTeam.toLowerCase() === awayLower && f.awayTeam.toLowerCase() === homeLower),
+    );
+    setSuggestedKickoff(match?.kickoffAt ?? null);
+    setKickoffBannerDismissed(false);
+  }, [homeTeam, awayTeam, sport, fixturesQuery.data]);
 
   const competitionSections = useMemo(() => {
     const comps = (competitionsQuery.data ?? []).map((competition) => (
@@ -521,6 +546,7 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
       market: humanized,
       selection: selection.trim(),
       oddValue: parsedOdd,
+      eventDate: (!kickoffBannerDismissed && suggestedKickoff) ? suggestedKickoff : undefined,
     });
 
     // Reset selection fields but keep sport/competition for rapid multi-entry
@@ -538,7 +564,7 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
     Keyboard.dismiss();
     hapticLight();
     showToast('Seleção adicionada.', 'success');
-  }, [homeTeam, homeTeam2, homeTeamItem?.imageUrl, awayTeam, awayTeam2, awayTeamItem?.imageUrl, isDoubles, competition, sport, sportForApi, market, selection, oddValue, onAdd, showToast]);
+  }, [homeTeam, homeTeam2, homeTeamItem?.imageUrl, awayTeam, awayTeam2, awayTeamItem?.imageUrl, isDoubles, competition, sport, sportForApi, market, selection, oddValue, suggestedKickoff, kickoffBannerDismissed, onAdd, showToast]);
 
   const rejectDuplicateSelection = useCallback((value: string, excludedValues: Set<string>) => {
     if (!excludedValues.has(normalizeSelectionValue(value))) {
@@ -833,6 +859,26 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
             <Ionicons color={colors.textMuted} name="chevron-down" size={16} />
           )}
         </PressableScale>
+      )}
+
+      {/* Kickoff auto-suggest banner */}
+      {suggestedKickoff && !kickoffBannerDismissed && (
+        <View style={[kickoffBannerStyles.banner, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30` }]}>
+          <Ionicons name="time-outline" size={14} color={colors.primary} />
+          <Text style={[kickoffBannerStyles.text, { color: colors.primary }]}>
+            {(() => {
+              const d = new Date(suggestedKickoff);
+              const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+              const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+              const hh = String(d.getHours()).padStart(2, '0');
+              const mm = String(d.getMinutes()).padStart(2, '0');
+              return `Kickoff: ${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]} · ${hh}:${mm}`;
+            })()}
+          </Text>
+          <Pressable hitSlop={8} onPress={() => setKickoffBannerDismissed(true)}>
+            <Ionicons name="close" size={14} color={colors.primary} />
+          </Pressable>
+        </View>
       )}
 
       {/* Market — only enabled once both teams are selected */}
@@ -1553,6 +1599,23 @@ function getErrorMessage(error: unknown): string {
 
   return 'Não foi possível guardar o boletim.';
 }
+
+const kickoffBannerStyles = StyleSheet.create({
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  text: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+});
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },

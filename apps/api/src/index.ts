@@ -22,6 +22,9 @@ import { defaultLimiter } from './middleware/rateLimiter';
 import { initializeSocketServer } from './sockets';
 import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
 import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankingsJob';
+import { scheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
+import { ensureFixturesFresh } from './services/fixtureService';
+import { fixtureRouter } from './routes/fixtureRoutes';
 import { seed as seedReferenceData } from './prisma/seed';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
@@ -82,6 +85,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/friends', friendsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/favourites', favouritesRouter);
+app.use('/api/fixtures', fixtureRouter);
 
 // ─── 404 handler ───────────────────────────────────────────────────────────────
 
@@ -171,6 +175,22 @@ async function start(): Promise<void> {
     await scheduleWTARankingsJob();
   } catch (err) {
     logger.warn('WTA rankings job scheduling skipped — Redis unavailable', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  try {
+    await ensureFixturesFresh();
+  } catch (err) {
+    logger.warn('Fixture ingestion skipped during startup', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  try {
+    await scheduleFixtureRefreshJob();
+  } catch (err) {
+    logger.warn('Fixture refresh job scheduling skipped — Redis unavailable', {
       error: err instanceof Error ? err.message : String(err),
     });
   }

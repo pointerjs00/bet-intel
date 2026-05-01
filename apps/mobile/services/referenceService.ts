@@ -2,6 +2,21 @@ import { useQuery } from '@tanstack/react-query';
 import type { Competition, Market, Team } from '@betintel/shared';
 import { apiClient } from './apiClient';
 
+export interface Fixture {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  competition: string;
+  country: string;
+  sport: string;
+  kickoffAt: string;
+  season: string;
+  round: string | null;
+  homeScore: number | null;
+  awayScore: number | null;
+  status: string;
+}
+
 // ─── Request functions ────────────────────────────────────────────────────────
 
 async function fetchCompetitions(sport?: string): Promise<Competition[]> {
@@ -60,5 +75,23 @@ export function useMarkets(sport?: string) {
     queryKey: ['reference', 'markets', sport],
     queryFn: () => fetchMarkets(sport),
     staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+async function fetchUpcomingFixtures(days: number): Promise<Fixture[]> {
+  try {
+    const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures/upcoming', { params: { days } });
+    return data.data;
+  } catch {
+    return [];
+  }
+}
+
+export function useUpcomingFixtures(days = 7) {
+  return useQuery({
+    queryKey: ['fixtures', 'upcoming', days],
+    queryFn: () => fetchUpcomingFixtures(days),
+    staleTime: 60 * 60 * 1000, // 1 hour — matches server cache TTL
+    retry: false,
   });
 }
