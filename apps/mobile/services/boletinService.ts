@@ -522,11 +522,15 @@ export function useUpdateBoletinItemMutation() {
       queryClient.setQueryData(boletinQueryKeys.detail(data.id), data);
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.mine() });
       void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.shared() });
- 
-      // When all items are resolved, the boletin status changes from PENDING.
-      // Cancel the kickoff reminder — the match is already in progress or done.
+
       if (data.status !== 'PENDING') {
         void cancelBoletinReminders(data.id);
+      } else {
+        // Reschedule reminders in case kickoffAt changed
+        const itemsWithKickoff = data.items
+          .filter((item) => item.kickoffAt != null)
+          .map((item) => ({ id: item.id, eventDate: item.kickoffAt! }));
+        void scheduleSelectionReminders(data.id, itemsWithKickoff, data.name);
       }
     },
   });

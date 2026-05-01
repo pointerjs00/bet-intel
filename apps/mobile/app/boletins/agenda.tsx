@@ -45,7 +45,7 @@ function getSportMeta(sport: string) {
 
 function formatKickoff(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function isSameDay(a: Date, b: Date): boolean {
@@ -97,7 +97,8 @@ function getKickoffStatus(iso: string, sport?: string): KickoffStatus {
 }
 
 function toDateKey(iso: string): string {
-  return iso.slice(0, 10);
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 // ─── Multi-boletin sheet ──────────────────────────────────────────────────────

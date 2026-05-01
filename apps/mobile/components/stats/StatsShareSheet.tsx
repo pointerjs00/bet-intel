@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Animated as RNAnimated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -39,11 +39,26 @@ export function StatsShareSheet({ visible, onClose }: StatsShareSheetProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [sharing, setSharing] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [cardReady, setCardReady] = useState(false);
+  const [scrollContainerHeight, setScrollContainerHeight] = useState(0);
+  const [cardEffectiveHeight, setCardEffectiveHeight] = useState(0);
 
   const cardRef = useRef<StatsShareCardHandle>(null);
+  const cardScrollRef = useRef<ScrollView>(null);
+
+  // When switching to a page that fits on screen, snap back to top so the user
+  // is never stuck in a scrolled-down position with scrollEnabled=false.
+  useEffect(() => {
+    if (cardEffectiveHeight + 16 <= scrollContainerHeight + 1) {
+      cardScrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [cardEffectiveHeight, scrollContainerHeight]);
 
   const statsQuery = usePersonalStats(period, [], undefined, undefined, visible);
   const stats = statsQuery.data;
+
+  const isLoading = statsQuery.isLoading || !stats;
+  const canAct = !isLoading && cardReady;
 
   const { panHandlers, animatedStyle } = useSwipeToDismiss(onClose, { visible });
 
@@ -100,74 +115,59 @@ export function StatsShareSheet({ visible, onClose }: StatsShareSheetProps) {
     }
   }, [captureCard]);
 
-  const isLoading = statsQuery.isLoading || !stats;
-  const canAct = !isLoading && !!cardRef.current?.isReady;
-
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, { flex: 1 }]}>
         <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
 
         {/* Sheet uses flex column so header + footer are pinned and only the
             card area scrolls — no matter how tall the card is */}
         <RNAnimated.View style={[styles.sheet, { backgroundColor: colors.surface }, animatedStyle]}>
 
-          {/* ── Fixed header ──────────────────────────────────────────────── */}
-          <View>
-            {/* Drag handle */}
+        {/* Top: header + card + dots — takes all available space */}
+        <View style={{ flex: 1, overflow: 'hidden' }}>
+
+          {/* Header */}
+          <View style={{ gap: 8 }}>
             <View {...panHandlers} style={styles.handleArea}>
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
             </View>
-
             <Text style={[styles.title, { color: colors.textPrimary }]}>Partilhar estatísticas</Text>
-
-            {/* Mode selector */}
             <View style={[styles.segmentRow, { backgroundColor: colors.surfaceRaised }]}>
               {MODES.map((m) => {
                 const active = mode === m.key;
                 return (
-                  <Pressable
-                    key={m.key}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => { setMode(m.key); setCurrentPage(0); }}
-                    style={[styles.segment, active && { backgroundColor: colors.primary }]}
-                  >
-                    <Text style={[styles.segmentText, { color: active ? '#fff' : colors.textSecondary }]}>
-                      {m.label}
-                    </Text>
+                  <Pressable key={m.key} accessibilityRole="tab" accessibilityState={{ selected: active }}
+                    onPress={() => { setMode(m.key); setCurrentPage(0); setCardEffectiveHeight(0); }}
+                    style={[styles.segment, active && { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.segmentText, { color: active ? '#fff' : colors.textSecondary }]}>{m.label}</Text>
                   </Pressable>
                 );
               })}
             </View>
-
-            {/* Period selector */}
             <View style={[styles.segmentRow, { backgroundColor: colors.surfaceRaised }]}>
               {PERIOD_OPTIONS.map((o) => {
                 const active = period === o.key;
                 return (
-                  <Pressable
-                    key={o.key}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: active }}
-                    onPress={() => setPeriod(o.key)}
-                    style={[styles.segment, active && { backgroundColor: colors.primary }]}
-                  >
-                    <Text style={[styles.segmentText, { color: active ? '#fff' : colors.textSecondary }]}>
-                      {o.label}
-                    </Text>
+                  <Pressable key={o.key} accessibilityRole="tab" accessibilityState={{ selected: active }}
+                    onPress={() => { setPeriod(o.key); setCardEffectiveHeight(0); }}
+                    style={[styles.segment, active && { backgroundColor: colors.primary }]}>
+                    <Text style={[styles.segmentText, { color: active ? '#fff' : colors.textSecondary }]}>{o.label}</Text>
                   </Pressable>
                 );
               })}
             </View>
           </View>
 
-          {/* ── Scrollable card area ───────────────────────────────────────── */}
+          {/* Card */}
           <ScrollView
-            contentContainerStyle={styles.cardScroll}
-            nestedScrollEnabled
+            ref={cardScrollRef}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ alignItems: 'center', paddingVertical: 8 }}
             showsVerticalScrollIndicator={false}
-            style={styles.cardScrollView}
+            nestedScrollEnabled
+            scrollEnabled={cardEffectiveHeight + 16 > scrollContainerHeight + 1}
+            onLayout={(e) => setScrollContainerHeight(e.nativeEvent.layout.height)}
           >
             {isLoading ? (
               <View style={styles.skeletonWrap}>
@@ -180,73 +180,41 @@ export function StatsShareSheet({ visible, onClose }: StatsShareSheetProps) {
                 period={period}
                 stats={stats}
                 onPageChange={setCurrentPage}
+                onReady={() => setCardReady(true)}
+                onEffectiveHeightChange={setCardEffectiveHeight}
               />
             )}
           </ScrollView>
 
-          {/* Page dots (detailed mode only) — between card and footer */}
-          {mode === 'detailed' && (
+          {/* Dots — outside ScrollView so they don't scroll away */}
+          {mode === 'detailed' ? (
             <View style={styles.dots}>
               {Array.from({ length: DETAILED_PAGE_COUNT }).map((_, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    { backgroundColor: i === currentPage ? colors.primary : colors.border },
-                    i === currentPage && styles.dotActive,
-                  ]}
-                />
+                <View key={i} style={[styles.dot, { backgroundColor: i === currentPage ? colors.primary : colors.border }, i === currentPage && styles.dotActive]} />
               ))}
             </View>
-          )}
+          ) : null}
 
-          {/* ── Fixed footer ──────────────────────────────────────────────── */}
-          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-            {/* Share button — primary, takes most space */}
-            <Pressable
-              accessibilityRole="button"
-              disabled={!canAct || sharing}
-              onPress={handleShare}
-              style={[
-                styles.shareBtn,
-                { backgroundColor: canAct && !sharing ? colors.primary : colors.border },
-              ]}
-            >
-              <Ionicons color="#fff" name="share-outline" size={18} />
-              <Text style={styles.shareBtnText}>
-                {sharing ? 'A partilhar…' : 'Partilhar'}
-              </Text>
-            </Pressable>
+        </View>
 
-            {/* Download button — icon-only pill */}
-            <Pressable
-              accessibilityLabel="Guardar na galeria"
-              accessibilityRole="button"
-              disabled={!canAct || downloading}
-              onPress={handleDownload}
-              style={[
-                styles.iconBtn,
-                { borderColor: canAct && !downloading ? colors.border : colors.surfaceRaised, backgroundColor: colors.surfaceRaised },
-              ]}
-            >
-              <Ionicons
-                color={canAct && !downloading ? colors.textPrimary : colors.textMuted}
-                name={downloading ? 'hourglass-outline' : 'download-outline'}
-                size={20}
-              />
-            </Pressable>
+        {/* Footer — always pinned outside the flex:1 area */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Pressable accessibilityRole="button" disabled={!canAct || sharing} onPress={handleShare}
+            style={[styles.shareBtn, { backgroundColor: canAct && !sharing ? colors.primary : colors.border }]}>
+            <Ionicons color="#fff" name="share-outline" size={18} />
+            <Text style={styles.shareBtnText}>{sharing ? 'A partilhar…' : 'Partilhar'}</Text>
+          </Pressable>
+          <Pressable accessibilityLabel="Guardar na galeria" accessibilityRole="button" disabled={!canAct || downloading} onPress={handleDownload}
+            style={[styles.iconBtn, { borderColor: canAct && !downloading ? colors.border : colors.surfaceRaised, backgroundColor: colors.surfaceRaised }]}>
+            <Ionicons color={canAct && !downloading ? colors.textPrimary : colors.textMuted} name={downloading ? 'hourglass-outline' : 'download-outline'} size={20} />
+          </Pressable>
+          <Pressable accessibilityLabel="Fechar" accessibilityRole="button" onPress={onClose}
+            style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
+            <Ionicons color={colors.textSecondary} name="close" size={20} />
+          </Pressable>
+        </View>
 
-            {/* Close button — ghost pill */}
-            <Pressable
-              accessibilityLabel="Fechar"
-              accessibilityRole="button"
-              onPress={onClose}
-              style={[styles.iconBtn, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
-            >
-              <Ionicons color={colors.textSecondary} name="close" size={20} />
-            </Pressable>
-          </View>
-        </RNAnimated.View>
+      </RNAnimated.View>
       </View>
     </Modal>
   );
@@ -261,13 +229,11 @@ const styles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    // maxHeight keeps the sheet from covering the entire screen on tablets
-    maxHeight: '92%',
-    // flex column: header (fixed) + cardScrollView (flex: 1) + footer (fixed)
+    height: '92%',
     flexDirection: 'column',
     paddingHorizontal: 20,
     paddingTop: 12,
-    gap: 12,
+    paddingBottom: 0,
   },
   handleArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
   handle: { borderRadius: 3, height: 4, width: 40 },

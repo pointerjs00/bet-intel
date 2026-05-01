@@ -45,6 +45,7 @@ import {
   consumeScanFeedbackContext,
   submitScanFeedbackRequest,
 } from '../../services/importService';
+import { scheduleSelectionReminders } from '../../services/notificationService';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { NumericKeyboard } from '../../components/ui/NumericKeyboard';
 import { useMarkets } from '../../services/referenceService';
@@ -75,23 +76,28 @@ const BOLETIN_STATUS_CYCLE: BoletinStatusEdit[] = ['PENDING', 'WON', 'LOST', 'VO
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/**
+ * The AI sees "03:00" on a betting slip and returns "...T03:00:00Z", treating
+ * the printed local time as UTC. Re-interpret the UTC components as local time
+ * so the stored ISO string is correct for the device's timezone.
+ */
+function normalizeAIEventDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return new Date(
+    d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
+    d.getUTCHours(), d.getUTCMinutes(),
+  ).toISOString();
+}
+
 function formatSelectionDate(iso: string): string {
   try {
     const d = new Date(iso);
-    return (
-      d.toLocaleDateString('pt-PT', {
-        timeZone: 'UTC',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      }) +
-      ' ' +
-      d.toLocaleTimeString('pt-PT', {
-        timeZone: 'UTC',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    );
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()} ${hh}:${min}`;
   } catch {
     return '—';
   }
@@ -156,14 +162,6 @@ export default function ImportReviewScreen() {
     }
   }, [params.data]);
 
-  useEffect(() => {
-    if (!pdfResult) return;
-    pdfResult.boletins.forEach((b, bi) => {
-      b.items.forEach((item, ii) => {
-        console.log(`[eventDate raw type check] "${item.eventDate}" ends with Z: ${item.eventDate?.endsWith('Z')}`);
-      });
-    });
-  }, [pdfResult]);
 
   const boletins = pdfResult?.boletins ?? [];
 
@@ -192,7 +190,7 @@ export default function ImportReviewScreen() {
           market: item.market || '',
           selection: item.selection || '',
           oddValue: item.oddValue != null ? String(item.oddValue) : '',
-          eventDate: item.eventDate ?? undefined,
+          eventDate: item.eventDate ? normalizeAIEventDate(item.eventDate) : undefined,
         });
       });
     });
@@ -634,11 +632,11 @@ export default function ImportReviewScreen() {
   function parseDateForPicker(iso: string): { day: number; month: number; year: number; hour: number; minute: number } {
     const d = new Date(iso);
     return {
-      day: d.getUTCDate(),
-      month: d.getUTCMonth() + 1,
-      year: d.getUTCFullYear(),
-      hour: d.getUTCHours(),
-      minute: d.getUTCMinutes(),
+      day: d.getDate(),
+      month: d.getMonth() + 1,
+      year: d.getFullYear(),
+      hour: d.getHours(),
+      minute: d.getMinutes(),
     };
   }
 
@@ -680,13 +678,13 @@ export default function ImportReviewScreen() {
   const confirmDatePicker = useCallback(() => {
     if (!datePickerTarget) return;
     const { day, month, year, hour, minute } = dateDraft;
-    const d = new Date(Date.UTC(
+    const d = new Date(
       parseInt(year, 10),
       parseInt(month, 10) - 1,
       parseInt(day, 10),
       parseInt(hour, 10),
       parseInt(minute, 10),
-    ));
+    );
     if (!isNaN(d.getTime())) {
       if (datePickerTarget.kind === 'selection') {
         updateItemEdit(datePickerTarget.boletinIdx, datePickerTarget.itemIdx, {
@@ -805,6 +803,18 @@ export default function ImportReviewScreen() {
       }
 
       showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
+
+      // Schedule kickoff reminders for newly imported PENDING boletins
+      if (result.createdBoletins) {
+        for (const boletin of result.createdBoletins) {
+          const itemsWithKickoff = boletin.items
+            .filter((item) => item.kickoffAt != null)
+            .map((item) => ({ id: item.id, eventDate: item.kickoffAt! }));
+          if (itemsWithKickoff.length > 0) {
+            scheduleSelectionReminders(boletin.id, itemsWithKickoff, boletin.name).catch(() => {});
+          }
+        }
+      }
 
       const feedbackCtx = consumeScanFeedbackContext();
       if (feedbackCtx) {

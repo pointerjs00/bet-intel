@@ -159,7 +159,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'Stats',
+          title: 'Estatísticas',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons color={color} name={focused ? 'stats-chart' : 'stats-chart-outline'} size={22} />
           ),

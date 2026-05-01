@@ -260,6 +260,11 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
     let imported = 0;
     let duplicates = 0;
     const errors: string[] = [];
+    const createdBoletins: Array<{
+      id: string;
+      name: string | null;
+      items: Array<{ id: string; kickoffAt: string | null }>;
+    }> = [];
 
     // Process inside a Prisma transaction for all-or-nothing semantics
     await prisma.$transaction(async (tx) => {
@@ -340,6 +345,15 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
             orderBy: { id: 'asc' },
           });
 
+          createdBoletins.push({
+            id: createdBoletin.id,
+            name: createdBoletin.name ?? null,
+            items: dbItems.map((dbItem, i) => ({
+              id: dbItem.id,
+              kickoffAt: bet.items[i]?.eventDate ?? null,
+            })),
+          });
+
           // Apply individual item results AND kickoffAt (eventDate) from the
           // import review. Run whenever any item has a result or date set, OR
           // the boletin itself is resolved.
@@ -413,6 +427,7 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
         duplicates,
         errors: errors.length,
         errorDetails: errors.length > 0 ? errors : undefined,
+        createdBoletins,
       },
     });
   } catch (err: unknown) {

@@ -43,6 +43,11 @@ export interface BulkImportResult {
   duplicates: number;
   errors: number;
   errorDetails?: string[];
+  createdBoletins?: Array<{
+    id: string;
+    name: string | null;
+    items: Array<{ id: string; kickoffAt: string | null }>;
+  }>;
 }
 
 interface ApiEnvelope<T> {

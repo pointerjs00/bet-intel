@@ -1,5 +1,5 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useRef, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import ReactNative, { Image, StyleSheet, Text, useWindowDimensions } from 'react-native';
 import type { PersonalStats, StatsBySportRow, StatsPeriod } from '@betintel/shared';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
 import { getLeagueLogoUrl } from '../../utils/sportAssets';
@@ -7,10 +7,11 @@ import { TeamBadge } from '../ui/TeamBadge';
 
 // ── ViewShot lazy-require ────────────────────────────────────────────────────
 
-type ViewShotRef = { capture: () => Promise<string> };
+type ViewShotRef = { capture: (options?: { result?: string; quality?: number }) => Promise<string> };
 type ViewShotType = React.ComponentType<{
   ref?: React.Ref<ViewShotRef>;
   style?: object;
+  collapsable?: boolean;
   children?: React.ReactNode;
 }>;
 let ViewShot: ViewShotType | null = null;
@@ -40,6 +41,9 @@ const SPORT_EMOJIS: Record<string, string> = {
   VOLLEYBALL: '🏐', HOCKEY: '🏒', RUGBY: '🏉', AMERICAN_FOOTBALL: '🏈',
   BASEBALL: '⚾', OTHER: '🎯',
 };
+
+const View = ReactNative.View;
+const ScrollView = ReactNative.ScrollView;
 
 const DETAILED_PAGE_COUNT = 4;
 
@@ -121,7 +125,7 @@ function BoletinList({ items, color }: { items: PersonalStats['bestBoletins']; c
 
 // ── Detailed page cards ──────────────────────────────────────────────────────
 
-function Page1({ stats, period, cardWidth }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number }) {
+function Page1({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number; cardStyle?: object }) {
   const { summary } = stats;
   const roiColor = summary.roi >= 0 ? '#00C851' : '#FF3B30';
   const plColor = summary.profitLoss >= 0 ? '#00C851' : '#FF3B30';
@@ -129,7 +133,7 @@ function Page1({ stats, period, cardWidth }: { stats: PersonalStats; period: Sta
   const showStreak = streaks.currentCount >= 3 && streaks.currentType !== null;
 
   return (
-    <View style={[s.card, { width: cardWidth }]}>
+    <View style={[s.card, { width: cardWidth }, cardStyle]}>
       <CardHeader period={period} pageTitle="Resumo" pageNum={1} />
       <View style={s.roiSection}>
         <Text style={s.roiLabel}>ROI</Text>
@@ -186,9 +190,9 @@ function Page1({ stats, period, cardWidth }: { stats: PersonalStats; period: Sta
   );
 }
 
-function Page2({ stats, period, cardWidth }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number }) {
+function Page2({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number; cardStyle?: object }) {
   return (
-    <View style={[s.card, { width: cardWidth }]}>
+    <View style={[s.card, { width: cardWidth }, cardStyle]}>
       <CardHeader period={period} pageTitle="Boletins" pageNum={2} />
       <View style={s.section}>
         <SectionLabel>🏆  Melhores boletins</SectionLabel>
@@ -204,13 +208,13 @@ function Page2({ stats, period, cardWidth }: { stats: PersonalStats; period: Sta
   );
 }
 
-function Page3({ stats, period, cardWidth }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number }) {
+function Page3({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number; cardStyle?: object }) {
   const topSports = [...stats.bySport].sort((a, b) => b.totalBets - a.totalBets).slice(0, 5);
   const topCompetitions = [...stats.byCompetition].sort((a, b) => b.totalBets - a.totalBets).slice(0, 5);
   const topTeams = [...stats.byTeam].sort((a, b) => b.totalBets - a.totalBets).slice(0, 5);
 
   return (
-    <View style={[s.card, { width: cardWidth }]}>
+    <View style={[s.card, { width: cardWidth }, cardStyle]}>
       <CardHeader period={period} pageTitle="Desporto & Equipas" pageNum={3} />
       {topSports.length > 0 && (
         <View style={s.section}>
@@ -268,7 +272,7 @@ function Page3({ stats, period, cardWidth }: { stats: PersonalStats; period: Sta
   );
 }
 
-function Page4({ stats, period, cardWidth }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number }) {
+function Page4({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; period: StatsPeriod; cardWidth: number; cardStyle?: object }) {
   const topMarkets = [...stats.byMarket].sort((a, b) => b.totalBets - a.totalBets).slice(0, 5);
   const bestPoint = stats.timeline.length > 0
     ? stats.timeline.reduce((best, p) => p.profitLoss > best.profitLoss ? p : best)
@@ -279,7 +283,7 @@ function Page4({ stats, period, cardWidth }: { stats: PersonalStats; period: Sta
   const showWorst = worstPoint && worstPoint !== bestPoint;
 
   return (
-    <View style={[s.card, { width: cardWidth }]}>
+    <View style={[s.card, { width: cardWidth }, cardStyle]}>
       <CardHeader period={period} pageTitle="Mercados & Dias" pageNum={4} />
       {topMarkets.length > 0 && (
         <View style={s.section}>
@@ -336,10 +340,13 @@ interface StatsShareCardProps {
   mode: ShareMode;
   /** Notifies the sheet when the active page changes (for the dot indicator) */
   onPageChange?: (page: number) => void;
+  onReady?: () => void;
+  /** Reports the visible height of the current card/page so the sheet knows whether to enable scrolling */
+  onEffectiveHeightChange?: (height: number) => void;
 }
 
 export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardProps>(
-  function StatsShareCard({ stats, period, mode, onPageChange }, ref) {
+  function StatsShareCard({ stats, period, mode, onPageChange, onReady, onEffectiveHeightChange }, ref) {
     const { width: screenWidth } = useWindowDimensions();
     const cardWidth = screenWidth - 40;
 
@@ -355,16 +362,26 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
 
     // Ref so the imperative handle always sees the latest page without stale closures
     const currentPageRef = useRef(0);
+    // Per-page natural heights measured via onLayout — used to report effective height
+    const pageHeightRefs = useRef<number[]>([0, 0, 0, 0]);
 
     // Expose capture() to the parent sheet so it can trigger share/download
     useImperativeHandle(ref, () => ({
       capture: async () => {
         const activeRef = mode === 'simple' ? simpleRef : detailRefs[currentPageRef.current];
         if (!activeRef.current?.capture) return null;
-        return activeRef.current.capture();
+        return activeRef.current.capture({ result: 'tmpfile', quality: 1 });
       },
       isReady: !!ViewShot,
     }), [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+      if (!ViewShot || !stats) return;
+      const timer = setTimeout(() => {
+        onReady?.();
+      }, 100);
+      return () => clearTimeout(timer);
+    }, [stats]);
 
     // ── Simple card content ──────────────────────────────────────────────────
 
@@ -431,48 +448,85 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
     // ── Simple mode render ───────────────────────────────────────────────────
 
     if (mode === 'simple') {
-      return ViewShot ? (
-        <ViewShot ref={simpleRef} style={s.shotContainer}>
-          {simpleCardContent}
-        </ViewShot>
-      ) : (
-        <View style={s.shotContainer}>{simpleCardContent}</View>
+      return (
+        <View
+          style={s.shotContainer}
+          onLayout={(e) => onEffectiveHeightChange?.(e.nativeEvent.layout.height)}
+        >
+          {ViewShot ? (
+            <ViewShot ref={simpleRef} style={{ overflow: 'hidden' }}>
+              {simpleCardContent}
+            </ViewShot>
+          ) : simpleCardContent}
+        </View>
       );
     }
 
     // ── Detailed — native horizontal pager, one ViewShot per page ───────────
+    // Capture ViewShots are rendered off-screen (squared corners, natural height).
+    // The visible pager renders separate rounded cards with no ViewShot wrapper.
 
-    const pages = [
-      { ref: pageRef0, key: 'p1', node: <Page1 cardWidth={cardWidth} period={period} stats={stats} /> },
-      { ref: pageRef1, key: 'p2', node: <Page2 cardWidth={cardWidth} period={period} stats={stats} /> },
-      { ref: pageRef2, key: 'p3', node: <Page3 cardWidth={cardWidth} period={period} stats={stats} /> },
-      { ref: pageRef3, key: 'p4', node: <Page4 cardWidth={cardWidth} period={period} stats={stats} /> },
+    const capturePages = [
+      <Page1 key="c1" cardWidth={cardWidth} period={period} stats={stats} />,
+      <Page2 key="c2" cardWidth={cardWidth} period={period} stats={stats} />,
+      <Page3 key="c3" cardWidth={cardWidth} period={period} stats={stats} />,
+      <Page4 key="c4" cardWidth={cardWidth} period={period} stats={stats} />,
+    ];
+
+    const displayPages = [
+      <Page1 key="d1" cardWidth={cardWidth} period={period} stats={stats} cardStyle={s.cardRounded} />,
+      <Page2 key="d2" cardWidth={cardWidth} period={period} stats={stats} cardStyle={s.cardRounded} />,
+      <Page3 key="d3" cardWidth={cardWidth} period={period} stats={stats} cardStyle={s.cardRounded} />,
+      <Page4 key="d4" cardWidth={cardWidth} period={period} stats={stats} cardStyle={s.cardRounded} />,
     ];
 
     return (
-      <ScrollView
-        horizontal
-        pagingEnabled
-        nestedScrollEnabled
-        directionalLockEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEventThrottle={16}
-        onMomentumScrollEnd={(e) => {
-          const page = Math.round(e.nativeEvent.contentOffset.x / cardWidth);
-          currentPageRef.current = page;
-          onPageChange?.(page);
-        }}
-        contentContainerStyle={s.pagerContent}
-        style={{ borderRadius: 20 }}
-      >
-        {pages.map(({ ref, key, node }) =>
-          ViewShot ? (
-            <ViewShot key={key} ref={ref} style={s.pageShot}>{node}</ViewShot>
-          ) : (
-            <View key={key} style={s.pageShot}>{node}</View>
-          ),
+      <>
+        {/* Off-screen ViewShots for capture — no borderRadius, natural height */}
+        {ViewShot && (
+          <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
+            {detailRefs.map((ref, i) => (
+              <ViewShot key={i} ref={ref} style={{ width: cardWidth }} collapsable={false}>
+                {capturePages[i]}
+              </ViewShot>
+            ))}
+          </View>
         )}
-      </ScrollView>
+        {/* Visible pager — rounded corners via card's own borderRadius */}
+        <View style={{ width: cardWidth, borderRadius: 20, overflow: 'hidden', alignSelf: 'flex-start' }}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            nestedScrollEnabled
+            directionalLockEnabled
+            showsHorizontalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onMomentumScrollEnd={(e) => {
+              const page = Math.round(e.nativeEvent.contentOffset.x / cardWidth);
+              currentPageRef.current = page;
+              onPageChange?.(page);
+              const h = pageHeightRefs.current[page];
+              if (h > 0) onEffectiveHeightChange?.(h);
+            }}
+            contentContainerStyle={{ alignItems: 'flex-start' }}
+            style={{ borderRadius: 20, overflow: 'hidden' }}
+          >
+            {displayPages.map((node, i) => (
+              <View
+                key={i}
+                style={{ width: cardWidth }}
+                onLayout={(e) => {
+                  const h = Math.round(e.nativeEvent.layout.height);
+                  pageHeightRefs.current[i] = h;
+                  if (i === currentPageRef.current) onEffectiveHeightChange?.(h);
+                }}
+              >
+                {node}
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </>
     );
   },
 );
@@ -481,11 +535,10 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
 
 const s = StyleSheet.create({
   shotContainer: { borderRadius: 20, overflow: 'hidden' },
+  cardRounded: { borderRadius: 20 },
   pagerContent: { alignItems: 'flex-start' },
-  pageShot: { alignSelf: 'flex-start', borderRadius: 20, overflow: 'hidden' },
-  card: { backgroundColor: '#0D0D0D', borderRadius: 20, overflow: 'hidden' },
-
-  header: {
+  pageShot: { overflow: 'hidden' },
+  card: { backgroundColor: '#0D0D0D', overflow: 'hidden' },  header: {
     alignItems: 'center',
     backgroundColor: '#141414',
     flexDirection: 'row',
