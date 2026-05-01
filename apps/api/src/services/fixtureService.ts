@@ -48,6 +48,7 @@ const LEAGUE_MANIFEST: LeagueEntry[] = [
 // ─── openfootball JSON types ──────────────────────────────────────────────────
 
 interface OpenFootballMatch {
+  round?: string;
   date: string;
   time?: string;
   team1: string;
@@ -55,14 +56,9 @@ interface OpenFootballMatch {
   score?: { ft?: [number, number] };
 }
 
-interface OpenFootballRound {
-  name: string;
-  matches: OpenFootballMatch[];
-}
-
 interface OpenFootballLeague {
   name?: string;
-  rounds: OpenFootballRound[];
+  matches: OpenFootballMatch[];
 }
 
 // ─── Timezone helper ──────────────────────────────────────────────────────────
@@ -143,45 +139,44 @@ export async function ingestFixtures(): Promise<IngestResult> {
     leaguesFetched++;
     let upserted = 0;
 
-    for (const round of data.rounds ?? []) {
-      for (const match of round.matches ?? []) {
-        try {
-          const kickoffAt = parseAsLisbonLocal(match.date, match.time);
-          const hasScore = match.score?.ft != null;
-          const homeScore = hasScore ? (match.score!.ft![0] ?? null) : null;
-          const awayScore = hasScore ? (match.score!.ft![1] ?? null) : null;
-          const status = hasScore ? 'FINISHED' : 'SCHEDULED';
+    for (const match of data.matches ?? []) {
+      try {
+        const kickoffAt = parseAsLisbonLocal(match.date, match.time);
+        const hasScore = match.score?.ft != null;
+        const homeScore = hasScore ? (match.score!.ft![0] ?? null) : null;
+        const awayScore = hasScore ? (match.score!.ft![1] ?? null) : null;
+        const status = hasScore ? 'FINISHED' : 'SCHEDULED';
+        const round = match.round ?? null;
 
-          await prisma.fixture.upsert({
-            where: {
-              fixture_unique: {
-                homeTeam: match.team1,
-                awayTeam: match.team2,
-                season,
-                round: round.name,
-              },
-            },
-            update: { kickoffAt, homeScore, awayScore, status },
-            create: {
+        await prisma.fixture.upsert({
+          where: {
+            fixture_unique: {
               homeTeam: match.team1,
               awayTeam: match.team2,
-              competition: league.competition,
-              country: league.country,
-              sport: 'FOOTBALL',
-              kickoffAt,
               season,
-              round: round.name,
-              homeScore,
-              awayScore,
-              status,
+              round,
             },
-          });
-          upserted++;
-        } catch (err) {
-          logger.warn(`[fixtureService] Failed to upsert ${match.team1} vs ${match.team2} (${round.name})`, {
-            error: err instanceof Error ? err.message : String(err),
-          });
-        }
+          },
+          update: { kickoffAt, homeScore, awayScore, status },
+          create: {
+            homeTeam: match.team1,
+            awayTeam: match.team2,
+            competition: league.competition,
+            country: league.country,
+            sport: 'FOOTBALL',
+            kickoffAt,
+            season,
+            round,
+            homeScore,
+            awayScore,
+            status,
+          },
+        });
+        upserted++;
+      } catch (err) {
+        logger.warn(`[fixtureService] Failed to upsert ${match.team1} vs ${match.team2} (${match.round ?? '?'})`, {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
