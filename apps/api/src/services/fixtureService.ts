@@ -146,7 +146,7 @@ export async function ingestFixtures(): Promise<IngestResult> {
         const homeScore = hasScore ? (match.score!.ft![0] ?? null) : null;
         const awayScore = hasScore ? (match.score!.ft![1] ?? null) : null;
         const status = hasScore ? 'FINISHED' : 'SCHEDULED';
-        const round = match.round ?? null;
+        const round = match.round ?? '';
 
         await prisma.fixture.upsert({
           where: {
