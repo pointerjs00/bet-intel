@@ -56,6 +56,67 @@ export interface H2HFixture {
   season: string;
 }
 
+export interface TeamInsight {
+  sampleSize:        number;
+  avgGoalsFor:       number;
+  avgGoalsAgainst:   number;
+  cleanSheetPct:     number;
+  failedToScorePct:  number;
+  over15Pct:         number;
+  over25Pct:         number;
+  over35Pct:         number;
+  bttsPct:           number;
+  avgCornersFor:     number;
+  avgCornersAgainst: number;
+  avgYellowCards:    number;
+  formLast5:         ('W' | 'D' | 'L')[];
+}
+
+export interface H2HInsight {
+  total:           number;
+  atVenue:         number;
+  homeWins:        number;
+  draws:           number;
+  awayWins:        number;
+  avgGoalsPerGame: number;
+  over25Pct:       number;
+  bttsPct:         number;
+  recentMatches:   { date: string; homeTeam: string; awayTeam: string; homeScore: number | null; awayScore: number | null }[];
+}
+
+export interface SharpOdds {
+  pinnacleHome: number | null;
+  pinnacleDraw: number | null;
+  pinnacleAway: number | null;
+  impliedHome:  number | null;
+  impliedDraw:  number | null;
+  impliedAway:  number | null;
+  matchDate:    string | null;
+  note:         string;
+}
+
+export interface FixtureInsight {
+  fixtureId:      string;
+  homeTeam:       string;
+  awayTeam:       string;
+  competition:    string;
+  kickoffAt:      string;
+  computedAt:     string;
+  homeTeamAtHome: TeamInsight | null;
+  awayTeamAway:   TeamInsight | null;
+  combinedOver25: number;
+  combinedBtts:   number;
+  h2h:            H2HInsight;
+  sharpOdds:      SharpOdds;
+  homeInjuries:   { playerName: string; type: string; reason?: string }[];
+  awayInjuries:   { playerName: string; type: string; reason?: string }[];
+  homeTopScorers: { playerName: string; goals: number; assists?: number }[];
+  awayTopScorers: { playerName: string; goals: number; assists?: number }[];
+  standings:      { home: TeamStatData | null; away: TeamStatData | null };
+  // graceful degradation fallback
+  message?: string;
+}
+
 export interface CompetitionStats {
   competition: string;
   season: string;
@@ -154,6 +215,25 @@ export function useCompetitionStats(competition: string, season = '2025-26') {
     queryKey: ['fixtures', 'competition-stats', competition, season],
     queryFn: () => fetchCompetitionStats(competition, season),
     enabled: competition.length > 0,
+    staleTime: STALE,
+    retry: false,
+  });
+}
+
+async function fetchFixtureInsight(fixtureId: string): Promise<FixtureInsight | null> {
+  try {
+    const { data } = await apiClient.get(`/fixtures/${fixtureId}/insight`);
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function useFixtureInsight(fixtureId: string | null) {
+  return useQuery({
+    queryKey: ['fixtures', 'insight', fixtureId],
+    queryFn: () => fetchFixtureInsight(fixtureId!),
+    enabled: !!fixtureId,
     staleTime: STALE,
     retry: false,
   });
