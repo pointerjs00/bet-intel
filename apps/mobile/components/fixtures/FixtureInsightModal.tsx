@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFixtureInsight } from '../../services/teamStatsService';
 import type { TeamInsight, H2HInsight, SharpOdds } from '../../services/teamStatsService';
 import { useTheme } from '../../theme/useTheme';
+import { TeamBadge as AppTeamBadge } from '../../components/ui/TeamBadge';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,13 +30,16 @@ interface FixtureInsightModalProps {
  * backend if not already present, alongside the existing per-team sampleSize.
  */
 interface TeamMatch {
-  date: string;          // ISO date string
+  date: string;
   homeTeam: string;
   awayTeam: string;
   homeScore: number | null;
   awayScore: number | null;
-  /** Was the subject team (the one whose card this is) playing at home? */
   isHome: boolean;
+  // Image URLs — populated by backend alongside recentMatches
+  homeTeamImageUrl?: string | null;
+  awayTeamImageUrl?: string | null;
+  time?: string | null;
 }
 
 // ─── Stat metadata ────────────────────────────────────────────────────────────
@@ -146,6 +150,34 @@ function fmt1(n: number | null | undefined): string {
   return n.toFixed(1);
 }
 
+// ─── Team badge wrapper ───────────────────────────────────────────────────────
+// Thin adapter so the drilldown screen can call <TeamBadge> the same way
+// as the rest of the app, passing through the real badge image when available.
+
+interface MatchTeamWithImage extends TeamMatch {
+  homeTeamImageUrl?: string | null;
+  awayTeamImageUrl?: string | null;
+}
+
+function TeamBadge({
+  name,
+  imageUrl,
+  size = 20,
+}: {
+  name: string;
+  imageUrl?: string | null;
+  size?: number;
+}) {
+  return (
+    <AppTeamBadge
+      imageUrl={imageUrl}
+      name={name}
+      size={size}
+      variant="team"
+    />
+  );
+}
+
 // ─── Stat drilldown screen ────────────────────────────────────────────────────
 // Replaces the main scroll view (no nested Modal) when a drilldown stat is tapped.
 
@@ -169,6 +201,9 @@ function StatDrilldownScreen({
   const total = matches.length;
   const rate = total > 0 ? Math.round((fired / total) * 100) : 0;
 
+  // colour the rate value: ≥60 green, ≥35 amber, else red-ish
+  const rateColor = rate >= 60 ? '#22c55e' : rate >= 35 ? '#f59e0b' : '#ef4444';
+
   return (
     <View style={[drillStyles.root, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -180,11 +215,11 @@ function StatDrilldownScreen({
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero card: stat + description */}
+        {/* Hero card */}
         <View
           style={[
             drillStyles.heroCard,
-            { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}28` },
+            { backgroundColor: `${rateColor}12`, borderColor: `${rateColor}35` },
           ]}
         >
           <View style={drillStyles.heroTop}>
@@ -195,7 +230,7 @@ function StatDrilldownScreen({
               <Text style={[drillStyles.heroVenue, { color: colors.textMuted }]}>{venue}</Text>
             </View>
             <View style={drillStyles.heroPctWrap}>
-              <Text style={[drillStyles.heroPct, { color: colors.primary }]}>{rate}%</Text>
+              <Text style={[drillStyles.heroPct, { color: rateColor }]}>{rate}%</Text>
               <Text style={[drillStyles.heroPctLabel, { color: colors.textMuted }]}>
                 {meta.short}
               </Text>
@@ -207,7 +242,7 @@ function StatDrilldownScreen({
             <View
               style={[
                 drillStyles.barFill,
-                { width: `${rate}%` as any, backgroundColor: colors.primary },
+                { width: `${rate}%` as any, backgroundColor: rateColor },
               ]}
             />
           </View>
@@ -215,7 +250,6 @@ function StatDrilldownScreen({
             {fired} de {total} jogos
           </Text>
 
-          {/* Full stat explanation — replaces tooltip */}
           <View style={[drillStyles.descBox, { borderTopColor: colors.border }]}>
             <Text style={[drillStyles.descTitle, { color: colors.textPrimary }]}>
               {meta.label}
@@ -226,13 +260,13 @@ function StatDrilldownScreen({
           </View>
         </View>
 
-        {/* Match list */}
+        {/* List header */}
         <View style={drillStyles.listHeader}>
           <Text style={[drillStyles.listTitle, { color: colors.textMuted }]}>
             JOGOS DA AMOSTRA
           </Text>
           <View style={drillStyles.listLegend}>
-            <View style={[drillStyles.legendDot, { backgroundColor: colors.primary }]} />
+            <View style={[drillStyles.legendDot, { backgroundColor: rateColor }]} />
             <Text style={[drillStyles.listLegendText, { color: colors.textMuted }]}>
               = {meta.firedLabel}
             </Text>
@@ -249,81 +283,132 @@ function StatDrilldownScreen({
         ) : (
           matches.map((m, i) => {
             const didFire = meta.matchFired(m);
+            const homeGoals = m.homeScore ?? 0;
+            const awayGoals = m.awayScore ?? 0;
+            const total = homeGoals + awayGoals;
+            // score box accent: high-scoring = amber, draw = slate, else primary
+            const scoreAccent =
+              total >= 4 ? '#f59e0b' : homeGoals === awayGoals ? '#64748b' : colors.primary;
+
+            // parse date — show date + simulated kick-off time placeholder
+            const d = new Date(m.date);
+            const dateStr = d.toLocaleDateString('pt-PT', {
+              day: '2-digit',
+              month: '2-digit',
+              year: '2-digit',
+            });
+            // If your TeamMatch has a `time` field, use it; otherwise omit
+            const timeStr = (m as any).time ?? null;
+
             return (
               <View
                 key={i}
                 style={[
                   drillStyles.matchRow,
                   { borderBottomColor: colors.border },
-                  didFire && { backgroundColor: `${colors.primary}08` },
+                  didFire && { backgroundColor: `${rateColor}0D` },
                 ]}
               >
-                {/* Fired indicator strip */}
+                {/* Left accent strip */}
                 <View
                   style={[
                     drillStyles.firedStrip,
-                    { backgroundColor: didFire ? colors.primary : 'transparent' },
+                    { backgroundColor: didFire ? rateColor : 'transparent' },
                   ]}
                 />
 
-                {/* Date */}
-                <Text style={[drillStyles.matchDate, { color: colors.textMuted }]}>
-                  {new Date(m.date).toLocaleDateString('pt-PT', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: '2-digit',
-                  })}
-                </Text>
-
-                {/* Teams + score */}
-                <View style={drillStyles.matchCenter}>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      drillStyles.matchTeam,
-                      {
-                        color: m.isHome ? colors.textPrimary : colors.textSecondary,
-                        fontWeight: m.isHome ? '700' : '500',
-                      },
-                    ]}
-                  >
-                    {m.homeTeam}
+                {/* Date + time column */}
+                <View style={drillStyles.dateCol}>
+                  <Text style={[drillStyles.matchDate, { color: colors.textSecondary }]}>
+                    {dateStr}
                   </Text>
-                  <View style={[drillStyles.scoreBox, { backgroundColor: colors.surfaceRaised }]}>
-                    <Text style={[drillStyles.matchScore, { color: colors.textPrimary }]}>
-                      {m.homeScore ?? '?'}–{m.awayScore ?? '?'}
+                  {timeStr && (
+                    <Text style={[drillStyles.matchTime, { color: colors.textMuted }]}>
+                      {timeStr}
+                    </Text>
+                  )}
+                  {!timeStr && (
+                    <Text style={[drillStyles.matchTime, { color: colors.textMuted }]}>FT</Text>
+                  )}
+                </View>
+
+                {/* Teams column — badges stacked left, names right */}
+                <View style={drillStyles.teamsCol}>
+                  {/* Home row */}
+                  <View style={drillStyles.teamRow}>
+                    <TeamBadge
+                      name={m.homeTeam}
+                      imageUrl={m.homeTeamImageUrl}
+                      size={20}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        drillStyles.teamName,
+                        {
+                          color: m.isHome ? colors.textPrimary : colors.textSecondary,
+                          fontWeight: m.isHome ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {m.homeTeam}
                     </Text>
                   </View>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      drillStyles.matchTeam,
-                      drillStyles.matchTeamRight,
-                      {
-                        color: !m.isHome ? colors.textPrimary : colors.textSecondary,
-                        fontWeight: !m.isHome ? '700' : '500',
-                      },
-                    ]}
-                  >
-                    {m.awayTeam}
+
+                  {/* Away row */}
+                  <View style={[drillStyles.teamRow, { marginTop: 5 }]}>
+                    <TeamBadge
+                      name={m.awayTeam}
+                      imageUrl={m.awayTeamImageUrl}
+                      size={20}
+                    />
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        drillStyles.teamName,
+                        {
+                          color: !m.isHome ? colors.textPrimary : colors.textSecondary,
+                          fontWeight: !m.isHome ? '700' : '500',
+                        },
+                      ]}
+                    >
+                      {m.awayTeam}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Score column — stacked goals */}
+                <View
+                  style={[
+                    drillStyles.scoreCol,
+                    {
+                      backgroundColor: `${scoreAccent}18`,
+                      borderColor: `${scoreAccent}35`,
+                    },
+                  ]}
+                >
+                  <Text style={[drillStyles.scoreNum, { color: colors.textPrimary }]}>
+                    {m.homeScore ?? '?'}
+                  </Text>
+                  <View style={[drillStyles.scoreDivider, { backgroundColor: colors.border }]} />
+                  <Text style={[drillStyles.scoreNum, { color: colors.textPrimary }]}>
+                    {m.awayScore ?? '?'}
                   </Text>
                 </View>
 
-                {/* Result badge */}
+                {/* Badge */}
                 <View
                   style={[
                     drillStyles.badge,
                     {
-                      backgroundColor: didFire
-                        ? `${colors.primary}22`
-                        : `${colors.border}80`,
+                      backgroundColor: didFire ? `${rateColor}22` : `${colors.border}80`,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       drillStyles.badgeText,
-                      { color: didFire ? colors.primary : colors.textMuted },
+                      { color: didFire ? rateColor : colors.textMuted },
                     ]}
                   >
                     {didFire ? meta.firedLabel : meta.notFiredLabel}
@@ -1502,42 +1587,63 @@ const drillStyles = StyleSheet.create({
   emptyWrap: { alignItems: 'center', gap: 8, paddingVertical: 40 },
   emptyText: { fontSize: 14, fontWeight: '500' },
 
+  // ── New match row layout ──────────────────────────────────────
   matchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingRight: 12,
+    paddingRight: 10,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   firedStrip: {
     width: 3,
-    height: 32,
+    alignSelf: 'stretch',
     borderRadius: 2,
-    marginRight: 4,
   },
-  matchDate: { fontSize: 11, fontWeight: '500', minWidth: 46 },
-  matchCenter: {
+
+  // Date + time stacked
+  dateCol: {
+    width: 52,
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  matchDate: { fontSize: 11, fontWeight: '600' },
+  matchTime: { fontSize: 10, fontWeight: '500' },
+
+  // Badges + names stacked (home / away)
+  teamsCol: {
     flex: 1,
+  },
+  teamRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 7,
   },
-  matchTeam: { flex: 1, fontSize: 12 },
-  matchTeamRight: { textAlign: 'right' },
-  scoreBox: {
-    borderRadius: 5,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    minWidth: 40,
+  teamName: {
+    flex: 1,
+    fontSize: 12,
+  },
+
+  // Score box: two numbers stacked with a divider
+  scoreCol: {
+    width: 32,
+    borderRadius: 6,
+    borderWidth: 1,
     alignItems: 'center',
+    paddingVertical: 4,
+    gap: 0,
+    marginHorizontal: 4,
   },
-  matchScore: { fontSize: 13, fontWeight: '800' },
+  scoreNum: { fontSize: 13, fontWeight: '800', lineHeight: 16 },
+  scoreDivider: { width: 18, height: StyleSheet.hairlineWidth, marginVertical: 2 },
+
+  // Result badge
   badge: {
     borderRadius: 6,
     paddingHorizontal: 7,
     paddingVertical: 3,
-    minWidth: 70,
+    minWidth: 66,
     alignItems: 'center',
   },
   badgeText: { fontSize: 10, fontWeight: '700' },

@@ -122,7 +122,9 @@ function computeTeamInsight(matches: any[], _teamName: string, teamIsHome: boole
     }),
     recentMatches: matches.slice(0, 20).map(m => ({
       date: m.date, homeTeam: m.homeTeam, awayTeam: m.awayTeam,
-      homeScore: m.homeScore, awayScore: m.awayScore, isHome: teamIsHome,
+      homeScore: m.homeScore, awayScore: m.awayScore, isHome: teamIsHome, 
+      homeTeamImageUrl: m.homeTeamImageUrl ?? null, awayTeamImageUrl: m.awayTeamImageUrl ?? null,
+      time: m.kickoffAt,
     })),
   };
 }
