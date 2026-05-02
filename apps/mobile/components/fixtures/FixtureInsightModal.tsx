@@ -287,15 +287,19 @@ function StatDrilldownScreen({
             const awayGoals = m.awayScore ?? 0;
             const scoreAccent = homeGoals === awayGoals ? '#64748b' : colors.primary;
 
-            // parse date — show date + simulated kick-off time placeholder
             const d = new Date(m.date);
             const dateStr = d.toLocaleDateString('pt-PT', {
               day: '2-digit',
               month: '2-digit',
               year: '2-digit',
             });
-            // If your TeamMatch has a `time` field, use it; otherwise omit
             const timeStr = (m as any).time ?? null;
+
+            // Use the fixture's canonical team name (from DrilldownState) for the
+            // subject team's badge — fdcouk names like 'Sp Lisbon' or 'Guimaraes'
+            // won't resolve correctly in the badge registry.
+            const homeBadgeName = m.isHome ? teamName : m.homeTeam;
+            const awayBadgeName = m.isHome ? m.awayTeam : teamName;
 
             return (
               <View
@@ -334,7 +338,7 @@ function StatDrilldownScreen({
                   {/* Home row */}
                   <View style={drillStyles.teamRow}>
                     <TeamBadge
-                      name={m.homeTeam}
+                      name={homeBadgeName}
                       imageUrl={m.homeTeamImageUrl}
                       size={20}
                     />
@@ -355,7 +359,7 @@ function StatDrilldownScreen({
                   {/* Away row */}
                   <View style={[drillStyles.teamRow, { marginTop: 5 }]}>
                     <TeamBadge
-                      name={m.awayTeam}
+                      name={awayBadgeName}
                       imageUrl={m.awayTeamImageUrl}
                       size={20}
                     />

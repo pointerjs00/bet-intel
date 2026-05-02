@@ -121,15 +121,15 @@ function computeTeamInsight(matches: any[], _teamName: string, teamIsHome: boole
       return scored > conceded ? 'W' : scored === conceded ? 'D' : 'L';
     }),
     recentMatches: matches.slice(0, 20).map(m => ({
-      date:      m.date,
-      homeTeam:  m.homeTeam,   // these are the raw display names from MatchStat — verify they match
-      awayTeam:  m.awayTeam,
-      homeScore: m.homeScore,
-      awayScore: m.awayScore,
-      isHome:    teamIsHome,
-      homeTeamImageUrl: null,  // no image column exists — TeamBadge will fetch via TheSportsDB
-      awayTeamImageUrl: null,
-      time: m.date,            // MatchStat has no kickoffAt — use date
+      date:              m.date,
+      homeTeam:          m.homeTeam,
+      awayTeam:          m.awayTeam,
+      homeScore:         m.homeScore,
+      awayScore:         m.awayScore,
+      isHome:            teamIsHome,
+      homeTeamImageUrl:  null,
+      awayTeamImageUrl:  null,
+      time:              m.date,
     })),
   };
 }
@@ -290,45 +290,6 @@ export async function computeFixtureInsight(fixture: {
       take: 10,
     }),
   ]);
-
-  // ─── Resolve team logo URLs from Fixture table ───────────────────────────────
-  // MatchStat has no imageUrl columns, so we look up the most recent Fixture
-  // for each team name that appears in our result sets to get their logos.
-
-  const allTeamNames = new Set<string>();
-  for (const m of [...homeAtHome, ...awayAway, ...h2hMatches]) {
-    allTeamNames.add(m.homeTeam);
-    allTeamNames.add(m.awayTeam);
-  }
-
-  const fixtureLogos = await prisma.fixture.findMany({
-    where: {
-      OR: [
-        { homeTeam: { in: [...allTeamNames] } },
-        { awayTeam: { in: [...allTeamNames] } },
-      ],
-    },
-    select: {
-      homeTeam: true,
-      awayTeam: true,
-      homeTeamImageUrl: true,
-      awayTeamImageUrl: true,
-    },
-    distinct: ['homeTeam'],
-    orderBy: { kickoffAt: 'desc' },
-    take: allTeamNames.size * 2,
-  });
-
-  // Build a name → imageUrl map
-  const teamLogoMap = new Map<string, string | null>();
-  for (const f of fixtureLogos) {
-    if (f.homeTeam && !teamLogoMap.has(f.homeTeam)) {
-      teamLogoMap.set(f.homeTeam, f.homeTeamImageUrl ?? null);
-    }
-    if (f.awayTeam && !teamLogoMap.has(f.awayTeam)) {
-      teamLogoMap.set(f.awayTeam, f.awayTeamImageUrl ?? null);
-    }
-  }
 
   const homeInsight = computeTeamInsight(homeAtHome, fixture.homeTeam, true);
   const awayInsight = computeTeamInsight(awayAway, fixture.awayTeam, false);
