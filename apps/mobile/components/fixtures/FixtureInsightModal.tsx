@@ -285,10 +285,7 @@ function StatDrilldownScreen({
             const didFire = meta.matchFired(m);
             const homeGoals = m.homeScore ?? 0;
             const awayGoals = m.awayScore ?? 0;
-            const total = homeGoals + awayGoals;
-            // score box accent: high-scoring = amber, draw = slate, else primary
-            const scoreAccent =
-              total >= 4 ? '#f59e0b' : homeGoals === awayGoals ? '#64748b' : colors.primary;
+            const scoreAccent = homeGoals === awayGoals ? '#64748b' : colors.primary;
 
             // parse date — show date + simulated kick-off time placeholder
             const d = new Date(m.date);
