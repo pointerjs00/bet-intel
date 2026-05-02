@@ -191,14 +191,29 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
       setKickoffBannerDismissed(false);
       return;
     }
-    const homeLower = homeTeam.toLowerCase();
-    const awayLower = awayTeam.toLowerCase();
-    const match = fixturesQuery.data.find(
+
+    // Token-based matching: strip diacritics, split on whitespace, keep words ≥3 chars.
+    // Checks if every token of the query name appears in the fixture name's token set.
+    // This bridges abbreviation mismatches like "SL Benfica" ↔ "Sport Lisboa e Benfica".
+    const tokenize = (name: string): string[] =>
+      name
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length >= 3);
+
+    const isSubset = (queryName: string, fixtureName: string): boolean => {
+      const q = tokenize(queryName);
+      const f = new Set(tokenize(fixtureName));
+      return q.length > 0 && q.every((t) => f.has(t));
+    };
+
+    const fixture = fixturesQuery.data.find(
       (f) =>
-        (f.homeTeam.toLowerCase() === homeLower && f.awayTeam.toLowerCase() === awayLower) ||
-        (f.homeTeam.toLowerCase() === awayLower && f.awayTeam.toLowerCase() === homeLower),
+        (isSubset(homeTeam, f.homeTeam) && isSubset(awayTeam, f.awayTeam)) ||
+        (isSubset(homeTeam, f.awayTeam) && isSubset(awayTeam, f.homeTeam)),
     );
-    setSuggestedKickoff(match?.kickoffAt ?? null);
+    setSuggestedKickoff(fixture?.kickoffAt ?? null);
     setKickoffBannerDismissed(false);
   }, [homeTeam, awayTeam, sport, fixturesQuery.data]);
 
