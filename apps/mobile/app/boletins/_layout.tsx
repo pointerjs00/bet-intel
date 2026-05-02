@@ -21,6 +21,7 @@ export default function BoletinsLayout() {
       <Stack.Screen name="scan" />
       <Stack.Screen name="quick-log" options={{ headerShown: false }} />
       <Stack.Screen name="batch-resolve" />
+      <Stack.Screen name="fixtures" options={{ title: 'Jogos' }} />
     </Stack>
   );
 }

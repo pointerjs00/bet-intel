@@ -1164,6 +1164,7 @@ export default function HomeScreen() {
           >
             {([
               { label: 'Criar manualmente',   icon: 'create-outline',       lib: 'ion' as const, route: '/boletins/create',    color: colors.primary },
+              { label: 'Escolher por jogo',     icon: 'football-outline',     lib: 'ion' as const, route: '/boletins/fixtures',  color: '#FF9500'      },
               { label: 'Registo rápido',        icon: 'flash',                lib: 'ion' as const, route: '/boletins/quick-log',  color: colors.warning },
               { label: 'Importar screenshot',   icon: 'cellphone-screenshot', lib: 'mci' as const, route: '/boletins/scan',        color: colors.info    },
             ] as const).map((opt, i) => (
@@ -1173,7 +1174,7 @@ export default function HomeScreen() {
                   style={[
                     styles.fabMenuItem,
                     { borderBottomColor: colors.border },
-                    i === 2 && { borderBottomWidth: 0 },
+                    i === 3 && { borderBottomWidth: 0 },
                   ]}
                 >
                   <View style={[styles.fabMenuIcon, { backgroundColor: `${opt.color}18` }]}>

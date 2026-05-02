@@ -91,7 +91,27 @@ export function useUpcomingFixtures(days = 7) {
   return useQuery({
     queryKey: ['fixtures', 'upcoming', days],
     queryFn: () => fetchUpcomingFixtures(days),
-    staleTime: 60 * 60 * 1000, // 1 hour — matches server cache TTL
+    staleTime: 60 * 60 * 1000,
+    retry: false,
+  });
+}
+
+async function fetchRecentFixtures(days: number): Promise<Fixture[]> {
+  try {
+    const to = new Date().toISOString();
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures', { params: { from, to } });
+    return (data.data ?? []).filter((f) => f.homeScore !== null || f.awayScore !== null);
+  } catch {
+    return [];
+  }
+}
+
+export function useRecentFixtures(days = 7) {
+  return useQuery({
+    queryKey: ['fixtures', 'recent', days],
+    queryFn: () => fetchRecentFixtures(days),
+    staleTime: 30 * 60 * 1000,
     retry: false,
   });
 }
