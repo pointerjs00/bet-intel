@@ -88,7 +88,7 @@ const average = (a: number, b: number) =>
 
 // ─── Team insight ─────────────────────────────────────────────────────────────
 
-function computeTeamInsight(matches: any[], teamName: string, teamIsHome: boolean): TeamInsight {
+function computeTeamInsight(matches: any[], _teamName: string, teamIsHome: boolean): TeamInsight {
   const n = matches.length;
   if (n === 0) {
     return {
@@ -99,10 +99,8 @@ function computeTeamInsight(matches: any[], teamName: string, teamIsHome: boolea
     };
   }
 
-  const teamNorm = resolveAlias(normaliseTeamName(teamName));
-  const isHome   = (m: any) => normaliseTeamName(m.homeTeam) === teamNorm;
-  const gf       = (m: any) => isHome(m) ? (m.homeScore ?? 0) : (m.awayScore ?? 0);
-  const ga       = (m: any) => isHome(m) ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
+  const gf = (m: any) => teamIsHome ? (m.homeScore ?? 0) : (m.awayScore ?? 0);
+  const ga = (m: any) => teamIsHome ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
 
   return {
     sampleSize:        n,
@@ -114,9 +112,9 @@ function computeTeamInsight(matches: any[], teamName: string, teamIsHome: boolea
     over25Pct:  pct(matches.filter(m => (m.homeScore ?? 0) + (m.awayScore ?? 0) > 2).length, n),
     over35Pct:  pct(matches.filter(m => (m.homeScore ?? 0) + (m.awayScore ?? 0) > 3).length, n),
     bttsPct:    pct(matches.filter(m => (m.homeScore ?? 0) > 0 && (m.awayScore ?? 0) > 0).length, n),
-    avgCornersFor:     avg(matches.map(m => isHome(m) ? (m.homeCorners ?? 0) : (m.awayCorners ?? 0))),
-    avgCornersAgainst: avg(matches.map(m => isHome(m) ? (m.awayCorners ?? 0) : (m.homeCorners ?? 0))),
-    avgYellowCards:    avg(matches.map(m => isHome(m) ? (m.homeYellow ?? 0) : (m.awayYellow ?? 0))),
+    avgCornersFor:     avg(matches.map(m => teamIsHome ? (m.homeCorners ?? 0) : (m.awayCorners ?? 0))),
+    avgCornersAgainst: avg(matches.map(m => teamIsHome ? (m.awayCorners ?? 0) : (m.homeCorners ?? 0))),
+    avgYellowCards:    avg(matches.map(m => teamIsHome ? (m.homeYellow ?? 0) : (m.awayYellow ?? 0))),
     formLast5: matches.slice(0, 5).map(m => {
       const scored   = gf(m);
       const conceded = ga(m);
@@ -240,8 +238,12 @@ function toStatsCompetition(name: string): string {
   return STATS_COMPETITION_MAP[name] ?? name;
 }
 
-function stripClubPrefix(normKey: string): string {
-  return normKey.replace(/^(fc|cd|cf|gd|sc|sl|ac|as|rc|ud|sd|rcd) /, '').trim();
+function stripClubAffixes(normKey: string): string {
+  // Strip common prefix abbreviations (CA = Club Atlético, etc.)
+  let s = normKey.replace(/^(fc|afc|ca|cd|cf|gd|sc|sl|ac|as|rc|ud|sd|rcd|ss|us|nk|sk|fk|if|bk) /, '');
+  // Strip common suffix abbreviations (BC = Bergamasca Calcio, CFC = Club Football, etc.)
+  s = s.replace(/ (fc|afc|cfc|bc|sc|bsc|ssc|calcio)$/, '');
+  return s.trim();
 }
 
 export async function computeFixtureInsight(fixture: {
@@ -252,8 +254,8 @@ export async function computeFixtureInsight(fixture: {
   kickoffAt: Date;
 }): Promise<FixtureInsight> {
   const SAMPLE   = 20;
-  const homeNorm = stripClubPrefix(resolveAlias(normaliseTeamName(fixture.homeTeam)));
-  const awayNorm = stripClubPrefix(resolveAlias(normaliseTeamName(fixture.awayTeam)));
+  const homeNorm = stripClubAffixes(resolveAlias(normaliseTeamName(fixture.homeTeam)));
+  const awayNorm = stripClubAffixes(resolveAlias(normaliseTeamName(fixture.awayTeam)));
 
   const leagueConfig = LEAGUE_MANIFEST.find(l => l.name === fixture.competition);
   const leagueId = leagueConfig?.apiFootballId ?? 0;
