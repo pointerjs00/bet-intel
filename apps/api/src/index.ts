@@ -25,7 +25,9 @@ import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankin
 import { scheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
 import { ensureFixturesFresh } from './services/fixtureService';
 import { fixtureRouter } from './routes/fixtureRoutes';
+import { footballDataRouter } from './routes/footballDataRoutes';
 import { seed as seedReferenceData } from './prisma/seed';
+import { initFootballDataScheduler } from './scheduler';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
 
@@ -86,6 +88,7 @@ app.use('/api/friends', friendsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/favourites', favouritesRouter);
 app.use('/api/fixtures', fixtureRouter);
+app.use('/api', footballDataRouter);
 
 // ─── 404 handler ───────────────────────────────────────────────────────────────
 
@@ -191,6 +194,14 @@ async function start(): Promise<void> {
     await scheduleFixtureRefreshJob();
   } catch (err) {
     logger.warn('Fixture refresh job scheduling skipped — Redis unavailable', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  try {
+    await initFootballDataScheduler();
+  } catch (err) {
+    logger.warn('Football data scheduler skipped — Redis unavailable', {
       error: err instanceof Error ? err.message : String(err),
     });
   }

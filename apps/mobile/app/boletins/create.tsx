@@ -53,6 +53,9 @@ import { boletinQueryKeys, useBoletins } from '../../services/boletinService';
 import { useMeProfile } from '../../services/socialService';
 import { usePersonalStats } from '../../services/statsService';
 import { useCompetitions, useTeams, useMarkets, useUpcomingFixtures } from '../../services/referenceService';
+import { useTeamStats, useHeadToHead } from '../../services/teamStatsService';
+import type { TeamStatData, H2HFixture } from '../../services/teamStatsService';
+import { LeagueTableModal } from '../../components/fixtures/LeagueTableModal';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { useBoletinBuilderStore, type BoletinBuilderItem } from '../../stores/boletinBuilderStore';
@@ -101,6 +104,98 @@ function filterDropdownSections(
       data: section.data.filter((item) => !excludedValues.has(normalizeSelectionValue(item.value))),
     }))
     .filter((section) => section.data.length > 0);
+}
+
+// ─── Football context helpers ─────────────────────────────────────────────────
+
+function computeStreak(form: string[]): { type: string; count: number } {
+  if (form.length === 0) return { type: '', count: 0 };
+  const last = form[form.length - 1];
+  let count = 0;
+  for (let i = form.length - 1; i >= 0 && form[i] === last; i--) count++;
+  return { type: last, count };
+}
+
+function getMomentum(stat: TeamStatData): { score: number; trend: '↑' | '→' | '↓' } {
+  const form = stat.formLast5?.split(',').filter(Boolean) ?? [];
+  if (form.length === 0 || stat.played === 0) return { score: 50, trend: '→' };
+  const last5Pts = form.reduce((s, r) => s + (r === 'W' ? 3 : r === 'D' ? 1 : 0), 0);
+  const last5PPG = last5Pts / form.length;
+  const seasonPPG = stat.points / stat.played;
+  const score = Math.round((last5Pts / 15) * 100);
+  const trend = last5PPG > seasonPPG + 0.3 ? '↑' : last5PPG < seasonPPG - 0.3 ? '↓' : '→';
+  return { score, trend };
+}
+
+function getPositionBadge(pos: number | null, total: number): string | null {
+  if (pos === null || total === 0) return null;
+  if (pos === 1) return '🏆';
+  if (pos <= 4) return '⭐';
+  if (pos >= total - 2) return '🔽';
+  return null;
+}
+
+function generateBlurb(
+  homeLabel: string,
+  awayLabel: string,
+  hs: TeamStatData,
+  as_: TeamStatData,
+  h2h: H2HFixture[],
+): string | null {
+  const sentences: string[] = [];
+  if (hs.position && as_.position && hs.played > 0) {
+    sentences.push(`${homeLabel} (${hs.position}.°, ${hs.points} pts) recebe ${awayLabel} (${as_.position}.°, ${as_.points} pts).`);
+  }
+  const homeForm = hs.formLast5?.split(',').filter(Boolean) ?? [];
+  const homeWins = homeForm.filter((r) => r === 'W').length;
+  const homeLosses = homeForm.filter((r) => r === 'L').length;
+  if (homeWins >= 4) sentences.push(`${homeLabel} venceu ${homeWins} dos últimos 5 jogos.`);
+  else if (homeLosses >= 4) sentences.push(`${homeLabel} perdeu ${homeLosses} dos últimos 5 jogos.`);
+  const awayForm = as_.formLast5?.split(',').filter(Boolean) ?? [];
+  const awayWins = awayForm.filter((r) => r === 'W').length;
+  if (awayWins >= 4 && sentences.length < 2) sentences.push(`${awayLabel} chega com ${awayWins} vitórias nos últimos 5.`);
+  if (h2h.length >= 2 && sentences.length < 2) {
+    const scores = h2h.slice(0, 3).map((f) => `${f.homeScore}–${f.awayScore}`).join(', ');
+    sentences.push(`Últimos H2H: ${scores}.`);
+  }
+  return sentences.length > 0 ? sentences.slice(0, 2).join(' ') : null;
+}
+
+function detectPatterns(
+  homeLabel: string,
+  awayLabel: string,
+  hs: TeamStatData,
+  as_: TeamStatData,
+  market: string,
+): string[] {
+  const patterns: string[] = [];
+  const m = market.toLowerCase();
+  const homeForm = hs.formLast5?.split(',').filter(Boolean) ?? [];
+  const awayForm = as_.formLast5?.split(',').filter(Boolean) ?? [];
+  const homeStreak = computeStreak(homeForm);
+  const awayStreak = computeStreak(awayForm);
+
+  if (homeStreak.type === 'W' && homeStreak.count >= 4)
+    patterns.push(`✅ ${homeLabel} venceu os últimos ${homeStreak.count} jogos`);
+  else if (homeStreak.type === 'L' && homeStreak.count >= 3)
+    patterns.push(`⚠️ ${homeLabel} perdeu os últimos ${homeStreak.count} jogos`);
+  if (awayStreak.type === 'W' && awayStreak.count >= 4)
+    patterns.push(`✅ ${awayLabel} venceu os últimos ${awayStreak.count} jogos`);
+
+  const isGoalsMarket = m.includes('btts') || m.includes('over') || m.includes('2.5') || m.includes('1.5') || m.includes('golos');
+  if (isGoalsMarket) {
+    if (hs.bttsRate >= 65 && as_.bttsRate >= 65)
+      patterns.push(`📊 BTTS em ${hs.bttsRate}% jogos de ${homeLabel} e ${as_.bttsRate}% de ${awayLabel}`);
+    const homeFTS = hs.played > 0 ? Math.round((hs.failedToScore / hs.played) * 100) : 0;
+    const awayFTS = as_.played > 0 ? Math.round((as_.failedToScore / as_.played) * 100) : 0;
+    if (homeFTS >= 35) patterns.push(`⚠️ ${homeLabel} não marcou em ${homeFTS}% dos jogos`);
+    else if (awayFTS >= 35) patterns.push(`⚠️ ${awayLabel} não marcou em ${awayFTS}% dos jogos`);
+  }
+  const isDefensiveMarket = m.includes('clean') || m.includes('limpa') || m.includes('0');
+  if (isDefensiveMarket && hs.cleanSheetRate >= 40)
+    patterns.push(`🔒 ${homeLabel} tem ${hs.cleanSheetRate}% de clean sheets`);
+
+  return patterns.slice(0, 3);
 }
 
 // ─── Add Selection Form ──────────────────────────────────────────────────────
@@ -157,6 +252,8 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
   // Kickoff auto-suggest
   const [suggestedKickoff, setSuggestedKickoff] = useState<string | null>(null);
   const [kickoffBannerDismissed, setKickoffBannerDismissed] = useState(false);
+  const [contextExpanded, setContextExpanded] = useState(false);
+  const [showLeagueTable, setShowLeagueTable] = useState(false);
 
   // Map custom-typed sport strings to Sport.OTHER for API queries
   const sportForApi = useMemo(
@@ -183,6 +280,9 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
   const marketsQuery = useMarkets(sportForApi);
   // Upcoming fixtures for kickoff auto-suggestion (football only, 30-day window)
   const fixturesQuery = useUpcomingFixtures(30);
+  const homeStatQuery = useTeamStats(homeTeam, competition, { enabled: sport === Sport.FOOTBALL && !!homeTeam });
+  const awayStatQuery = useTeamStats(awayTeam, competition, { enabled: sport === Sport.FOOTBALL && !!awayTeam });
+  const h2hQuery = useHeadToHead(homeTeam, awayTeam, { enabled: sport === Sport.FOOTBALL && !!homeTeam && !!awayTeam });
 
   // Auto-suggest kickoff time from fixture data when both teams are selected (football only)
   useEffect(() => {
@@ -216,6 +316,17 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
     setSuggestedKickoff(fixture?.kickoffAt ?? null);
     setKickoffBannerDismissed(false);
   }, [homeTeam, awayTeam, sport, fixturesQuery.data]);
+
+  // Collapse context card when teams change; auto-expand when stats arrive
+  useEffect(() => {
+    setContextExpanded(false);
+  }, [homeTeam, awayTeam]);
+
+  useEffect(() => {
+    if (homeStatQuery.data?.[0] || awayStatQuery.data?.[0]) {
+      setContextExpanded(true);
+    }
+  }, [homeStatQuery.data, awayStatQuery.data]);
 
   const competitionSections = useMemo(() => {
     const comps = (competitionsQuery.data ?? []).map((competition) => (
@@ -743,6 +854,14 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
         )}
       </PressableScale>
 
+      {/* Ver tabela — football only */}
+      {sport === Sport.FOOTBALL && competition && (
+        <Pressable onPress={() => setShowLeagueTable(true)} style={tableStyles.link}>
+          <Ionicons name="trophy-outline" size={12} color={colors.primary} />
+          <Text style={[tableStyles.linkText, { color: colors.primary }]}>Ver tabela classificativa</Text>
+        </Pressable>
+      )}
+
       {/* Doubles toggle — shown only for Tennis */}
       {sport === Sport.TENNIS && (
         <View style={styles.doublesRow}>
@@ -896,6 +1015,99 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
         </View>
       )}
 
+      {/* Home/Away advantage chips */}
+      {sport === Sport.FOOTBALL && homeTeam && awayTeam && homeStatQuery.data?.[0] && awayStatQuery.data?.[0] && (() => {
+        const hs = homeStatQuery.data![0];
+        const as_ = awayStatQuery.data![0];
+        const hPlayed = hs.homeWon + hs.homeDrawn + hs.homeLost;
+        const aPlayed = as_.awayWon + as_.awayDrawn + as_.awayLost;
+        const hRate = hPlayed > 4 ? Math.round((hs.homeWon / hPlayed) * 100) : null;
+        const aRate = aPlayed > 4 ? Math.round((as_.awayWon / aPlayed) * 100) : null;
+        const chips: { text: string; positive: boolean }[] = [];
+        if (hRate !== null && hRate >= 60) chips.push({ text: `🏠 Forte em casa — ${hRate}%`, positive: true });
+        else if (hRate !== null && hRate <= 25) chips.push({ text: `🏠 Fraco em casa — ${hRate}%`, positive: false });
+        if (aRate !== null && aRate <= 20) chips.push({ text: `✈️ Fraco fora — ${aRate}%`, positive: false });
+        else if (aRate !== null && aRate >= 55) chips.push({ text: `✈️ Forte fora — ${aRate}%`, positive: true });
+        if (chips.length === 0) return null;
+        return (
+          <View style={advantageStyles.row}>
+            {chips.map((c, i) => (
+              <View key={i} style={[advantageStyles.chip, { backgroundColor: c.positive ? '#22c55e18' : '#ef444418', borderColor: c.positive ? '#22c55e35' : '#ef444435' }]}>
+                <Text style={[advantageStyles.chipText, { color: c.positive ? '#22c55e' : '#ef4444' }]}>{c.text}</Text>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
+
+      {/* Game context card — football only, shows when either team has stats */}
+      {sport === Sport.FOOTBALL && homeTeam && awayTeam && (homeStatQuery.data?.[0] ?? awayStatQuery.data?.[0]) && (
+        <View style={[ctxStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <Pressable style={ctxStyles.header} onPress={() => setContextExpanded((v) => !v)}>
+            <Ionicons name="stats-chart-outline" size={13} color={colors.textSecondary} />
+            <Text style={[ctxStyles.headerLabel, { color: colors.textSecondary }]}>Contexto do jogo</Text>
+            <Ionicons name={contextExpanded ? 'chevron-up' : 'chevron-down'} size={13} color={colors.textMuted} />
+          </Pressable>
+          {contextExpanded && (
+            <View style={ctxStyles.body}>
+              {([
+                { label: homeTeam, stat: homeStatQuery.data?.[0] },
+                { label: awayTeam, stat: awayStatQuery.data?.[0] },
+              ] as const).map(({ label, stat }) => {
+                if (!stat) return null;
+                const mom = getMomentum(stat);
+                const badge = getPositionBadge(stat.position, (homeStatQuery.data?.length ?? 0) + (awayStatQuery.data?.length ?? 0));
+                return (
+                  <View key={label}>
+                    <View style={ctxStyles.teamRow}>
+                      <Text numberOfLines={1} style={[ctxStyles.teamName, { color: colors.textPrimary }]}>
+                        {badge ? `${badge} ` : ''}{stat.position != null ? `#${stat.position} ` : ''}{label}
+                      </Text>
+                      <View style={ctxStyles.formRow}>
+                        {(stat.formLast5?.split(',') ?? []).map((r, i) => (
+                          <View key={i} style={[ctxStyles.formPill, { backgroundColor: r === 'W' ? '#22c55e' : r === 'D' ? colors.textMuted : '#ef4444' }]}>
+                            <Text style={ctxStyles.formPillText}>{r}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      <Text style={[ctxStyles.goalStat, { color: colors.textMuted }]}>{stat.goalsFor}G {stat.goalsAgainst}GA</Text>
+                    </View>
+                    <View style={ctxStyles.momentumRow}>
+                      <View style={[ctxStyles.momentumBar, { backgroundColor: colors.border }]}>
+                        <View style={[ctxStyles.momentumFill, { width: `${mom.score}%` as `${number}%`, backgroundColor: mom.trend === '↑' ? '#22c55e' : mom.trend === '↓' ? '#ef4444' : colors.textMuted }]} />
+                      </View>
+                      <Text style={[ctxStyles.momentumLabel, { color: mom.trend === '↑' ? '#22c55e' : mom.trend === '↓' ? '#ef4444' : colors.textMuted }]}>{mom.trend} {mom.score}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+              {(h2hQuery.data?.length ?? 0) > 0 && (
+                <View style={ctxStyles.h2hSection}>
+                  <Text style={[ctxStyles.h2hLabel, { color: colors.textMuted }]}>H2H</Text>
+                  {h2hQuery.data!.slice(0, 3).map((f) => (
+                    <Text key={f.id} numberOfLines={1} style={[ctxStyles.h2hRow, { color: colors.textSecondary }]}>
+                      {f.homeTeam} {f.homeScore}–{f.awayScore} {f.awayTeam}
+                    </Text>
+                  ))}
+                </View>
+              )}
+              {(() => {
+                const hs = homeStatQuery.data?.[0];
+                const as_ = awayStatQuery.data?.[0];
+                if (!hs || !as_) return null;
+                const blurb = generateBlurb(homeTeam, awayTeam, hs, as_, h2hQuery.data ?? []);
+                if (!blurb) return null;
+                return (
+                  <View style={[ctxStyles.h2hSection]}>
+                    <Text style={[ctxStyles.h2hRow, { color: colors.textSecondary, fontStyle: 'italic' }]}>{blurb}</Text>
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Market — only enabled once both teams are selected */}
       {useCustomMarket ? (
         <Input
@@ -954,6 +1166,38 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
         </Text>
       </Pressable>
 
+      {/* BTTS / Over intelligence + pattern chips */}
+      {sport === Sport.FOOTBALL && market && homeStatQuery.data?.[0] && awayStatQuery.data?.[0] && (() => {
+        const hs = homeStatQuery.data![0];
+        const as_ = awayStatQuery.data![0];
+        const m = market.toLowerCase();
+        const isBTTS = m.includes('btts') || m.includes('ambas');
+        const isOver25 = (m.includes('2.5') || m.includes('2,5')) && !m.includes('under') && !m.includes('menos');
+        const isUnder25 = (m.includes('2.5') || m.includes('2,5')) && (m.includes('under') || m.includes('menos'));
+        const isOver15 = (m.includes('1.5') || m.includes('1,5')) && !m.includes('under') && !m.includes('menos');
+        const hints: string[] = [];
+        if (isBTTS) hints.push(`BTTS — Casa: ${hs.bttsRate}% · Fora: ${as_.bttsRate}%`);
+        if (isOver25 || isUnder25) hints.push(`Over 2.5 — Casa: ${hs.over25Rate}% · Fora: ${as_.over25Rate}%`);
+        if (isOver15) hints.push(`Over 1.5 — Casa: ${hs.over15Rate}% · Fora: ${as_.over15Rate}%`);
+        const patterns = detectPatterns(homeTeam, awayTeam, hs, as_, market);
+        if (hints.length === 0 && patterns.length === 0) return null;
+        return (
+          <View style={{ gap: 6 }}>
+            {hints.map((hint, i) => (
+              <View key={`hint-${i}`} style={[hintStyles.box, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}28` }]}>
+                <Ionicons name="bar-chart-outline" size={13} color={colors.primary} />
+                <Text style={[hintStyles.text, { color: colors.textSecondary }]}>{hint}</Text>
+              </View>
+            ))}
+            {patterns.map((p, i) => (
+              <View key={`pat-${i}`} style={[hintStyles.box, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <Text style={[hintStyles.text, { color: colors.textSecondary }]}>{p}</Text>
+              </View>
+            ))}
+          </View>
+        );
+      })()}
+
       {/* Odd + optional manual Seleção */}
       <View style={styles.inlineRow}>
         {(useCustomMarket || !isSelfDescribing(market)) && (
@@ -984,6 +1228,14 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
         onPress={handleAdd}
         leftSlot={<Ionicons name="add-circle-outline" size={18} color={colors.primary} />}
         style={{ borderColor: colors.primary }}
+      />
+
+      {/* League table modal */}
+      <LeagueTableModal
+        visible={showLeagueTable}
+        competition={competition}
+        highlightTeams={[homeTeam, awayTeam].filter(Boolean)}
+        onClose={() => setShowLeagueTable(false)}
       />
 
       {/* Modals */}
@@ -1614,6 +1866,145 @@ function getErrorMessage(error: unknown): string {
 
   return 'Não foi possível guardar o boletim.';
 }
+
+const ctxStyles = StyleSheet.create({
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  headerLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  body: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(128,128,128,0.2)',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  teamRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  teamName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  formPill: {
+    alignItems: 'center',
+    borderRadius: 4,
+    height: 20,
+    justifyContent: 'center',
+    width: 20,
+  },
+  formPillText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  goalStat: {
+    fontSize: 11,
+    fontWeight: '600',
+    minWidth: 60,
+    textAlign: 'right',
+  },
+  h2hSection: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(128,128,128,0.2)',
+    gap: 4,
+    paddingTop: 8,
+  },
+  h2hLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  h2hRow: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  momentumRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 3,
+  },
+  momentumBar: {
+    borderRadius: 3,
+    flex: 1,
+    height: 4,
+    overflow: 'hidden',
+  },
+  momentumFill: {
+    borderRadius: 3,
+    height: '100%',
+  },
+  momentumLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    minWidth: 32,
+    textAlign: 'right',
+  },
+});
+
+const tableStyles = StyleSheet.create({
+  link: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+    paddingVertical: 6,
+  },
+  linkText: { fontSize: 12, fontWeight: '600' },
+});
+
+const advantageStyles = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 8 },
+  chip: {
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flex: 1,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  chipText: { flex: 1, fontSize: 11, fontWeight: '700' },
+  chipSub: { fontSize: 10, fontWeight: '500' },
+});
+
+const hintStyles = StyleSheet.create({
+  box: {
+    alignItems: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  text: { flex: 1, fontSize: 12, fontWeight: '500' },
+});
 
 const kickoffBannerStyles = StyleSheet.create({
   banner: {

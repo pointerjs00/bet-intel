@@ -292,27 +292,249 @@ model UserFavourite {
 // ─── Fixture data ──────────────────────────────────────────────────────────────
 
 model Fixture {
-  id          String   @id @default(cuid())
-  homeTeam    String
-  awayTeam    String
-  competition String
-  country     String
-  sport       String   @default("FOOTBALL")
-  kickoffAt   DateTime @db.Timestamptz(3)
-  season      String
-  round       String?
-  homeScore   Int?
-  awayScore   Int?
-  status      String   @default("SCHEDULED") // SCHEDULED | LIVE | FINISHED
-  externalId  String?  @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  homeTeam         String
+  awayTeam         String
+  homeTeamNormKey  String?
+  awayTeamNormKey  String?
+  competition      String
+  country          String
+  sport            String   @default("FOOTBALL")
+  kickoffAt        DateTime @db.Timestamptz(3)
+  season           String
+  round            String?
+  homeScore        Int?
+  awayScore        Int?
+  htHomeScore      Int?
+  htAwayScore      Int?
+  status           String   @default("SCHEDULED") // SCHEDULED | LIVE | FINISHED
+  externalId       String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@unique([homeTeam, awayTeam, season, round], name: "fixture_unique")
   @@index([homeTeam, awayTeam, kickoffAt])
   @@index([competition, kickoffAt])
   @@index([kickoffAt])
   @@index([status, kickoffAt])
+  @@index([homeTeamNormKey])
+  @@index([awayTeamNormKey])
+}
+
+// ─── Team statistics (materialised from Fixture) ──────────────────────────────
+
+model TeamStat {
+  id               String   @id @default(cuid())
+  team             String
+  teamNormKey      String?
+  teamName         String?
+  competition      String
+  season           String
+  country          String
+
+  played           Int      @default(0)
+  won              Int      @default(0)
+  drawn            Int      @default(0)
+  lost             Int      @default(0)
+  goalsFor         Int      @default(0)
+  goalsAgainst     Int      @default(0)
+  points           Int      @default(0)
+  position         Int?
+
+  homeWon          Int      @default(0)
+  homeDrawn        Int      @default(0)
+  homeLost         Int      @default(0)
+  homeGoalsFor     Int      @default(0)
+  homeGoalsAgainst Int      @default(0)
+  awayWon          Int      @default(0)
+  awayDrawn        Int      @default(0)
+  awayLost         Int      @default(0)
+  awayGoalsFor     Int      @default(0)
+  awayGoalsAgainst Int      @default(0)
+
+  cleanSheets      Int      @default(0)
+  failedToScore    Int      @default(0)
+  bttsCount        Int      @default(0)
+  over25Count      Int      @default(0)
+  over15Count      Int      @default(0)
+  formLast5        String?
+
+  htWon            Int      @default(0)
+  htDrawn          Int      @default(0)
+  htLost           Int      @default(0)
+  comebacks        Int      @default(0)
+
+  // CSV-sourced averages
+  avgGoalsScored    Float?
+  avgGoalsConceded  Float?
+  avgShotsFor       Float?
+  avgShotsAgainst   Float?
+  cleanSheetPct     Float?
+  bttsPct           Float?
+  over15Pct         Float?
+  over25Pct         Float?
+  over35Pct         Float?
+  failedToScorePct  Float?
+  avgCornersFor     Float?
+  avgCornersAgainst Float?
+  avgYellowCards    Float?
+  standingsSource   String?
+  statsSource       String?
+
+  updatedAt        DateTime @updatedAt
+
+  @@unique([team, competition, season], name: "teamstat_unique")
+  @@index([competition, season, points])
+  @@index([teamNormKey, competition, season])
+}
+
+// ─── Match statistics (sourced from football-data.co.uk CSVs) ─────────────────
+
+model MatchStat {
+  id                  String   @id @default(cuid())
+
+  fixtureId           String?
+  homeTeam            String
+  awayTeam            String
+  homeTeamNormKey     String
+  awayTeamNormKey     String
+  competition         String
+  season              String
+  date                DateTime
+
+  homeScore           Int?
+  awayScore           Int?
+  htHomeScore         Int?
+  htAwayScore         Int?
+
+  homeShotsTotal      Int?
+  awayShotsTotal      Int?
+  homeShotsOnTarget   Int?
+  awayShotsOnTarget   Int?
+
+  homeCorners         Int?
+  awayCorners         Int?
+
+  homeYellow          Int?
+  awayYellow          Int?
+  homeRed             Int?
+  awayRed             Int?
+
+  homeFouls           Int?
+  awayFouls           Int?
+  homeOffsides        Int?
+  awayOffsides        Int?
+
+  b365HomeWin         Float?
+  b365Draw            Float?
+  b365AwayWin         Float?
+  b365Over25          Float?
+  b365Under25         Float?
+
+  pinnacleHomeWin     Float?
+  pinnacleDraw        Float?
+  pinnacleAwayWin     Float?
+  pinnacleOver25      Float?
+  pinnacleUnder25     Float?
+
+  avgOddsHome         Float?
+  avgOddsDraw         Float?
+  avgOddsAway         Float?
+  avgOddsOver25       Float?
+  avgOddsUnder25      Float?
+  maxOddsHome         Float?
+  maxOddsDraw         Float?
+  maxOddsAway         Float?
+
+  source              String   @default("football-data.co.uk")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([homeTeamNormKey, awayTeamNormKey, date], name: "matchstat_unique")
+  @@index([competition, season])
+  @@index([homeTeamNormKey])
+  @@index([awayTeamNormKey])
+  @@index([date])
+  @@index([fixtureId])
+}
+
+// ─── Player availability (injuries / suspensions from API-Football) ───────────
+
+model PlayerAvailability {
+  id              String    @id @default(cuid())
+  leagueId        Int
+  leagueName      String
+  season          String
+  teamId          Int?
+  teamName        String
+  teamNormKey     String
+  playerId        Int
+  playerName      String
+  playerNormKey   String
+  type            String
+  reason          String?
+  startDate       DateTime?
+  endDate         DateTime?
+  returnFixtureId Int?
+  syncedAt        DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([playerId, leagueId, season, type], name: "availability_unique")
+  @@index([teamNormKey, leagueId, season])
+  @@index([leagueId, season])
+}
+
+// ─── Top scorers / assists (from API-Football) ────────────────────────────────
+
+model TopScorer {
+  id             String   @id @default(cuid())
+  leagueId       Int
+  leagueName     String
+  season         String
+  type           String   @default("goals")
+  rank           Int
+  playerId       Int
+  playerName     String
+  playerNormKey  String
+  playerImageUrl String?
+  nationality    String?
+  age            Int?
+  position       String?
+  teamId         Int
+  teamName       String
+  teamNormKey    String
+  appearances    Int?
+  goals          Int
+  assists        Int?
+  yellowCards    Int?
+  redCards       Int?
+  minutesPlayed  Int?
+  syncedAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([leagueId, season, type, playerId], name: "topscorer_unique")
+  @@index([leagueId, season, type])
+  @@index([teamNormKey])
+}
+
+// ─── Data sync audit log ──────────────────────────────────────────────────────
+
+model DataSyncLog {
+  id                String    @id @default(cuid())
+  jobName           String
+  status            String
+  recordsProcessed  Int?
+  recordsUpserted   Int?
+  apiCallsMade      Int?
+  apiCallsRemaining Int?
+  durationMs        Int?
+  details           Json?
+  error             String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+
+  @@index([jobName, startedAt])
+  @@index([status])
 }
 
 // ─── AI Scan Feedback (fine-tuning training data) ─────────────────────────────
