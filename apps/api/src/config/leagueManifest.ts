@@ -3,7 +3,7 @@
 export const LEAGUE_MANIFEST = [
   // Portuguese (priority — core market)
   { name: 'Primeira Liga', country: 'Portugal', apiFootballId: 94,
-    fdOrgCode: 'PPL', fdCoUkCode: 'P1', openfootballCode: 'pt.1',
+    fdOrgCode: 'PPL', fdCoUkCode: 'P', openfootballCode: 'pt.1',
     hasFreeStandings: true },
   { name: 'Liga Portugal 2', country: 'Portugal', apiFootballId: 95,
     fdOrgCode: null, fdCoUkCode: null, openfootballCode: 'pt.2',
