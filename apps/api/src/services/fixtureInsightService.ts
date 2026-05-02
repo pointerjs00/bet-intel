@@ -23,6 +23,7 @@ interface TeamInsight {
   avgCornersAgainst: number;
   avgYellowCards:    number;
   formLast5:         ('W' | 'D' | 'L')[];
+  recentMatches:     (MatchSummary & { isHome: boolean })[];
 }
 
 interface MatchSummary {
@@ -87,13 +88,14 @@ const average = (a: number, b: number) =>
 
 // ─── Team insight ─────────────────────────────────────────────────────────────
 
-function computeTeamInsight(matches: any[], teamName: string): TeamInsight {
+function computeTeamInsight(matches: any[], teamName: string, teamIsHome: boolean): TeamInsight {
   const n = matches.length;
   if (n === 0) {
     return {
       sampleSize: 0, avgGoalsFor: 0, avgGoalsAgainst: 0, cleanSheetPct: 0,
       failedToScorePct: 0, over15Pct: 0, over25Pct: 0, over35Pct: 0, bttsPct: 0,
       avgCornersFor: 0, avgCornersAgainst: 0, avgYellowCards: 0, formLast5: [],
+      recentMatches: [],
     };
   }
 
@@ -120,6 +122,10 @@ function computeTeamInsight(matches: any[], teamName: string): TeamInsight {
       const conceded = ga(m);
       return scored > conceded ? 'W' : scored === conceded ? 'D' : 'L';
     }),
+    recentMatches: matches.slice(0, 20).map(m => ({
+      date: m.date, homeTeam: m.homeTeam, awayTeam: m.awayTeam,
+      homeScore: m.homeScore, awayScore: m.awayScore, isHome: teamIsHome,
+    })),
   };
 }
 
@@ -276,8 +282,8 @@ export async function computeFixtureInsight(fixture: {
     }),
   ]);
 
-  const homeInsight = computeTeamInsight(homeAtHome, fixture.homeTeam);
-  const awayInsight = computeTeamInsight(awayAway, fixture.awayTeam);
+  const homeInsight = computeTeamInsight(homeAtHome, fixture.homeTeam, true);
+  const awayInsight = computeTeamInsight(awayAway, fixture.awayTeam, false);
   const h2hInsight  = computeH2HInsight(h2hMatches, homeNorm, awayNorm);
 
   const withOdds = h2hMatches.find(m => m.pinnacleHomeWin !== null);

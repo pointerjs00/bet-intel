@@ -70,6 +70,7 @@ export interface TeamInsight {
   avgCornersAgainst: number;
   avgYellowCards:    number;
   formLast5:         ('W' | 'D' | 'L')[];
+  recentMatches:     { date: string; homeTeam: string; awayTeam: string; homeScore: number | null; awayScore: number | null; isHome: boolean }[];
 }
 
 export interface H2HInsight {
