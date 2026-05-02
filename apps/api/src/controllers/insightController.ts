@@ -16,9 +16,7 @@ export const insightController = {
     const fixture = await prisma.fixture.findUnique({ where: { id: fixtureId } });
     if (!fixture) return res.status(404).json({ error: 'Fixture not found' });
 
-    const statCount = await prisma.matchStat.count({
-      where: { competition: fixture.competition },
-    });
+    const statCount = await prisma.matchStat.count();
     if (statCount === 0) {
       return res.json({
         fixtureId,
