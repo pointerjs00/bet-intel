@@ -53,9 +53,10 @@ import { boletinQueryKeys, useBoletins } from '../../services/boletinService';
 import { useMeProfile } from '../../services/socialService';
 import { usePersonalStats } from '../../services/statsService';
 import { useCompetitions, useTeams, useMarkets, useUpcomingFixtures } from '../../services/referenceService';
-import { useTeamStats, useHeadToHead } from '../../services/teamStatsService';
+import { useTeamStats, useHeadToHead, useFixtureInsight } from '../../services/teamStatsService';
 import type { TeamStatData, H2HFixture } from '../../services/teamStatsService';
 import { LeagueTableModal } from '../../components/fixtures/LeagueTableModal';
+import { FixtureInsightModal } from '../../components/fixtures/FixtureInsightModal';
 import { BETTING_SITES, COMPETITION_COUNTRY_ORDER, getCountryFlagEmoji } from '../../utils/sportAssets';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { useBoletinBuilderStore, type BoletinBuilderItem } from '../../stores/boletinBuilderStore';
@@ -254,6 +255,8 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
   const [kickoffBannerDismissed, setKickoffBannerDismissed] = useState(false);
   const [contextExpanded, setContextExpanded] = useState(false);
   const [showLeagueTable, setShowLeagueTable] = useState(false);
+  const [matchedFixtureId, setMatchedFixtureId] = useState<string | null>(null);
+  const [showInsight, setShowInsight] = useState(false);
 
   // Map custom-typed sport strings to Sport.OTHER for API queries
   const sportForApi = useMemo(
@@ -309,11 +312,12 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
     };
 
     const fixture = fixturesQuery.data.find(
-      (f) =>
-        (isSubset(homeTeam, f.homeTeam) && isSubset(awayTeam, f.awayTeam)) ||
-        (isSubset(homeTeam, f.awayTeam) && isSubset(awayTeam, f.homeTeam)),
+    (f) =>
+      (isSubset(homeTeam, f.homeTeam) && isSubset(awayTeam, f.awayTeam)) ||
+      (isSubset(homeTeam, f.awayTeam) && isSubset(awayTeam, f.homeTeam)),
     );
     setSuggestedKickoff(fixture?.kickoffAt ?? null);
+    setMatchedFixtureId(fixture?.id ?? null);
     setKickoffBannerDismissed(false);
   }, [homeTeam, awayTeam, sport, fixturesQuery.data]);
 
@@ -856,10 +860,18 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
 
       {/* Ver tabela — football only */}
       {sport === Sport.FOOTBALL && competition && (
-        <Pressable onPress={() => setShowLeagueTable(true)} style={tableStyles.link}>
-          <Ionicons name="trophy-outline" size={12} color={colors.primary} />
-          <Text style={[tableStyles.linkText, { color: colors.primary }]}>Ver tabela classificativa</Text>
-        </Pressable>
+        <View style={tableStyles.linkRow}>
+          <Pressable onPress={() => setShowLeagueTable(true)} style={tableStyles.link}>
+            <Ionicons name="trophy-outline" size={12} color={colors.primary} />
+            <Text style={[tableStyles.linkText, { color: colors.primary }]}>Ver tabela</Text>
+          </Pressable>
+          {matchedFixtureId && (
+          <Pressable onPress={() => setShowInsight(true)} style={tableStyles.link}>
+            <Ionicons name="stats-chart-outline" size={12} color={colors.primary} />
+            <Text style={[tableStyles.linkText, { color: colors.primary }]}>Análise do jogo</Text>
+          </Pressable>
+          )}
+        </View>
       )}
 
       {/* Doubles toggle — shown only for Tennis */}
@@ -1236,6 +1248,14 @@ const AddSelectionForm = React.memo(function AddSelectionForm({ onAdd, pendingBo
         competition={competition}
         highlightTeams={[homeTeam, awayTeam].filter(Boolean)}
         onClose={() => setShowLeagueTable(false)}
+      />
+      {/* Fixture insight modal */}
+      <FixtureInsightModal
+        visible={showInsight}
+        fixtureId={matchedFixtureId}
+        homeTeam={homeTeam}
+        awayTeam={awayTeam}
+        onClose={() => setShowInsight(false)}
       />
 
       {/* Modals */}
@@ -1968,6 +1988,10 @@ const ctxStyles = StyleSheet.create({
 });
 
 const tableStyles = StyleSheet.create({
+  linkRow: {
+    flexDirection: 'row',
+    gap: 16,
+  },
   link: {
     alignItems: 'center',
     flexDirection: 'row',

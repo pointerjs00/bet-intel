@@ -225,6 +225,19 @@ async function getStandingRows(homeTeam: string, awayTeam: string, competition: 
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
+const STATS_COMPETITION_MAP: Record<string, string> = {
+  'Liga Portugal Betclic': 'Primeira Liga',
+  'Liga Portugal 2': 'Segunda Liga',
+};
+
+function toStatsCompetition(name: string): string {
+  return STATS_COMPETITION_MAP[name] ?? name;
+}
+
+function stripClubPrefix(normKey: string): string {
+  return normKey.replace(/^(fc|cd|cf|gd|sc|sl|ac|as|rc|ud|sd|rcd) /, '').trim();
+}
+
 export async function computeFixtureInsight(fixture: {
   id: string;
   homeTeam: string;
@@ -233,20 +246,20 @@ export async function computeFixtureInsight(fixture: {
   kickoffAt: Date;
 }): Promise<FixtureInsight> {
   const SAMPLE   = 20;
-  const homeNorm = resolveAlias(normaliseTeamName(fixture.homeTeam));
-  const awayNorm = resolveAlias(normaliseTeamName(fixture.awayTeam));
+  const homeNorm = stripClubPrefix(resolveAlias(normaliseTeamName(fixture.homeTeam)));
+  const awayNorm = stripClubPrefix(resolveAlias(normaliseTeamName(fixture.awayTeam)));
 
   const leagueConfig = LEAGUE_MANIFEST.find(l => l.name === fixture.competition);
   const leagueId = leagueConfig?.apiFootballId ?? 0;
 
   const [homeAtHome, awayAway, h2hMatches] = await Promise.all([
     prisma.matchStat.findMany({
-      where: { homeTeamNormKey: homeNorm, competition: fixture.competition, homeScore: { not: null } },
+      where: { homeTeamNormKey: homeNorm, competition: toStatsCompetition(fixture.competition), homeScore: { not: null } },
       orderBy: { date: 'desc' },
       take: SAMPLE,
     }),
     prisma.matchStat.findMany({
-      where: { awayTeamNormKey: awayNorm, competition: fixture.competition, awayScore: { not: null } },
+      where: { awayTeamNormKey: awayNorm, competition: toStatsCompetition(fixture.competition), awayScore: { not: null } },
       orderBy: { date: 'desc' },
       take: SAMPLE,
     }),
