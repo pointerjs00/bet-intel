@@ -414,106 +414,20 @@ const FOOTBALL_COMPETITIONS: CompetitionSeed[] = [
     ],
   },
   // ── International / European ──
-  {
-    name: 'UEFA Champions League',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'UEFA Europa League',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'UEFA Conference League',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'UEFA Nations League',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'UEFA Euro',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'FIFA World Cup',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'Copa América',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'Copa Libertadores',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'Copa Sudamericana',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'UEFA Super Cup',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'FIFA Club World Cup',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  // ── National Teams ──
-  {
-    name: 'Seleções - Amigáveis',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'Qualificação Mundial',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  {
-    name: 'Qualificação Euro',
-    country: 'Internacional',
-    sport: Sport.FOOTBALL,
-    tier: 1,
-    teams: [],
-  },
-  // ── International (additional) ──
+  { name: 'UEFA Champions League', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'UEFA Europa League', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'UEFA Conference League', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'UEFA Nations League', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'UEFA Euro', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'FIFA World Cup', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'Copa América', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'Copa Libertadores', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'Copa Sudamericana', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'UEFA Super Cup', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'FIFA Club World Cup', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'Seleções - Amigáveis', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'Qualificação Mundial', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
+  { name: 'Qualificação Euro', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
   { name: 'CONMEBOL Recopa', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
   { name: 'International Friendly Games', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
   { name: 'Club Friendly Games', country: 'Internacional', sport: Sport.FOOTBALL, tier: 1, teams: [] },
@@ -1443,7 +1357,7 @@ const TENNIS_COMPETITIONS: CompetitionSeed[] = [
   { name: 'Basel Indoor',                   country: 'Suíça',         sport: Sport.TENNIS, tier: 3, teams: [] },
   { name: 'Tokyo Open',                     country: 'Japão',         sport: Sport.TENNIS, tier: 3, teams: [] },
   { name: 'Beijing Open',                   country: 'China',         sport: Sport.TENNIS, tier: 3, teams: [] },
-  // ── ATP 250 — key events ──
+  // ── ATP 250 ──
   { name: 'Brisbane International',    country: 'Austrália',     sport: Sport.TENNIS, tier: 4, teams: [] },
   { name: 'Auckland Open',             country: 'Nova Zelândia', sport: Sport.TENNIS, tier: 4, teams: [] },
   { name: 'Sydney Tennis Classic',     country: 'Austrália',     sport: Sport.TENNIS, tier: 4, teams: [] },
@@ -1470,10 +1384,9 @@ const TENNIS_COMPETITIONS: CompetitionSeed[] = [
   { name: 'Stockholm Open',            country: 'Suécia',        sport: Sport.TENNIS, tier: 4, teams: [] },
   { name: 'Metz Open',                 country: 'França',        sport: Sport.TENNIS, tier: 4, teams: [] },
   { name: 'Santiago Indoor',           country: 'Chile',         sport: Sport.TENNIS, tier: 4, teams: [] },
-  // ── ATP Challenger Tour ───────────────────────────────────────────────────────
+  // ── ATP Challenger Tour ──
   { name: 'ATP Challenger',                     country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Challenger Tour',                    country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
-  // ── ATP Challenger — individual tournaments (Sofascore-confirmed logos) ────────
   { name: 'Canberra, Australia',                country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Noumea, New Caledonia',              country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Bengaluru, India',                   country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
@@ -1594,10 +1507,9 @@ const TENNIS_COMPETITIONS: CompetitionSeed[] = [
   { name: 'San Marino, San Marino',             country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Grodzisk Mazowiecki, Poland',        country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Lexington, USA',                     country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
-  // ── WTA 125 / WTA Challenger (women's Challenger equivalent) ─────────────────
+  // ── WTA ──
   { name: 'WTA 125',          country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'WTA Challenger',   country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
-  // ── WTA 125 — individual tournaments ─────────────────────────────────────────
   { name: 'Mumbai, India',                      country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Midland, USA',                       country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Antalya, Turkiye',                   country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
@@ -1609,15 +1521,12 @@ const TENNIS_COMPETITIONS: CompetitionSeed[] = [
   { name: 'Makarska, Croatia',                  country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Bastad, Sweden',                     country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
   { name: 'Contrexeville, France',              country: 'Internacional', sport: Sport.TENNIS, tier: 5, teams: [] },
-  // ── WTA Women's Tour ─────────────────────────────────────────────────────────
   { name: 'WTA Finals',           country: 'Internacional', sport: Sport.TENNIS, tier: 1, teams: [] },
   { name: 'Billie Jean King Cup', country: 'Internacional', sport: Sport.TENNIS, tier: 1, teams: [] },
-  // WTA Grand Slams (women's draw)
   { name: 'Australian Open WTA', country: 'Austrália',     sport: Sport.TENNIS, tier: 1, teams: [] },
   { name: 'Roland Garros WTA',   country: 'França',        sport: Sport.TENNIS, tier: 1, teams: [] },
   { name: 'Wimbledon WTA',       country: 'Inglaterra',    sport: Sport.TENNIS, tier: 1, teams: [] },
   { name: 'US Open WTA',         country: 'EUA',           sport: Sport.TENNIS, tier: 1, teams: [] },
-  // WTA 1000
   { name: 'Indian Wells WTA',  country: 'EUA',       sport: Sport.TENNIS, tier: 2, teams: [] },
   { name: 'Miami WTA',         country: 'EUA',       sport: Sport.TENNIS, tier: 2, teams: [] },
   { name: 'Madrid WTA',        country: 'Espanha',   sport: Sport.TENNIS, tier: 2, teams: [] },
@@ -1627,7 +1536,6 @@ const TENNIS_COMPETITIONS: CompetitionSeed[] = [
   { name: 'Beijing WTA',       country: 'China',     sport: Sport.TENNIS, tier: 2, teams: [] },
   { name: 'Wuhan Open',        country: 'China',     sport: Sport.TENNIS, tier: 2, teams: [] },
   { name: 'Guadalajara WTA',   country: 'México',    sport: Sport.TENNIS, tier: 2, teams: [] },
-  // WTA 500
   { name: 'Dubai WTA',           country: 'Emirados Árabes Unidos', sport: Sport.TENNIS, tier: 3, teams: [] },
   { name: 'Doha WTA',            country: 'Qatar',      sport: Sport.TENNIS, tier: 3, teams: [] },
   { name: 'Stuttgart WTA',       country: 'Alemanha',   sport: Sport.TENNIS, tier: 3, teams: [] },
@@ -1638,7 +1546,6 @@ const TENNIS_COMPETITIONS: CompetitionSeed[] = [
   { name: 'Strasbourg WTA',      country: 'França',     sport: Sport.TENNIS, tier: 3, teams: [] },
   { name: 'Linz WTA',            country: 'Áustria',    sport: Sport.TENNIS, tier: 3, teams: [] },
   { name: 'Charleston Open',     country: 'EUA',        sport: Sport.TENNIS, tier: 3, teams: [] },
-  // WTA 250
   { name: 'Auckland WTA',           country: 'Nova Zelândia', sport: Sport.TENNIS, tier: 4, teams: [] },
   { name: 'Sydney WTA',             country: 'Austrália',     sport: Sport.TENNIS, tier: 4, teams: [] },
   { name: 'Hobart International',   country: 'Austrália',     sport: Sport.TENNIS, tier: 4, teams: [] },
@@ -1747,7 +1654,7 @@ const ALL_COMPETITIONS = [
   ...OTHER_COMPETITIONS,
 ];
 
-// ─── Markets (Portuguese labels as used on PT betting sites) ──────────────────
+// ─── Markets (Portuguese labels as used on Betclic) ───────────────────────────
 
 interface MarketSeed {
   name: string;
@@ -1756,76 +1663,125 @@ interface MarketSeed {
 }
 
 const MARKETS: MarketSeed[] = [
-  // ── Football - Principal ──
+  // ── Football - Principal / Resultado ──
   { name: 'Resultado (Tempo Regulamentar)', category: 'Principal', sport: Sport.FOOTBALL },
   { name: 'Resultado Final', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Resultado duplo', category: 'Principal', sport: Sport.FOOTBALL },
   { name: 'Hipótese Dupla', category: 'Principal', sport: Sport.FOOTBALL },
   { name: 'Resultado - Primeira Parte', category: '1ª Parte', sport: Sport.FOOTBALL },
+  { name: 'Resultado - Segunda Parte', category: '2ª Parte', sport: Sport.FOOTBALL },
   { name: 'Empate Anula a Aposta', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Golo no Encontro', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Penálti no Jogo', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Expulsão no Jogo', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Prolongamento', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Decisão por Penáltis', category: 'Principal', sport: Sport.FOOTBALL },
   { name: 'Vencedor da eliminatória', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Equipa tem 2 golos de vantagem ou vence (tempo reg.)', category: 'Principal', sport: Sport.FOOTBALL },
 
-  // ── Football - Golos ──
+  // ── Football - Golos / Mais populares ──
   { name: 'Total de golos - acima/abaixo', category: 'Golos', sport: Sport.FOOTBALL },
   { name: 'As duas equipas marcam', category: 'Golos', sport: Sport.FOOTBALL },
   { name: 'Ambas Marcam (BTTS)', category: 'Golos', sport: Sport.FOOTBALL },
+
+  // ── Football - Golos / Ambas as equipas ──
+  { name: 'Resultado/As duas equipas marcam', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'As duas equipas marcam/Total de golos', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'As duas equipas marcam - 1.ª e 2.ª parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Número exacto de golos', category: 'Golos', sport: Sport.FOOTBALL },
+
+  // ── Football - Golos / Golos por equipa ──
+  { name: 'Equipa - Total de golos', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa a marcar o primeiro golo', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa a marcar o último golo', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Número exato de golos - Equipa', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa - Marca em ambas as partes', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Sem sofrer golos', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa - Total de golos - par/ímpar', category: 'Golos', sport: Sport.FOOTBALL },
+
+  // ── Football - Golos / Golos por partes ──
   { name: 'Total de golos - Primeira Parte', category: 'Golos', sport: Sport.FOOTBALL },
   { name: 'Total de golos - Segunda Parte', category: 'Golos', sport: Sport.FOOTBALL },
-  { name: 'As duas equipas marcam na 2ª parte', category: 'Golos', sport: Sport.FOOTBALL },
-  { name: 'As duas equipas marcam ou Acima de 2,5 golos', category: 'Golos', sport: Sport.FOOTBALL },
-  { name: 'Número Exato de Golos', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Total exato de golos - Primeira Parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Total exato de golos - Segunda parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'As duas equipas marcam - Primeira Parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'As duas equipas marcam - Segunda parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Acima de 1,5 golos em ambas as partes', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Acima de 0,5 golos em ambas as partes', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Abaixo de 1,5 golos em ambas as partes', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Parte com mais golos', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Parte com mais golos - Equipa', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Primeira Parte - 1.ª equipa a marcar', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Segunda parte - 1.ª equipa a marcar', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa - Total de golos - Primeira Parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa - Total de golos - Segunda parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa - Sem sofrer golos - Primeira Parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Equipa - Sem sofrer golos - Segunda parte', category: 'Golos', sport: Sport.FOOTBALL },
+
+  // ── Football - Golos / Golos por período ──
+  { name: 'Total de golos por período', category: 'Golos', sport: Sport.FOOTBALL },
+
+  // ── Football - Golos / Par/Ímpar ──
   { name: 'Par/Ímpar (Golos)', category: 'Golos', sport: Sport.FOOTBALL },
-  { name: 'Próximo marcador - Golo 4', category: 'Golos', sport: Sport.FOOTBALL },
-
-  // ── Football - Resultado/Golos combinado ──
-  { name: 'Resultado/Golos - acima/abaixo', category: 'Combinado', sport: Sport.FOOTBALL },
-  { name: 'Resultado duplo/Golos - acima/abaixo', category: 'Combinado', sport: Sport.FOOTBALL },
-  { name: 'Hipótese Dupla & Total de Golos', category: 'Combinado', sport: Sport.FOOTBALL },
-  { name: 'Resultado Final/Total de Golos', category: 'Combinado', sport: Sport.FOOTBALL },
-  { name: 'Vencedor intervalo/final & Golos', category: 'Combinado', sport: Sport.FOOTBALL },
-  { name: 'Resultado ao Intervalo/Final & Total de golos', category: 'Combinado', sport: Sport.FOOTBALL },
-
-  // ── Football - Intervalo/Final ──
-  { name: 'Resultado ao intervalo/final', category: 'Resultado', sport: Sport.FOOTBALL },
-  { name: 'Resultado Intervalo/Final', category: 'Resultado', sport: Sport.FOOTBALL },
-  { name: 'Intervalo/Final (HT/FT)', category: 'Resultado', sport: Sport.FOOTBALL },
-  { name: 'Resultado Exato', category: 'Resultado', sport: Sport.FOOTBALL },
-  { name: 'Vence ao intervalo e no final', category: 'Resultado', sport: Sport.FOOTBALL },
-  { name: 'Margem de Vitória', category: 'Resultado', sport: Sport.FOOTBALL },
+  { name: 'Total de golos - par/ímpar', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Total de golos - par/ímpar - Primeira Parte', category: 'Golos', sport: Sport.FOOTBALL },
+  { name: 'Total de golos - par/ímpar - Segunda parte', category: 'Golos', sport: Sport.FOOTBALL },
 
   // ── Football - Handicap ──
   { name: 'Resultado handicap', category: 'Handicap', sport: Sport.FOOTBALL },
-  { name: 'Handicap', category: 'Handicap', sport: Sport.FOOTBALL },
-  { name: 'Handicap Europeu', category: 'Handicap', sport: Sport.FOOTBALL },
+  { name: 'Resultado handicap - Primeira Parte', category: 'Handicap', sport: Sport.FOOTBALL },
+  { name: 'Resultado handicap - Segunda parte', category: 'Handicap', sport: Sport.FOOTBALL },
+  { name: 'Resultado handicap (2-way)', category: 'Handicap', sport: Sport.FOOTBALL },
+  { name: 'Resultado handicap - (2-way) - Primeira Parte', category: 'Handicap', sport: Sport.FOOTBALL },
+  { name: 'Resultado handicap - (2-way) - Segunda parte', category: 'Handicap', sport: Sport.FOOTBALL },
   { name: 'Handicap Asiático', category: 'Handicap', sport: Sport.FOOTBALL },
-  { name: 'Handicap - Resultado Final', category: 'Handicap', sport: Sport.FOOTBALL },
+  { name: 'Margem de vitória', category: 'Handicap', sport: Sport.FOOTBALL },
 
-  // ── Football - Cantos/Cartões ──
-  { name: 'Cantos - acima/abaixo', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Cartões - acima/abaixo', category: 'Especiais', sport: Sport.FOOTBALL },
+  // ── Football - Resultado Correto ──
+  { name: 'Resultado correcto', category: 'Resultado Correto', sport: Sport.FOOTBALL },
+  { name: 'Resultado correcto - grupos', category: 'Resultado Correto', sport: Sport.FOOTBALL },
+  { name: 'Resultado correcto - Primeira Parte', category: 'Resultado Correto', sport: Sport.FOOTBALL },
+  { name: 'Resultado correcto - Segunda parte', category: 'Resultado Correto', sport: Sport.FOOTBALL },
 
   // ── Football - Marcadores ──
-  { name: 'Marcador a Qualquer Momento', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Marcador ou o seu substituto', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Primeiro Marcador', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Último Marcador', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Jogador marca e a sua Equipa Ganha', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Jogador marca e Equipa vence', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Marcador a qualquer momento & Vencedor', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Marcador & Equipa vence', category: 'Especiais', sport: Sport.FOOTBALL },
-  { name: 'Jogador - Supersub', category: 'Especiais', sport: Sport.FOOTBALL },
+  { name: 'Marcador a Qualquer Momento', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Primeiro Marcador', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Último Marcador', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Jogador marca nas duas partes', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Um dos jogadores marca - Segunda parte', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Um dos jogadores marca - 3 jogadores - Primeira Parte', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Um dos jogadores marca - 3 jogadores - Segunda parte', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Um dos jogadores marca nas duas partes', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Um dos jogadores marca nas duas partes - 3 jogadores', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Um dos jogadores marca primeiro', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Marcador por período', category: 'Marcadores', sport: Sport.FOOTBALL },
+  { name: 'Primeiro/último marcador', category: 'Marcadores', sport: Sport.FOOTBALL },
 
-  // ── Football - Genérico (self-describing — humanize inserts team names) ──
+  // ── Football - Cantos ──
+  { name: 'Total de Cantos', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Total de Cantos - Equipa', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Primeira Parte - Total de Cantos', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Mais Cantos', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Mais Cantos - Primeira Parte', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Total de Cantos por Intervalos', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Total de Cantos por Intervalos - Equipa', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Total de Cantos - Handicap', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Primeira Parte - Total de Cantos - Handicap', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Primeira Parte - Próximo Canto', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Primeiro Canto', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Último Canto', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Total de Cantos - Par/Ímpar', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Primeira Parte - Total de Cantos - Par/Ímpar', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Primeira Parte - Total de Cantos por Intervalos', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Primeira Parte - Número Exato de Cantos - Equipa', category: 'Cantos', sport: Sport.FOOTBALL },
+  { name: 'Último Canto - Primeira Parte', category: 'Cantos', sport: Sport.FOOTBALL },
+
+  // ── Football - Remates à baliza ──
+  { name: 'Total de remates à baliza', category: 'Remates', sport: Sport.FOOTBALL },
+  { name: 'Equipa - Total de remates à baliza', category: 'Remates', sport: Sport.FOOTBALL },
+  { name: 'Remates à baliza', category: 'Remates', sport: Sport.FOOTBALL },
+
+  // ── Football - Combinados genéricos ──
   { name: 'Casa vence', category: 'Principal', sport: null },
   { name: 'Fora vence', category: 'Principal', sport: null },
   { name: 'Casa vence ou empata', category: 'Principal', sport: null },
   { name: 'Fora vence ou empata', category: 'Principal', sport: null },
+  { name: 'Dupla: Casa ou Empate', category: 'Principal', sport: Sport.FOOTBALL },
+  { name: 'Dupla: Casa ou Fora', category: 'Principal', sport: Sport.FOOTBALL },
+  { name: 'Dupla: Empate ou Fora', category: 'Principal', sport: Sport.FOOTBALL },
   { name: 'Casa vence & +1.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
   { name: 'Casa vence & +2.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
   { name: 'Casa vence & +3.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
@@ -1838,13 +1794,14 @@ const MARKETS: MarketSeed[] = [
   { name: 'Fora vence ou empata & +2.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
   { name: 'Ambas Marcam + Total de Golos Mais de 2.5', category: 'Combinado', sport: Sport.FOOTBALL },
   { name: 'Ambas Marcam + Total de Golos Mais de 3.5', category: 'Combinado', sport: Sport.FOOTBALL },
-  { name: 'Dupla: Casa ou Empate', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Dupla: Casa ou Fora', category: 'Principal', sport: Sport.FOOTBALL },
-  { name: 'Dupla: Empate ou Fora', category: 'Principal', sport: Sport.FOOTBALL },
   { name: 'Dupla: Casa ou Empate & +1.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
   { name: 'Dupla: Casa ou Empate & +2.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
   { name: 'Dupla: Casa ou Fora & +1.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
   { name: 'Dupla: Empate ou Fora & +1.5 Golos', category: 'Combinado', sport: Sport.FOOTBALL },
+  { name: 'Resultado/Golos - acima/abaixo', category: 'Combinado', sport: Sport.FOOTBALL },
+  { name: 'Vencedor intervalo/final & Golos', category: 'Combinado', sport: Sport.FOOTBALL },
+  { name: 'Resultado ao intervalo/final', category: 'Resultado', sport: Sport.FOOTBALL },
+  { name: 'Intervalo/Final (HT/FT)', category: 'Resultado', sport: Sport.FOOTBALL },
 
   // ── Basketball ──
   { name: 'Vencedor do jogo', category: 'Principal', sport: Sport.BASKETBALL },
@@ -1857,8 +1814,6 @@ const MARKETS: MarketSeed[] = [
   { name: 'Assistências', category: 'Especiais', sport: Sport.BASKETBALL },
   { name: 'Par/Ímpar (Pontos)', category: 'Especiais', sport: Sport.BASKETBALL },
   { name: 'Vencedor', category: 'Principal', sport: Sport.BASKETBALL },
-  { name: 'Casa vence', category: 'Principal', sport: null },
-  { name: 'Fora vence', category: 'Principal', sport: null },
 
   // ── Tennis ──
   { name: 'Vencedor do encontro', category: 'Principal', sport: Sport.TENNIS },
