@@ -1,23 +1,10 @@
 // apps/api/src/services/patchFixturesFromCsvService.ts
-//
-// Patches kickoff times for secondary leagues using football-data.co.uk's
-// fixtures.csv — a free, no-auth-required file updated daily.
-//
-// URL: https://www.football-data.co.uk/fixtures.csv
-//
-// Covers: 2. Bundesliga (D2), Ligue 2 (F2), Serie B (I2),
-//         La Liga 2 (SP2), Süper Lig (T1), Pro League Belgium (B1)
-//
-// Run once to backfill, then weekly via scheduler.
 
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
 import { normaliseTeamName } from '../utils/nameNormalisation';
 
 const FIXTURES_CSV_URL = 'https://www.football-data.co.uk/fixtures.csv';
-
-// ─── Div code → Fixture table competition/country ─────────────────────────────
-// These are the exact Div column values in the CSV mapped to your DB values.
 
 const DIV_MAP: Record<string, { competition: string; country: string }> = {
   D2: { competition: '2. Bundesliga', country: 'Germany'  },
@@ -28,12 +15,155 @@ const DIV_MAP: Record<string, { competition: string; country: string }> = {
   B1: { competition: 'Pro League',    country: 'Belgium'  },
 };
 
+// ─── CSV name → exact normKey used in your DB ─────────────────────────────────
+// Left side:  normaliseTeamName(csvName)   — what the CSV produces after normalisation
+// Right side: the homeTeamNormKey/awayTeamNormKey already stored in your DB
+//
+// To find missing ones: add a logger.debug in the match loop below, then check
+// the output for "NO MATCH" lines and add the mapping here.
+
+const ALIAS: Record<string, string> = {
+  // ── Belgium (B1) ──────────────────────────────────────────────────────────
+  'antwerp'              : 'royal antwerp fc',
+  'standard'             : 'standard liege',
+  'st gilloise'          : 'union saintgilloise',
+  'st. gilloise'         : 'union saintgilloise',
+  'union st gilloise'    : 'union saintgilloise',
+  'westerlo'             : 'kvc westerlo',
+  'mechelen'             : 'kv mechelen',
+  'gent'                 : 'kaa gent',
+  'club brugge'          : 'club brugge kv',
+  'genk'                 : 'krc genk',
+  'st truiden'           : 'sinttruidense vv',
+  'sint truiden'         : 'sinttruidense vv',
+  'cercle brugge'        : 'cercle brugge',       // already matches — keep for safety
+  'oud heverlee leuven'  : 'oud-heverlee leuven',
+  'waregem'              : 'sv zulte waregem',
+  'zulte waregem'        : 'sv zulte waregem',
+  'charleroi'            : 'charleroi',
+  'dender'               : 'fcv dender eh',
+  'la louviere'          : 'raal la louviere',
+  'raal louviere'        : 'raal la louviere',
+
+  // ── Germany 2. Bundesliga (D2) ────────────────────────────────────────────
+  'bielefeld'            : 'arminia bielefeld',
+  'bochum'               : 'vfl bochum',
+  'holstein kiel'        : 'holstein kiel',
+  'braunschweig'         : 'eintracht braunschweig',
+  'kaiserslautern'       : '1 fc kaiserslautern',
+  'dresden'              : 'dynamo dresden',
+  'hamburg'              : 'hamburger sv',
+  'hsv'                  : 'hamburger sv',
+  'hannover'             : 'hannover 96',
+  'schalke'              : 'fc schalke 04',
+  'dusseldorf'           : 'fortuna dusseldorf',
+  'karlsruhe'            : 'karlsruher sc',
+  'nurnberg'             : '1 fc nurnberg',
+  'paderborn'            : 'sc paderborn 07',
+  'regensburg'           : 'jahn regensburg',
+  'magdeburg'            : '1 fc magdeburg',
+  'munster'              : 'preussen munster',
+  'elversberg'           : 'sv elversberg',
+
+  // ── France Ligue 2 (F2) ───────────────────────────────────────────────────
+  'auxerre'              : 'aj auxerre',
+  'grenoble'             : 'grenoble foot 38',
+  'guingamp'             : 'ea guingamp',
+  'laval'                : 'stade laval',
+  'le havre'             : 'le havre ac',
+  'lens'                 : 'rc lens',
+  'metz'                 : 'fc metz',
+  'niort'                : 'chamois niortais',
+  'pau'                  : 'pau fc',
+  'quevilly rouen'       : 'fc rouen',
+  'rodez'                : 'rodez af',
+  'saint etienne'        : 'as saint-etienne',
+  'sd eibar'             : 'sd eibar',
+  'troyes'               : 'estac troyes',
+  'valenciennes'         : 'valenciennes fc',
+
+  // ── Italy Serie B (I2) ────────────────────────────────────────────────────
+  'bari'                 : 'ssc bari',
+  'brescia'              : 'brescia calcio',
+  'carrarese'            : 'carrarese calcio',
+  'catanzaro'            : 'us catanzaro',
+  'cesena'               : 'ac cesena',
+  'cittadella'           : 'as cittadella',
+  'cosenza'              : 'cosenza calcio',
+  'cremonese'            : 'us cremonese',
+  'frosinone'            : 'frosinone calcio',
+  'juve stabia'          : 'ss juve stabia',
+  'mantova'              : 'mantova 1911',
+  'modena'               : 'modena fc',
+  'palermo'              : 'palermo fc',
+  'pisa'                 : 'ac pisa 1909',
+  'reggiana'             : 'ac reggiana',
+  'salernitana'          : 'us salernitana',
+  'sampdoria'            : 'uc sampdoria',
+  'sassuolo'             : 'us sassuolo',
+  'spezia'               : 'spezia calcio',
+  'sudtirol'             : 'fc sudtirol',
+
+  // ── Spain La Liga 2 (SP2) ─────────────────────────────────────────────────
+  'albacete'             : 'albacete balompie',
+  'alcorcon'             : 'ad alcorcon',
+  'almeria'              : 'ud almeria',
+  'burgos'               : 'burgos cf',
+  'castellon'            : 'cd castellon',
+  'eldense'              : 'cd eldense',
+  'ferrol'               : 'racing ferrol',
+  'granada'              : 'granada cf',
+  'huesca'               : 'sd huesca',
+  'leganes'              : 'cd leganes',
+  'malaga'               : 'malaga cf',
+  'mirandes'             : 'cd mirandes',
+  'oviedo'               : 'real oviedo',
+  'racing'               : 'racing santander',
+  'racing santander'     : 'racing santander',
+  'real valladolid'      : 'real valladolid',
+  'sabadell'             : 'ce sabadell',
+  'santander'            : 'racing santander',
+  'tenerife'             : 'cd tenerife',
+  'villarreal b'         : 'villarreal cf b',
+  'zaragoza'             : 'real zaragoza',
+
+  // ── Turkey Süper Lig (T1) ─────────────────────────────────────────────────
+  'alanyaspor'           : 'alanyaspor',
+  'antalyaspor'          : 'antalyaspor',
+  'basaksehir'           : 'istanbul basaksehir',
+  'istanbul basaksehir'  : 'istanbul basaksehir',
+  'besiktas'             : 'besiktas',
+  'caykur rizespor'      : 'caykur rizespor',
+  'eyupspor'             : 'eyupspor',
+  'fenerbahce'           : 'fenerbahce',
+  'galatasaray'          : 'galatasaray',
+  'gaziantep fk'         : 'gaziantep fk',
+  'genclerbirligi'       : 'genclerbirligi',
+  'goztepe'              : 'goztepe',
+  'kasimpasa'            : 'kasimpasa sk',
+  'kasmpasa'             : 'kasimpasa sk',   // typo seen in your DB
+  'kayserispor'          : 'kayserispor',
+  'kocaelispor'          : 'kocaelispor',
+  'konyaspor'            : 'konyaspor',
+  'samsunspor'           : 'samsunspor',
+  'sivasspor'            : 'sivasspor',
+  'trabzonspor'          : 'trabzonspor',
+  'fatih karagumruk'     : 'fatih karagumruk',
+};
+
+// ─── Resolve a CSV team name to the DB normKey ────────────────────────────────
+
+function resolveNormKey(csvName: string): string {
+  const norm = normaliseTeamName(csvName);
+  return ALIAS[norm] ?? norm;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CsvRow {
   div: string;
-  date: string;   // "02/05/2026"
-  time: string;   // "14:30"
+  date: string;
+  time: string;
   homeTeam: string;
   awayTeam: string;
 }
@@ -53,13 +183,10 @@ async function fetchAndParseCsv(): Promise<CsvRow[]> {
     clearTimeout(timeout);
   }
 
-  // Strip BOM if present
   const clean = text.replace(/^\uFEFF/, '');
   const lines = clean.split('\n').map(l => l.trim()).filter(Boolean);
-
   if (lines.length < 2) throw new Error('fixtures.csv appears empty');
 
-  // Parse header to find column indices — future-proof against column additions
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
   const col = (name: string) => {
     const i = headers.indexOf(name);
@@ -74,11 +201,10 @@ async function fetchAndParseCsv(): Promise<CsvRow[]> {
   const iAway = col('awayteam');
 
   const rows: CsvRow[] = [];
-
   for (const line of lines.slice(1)) {
     const cells = line.split(',');
     const div = cells[iDiv]?.trim();
-    if (!div || !DIV_MAP[div]) continue; // skip leagues we don't care about
+    if (!div || !DIV_MAP[div]) continue;
 
     const date     = cells[iDate]?.trim();
     const time     = cells[iTime]?.trim();
@@ -86,81 +212,59 @@ async function fetchAndParseCsv(): Promise<CsvRow[]> {
     const awayTeam = cells[iAway]?.trim();
 
     if (!date || !time || !homeTeam || !awayTeam) continue;
-    if (!/^\d{2}:\d{2}$/.test(time)) continue; // skip rows with no valid time
+    if (!/^\d{2}:\d{2}$/.test(time)) continue;
 
     rows.push({ div, date, time, homeTeam, awayTeam });
   }
-
   return rows;
 }
 
-// ─── Date parsing ─────────────────────────────────────────────────────────────
-// football-data.co.uk uses DD/MM/YYYY + HH:MM (times are local to the match,
-// but for fixture scheduling purposes treating as UTC is acceptable — the times
-// are already correct-ish for display, and you can refine the timezone offset
-// per country if needed).
-
-function parseKickoff(date: string, time: string): Date | null {
-  // date = "02/05/2026", time = "14:30"
-  const [dd, mm, yyyy] = date.split('/');
-  if (!dd || !mm || !yyyy) return null;
-  const [hh, min] = time.split(':');
-  if (!hh || !min) return null;
-
-  const iso = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}T${hh.padStart(2,'0')}:${min.padStart(2,'0')}:00Z`;
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? null : d;
-}
-
-// ─── Country UTC offsets (approximate, for summer/winter) ─────────────────────
-// football-data.co.uk times are listed in local time for each league.
-// Apply an offset so kickoffAt is stored correctly in UTC.
-// Adjust these if your DB stores UTC and your UI converts — if you're already
-// storing as-is (treating them as UTC), set all to 0 and remove this section.
+// ─── Date/time parsing ────────────────────────────────────────────────────────
 
 const COUNTRY_UTC_OFFSET_HOURS: Record<string, number> = {
-  Germany : 2,  // CEST (summer)
-  France  : 2,  // CEST (summer)
-  Italy   : 2,  // CEST (summer)
-  Spain   : 2,  // CEST (summer)
-  Turkey  : 3,  // TRT (no DST)
-  Belgium : 2,  // CEST (summer)
+  Germany : 2,
+  France  : 2,
+  Italy   : 2,
+  Spain   : 2,
+  Turkey  : 3,
+  Belgium : 2,
 };
 
-function applyTimezoneOffset(utcDate: Date, country: string): Date {
-  const offsetHours = COUNTRY_UTC_OFFSET_HOURS[country] ?? 0;
-  // The CSV time is local; subtract offset to get real UTC
-  return new Date(utcDate.getTime() - offsetHours * 60 * 60 * 1000);
-}
+function parseKickoff(date: string, time: string, country: string): Date | null {
+  const [dd, mm, yyyy] = date.split('/');
+  const [hh, min] = time.split(':');
+  if (!dd || !mm || !yyyy || !hh || !min) return null;
 
-// ─── Determine current DB season from a kickoff date ─────────────────────────
+  const iso = `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}T${hh.padStart(2,'0')}:${min.padStart(2,'0')}:00Z`;
+  const localAsUtc = new Date(iso);
+  if (isNaN(localAsUtc.getTime())) return null;
+
+  // CSV times are local — subtract offset to get true UTC
+  const offsetMs = (COUNTRY_UTC_OFFSET_HOURS[country] ?? 0) * 3_600_000;
+  return new Date(localAsUtc.getTime() - offsetMs);
+}
 
 function kickoffToDbSeason(kickoff: Date): string {
   const year  = kickoff.getUTCFullYear();
-  const month = kickoff.getUTCMonth() + 1; // 1-based
-  // Season starts in July/August; if month < 7 it's the second half of a season
+  const month = kickoff.getUTCMonth() + 1;
   const startYear = month >= 7 ? year : year - 1;
   return `${startYear}-${String(startYear + 1).slice(2)}`;
 }
 
-// ─── Main patch logic ─────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export async function runPatchFixturesFromCsv(): Promise<void> {
   logger.info('[patchCsv] Fetching fixtures.csv from football-data.co.uk');
 
   const rows = await fetchAndParseCsv();
   logger.info(`[patchCsv] Parsed ${rows.length} relevant fixture rows`);
-
   if (rows.length === 0) {
     logger.warn('[patchCsv] No rows parsed — check div codes or CSV format');
     return;
   }
 
-  let totalMatched = 0;
-  let totalUpdated = 0;
-  let totalSkipped = 0;
+  let totalMatched = 0, totalUpdated = 0, totalSkipped = 0;
 
-  // Group rows by div so we can do one DB query per league
   const byDiv = new Map<string, CsvRow[]>();
   for (const row of rows) {
     const arr = byDiv.get(row.div) ?? [];
@@ -171,64 +275,50 @@ export async function runPatchFixturesFromCsv(): Promise<void> {
   for (const [div, divRows] of byDiv.entries()) {
     const meta = DIV_MAP[div];
 
-    // Collect all seasons appearing in this batch
     const seasons = new Set<string>();
     for (const row of divRows) {
-      const kickoff = parseKickoff(row.date, row.time);
+      const kickoff = parseKickoff(row.date, row.time, meta.country);
       if (kickoff) seasons.add(kickoffToDbSeason(kickoff));
     }
 
-    // Load DB fixtures for this league across all relevant seasons
     const dbFixtures = await prisma.fixture.findMany({
-      where: {
-        competition: meta.competition,
-        season: { in: [...seasons] },
-      },
-      select: {
-        id: true,
-        homeTeamNormKey: true,
-        awayTeamNormKey: true,
-        kickoffAt: true,
-        season: true,
-      },
+      where: { competition: meta.competition, season: { in: [...seasons] } },
+      select: { id: true, homeTeamNormKey: true, awayTeamNormKey: true, kickoffAt: true },
     });
 
-    // Index by normKey pair
     const dbIndex = new Map<string, typeof dbFixtures[number]>();
     for (const f of dbFixtures) {
-      const key = `${f.homeTeamNormKey}||${f.awayTeamNormKey}`;
-      dbIndex.set(key, f);
+      dbIndex.set(`${f.homeTeamNormKey}||${f.awayTeamNormKey}`, f);
     }
 
     let matched = 0, updated = 0, skipped = 0;
 
     for (const row of divRows) {
-      const rawKickoff = parseKickoff(row.date, row.time);
-      if (!rawKickoff) { skipped++; continue; }
+      const kickoff = parseKickoff(row.date, row.time, meta.country);
+      if (!kickoff) { skipped++; continue; }
 
-      const kickoff = applyTimezoneOffset(rawKickoff, meta.country);
-
-      const homeNorm = normaliseTeamName(row.homeTeam);
-      const awayNorm = normaliseTeamName(row.awayTeam);
-      const key = `${homeNorm}||${awayNorm}`;
+      const homeKey = resolveNormKey(row.homeTeam);
+      const awayKey = resolveNormKey(row.awayTeam);
+      const key = `${homeKey}||${awayKey}`;
 
       const dbFixture = dbIndex.get(key);
-      if (!dbFixture) { skipped++; continue; }
+      if (!dbFixture) {
+        // Log unmatched so we can add missing aliases
+        logger.debug(`[patchCsv] NO MATCH [${div}] "${row.homeTeam}"(→${homeKey}) vs "${row.awayTeam}"(→${awayKey})`);
+        skipped++;
+        continue;
+      }
 
       matched++;
 
-      // Only update if current kickoffAt is a midnight placeholder
       const cur = dbFixture.kickoffAt;
-      const isPlaceholder =
-        cur.getUTCHours() === 0 && cur.getUTCMinutes() === 0;
-
+      const isPlaceholder = cur.getUTCHours() === 0 && cur.getUTCMinutes() === 0;
       if (!isPlaceholder) { skipped++; continue; }
 
       await prisma.fixture.update({
         where: { id: dbFixture.id },
         data:  { kickoffAt: kickoff },
       });
-
       updated++;
     }
 
@@ -241,7 +331,5 @@ export async function runPatchFixturesFromCsv(): Promise<void> {
     );
   }
 
-  logger.info(
-    `[patchCsv] Done — matched=${totalMatched} updated=${totalUpdated} skipped=${totalSkipped}`,
-  );
+  logger.info(`[patchCsv] Done — matched=${totalMatched} updated=${totalUpdated} skipped=${totalSkipped}`);
 }
