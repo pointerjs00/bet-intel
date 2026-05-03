@@ -23,7 +23,7 @@ export async function listFixturesHandler(req: Request, res: Response): Promise<
       to,
       team,
       sport = 'FOOTBALL',
-      season = '2025-26',
+      season, // ← no longer default to '2025-26'
     } = req.query as Record<string, string | undefined>;
 
     const fromDate = from ? new Date(from) : new Date();
@@ -34,22 +34,18 @@ export async function listFixturesHandler(req: Request, res: Response): Promise<
     const fixtures = await prisma.fixture.findMany({
       where: {
         sport: sport ?? 'FOOTBALL',
-        season: season ?? '2025-26',
+        ...(season ? { season } : {}), // ← only filter season if explicitly provided
         kickoffAt: { gte: fromDate, lte: toDate },
-        ...(competition
-          ? { competition: { contains: competition, mode: 'insensitive' } }
-          : {}),
-        ...(team
-          ? {
-              OR: [
-                { homeTeam: { contains: team, mode: 'insensitive' } },
-                { awayTeam: { contains: team, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
+        ...(competition ? { competition: { contains: competition, mode: 'insensitive' } } : {}),
+        ...(team ? {
+          OR: [
+            { homeTeam: { contains: team, mode: 'insensitive' } },
+            { awayTeam: { contains: team, mode: 'insensitive' } },
+          ],
+        } : {}),
       },
       orderBy: { kickoffAt: 'asc' },
-      take: 200,
+      take: 5000, // ← was 200
     });
 
     ok(res, fixtures);
@@ -62,7 +58,8 @@ export async function listFixturesHandler(req: Request, res: Response): Promise<
 export async function upcomingFixturesHandler(req: Request, res: Response): Promise<void> {
   try {
     const rawDays = parseInt((req.query.days as string) ?? '7', 10);
-    const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 30) : 7;
+    // ← raise cap from 30 to 365, upcoming fixtures are only ~4916 rows total
+    const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 365) : 7;
     const team = req.query.team as string | undefined;
 
     const cacheKey = `fixtures:upcoming:${days}:${team ?? ''}`;
@@ -79,22 +76,18 @@ export async function upcomingFixturesHandler(req: Request, res: Response): Prom
       where: {
         status: 'SCHEDULED',
         kickoffAt: { gte: now, lte: until },
-        ...(team
-          ? {
-              OR: [
-                { homeTeam: { contains: team, mode: 'insensitive' } },
-                { awayTeam: { contains: team, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
+        ...(team ? {
+          OR: [
+            { homeTeam: { contains: team, mode: 'insensitive' } },
+            { awayTeam: { contains: team, mode: 'insensitive' } },
+          ],
+        } : {}),
       },
       orderBy: { kickoffAt: 'asc' },
-      take: 100,
+      take: 5000, // ← was 100
     });
 
-    // Cache for 1 hour
     redis.setex(cacheKey, 3600, JSON.stringify(fixtures)).catch(() => {});
-
     ok(res, fixtures);
   } catch (err) {
     fail(res, err);
