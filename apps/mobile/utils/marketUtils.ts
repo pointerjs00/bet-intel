@@ -1,79 +1,88 @@
 /**
- * Utility helpers for market names used across boletin creation and editing.
+ * Utility helpers for market names — aligned with Portuguese bookmaker formats
+ * (Betclic PT, bet365 PT, etc.) as observed in real user bet data.
  */
 
 /**
- * Returns true if the market name fully encodes the outcome, so no separate
- * "Seleção" input is needed (e.g. "Casa Ganha + Mais de 1.5 Golos").
+ * Markets where the market name itself fully encodes the outcome — no separate
+ * "Seleção" input is needed. The market is the selection.
+ *
+ * These are either already humanised (team name substituted in) or are
+ * self-contained outcome statements.
  */
 export function isSelfDescribing(market: string): boolean {
+  if (!market) return false;
   return (
-    // Template forms (raw market names before humanisation)
-    /Mais de \d+[.,]\d+/.test(market) ||
-    /Menos de \d+[.,]\d+/.test(market) ||
-    /Casa Ganha/.test(market) ||
-    /Fora Ganha/.test(market) ||
-    /Casa vence/.test(market) ||
-    /Fora vence/.test(market) ||
-    /Casa Handicap/.test(market) ||
-    /Fora Handicap/.test(market) ||
-    /\bEmpate\b/.test(market) ||
-    / ou /.test(market) ||
+    // Already contains a team/player name + result verb
+    /\bvence\b/.test(market) ||
+    /\bempata\b/.test(market) ||
+    // Bookmaker-style combo markets that already name the outcome
+    /^BTTS/.test(market) ||
+    /Ambas Marcam \(BTTS\)/.test(market) ||
+    // Dupla with named teams
+    /^Dupla:/.test(market) ||
+    // EAA / Draw No Bet shorthand
     /^EAA:/.test(market) ||
+    // HT/FT codes with team names
     /^HT\/FT:/.test(market) ||
-    /Cantos - Mais de \d/.test(market) ||
-    /Cartões - Mais de \d/.test(market) ||
-    // Humanised forms (team names substituted, e.g. "FC Porto vence")
-    /\bvence\b/.test(market) ||         // "X vence", "X vence & +1.5 Golos"
-    /^[+-]\d/.test(market) ||           // "+1.5 Golos", "-2.5 Pts"
-    /: [+-]?\d/.test(market) ||         // "X: +1.5 Golos", "Cantos: +3", "Cartões: +2"
-    /^BTTS/.test(market)                // "BTTS & +X Golos"
+    // Over/Under already resolved to "+X" or "-X" style
+    /^[+-]\d/.test(market) ||
+    /: [+-]\d/.test(market) ||
+    // Corners / cards with threshold
+    /Cantos: [+-]/.test(market) ||
+    /Cartões: [+-]/.test(market)
   );
 }
 
 /**
- * Converts a technical market name into a human-readable selection string by
- * substituting generic placeholders with the actual teams chosen.
+ * Converts a generic template market name into a human-readable form by
+ * substituting "Casa" / "Fora" placeholders with actual team names.
+ *
+ * This matches the format users expect from PT bookmakers.
  */
 export function humanizeMarket(market: string, homeTeam: string, awayTeam: string): string {
   const home = homeTeam || 'Casa';
   const away = awayTeam || 'Fora';
+
   return market
-    .replace(/Casa Ganha \+ Mais de (\d+[.,]\d+) Golos/g, `${home} vence & +$1 Golos`)
-    .replace(/Casa Ganha \+ Menos de (\d+[.,]\d+) Golos/g, `${home} vence & -$1 Golos`)
-    .replace(/Fora Ganha \+ Mais de (\d+[.,]\d+) Golos/g, `${away} vence & +$1 Golos`)
-    .replace(/Fora Ganha \+ Menos de (\d+[.,]\d+) Golos/g, `${away} vence & -$1 Golos`)
-    .replace(/Casa Ganha/g, `${home} vence`)
-    .replace(/Fora Ganha/g, `${away} vence`)
-    .replace(/Total de Golos - Mais de (\d+[.,]\d+)/g, '+$1 Golos')
-    .replace(/Total de Golos - Menos de (\d+[.,]\d+)/g, '-$1 Golos')
-    .replace(/Golos Casa - Mais de (\d+[.,]\d+)/g, `${home}: +$1 Golos`)
-    .replace(/Golos Casa - Menos de (\d+[.,]\d+)/g, `${home}: -$1 Golos`)
-    .replace(/Golos Fora - Mais de (\d+[.,]\d+)/g, `${away}: +$1 Golos`)
-    .replace(/Golos Fora - Menos de (\d+[.,]\d+)/g, `${away}: -$1 Golos`)
-    .replace(/Ambas Marcam \+ Total de Golos Mais de (\d+[.,]\d+)/g, 'BTTS & +$1 Golos')
-    .replace(/Ambas Marcam \+ Total de Golos Menos de (\d+[.,]\d+)/g, 'BTTS & -$1 Golos')
-    .replace(/Pontos Casa - Mais de (\d+[.,]\d+)/g, `${home}: +$1 Pts`)
-    .replace(/Pontos Casa - Menos de (\d+[.,]\d+)/g, `${home}: -$1 Pts`)
-    .replace(/Pontos Fora - Mais de (\d+[.,]\d+)/g, `${away}: +$1 Pts`)
-    .replace(/Pontos Fora - Menos de (\d+[.,]\d+)/g, `${away}: -$1 Pts`)
-    .replace(/Total de Pontos - Mais de (\d+[.,]\d+)/g, '+$1 Pts')
-    .replace(/Total de Pontos - Menos de (\d+[.,]\d+)/g, '-$1 Pts')
-    .replace(/Cantos - Mais de (\d+[.,]\d+)/g, 'Cantos: +$1')
-    .replace(/Cartões - Mais de (\d+[.,]\d+)/g, 'Cartões: +$1')
-    // HT/FT: substitute Casa → home and Fora → away within the outcome codes
+    // ── Self-describing combo markets ──────────────────────────────────────
+    .replace(/Casa vence & \+(\d+[.,]\d+) Golos/g, `${home} vence & +$1 Golos`)
+    .replace(/Casa vence & -(\d+[.,]\d+) Golos/g, `${home} vence & -$1 Golos`)
+    .replace(/Fora vence & \+(\d+[.,]\d+) Golos/g, `${away} vence & +$1 Golos`)
+    .replace(/Fora vence & -(\d+[.,]\d+) Golos/g, `${away} vence & -$1 Golos`)
+    .replace(/Casa vence ou empata & \+(\d+[.,]\d+) Golos/g, `${home} vence ou empata & +$1 Golos`)
+    .replace(/Casa vence ou empata & -(\d+[.,]\d+) Golos/g, `${home} vence ou empata & -$1 Golos`)
+    .replace(/Fora vence ou empata & \+(\d+[.,]\d+) Golos/g, `${away} vence ou empata & +$1 Golos`)
+    .replace(/Fora vence ou empata & -(\d+[.,]\d+) Golos/g, `${away} vence ou empata & -$1 Golos`)
+    // ── Simple win / draw markets ───────────────────────────────────────────
+    .replace(/\bCasa vence ou empata\b/g, `${home} vence ou empata`)
+    .replace(/\bFora vence ou empata\b/g, `${away} vence ou empata`)
+    .replace(/\bCasa vence\b/g, `${home} vence`)
+    .replace(/\bFora vence\b/g, `${away} vence`)
+    // ── Dupla (Double Chance) with placeholders ─────────────────────────────
+    .replace(/Dupla: Casa ou Empate & \+(\d+[.,]\d+) Golos/g, `Dupla: ${home} ou Empate & +$1 Golos`)
+    .replace(/Dupla: Casa ou Fora & \+(\d+[.,]\d+) Golos/g, `Dupla: ${home} ou ${away} & +$1 Golos`)
+    .replace(/Dupla: Empate ou Fora & \+(\d+[.,]\d+) Golos/g, `Dupla: Empate ou ${away} & +$1 Golos`)
+    .replace(/Dupla: Casa ou Empate\b/g, `Dupla: ${home} ou Empate`)
+    .replace(/Dupla: Casa ou Fora\b/g, `Dupla: ${home} ou ${away}`)
+    .replace(/Dupla: Empate ou Fora\b/g, `Dupla: Empate ou ${away}`)
+    // ── BTTS combos ────────────────────────────────────────────────────────
+    .replace(/Ambas Marcam \+ Total de Golos Mais de (\d+[.,]\d+)/g, `BTTS & +$1 Golos`)
+    .replace(/Ambas Marcam \+ Total de Golos Menos de (\d+[.,]\d+)/g, `BTTS & -$1 Golos`)
+    // ── HT/FT substitution ─────────────────────────────────────────────────
     .replace(/HT\/FT: (\w+)\/(\w+)/g, (_, ht, ft) => {
       const htLabel = ht === 'Casa' ? home : ht === 'Fora' ? away : ht;
       const ftLabel = ft === 'Casa' ? home : ft === 'Fora' ? away : ft;
       return `HT/FT: ${htLabel}/${ftLabel}`;
     })
+    // ── Remaining bare placeholders ────────────────────────────────────────
     .replace(/\bCasa\b/g, home)
     .replace(/\bFora\b/g, away);
 }
 
 /** Popularity-ordered market category display order. */
 export const MARKET_CATEGORY_ORDER = [
-  'Principal', 'Golos', 'Handicap', '1ª Parte', '2ª Parte',
-  'Resultado', 'Combinado', 'Especiais', 'Pontos', 'Sets',
-  'Games', 'Quartos', 'Corridas', '1ª Volta', '1º Período', 'Total', 'Outro',
+  'Principal', 'Golos', 'Combinado', 'Handicap', 'Resultado',
+  '1ª Parte', '2ª Parte', 'Especiais', 'Pontos', 'Sets',
+  'Games', 'Quartos', 'Total', 'Outro',
 ];
