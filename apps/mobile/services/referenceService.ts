@@ -101,7 +101,7 @@ async function fetchRecentFixtures(days: number): Promise<Fixture[]> {
     const to = new Date().toISOString();
     const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
     const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures', { params: { from, to } });
-    return (data.data ?? []).filter((f) => f.homeScore !== null || f.awayScore !== null);
+    return data.data ?? [];
   } catch {
     return [];
   }
