@@ -312,7 +312,9 @@ export async function runPatchFixturesFromCsv(): Promise<void> {
       matched++;
 
       const cur = dbFixture.kickoffAt;
-      const isPlaceholder = cur.getUTCHours() === 0 && cur.getUTCMinutes() === 0;
+      const isPlaceholder =
+        (cur.getUTCHours() === 0 && cur.getUTCMinutes() === 0) ||
+        (cur.getUTCHours() === 23 && cur.getUTCMinutes() === 0);
       if (!isPlaceholder) { skipped++; continue; }
 
       await prisma.fixture.update({

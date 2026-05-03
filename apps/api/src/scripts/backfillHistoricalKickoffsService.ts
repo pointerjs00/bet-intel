@@ -254,9 +254,11 @@ async function backfillLeague(league: typeof LEAGUES[number]) {
     select: { id: true, homeTeamNormKey: true, awayTeamNormKey: true, kickoffAt: true },
   });
 
-  const placeholders = dbFixtures.filter(
-    f => f.kickoffAt.getUTCHours() === 0 && f.kickoffAt.getUTCMinutes() === 0,
-  );
+  const placeholders = dbFixtures.filter(f => {
+    const h = f.kickoffAt.getUTCHours();
+    const m = f.kickoffAt.getUTCMinutes();
+    return (h === 0 && m === 0) || (h === 23 && m === 0);
+  });
   logger.info(`[backfill] ${league.competition}: ${placeholders.length} placeholder fixtures in DB`);
   if (placeholders.length === 0) return;
 
@@ -269,8 +271,12 @@ async function backfillLeague(league: typeof LEAGUES[number]) {
   // Index 2: date → list of fixtures (for fuzzy fallback)
   const dateIndex = new Map<string, typeof placeholders[number][]>();
   for (const f of placeholders) {
-    // Midnight UTC placeholders — the date IS the match date
-    const dateKey = f.kickoffAt.toISOString().slice(0, 10);
+    const h = f.kickoffAt.getUTCHours();
+    // 23:00 UTC = midnight local next day — index under the actual match date
+    const matchDate = h === 23
+      ? new Date(f.kickoffAt.getTime() + 3_600_000) // +1h → next day 00:00 UTC
+      : f.kickoffAt;
+    const dateKey = matchDate.toISOString().slice(0, 10);
     const arr = dateIndex.get(dateKey) ?? [];
     arr.push(f);
     dateIndex.set(dateKey, arr);

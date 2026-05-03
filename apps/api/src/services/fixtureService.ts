@@ -71,18 +71,24 @@ interface OpenFootballLeague {
  * pick the one whose round-trip through Intl matches the intended local time.
  */
 function parseAsLisbonLocal(date: string, time?: string): Date {
-  const timeStr = time ?? '00:00';
   const [year, month, day] = date.split('-').map(Number);
-  const [hour, minute] = timeStr.split(':').map(Number);
-
+ 
+  // No time published yet — store as a clean midnight UTC placeholder.
+  // The CSV patch jobs will fill in the real time later.
+  if (!time) {
+    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
+  }
+ 
+  const [hour, minute] = time.split(':').map(Number);
+ 
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Europe/Lisbon',
     year: 'numeric', month: 'numeric', day: 'numeric',
     hour: 'numeric', minute: 'numeric',
     hour12: false,
   });
-
-  // Lisbon is between UTC+0 and UTC+1 — try both
+ 
+  // Lisbon is between UTC+0 (winter/WET) and UTC+1 (summer/WEST) — try both
   for (const offsetHours of [1, 0]) {
     const candidate = new Date(Date.UTC(year, month - 1, day, hour - offsetHours, minute, 0));
     const parts = fmt.formatToParts(candidate);
@@ -91,8 +97,8 @@ function parseAsLisbonLocal(date: string, time?: string): Date {
       return candidate;
     }
   }
-
-  // Fallback: treat as UTC+0 (winter)
+ 
+  // Fallback: treat as UTC+0 (winter/WET)
   return new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
 }
 
