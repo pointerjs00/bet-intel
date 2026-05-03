@@ -51,6 +51,8 @@ import { useMarkets } from '../../services/referenceService';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { Input } from '../../components/ui/Input';
 import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useFavourites, useToggleFavouriteMutation, useBulkSetFavouritesMutation } from '../../services/favouritesService';
+import { FavouriteType } from '@betintel/shared';
 
 // ─── Country name mapping: English (fixture feed) → Portuguese (asset keys) ──
 
@@ -512,6 +514,17 @@ const EXTENDED_MARKETS: Array<{
 ];
 
 const ALL_MARKET_ITEMS = EXTENDED_MARKETS.flatMap((cat) => cat.items);
+
+// Top 7 leagues by competition name — these are shown expanded even without a favourite
+const TOP_7_LEAGUES = new Set([
+  'Primeira Liga',        // Portugal
+  'Premier League',       // England
+  'La Liga',              // Spain
+  'Serie A',              // Italy
+  'Bundesliga',           // Germany
+  'Ligue 1',              // France
+  'Champions League',     // UEFA
+]);
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -1554,7 +1567,19 @@ const FixtureCard = React.memo(function FixtureCard({
 
 // ─── Competition section header ───────────────────────────────────────────────
 
-function CompetitionHeader({ section, isExpanded, onToggle }: { section: Section; isExpanded: boolean; onToggle: () => void }) {
+function CompetitionHeader({
+  section,
+  isExpanded,
+  onToggle,
+  isFavourite,
+  onToggleFavourite,
+}: {
+  section: Section;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isFavourite: boolean;
+  onToggleFavourite: () => void;
+}) {
   const { colors } = useTheme();
   return (
     <Pressable
@@ -1563,19 +1588,181 @@ function CompetitionHeader({ section, isExpanded, onToggle }: { section: Section
     >
       <CompetitionBadge name={section.competition} country={section.country} size={28} />
       <View style={styles.competitionTextWrap}>
-        <Text style={[styles.competitionName, { color: colors.textPrimary }]} numberOfLines={1}>{section.competition}</Text>
+        <Text style={[styles.competitionName, { color: colors.textPrimary }]} numberOfLines={1}>
+          {section.competition}
+        </Text>
         <View style={styles.competitionCountryRow}>
           <CountryFlag country={section.country} size={11} />
           <Text style={[styles.competitionCountry, { color: colors.textSecondary }]}>{section.country}</Text>
         </View>
       </View>
       <View style={[styles.competitionCountBadge, { backgroundColor: colors.surfaceRaised }]}>
-        <Text style={[styles.competitionCountText, { color: colors.textSecondary }]}>{section.data.length}/{section.totalCount}</Text>
+        <Text style={[styles.competitionCountText, { color: colors.textSecondary }]}>
+          {section.data.length}/{section.totalCount}
+        </Text>
       </View>
-      <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} style={{ marginLeft: 6 }} />
+      {/* Favourite star */}
+      <Pressable
+        hitSlop={12}
+        onPress={(e) => { e.stopPropagation(); hapticSelection(); onToggleFavourite(); }}
+        style={{ padding: 4 }}
+      >
+        <Ionicons
+          name={isFavourite ? 'star' : 'star-outline'}
+          size={16}
+          color={isFavourite ? '#f59e0b' : colors.textMuted}
+        />
+      </Pressable>
+      <Ionicons
+        name={isExpanded ? 'chevron-up' : 'chevron-down'}
+        size={16}
+        color={colors.textMuted}
+        style={{ marginLeft: 2 }}
+      />
     </Pressable>
   );
 }
+
+// ─── Manage Favourites Modal ──────────────────────────────────────────────────
+
+interface ManageFavouritesModalProps {
+  visible: boolean;
+  onClose: () => void;
+  favouriteKeys: string[];           // ordered list of competition targetKeys
+  onReorder: (newOrder: string[]) => void;
+  onRemove: (key: string) => void;
+  colors: Record<string, string>;
+}
+
+function ManageFavouritesModal({
+  visible, onClose, favouriteKeys, onReorder, onRemove, colors,
+}: ManageFavouritesModalProps) {
+  const [localOrder, setLocalOrder] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (visible) setLocalOrder(favouriteKeys);
+  }, [visible, favouriteKeys]);
+
+  function moveUp(index: number) {
+    if (index === 0) return;
+    hapticLight();
+    const next = [...localOrder];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setLocalOrder(next);
+  }
+
+  function moveDown(index: number) {
+    if (index === localOrder.length - 1) return;
+    hapticLight();
+    const next = [...localOrder];
+    [next[index + 1], next[index]] = [next[index], next[index + 1]];
+    setLocalOrder(next);
+  }
+
+  function handleSave() {
+    onReorder(localOrder);
+    onClose();
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={mgStyles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={[mgStyles.sheet, { backgroundColor: colors.background }]}>
+          <View style={[mgStyles.header, { borderBottomColor: colors.border }]}>
+            <Text style={[mgStyles.title, { color: colors.textPrimary }]}>Competições favoritas</Text>
+            <Pressable hitSlop={12} onPress={onClose}>
+              <Ionicons name="close" size={22} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          {localOrder.length === 0 ? (
+            <View style={mgStyles.empty}>
+              <Ionicons name="star-outline" size={40} color={colors.textMuted} />
+              <Text style={[mgStyles.emptyText, { color: colors.textMuted }]}>
+                Toca na estrela ⭐ em qualquer competição para a adicionar aos favoritos.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
+              {localOrder.map((key, index) => (
+                <View
+                  key={key}
+                  style={[mgStyles.row, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}
+                >
+                  <View style={mgStyles.rowLeft}>
+                    <Ionicons name="menu" size={18} color={colors.textMuted} />
+                    <Text style={[mgStyles.rowText, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {key}
+                    </Text>
+                  </View>
+                  <View style={mgStyles.rowActions}>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => moveUp(index)}
+                      style={[mgStyles.arrowBtn, { opacity: index === 0 ? 0.3 : 1 }]}
+                    >
+                      <Ionicons name="chevron-up" size={18} color={colors.textPrimary} />
+                    </Pressable>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => moveDown(index)}
+                      style={[mgStyles.arrowBtn, { opacity: index === localOrder.length - 1 ? 0.3 : 1 }]}
+                    >
+                      <Ionicons name="chevron-down" size={18} color={colors.textPrimary} />
+                    </Pressable>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => {
+                        hapticLight();
+                        onRemove(key);
+                        setLocalOrder((prev) => prev.filter((k) => k !== key));
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={20} color={colors.danger ?? '#ef4444'} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          <View style={[mgStyles.footer, { borderTopColor: colors.border }]}>
+            <Pressable
+              onPress={handleSave}
+              style={[mgStyles.saveBtn, { backgroundColor: colors.primary }]}
+            >
+              <Text style={mgStyles.saveBtnText}>Guardar ordem</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const mgStyles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  title: { fontSize: 18, fontWeight: '800' },
+  empty: { alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12 },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  row: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  rowLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rowText: { flex: 1, fontSize: 14, fontWeight: '600' },
+  rowActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  arrowBtn: { padding: 4 },
+  footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  saveBtn: { borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+});
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
@@ -1586,9 +1773,53 @@ export default function FixturesScreen() {
   const [selectedFixture, setSelectedFixture] = useState<Fixture | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [showCalendar, setShowCalendar] = useState(false);
+  const [showManageFavourites, setShowManageFavourites] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(() => stripTime(new Date()));
   const slideAnim = useRef(new RNAnimated.Value(0)).current;
   const SCREEN_WIDTH = Dimensions.get('window').width;
+
+  // ── Favourites ──────────────────────────────────────────────────────────────
+  const favouritesQuery = useFavourites(Sport.FOOTBALL);
+  const toggleFavMutation = useToggleFavouriteMutation();
+  const bulkSetFavMutation = useBulkSetFavouritesMutation();
+
+  // Ordered list of favourite competition names
+  const favouriteKeys = useMemo<string[]>(() => {
+    const favs = (favouritesQuery.data ?? [])
+      .filter((f) => f.type === FavouriteType.COMPETITION && f.sport === Sport.FOOTBALL);
+    // Sort by sortOrder if present, otherwise by createdAt
+    favs.sort((a, b) => ((a as any).sortOrder ?? 0) - ((b as any).sortOrder ?? 0));
+    return favs.map((f) => f.targetKey);
+  }, [favouritesQuery.data]);
+
+  const favouriteSet = useMemo(() => new Set(favouriteKeys), [favouriteKeys]);
+
+  const handleToggleFavourite = useCallback((competition: string) => {
+    toggleFavMutation.mutate({
+      type: FavouriteType.COMPETITION,
+      sport: Sport.FOOTBALL,
+      targetKey: competition,
+    });
+  }, [toggleFavMutation]);
+
+  const handleReorderFavourites = useCallback((newOrder: string[]) => {
+    bulkSetFavMutation.mutate({
+      sport: Sport.FOOTBALL,
+      favourites: newOrder.map((key, index) => ({
+        type: FavouriteType.COMPETITION,
+        targetKey: key,
+        sortOrder: index,
+      })),
+    });
+  }, [bulkSetFavMutation]);
+
+  const handleRemoveFavourite = useCallback((key: string) => {
+    toggleFavMutation.mutate({
+      type: FavouriteType.COMPETITION,
+      sport: Sport.FOOTBALL,
+      targetKey: key,
+    });
+  }, [toggleFavMutation]);
 
   const animateDay = useCallback((direction: 'left' | 'right', nextDate: Date) => {
     // Slide current content out
@@ -1637,11 +1868,45 @@ export default function FixturesScreen() {
     return list;
   }, [rawFixtures, search, selectedDate, isSearching]);
 
-  const allSections = useMemo(() => groupByCompetition(filtered), [filtered]);
-  const sections = useMemo(
-    () => allSections.map((s) => collapsedSections.has(s.competition) ? { ...s, data: [] as Fixture[] } : s),
-    [allSections, collapsedSections],
-  );
+  const allSections = useMemo(() => {
+    const raw = groupByCompetition(filtered);
+
+    // 1. Favourites first, in user-defined order
+    const favourited = favouriteKeys
+      .map((key) => raw.find((s) => s.competition === key))
+      .filter((s): s is Section => !!s);
+
+    // 2. Non-favourite top-7 leagues next
+    const top7NonFav = raw.filter(
+      (s) => !favouriteSet.has(s.competition) && TOP_7_LEAGUES.has(s.competition),
+    );
+
+    // 3. Everything else
+    const rest = raw.filter(
+      (s) => !favouriteSet.has(s.competition) && !TOP_7_LEAGUES.has(s.competition),
+    );
+
+    return { favourited, top7NonFav, rest };
+  }, [filtered, favouriteKeys, favouriteSet]);
+
+  // Auto-collapse non-favourite, non-top-7 sections on new date
+  useEffect(() => {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      // Collapse all "rest" sections by default
+      for (const s of allSections.rest) {
+        if (!next.has(s.competition)) next.add(s.competition);
+      }
+      return next;
+    });
+  }, [allSections.rest]);
+
+  const sections = useMemo(() => {
+    const all = [...allSections.favourited, ...allSections.top7NonFav, ...allSections.rest];
+    return all.map((s) =>
+      collapsedSections.has(s.competition) ? { ...s, data: [] as Fixture[] } : s,
+    );
+  }, [allSections, collapsedSections]);
 
   const handleToggleSection = useCallback((competition: string) => {
     hapticLight();
@@ -1698,16 +1963,36 @@ export default function FixturesScreen() {
 
   const renderSectionHeader = useCallback(
     ({ section }: { section: Section }) => (
-      <CompetitionHeader section={section} isExpanded={!collapsedSections.has(section.competition)} onToggle={() => handleToggleSection(section.competition)} />
+      <CompetitionHeader
+        section={section}
+        isExpanded={!collapsedSections.has(section.competition)}
+        onToggle={() => handleToggleSection(section.competition)}
+        isFavourite={favouriteSet.has(section.competition)}
+        onToggleFavourite={() => handleToggleFavourite(section.competition)}
+      />
     ),
-    [collapsedSections, handleToggleSection],
+    [collapsedSections, handleToggleSection, favouriteSet, handleToggleFavourite],
   );
 
   const keyExtractor = useCallback((item: Fixture) => item.id, []);
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Jogos', headerLargeTitle: false }} />
+      <Stack.Screen
+        options={{
+          title: 'Jogos',
+          headerLargeTitle: false,
+          headerRight: () => (
+            <Pressable
+              onPress={() => setShowManageFavourites(true)}
+              hitSlop={12}
+              style={{ paddingRight: 4 }}
+            >
+              <Ionicons name="star" size={20} color={colors.primary} />
+            </Pressable>
+          ),
+        }}
+      />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Search bar */}
         <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -1763,6 +2048,15 @@ export default function FixturesScreen() {
           </Animated.View>
         )}
       </View>
+
+      <ManageFavouritesModal
+        visible={showManageFavourites}
+        onClose={() => setShowManageFavourites(false)}
+        favouriteKeys={favouriteKeys}
+        onReorder={handleReorderFavourites}
+        onRemove={handleRemoveFavourite}
+        colors={colors}
+      />
 
       <CalendarPicker
         visible={showCalendar}

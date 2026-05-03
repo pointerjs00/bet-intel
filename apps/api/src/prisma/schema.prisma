@@ -283,6 +283,7 @@ model UserFavourite {
   sport     Sport
   /// Competition name, country name, or team name depending on type
   targetKey String
+  sortOrder Int @default(0)
   createdAt DateTime      @default(now())
 
   @@unique([userId, type, sport, targetKey])

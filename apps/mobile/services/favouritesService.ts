@@ -12,7 +12,9 @@ export const favouritesQueryKeys = {
   bySport: (sport?: string) => ['favourites', sport ?? 'all'] as const,
 };
 
-type FavouriteEntry = Pick<UserFavourite, 'id' | 'type' | 'sport' | 'targetKey' | 'createdAt'>;
+type FavouriteEntry = Pick<UserFavourite, 'id' | 'type' | 'sport' | 'targetKey' | 'createdAt'> & {
+  sortOrder?: number;
+};
 
 async function fetchFavourites(sport?: string): Promise<FavouriteEntry[]> {
   const params = sport ? { sport } : undefined;
@@ -54,7 +56,7 @@ export function useBulkSetFavouritesMutation() {
   return useMutation({
     mutationFn: async (payload: {
       sport: Sport;
-      favourites: Array<{ type: FavouriteType; targetKey: string }>;
+      favourites: Array<{ type: FavouriteType; targetKey: string; sortOrder?: number }>;
     }) => {
       const { data } = await apiClient.put<ApiEnvelope<FavouriteEntry[]>>('/favourites/bulk', payload);
       return data.data;

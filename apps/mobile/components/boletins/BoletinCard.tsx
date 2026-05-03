@@ -86,9 +86,6 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
   const imageShareScale = useSharedValue(1);
   const deleteScale = useSharedValue(1);
 
-  // Resolve ATP player photos using the same reference data as the create screen.
-  // React Query deduplicates concurrent calls and serves cached data (staleTime 24h).
-  // Only fetch tennis teams when the boletin actually contains tennis items.
   const hasTennis = useMemo(() => boletin.items.some((i) => i.sport === Sport.TENNIS), [boletin.items]);
   const { data: atpTeams } = useTeams({ sport: 'TENNIS', competition: 'ATP Tour' }, { enabled: hasTennis });
   const { data: wtaTeams } = useTeams({ sport: 'TENNIS', competition: 'WTA Tour' }, { enabled: hasTennis });
@@ -173,35 +170,35 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
         {boletin.name || `Boletim com ${boletin.items.length} seleç${boletin.items.length === 1 ? 'ão' : 'ões'}`}
       </Text>
 
-      {/* Metrics */}
+      {/* Metrics — PATCHED: raised boxes, no emoji, uppercase labels, monospace values */}
       <View style={styles.metricsRow}>
-        <View style={styles.metric}>
-          <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>💰 Stake</Text>
+        <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Stake</Text>
           <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
         </View>
-        <View style={styles.metric}>
-          <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>🎯 Odds</Text>
+        <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
+          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Odds</Text>
           <Text style={[styles.metricValue, { color: colors.gold }]}>{formatOdds(boletin.totalOdds)}</Text>
         </View>
         {boletin.status === BoletinStatus.LOST ? (
-          <View style={styles.metric}>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>
-              {boletin.isFreebet ? '🎁 Freebet' : '📉 Perdido'}
+          <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>
+              {boletin.isFreebet ? 'Freebet' : 'Perdido'}
             </Text>
             <Text style={[styles.metricValue, { color: boletin.isFreebet ? colors.info : colors.danger }]}>
               {boletin.isFreebet ? 'Grátis' : `-${formatCurrency(boletin.stake)}`}
             </Text>
           </View>
         ) : boletin.status === BoletinStatus.CASHOUT ? (
-          <View style={styles.metric}>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>💵 Cashout</Text>
+          <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Cashout</Text>
             <Text style={[styles.metricValue, { color: colors.gold }]}>
               {formatCurrency(boletin.cashoutAmount ?? boletin.actualReturn ?? '0')}
             </Text>
           </View>
         ) : (
-          <View style={styles.metric}>
-            <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>💸 Retorno</Text>
+          <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Retorno</Text>
             <Text style={[styles.metricValue, { color: colors.primary }]}>
               {formatCurrency(boletin.actualReturn ?? boletin.potentialReturn)}
             </Text>
@@ -237,9 +234,12 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
                   variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
                 />
 
-                {/* Selection & odds */}
+                {/* Selection — PATCHED: split into two Text elements, odds right-aligned in gold */}
                 <Text numberOfLines={1} style={[styles.previewMeta, { color: colors.textMuted, flex: 1 }]}>
-                  {'  '}{item.selection} @ {formatOdds(item.oddValue)}
+                  {'  '}{item.selection}
+                </Text>
+                <Text style={[styles.previewOdds, { color: colors.gold }]}>
+                  {formatOdds(item.oddValue)}
                 </Text>
 
                 {/* Insights button */}
@@ -475,9 +475,9 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 22,
+    borderRadius: 18,
     borderWidth: 1,
-    gap: 14,
+    gap: 10,
     overflow: 'hidden',
     padding: 16,
   },
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     top: 0,
-    width: 5,
+    width: 3,
   },
   headerRow: {
     alignItems: 'center',
@@ -513,16 +513,47 @@ const styles = StyleSheet.create({
   siteLogo: { borderRadius: 3, height: 14, width: 14 },
   siteBadgeName: { fontSize: 11, fontWeight: '700' },
   date: { fontSize: 12, fontWeight: '700' },
-  name: { fontSize: 20, fontWeight: '900', lineHeight: 26, marginLeft: 8, },
-  metricsRow: { flexDirection: 'row', gap: 12, marginLeft: 8, },
-  metric: { flex: 1, gap: 4 },
-  metricLabel: { fontSize: 12, fontWeight: '600' },
-  metricValue: { fontSize: 14, fontWeight: '800' },
-  resultDot: { borderRadius: 4, flexShrink: 0, height: 8, width: 8, marginLeft: 8, },
-  previewList: { gap: 6 },
+  name: { fontSize: 20, fontWeight: '900', lineHeight: 26, marginLeft: 8 },
+  metricsRow: {
+    flexDirection: 'row',
+    gap: 2,
+    marginLeft: 8,
+  },
+  metric: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 2,
+  },
+  metricLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  metricValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  resultDot: { borderRadius: 4, flexShrink: 0, height: 8, width: 8, marginLeft: 8 },
+  previewList: { gap: 4 },
   previewRow: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   previewVs: { flexShrink: 0, fontSize: 11, fontWeight: '500' },
-  previewMeta: { flexShrink: 1, fontSize: 12, fontWeight: '600', minWidth: 0 },
+  previewMeta: {
+    flexShrink: 1,
+    fontSize: 11,
+    fontWeight: '500',
+    minWidth: 0,
+  },
+  previewOdds: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
+    fontWeight: '700',
+    flexShrink: 0,
+    marginLeft: 4,
+  },
   previewMore: { fontSize: 12, fontWeight: '600', marginLeft: 8 },
   expandedList: { gap: 8 },
   expandedItem: {

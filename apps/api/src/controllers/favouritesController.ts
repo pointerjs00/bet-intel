@@ -37,6 +37,7 @@ const bulkSetSchema = z.object({
     z.object({
       type: z.nativeEnum(FavouriteType),
       targetKey: z.string().min(1).max(200),
+      sortOrder: z.number().int().optional(),
     }),
   ),
 });
@@ -54,7 +55,7 @@ export async function listFavouritesHandler(req: Request, res: Response): Promis
         userId,
         ...(sport ? { sport: sport as Sport } : {}),
       },
-      orderBy: [{ sport: 'asc' }, { type: 'asc' }, { targetKey: 'asc' }],
+      orderBy: [{ sport: 'asc' }, { sortOrder: 'asc' }, { type: 'asc' }, { targetKey: 'asc' }],
       select: { id: true, type: true, sport: true, targetKey: true, createdAt: true },
     });
 
@@ -109,17 +110,23 @@ export async function bulkSetFavouritesHandler(req: Request, res: Response): Pro
 
     await prisma.$transaction([
       prisma.userFavourite.deleteMany({ where: { userId, sport } }),
-      ...favourites.map((f) =>
+      ...favourites.map((f, index) =>
         prisma.userFavourite.create({
-          data: { userId, type: f.type, sport, targetKey: f.targetKey },
+          data: {
+            userId,
+            type: f.type,
+            sport,
+            targetKey: f.targetKey,
+            sortOrder: f.sortOrder ?? index,  // <-- persist position
+          },
         }),
       ),
     ]);
 
     const result = await prisma.userFavourite.findMany({
       where: { userId, sport },
-      orderBy: [{ type: 'asc' }, { targetKey: 'asc' }],
-      select: { id: true, type: true, sport: true, targetKey: true, createdAt: true },
+      orderBy: [{ sortOrder: 'asc' }, { targetKey: 'asc' }],  // <-- order by sortOrder
+      select: { id: true, type: true, sport: true, targetKey: true, sortOrder: true, createdAt: true },
     });
 
     ok(res, result);
