@@ -25,7 +25,11 @@ export async function injuriesSyncJob() {
         const affectedTeamKeys = new Set<string>();
 
         for (const entry of injuries) {
-          const teamNormKey = normaliseTeamName(entry.team?.name ?? '');
+          if (!entry.player?.id || !entry.team?.name) continue;
+
+          const teamNormKey   = normaliseTeamName(entry.team.name);
+          const playerName    = entry.player.name ?? '';
+          const playerNormKey = normaliseTeamName(playerName);
           affectedTeamKeys.add(`${teamNormKey}:${league.apiFootballId}`);
 
           await prisma.playerAvailability.upsert({
@@ -38,7 +42,9 @@ export async function injuriesSyncJob() {
               },
             },
             update: {
-              reason:    entry.player.reason,
+              playerName,
+              playerNormKey,
+              reason:    entry.player.reason   ?? null,
               startDate: entry.player.start ? new Date(entry.player.start) : null,
               endDate:   entry.player.end   ? new Date(entry.player.end)   : null,
               syncedAt:  new Date(),
@@ -47,14 +53,14 @@ export async function injuriesSyncJob() {
               leagueId:   league.apiFootballId,
               leagueName: league.name,
               season,
-              teamId:        entry.team?.id ?? null,
-              teamName:      entry.team?.name ?? '',
+              teamId:     entry.team.id   ?? null,
+              teamName:   entry.team.name,
               teamNormKey,
               playerId:      entry.player.id,
-              playerName:    entry.player.name,
-              playerNormKey: normaliseTeamName(entry.player.name),
-              type:      entry.player.type ?? 'Injury',
-              reason:    entry.player.reason,
+              playerName,
+              playerNormKey,
+              type:      entry.player.type  ?? 'Injury',
+              reason:    entry.player.reason ?? null,
               startDate: entry.player.start ? new Date(entry.player.start) : null,
               endDate:   entry.player.end   ? new Date(entry.player.end)   : null,
             },
