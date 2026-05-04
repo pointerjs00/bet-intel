@@ -2,6 +2,19 @@ import { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
 
+const COMPETITION_ALIASES: Record<string, string> = {
+  'Primeira Liga':          'Liga Portugal Betclic',
+  'Liga NOS':               'Liga Portugal Betclic',
+  'Liga Portugal':          'Liga Portugal Betclic',
+  'Champions League':       'UEFA Champions League',
+  'Europa League':          'UEFA Europa League',
+  'Conference League':      'UEFA Conference League',
+};
+
+function resolveCompetition(name: string): string {
+  return COMPETITION_ALIASES[name] ?? name;
+}
+
 function ok<T>(res: Response, data: T): void {
   res.json({ success: true, data });
 }
@@ -27,29 +40,28 @@ function fail(res: Response, err: unknown): void {
  * so the query never returns empty just because of a missing param.
  */
 
-// Add this helper (same as in fixtureController.ts)
-function normaliseSeason(season: string | undefined): string | undefined {
-  if (!season) return undefined;
-  // "2025-26" → "2025", "2025" → "2025" 
-  return season.includes('-') ? season.split('-')[0] : season;
-}
-
 export async function leagueTableHandler(req: Request, res: Response): Promise<void> {
   try {
     const { competition, season } = req.query as Record<string, string | undefined>;
-
     if (!competition) {
       res.status(400).json({ success: false, error: 'competition is required' });
       return;
     }
-    
 
-    // Normalise "2025-26" → "2025" to match API-Football storage format
-    const resolvedSeason = normaliseSeason(season);
+    const resolvedCompetition = resolveCompetition(competition);
+    let resolvedSeason = season;
+    if (!resolvedSeason) {
+      const latest = await prisma.teamStat.findFirst({
+        where: { competition: { equals: resolvedCompetition, mode: 'insensitive' } },
+        orderBy: { season: 'desc' },
+        select: { season: true },
+      });
+      resolvedSeason = latest?.season;
+    }
 
     const rows = await prisma.teamStat.findMany({
       where: {
-        competition: { equals: competition, mode: 'insensitive' },
+        competition: { equals: resolvedCompetition, mode: 'insensitive' },
         ...(resolvedSeason ? { season: resolvedSeason } : {}),
       },
       orderBy: [{ position: 'asc' }, { points: 'desc' }],
