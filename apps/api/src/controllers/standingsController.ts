@@ -13,29 +13,20 @@ function fail(res: Response, err: unknown): void {
   res.status(500).json({ success: false, error: 'Erro interno do servidor' });
 }
 
-/**
- * Normalise season strings so both API-Football format ("2025") and the
- * legacy OpenFootball format ("2025-26") resolve to the same DB rows.
- *
- * API-Football syncs TeamStat rows with season = "2025" (single year).
- * The mobile client may send "2025-26" — we strip the suffix before querying.
- */
-function normaliseSeason(season: string | undefined): string | undefined {
-  if (!season) return undefined;
-  return season.includes('-') ? season.split('-')[0] : season;
-}
-
 // ─── GET /api/fixtures/standings ─────────────────────────────────────────────
 
 /**
  * Returns the league table for a given competition + season.
- * competition — exact competition name string (e.g. "Premier League")
- * season      — "2025" or "2025-26" (both accepted, normalised internally)
+ *
+ * Season is passed through as-is — no normalisation.
+ * DB stores "2025-26" (set by getCurrentSeason() in fixturesSync / fixtureService).
+ * The mobile client sends "2025-26" (CURRENT_SEASON constant in teamStatsService).
+ * They match exactly — no conversion needed.
+ *
+ * If no season is provided, we find the most recent season for that competition
+ * so the query never returns empty just because of a missing param.
  */
-export async function leagueTableHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function leagueTableHandler(req: Request, res: Response): Promise<void> {
   try {
     const { competition, season } = req.query as Record<string, string | undefined>;
 
@@ -44,17 +35,25 @@ export async function leagueTableHandler(
       return;
     }
 
-    const normSeason = normaliseSeason(season);
+    // If no season supplied, auto-detect the most recent one for this competition
+    let resolvedSeason = season;
+    if (!resolvedSeason) {
+      const latest = await prisma.teamStat.findFirst({
+        where: { competition: { equals: competition, mode: 'insensitive' } },
+        orderBy: { season: 'desc' },
+        select: { season: true },
+      });
+      resolvedSeason = latest?.season;
+    }
 
     const rows = await prisma.teamStat.findMany({
       where: {
         competition: { equals: competition, mode: 'insensitive' },
-        ...(normSeason ? { season: normSeason } : {}),
+        ...(resolvedSeason ? { season: resolvedSeason } : {}),
       },
       orderBy: [{ position: 'asc' }, { points: 'desc' }],
     });
 
-    // Compute derived fields that the mobile TeamStatData type expects
     const data = rows.map((r) => ({
       ...r,
       goalDifference: r.goalsFor - r.goalsAgainst,
@@ -72,22 +71,14 @@ export async function leagueTableHandler(
 
 // ─── GET /api/fixtures/team-stats ────────────────────────────────────────────
 
-export async function teamStatsHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function teamStatsHandler(req: Request, res: Response): Promise<void> {
   try {
-    const { team, competition, season } = req.query as Record<
-      string,
-      string | undefined
-    >;
+    const { team, competition, season } = req.query as Record<string, string | undefined>;
 
     if (!team) {
       res.status(400).json({ success: false, error: 'team is required' });
       return;
     }
-
-    const normSeason = normaliseSeason(season);
 
     const rows = await prisma.teamStat.findMany({
       where: {
@@ -95,7 +86,7 @@ export async function teamStatsHandler(
         ...(competition
           ? { competition: { contains: competition, mode: 'insensitive' } }
           : {}),
-        ...(normSeason ? { season: normSeason } : {}),
+        ...(season ? { season } : {}),
       },
       orderBy: { season: 'desc' },
     });
@@ -122,9 +113,7 @@ export async function h2hHandler(req: Request, res: Response): Promise<void> {
     const { homeTeam, awayTeam } = req.query as Record<string, string | undefined>;
 
     if (!homeTeam || !awayTeam) {
-      res
-        .status(400)
-        .json({ success: false, error: 'homeTeam and awayTeam are required' });
+      res.status(400).json({ success: false, error: 'homeTeam and awayTeam are required' });
       return;
     }
 
@@ -154,10 +143,7 @@ export async function h2hHandler(req: Request, res: Response): Promise<void> {
 
 // ─── GET /api/fixtures/competition-stats ─────────────────────────────────────
 
-export async function competitionStatsHandler(
-  req: Request,
-  res: Response,
-): Promise<void> {
+export async function competitionStatsHandler(req: Request, res: Response): Promise<void> {
   try {
     const { competition, season } = req.query as Record<string, string | undefined>;
 
@@ -166,15 +152,13 @@ export async function competitionStatsHandler(
       return;
     }
 
-    const normSeason = normaliseSeason(season);
-
     const fixtures = await prisma.fixture.findMany({
       where: {
         competition: { contains: competition, mode: 'insensitive' },
         status: 'FINISHED',
         homeScore: { not: null },
         awayScore: { not: null },
-        ...(normSeason ? { season: normSeason } : {}),
+        ...(season ? { season } : {}),
       },
       orderBy: { kickoffAt: 'desc' },
       take: 1000,
@@ -186,62 +170,44 @@ export async function competitionStatsHandler(
     }
 
     const played = fixtures.length;
-    let totalGoals = 0;
-    let btts = 0;
-    let over25 = 0;
-    let over15 = 0;
-    let biggestWin = fixtures[0]!;
-    let biggestWinMargin = 0;
-    let highestScoring = fixtures[0]!;
-    let highestTotal = 0;
+    let totalGoals = 0, btts = 0, over25 = 0, over15 = 0;
+    let biggestWin = fixtures[0]!, biggestWinMargin = 0;
+    let highestScoring = fixtures[0]!, highestTotal = 0;
 
     for (const f of fixtures) {
       const hg = f.homeScore!;
       const ag = f.awayScore!;
       const total = hg + ag;
       const margin = Math.abs(hg - ag);
-
       totalGoals += total;
       if (hg > 0 && ag > 0) btts++;
       if (total > 2) over25++;
       if (total > 1) over15++;
-      if (margin > biggestWinMargin) {
-        biggestWinMargin = margin;
-        biggestWin = f;
-      }
-      if (total > highestTotal) {
-        highestTotal = total;
-        highestScoring = f;
-      }
+      if (margin > biggestWinMargin) { biggestWinMargin = margin; biggestWin = f; }
+      if (total > highestTotal)      { highestTotal = total;       highestScoring = f; }
     }
 
-    const data = {
+    ok(res, {
       competition,
-      season: normSeason ?? (fixtures[0]?.season ?? ''),
+      season: season ?? fixtures[0]?.season ?? '',
       played,
       avgGoalsPerMatch: totalGoals / played,
-      bttsRate: btts / played,
+      bttsRate:  btts  / played,
       over25Rate: over25 / played,
       over15Rate: over15 / played,
       biggestWin: {
         margin: biggestWinMargin,
-        homeTeam: biggestWin.homeTeam,
-        awayTeam: biggestWin.awayTeam,
-        homeScore: biggestWin.homeScore!,
-        awayScore: biggestWin.awayScore!,
+        homeTeam: biggestWin.homeTeam, awayTeam: biggestWin.awayTeam,
+        homeScore: biggestWin.homeScore!, awayScore: biggestWin.awayScore!,
         date: biggestWin.kickoffAt.toISOString(),
       },
       highestScoring: {
         total: highestTotal,
-        homeTeam: highestScoring.homeTeam,
-        awayTeam: highestScoring.awayTeam,
-        homeScore: highestScoring.homeScore!,
-        awayScore: highestScoring.awayScore!,
+        homeTeam: highestScoring.homeTeam, awayTeam: highestScoring.awayTeam,
+        homeScore: highestScoring.homeScore!, awayScore: highestScoring.awayScore!,
         date: highestScoring.kickoffAt.toISOString(),
       },
-    };
-
-    ok(res, data);
+    });
   } catch (err) {
     fail(res, err);
   }
