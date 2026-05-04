@@ -43,12 +43,17 @@ function fail(res: Response, err: unknown): void {
 export async function leagueTableHandler(req: Request, res: Response): Promise<void> {
   try {
     const { competition, season } = req.query as Record<string, string | undefined>;
+
+    console.log('[leagueTable] incoming request:', { competition, season, headers: req.headers['user-agent'] });
+
     if (!competition) {
       res.status(400).json({ success: false, error: 'competition is required' });
       return;
     }
 
     const resolvedCompetition = resolveCompetition(competition);
+    console.log('[leagueTable] resolved competition:', resolvedCompetition);
+
     let resolvedSeason = season;
     if (!resolvedSeason) {
       const latest = await prisma.teamStat.findFirst({
@@ -57,6 +62,7 @@ export async function leagueTableHandler(req: Request, res: Response): Promise<v
         select: { season: true },
       });
       resolvedSeason = latest?.season;
+      console.log('[leagueTable] auto-detected season:', resolvedSeason);
     }
 
     const rows = await prisma.teamStat.findMany({
@@ -66,6 +72,8 @@ export async function leagueTableHandler(req: Request, res: Response): Promise<v
       },
       orderBy: [{ position: 'asc' }, { points: 'desc' }],
     });
+
+    console.log('[leagueTable] rows returned:', rows.length);
 
     const data = rows.map((r) => ({
       ...r,
@@ -78,6 +86,7 @@ export async function leagueTableHandler(req: Request, res: Response): Promise<v
 
     ok(res, data);
   } catch (err) {
+    console.log('[leagueTable] error:', err);
     fail(res, err);
   }
 }
