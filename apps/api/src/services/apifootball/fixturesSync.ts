@@ -1,7 +1,8 @@
 // apps/api/src/services/apifootball/fixturesSync.ts
 //
-// Replaces fixtureService.ts (OpenFootball). Fetches upcoming and recent fixtures
-// from API-Football and upserts them into the Fixture table.
+// Fetches upcoming and recent fixtures from API-Football and upserts them
+// into the Fixture table. After each sync, recomputes TeamStat rows so that
+// league tables stay up to date.
 
 import { prisma } from '../../prisma';
 import { apiFootball } from '../apiFootballClient';
@@ -10,6 +11,8 @@ import { normaliseTeamName } from '../../utils/nameNormalisation';
 import { canonicalToApiFootballSeason, getCurrentSeason } from '../../utils/seasonUtils';
 import { logger } from '../../utils/logger';
 import { runJob } from '../../utils/runJob';
+// Bridge: recompute standings from finished fixtures until standingsSync.ts is built
+import { recomputeTeamStats } from '../fixtureService';
 
 const LIVE_STATUSES     = new Set(['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP']);
 const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'ABD', 'AWD', 'WO', 'CANC']);
@@ -21,12 +24,12 @@ function mapStatus(short: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' {
 }
 
 async function upsertFixture(f: any, leagueName: string, season: string): Promise<boolean> {
-  const homeTeam    = f.teams.home.name as string;
-  const awayTeam    = f.teams.away.name as string;
-  const kickoffAt   = new Date(f.fixture.date);
-  const status      = mapStatus(f.fixture.status?.short ?? 'NS');
-  const round       = (f.league?.round as string | null) ?? null;
-  const apiId       = f.fixture.id as number;
+  const homeTeam  = f.teams.home.name as string;
+  const awayTeam  = f.teams.away.name as string;
+  const kickoffAt = new Date(f.fixture.date);
+  const status    = mapStatus(f.fixture.status?.short ?? 'NS');
+  const round     = (f.league?.round as string | null) ?? null;
+  const apiId     = f.fixture.id as number;
 
   const shared = {
     homeTeamNormKey:  normaliseTeamName(homeTeam),
@@ -64,7 +67,7 @@ async function upsertFixture(f: any, leagueName: string, season: string): Promis
     });
     return true;
   } catch {
-    // Slow path: a record from OpenFootball exists for the same match — link it
+    // Slow path: a record without apiFootballId exists for the same match — link it
     const kickoffDate = kickoffAt.toISOString().split('T')[0];
     const existing = await prisma.fixture.findFirst({
       where: {
@@ -86,7 +89,6 @@ async function upsertFixture(f: any, leagueName: string, season: string): Promis
       return true;
     }
 
-    // Nothing to link — create with a different unique key strategy
     try {
       await prisma.fixture.create({
         data: {
@@ -124,7 +126,7 @@ async function syncLeague(
     ...(recentResp?.response  ?? []),
   ];
 
-  // Deduplicate
+  // Deduplicate by fixture ID
   const seen = new Set<number>();
   const unique = all.filter((f) => {
     if (seen.has(f.fixture.id)) return false;
@@ -165,12 +167,23 @@ export async function fixturesSyncJob(): Promise<void> {
       }
     }
 
+    // ── Recompute TeamStat standings from finished fixtures ──────────────────
+    // This keeps league tables populated until the dedicated API-Football
+    // standings sync (standingsSync.ts) is built and running.
+    try {
+      logger.info('[fixturesSync] Recomputing team stats from finished fixtures…');
+      const { teams, competitions } = await recomputeTeamStats();
+      logger.info(`[fixturesSync] TeamStat recompute done: ${teams} teams, ${competitions} competitions`);
+    } catch (err: any) {
+      logger.warn(`[fixturesSync] TeamStat recompute failed (non-fatal): ${err.message}`);
+    }
+
     const remaining = await apiFootball.getRemainingCalls();
     return { recordsUpserted: totalUpserted, apiCallsMade: totalCalls, apiCallsRemaining: remaining };
   });
 }
 
-// Startup helper — mirrors the old ensureFixturesFresh from fixtureService.ts
+// Startup helper
 export async function ensureFixturesFresh(): Promise<void> {
   const count = await prisma.fixture.count({ where: { status: 'SCHEDULED' } });
   if (count > 0) {
