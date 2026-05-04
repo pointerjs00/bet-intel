@@ -296,7 +296,7 @@ type SortKey = 'default' | 'home' | 'away';
 
 function TableContent({
   competition,
-  season = '2025-26',
+  season = '2025',
   highlightTeams = [],
   onClose,
   embedded = false,

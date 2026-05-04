@@ -1,121 +1,20 @@
 /**
- * Fixture ingestion service.
+ * fixtureService.ts — DEPRECATED
  *
- * Fetches fixture schedules from openfootball JSON feeds and upserts them into
- * the Fixture table. Used by the weekly refresh job and on first startup.
+ * This file previously fetched fixtures from openfootball JSON feeds.
+ * The project now uses API-Football exclusively via:
+ *   apps/api/src/services/apifootball/fixturesSync.ts
  *
- * Data source: https://github.com/openfootball/football.json
- * Timezone:    All kickoff times are interpreted as Europe/Lisbon local time.
+ * All exports below are kept as no-ops so that any call sites that haven't
+ * been updated yet don't crash. Remove this file once all references are
+ * gone (search for `fixtureService` imports).
  */
 
-import { prisma } from '../prisma';
-import { redis } from '../utils/redis';
 import { logger } from '../utils/logger';
-import { normaliseTeamName } from '../utils/nameNormalisation';
-import { resolveAlias } from '../utils/teamAliases';
-
-const OPENFOOTBALL_BASE = 'https://raw.githubusercontent.com/openfootball/football.json/master/';
-const FIXTURES_LAST_UPDATED_KEY = 'fixtures:last-updated-at';
-const PRIMARY_SEASON = '2025-26';
-const FALLBACK_SEASON = '2024-25';
-
-// ─── League manifest ──────────────────────────────────────────────────────────
-
-interface LeagueEntry {
-  key: string;
-  competition: string;
-  country: string;
-}
-
-const LEAGUE_MANIFEST: LeagueEntry[] = [
-  { key: 'pt.1', competition: 'Liga Portugal Betclic', country: 'Portugal' },
-  { key: 'pt.2', competition: 'Liga Portugal 2',       country: 'Portugal' },
-  { key: 'en.1', competition: 'Premier League',        country: 'England' },
-  { key: 'en.2', competition: 'Championship',          country: 'England' },
-  { key: 'es.1', competition: 'La Liga',               country: 'Spain' },
-  { key: 'es.2', competition: 'La Liga 2',             country: 'Spain' },
-  { key: 'de.1', competition: 'Bundesliga',            country: 'Germany' },
-  { key: 'de.2', competition: '2. Bundesliga',         country: 'Germany' },
-  { key: 'it.1', competition: 'Serie A',               country: 'Italy' },
-  { key: 'it.2', competition: 'Serie B',               country: 'Italy' },
-  { key: 'fr.1', competition: 'Ligue 1',               country: 'France' },
-  { key: 'fr.2', competition: 'Ligue 2',               country: 'France' },
-  { key: 'nl.1', competition: 'Eredivisie',            country: 'Netherlands' },
-  { key: 'be.1', competition: 'Pro League',            country: 'Belgium' },
-  { key: 'tr.1', competition: 'Süper Lig',             country: 'Turkey' },
-  { key: 'cl',   competition: 'UEFA Champions League', country: 'Europe' },
-  { key: 'el',   competition: 'UEFA Europa League',    country: 'Europe' },
-];
-
-// ─── openfootball JSON types ──────────────────────────────────────────────────
-
-interface OpenFootballMatch {
-  round?: string;
-  date: string;
-  time?: string;
-  team1: string;
-  team2: string;
-  score?: { ht?: [number, number]; ft?: [number, number] };
-}
-
-interface OpenFootballLeague {
-  name?: string;
-  matches: OpenFootballMatch[];
-}
-
-// ─── Timezone helper ──────────────────────────────────────────────────────────
-
-/**
- * Converts a date + time string expressed in Europe/Lisbon local time to a UTC Date.
- * Lisbon is UTC+0 (winter/WET) or UTC+1 (summer/WEST). We try both offsets and
- * pick the one whose round-trip through Intl matches the intended local time.
- */
-function parseAsLisbonLocal(date: string, time?: string): Date {
-  const [year, month, day] = date.split('-').map(Number);
- 
-  // No time published yet — store as a clean midnight UTC placeholder.
-  // The CSV patch jobs will fill in the real time later.
-  if (!time) {
-    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0));
-  }
- 
-  const [hour, minute] = time.split(':').map(Number);
- 
-  const fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Europe/Lisbon',
-    year: 'numeric', month: 'numeric', day: 'numeric',
-    hour: 'numeric', minute: 'numeric',
-    hour12: false,
-  });
- 
-  // Lisbon is between UTC+0 (winter/WET) and UTC+1 (summer/WEST) — try both
-  for (const offsetHours of [1, 0]) {
-    const candidate = new Date(Date.UTC(year, month - 1, day, hour - offsetHours, minute, 0));
-    const parts = fmt.formatToParts(candidate);
-    const get = (t: string) => parseInt(parts.find((p) => p.type === t)?.value ?? '0');
-    if (get('hour') % 24 === hour && get('minute') === minute && get('day') === day) {
-      return candidate;
-    }
-  }
- 
-  // Fallback: treat as UTC+0 (winter/WET)
-  return new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
-}
-
-// ─── Fetch helpers ────────────────────────────────────────────────────────────
-
-async function fetchLeague(season: string, key: string): Promise<OpenFootballLeague | null> {
-  const url = `${OPENFOOTBALL_BASE}${season}/${key}.json`;
-  try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) return null;
-    return await res.json() as OpenFootballLeague;
-  } catch {
-    return null;
-  }
-}
-
-// ─── Main ingestion ───────────────────────────────────────────────────────────
+import {
+  fixturesSyncJob,
+  ensureFixturesFresh as apiFootballEnsureFixturesFresh,
+} from './apifootball/fixturesSync';
 
 export interface IngestResult {
   upserted: number;
@@ -123,244 +22,42 @@ export interface IngestResult {
   fallbacks: number;
 }
 
-export async function ingestFixtures(): Promise<IngestResult> {
-  let totalUpserted = 0;
-  let leaguesFetched = 0;
-  let fallbackCount = 0;
-
-  for (const league of LEAGUE_MANIFEST) {
-    let data = await fetchLeague(PRIMARY_SEASON, league.key);
-    let season = PRIMARY_SEASON;
-
-    if (!data) {
-      logger.warn(`[fixtureService] ${PRIMARY_SEASON}/${league.key} not found — trying ${FALLBACK_SEASON}`);
-      data = await fetchLeague(FALLBACK_SEASON, league.key);
-      season = FALLBACK_SEASON;
-      fallbackCount++;
-    }
-
-    if (!data) {
-      logger.warn(`[fixtureService] ${league.key} unavailable for both seasons — skipping`);
-      continue;
-    }
-
-    leaguesFetched++;
-    let upserted = 0;
-
-    for (const match of data.matches ?? []) {
-      try {
-        const kickoffAt = parseAsLisbonLocal(match.date, match.time);
-        const hasScore = match.score?.ft != null;
-        const homeScore = hasScore ? (match.score!.ft![0] ?? null) : null;
-        const awayScore = hasScore ? (match.score!.ft![1] ?? null) : null;
-        const htHomeScore = match.score?.ht?.[0] ?? null;
-        const htAwayScore = match.score?.ht?.[1] ?? null;
-        const status = hasScore ? 'FINISHED' : 'SCHEDULED';
-        const round = match.round ?? '';
-
-        await prisma.fixture.upsert({
-          where: {
-            fixture_unique: {
-              homeTeam: match.team1,
-              awayTeam: match.team2,
-              season,
-              round,
-            },
-          },
-          update: {
-            kickoffAt, homeScore, awayScore, htHomeScore, htAwayScore, status,
-            homeTeamNormKey: resolveAlias(normaliseTeamName(match.team1)),
-            awayTeamNormKey: resolveAlias(normaliseTeamName(match.team2)),
-          },
-          create: {
-            homeTeam: match.team1,
-            awayTeam: match.team2,
-            homeTeamNormKey: resolveAlias(normaliseTeamName(match.team1)),
-            awayTeamNormKey: resolveAlias(normaliseTeamName(match.team2)),
-            competition: league.competition,
-            country: league.country,
-            sport: 'FOOTBALL',
-            kickoffAt,
-            season,
-            round,
-            homeScore,
-            awayScore,
-            htHomeScore,
-            htAwayScore,
-            status,
-          },
-        });
-        upserted++;
-      } catch (err) {
-        logger.warn(`[fixtureService] Failed to upsert ${match.team1} vs ${match.team2} (${match.round ?? '?'})`, {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
-
-    totalUpserted += upserted;
-    logger.info(`[fixtureService] ${league.competition} (${season}): ${upserted} fixtures upserted`);
-  }
-
-  // Invalidate /fixtures/upcoming cache
-  try {
-    const keys = await redis.keys('fixtures:upcoming:*');
-    if (keys.length > 0) {
-      await redis.del(...keys);
-      logger.info(`[fixtureService] Invalidated ${keys.length} fixture cache keys`);
-    }
-  } catch {
-    // Non-critical
-  }
-
-  await redis.set(FIXTURES_LAST_UPDATED_KEY, new Date().toISOString()).catch(() => {});
-
-  await recomputeTeamStats();
-
-  logger.info(`[fixtureRefresh] ${leaguesFetched} leagues fetched, ${totalUpserted} fixtures upserted (${fallbackCount} fallbacks to ${FALLBACK_SEASON})`);
-  return { upserted: totalUpserted, leagues: leaguesFetched, fallbacks: fallbackCount };
-}
-
 export interface RecomputeResult {
   teams: number;
   competitions: number;
 }
 
-export async function recomputeTeamStats(): Promise<RecomputeResult> {
-  interface MatchRecord {
-    date: Date;
-    gf: number;
-    ga: number;
-    isHome: boolean;
-    htGf: number | null;
-    htGa: number | null;
-  }
-  interface Accum {
-    team: string;
-    competition: string;
-    season: string;
-    country: string;
-    matches: MatchRecord[];
-  }
-
-  const fixtures = await prisma.fixture.findMany({
-    where: { status: 'FINISHED', homeScore: { not: null }, awayScore: { not: null } },
-    orderBy: { kickoffAt: 'asc' },
-  });
-
-  const map = new Map<string, Accum>();
-  const key = (team: string, comp: string, season: string) => `${team}|||${comp}|||${season}`;
-  const get = (team: string, comp: string, season: string, country: string): Accum => {
-    const k = key(team, comp, season);
-    if (!map.has(k)) map.set(k, { team, competition: comp, season, country, matches: [] });
-    return map.get(k)!;
-  };
-
-  for (const f of fixtures) {
-    const hg = f.homeScore!;
-    const ag = f.awayScore!;
-    get(f.homeTeam, f.competition, f.season, f.country).matches.push(
-      { date: f.kickoffAt, gf: hg, ga: ag, isHome: true, htGf: f.htHomeScore, htGa: f.htAwayScore },
-    );
-    get(f.awayTeam, f.competition, f.season, f.country).matches.push(
-      { date: f.kickoffAt, gf: ag, ga: hg, isHome: false, htGf: f.htAwayScore, htGa: f.htHomeScore },
-    );
-  }
-
-  const positioning: Array<{ id: string; competition: string; season: string; points: number; gd: number; gf: number }> = [];
-
-  for (const acc of map.values()) {
-    let played = 0, won = 0, drawn = 0, lost = 0, gf = 0, ga = 0;
-    let hW = 0, hD = 0, hL = 0, hGF = 0, hGA = 0;
-    let aW = 0, aD = 0, aL = 0, aGF = 0, aGA = 0;
-    let cs = 0, fts = 0, btts = 0, ov25 = 0, ov15 = 0;
-    let htW = 0, htD = 0, htL = 0, cb = 0;
-    const form: string[] = [];
-
-    for (const m of acc.matches) {
-      played++; gf += m.gf; ga += m.ga;
-      const total = m.gf + m.ga;
-      if (m.ga === 0) cs++;
-      if (m.gf === 0) fts++;
-      if (m.gf > 0 && m.ga > 0) btts++;
-      if (total > 2) ov25++;
-      if (total > 1) ov15++;
-
-      if (m.gf > m.ga) { won++; form.push('W'); }
-      else if (m.gf === m.ga) { drawn++; form.push('D'); }
-      else { lost++; form.push('L'); }
-
-      if (m.isHome) {
-        hGF += m.gf; hGA += m.ga;
-        if (m.gf > m.ga) hW++; else if (m.gf === m.ga) hD++; else hL++;
-      } else {
-        aGF += m.gf; aGA += m.ga;
-        if (m.gf > m.ga) aW++; else if (m.gf === m.ga) aD++; else aL++;
-      }
-
-      if (m.htGf !== null && m.htGa !== null) {
-        if (m.htGf > m.htGa) htW++;
-        else if (m.htGf === m.htGa) htD++;
-        else { htL++; if (m.gf >= m.ga) cb++; }
-      }
-    }
-
-    const points = won * 3 + drawn;
-    const formLast5 = form.slice(-5).join(',') || null;
-    const data = {
-      country: acc.country, played, won, drawn, lost,
-      goalsFor: gf, goalsAgainst: ga, points,
-      homeWon: hW, homeDrawn: hD, homeLost: hL, homeGoalsFor: hGF, homeGoalsAgainst: hGA,
-      awayWon: aW, awayDrawn: aD, awayLost: aL, awayGoalsFor: aGF, awayGoalsAgainst: aGA,
-      cleanSheets: cs, failedToScore: fts, bttsCount: btts, over25Count: ov25, over15Count: ov15,
-      formLast5, htWon: htW, htDrawn: htD, htLost: htL, comebacks: cb,
-    };
-
-    const result = await prisma.teamStat.upsert({
-      where: { teamstat_unique: { team: acc.team, competition: acc.competition, season: acc.season } },
-      update: data,
-      create: { team: acc.team, competition: acc.competition, season: acc.season, ...data },
-      select: { id: true },
-    });
-    positioning.push({ id: result.id, competition: acc.competition, season: acc.season, points, gd: gf - ga, gf });
-  }
-
-  // Assign table positions within each competition+season
-  const groups = new Map<string, typeof positioning>();
-  for (const ts of positioning) {
-    const k = `${ts.competition}|||${ts.season}`;
-    if (!groups.has(k)) groups.set(k, []);
-    groups.get(k)!.push(ts);
-  }
-  for (const group of groups.values()) {
-    group.sort((a, b) => b.points - a.points || b.gd - a.gd || b.gf - a.gf);
-    await Promise.all(group.map((ts, i) =>
-      prisma.teamStat.update({ where: { id: ts.id }, data: { position: i + 1 } }),
-    ));
-  }
-
-  logger.info(`[TeamStats] Recomputed stats for ${map.size} team-seasons across ${groups.size} competition-seasons`);
-  return { teams: map.size, competitions: groups.size };
+/**
+ * @deprecated Use fixturesSyncJob() from apifootball/fixturesSync instead.
+ * Delegates to the API-Football sync so any existing job triggers still work.
+ */
+export async function ingestFixtures(): Promise<IngestResult> {
+  logger.warn(
+    '[fixtureService] ingestFixtures() is deprecated — delegating to API-Football fixturesSyncJob()',
+  );
+  await fixturesSyncJob();
+  return { upserted: 0, leagues: 0, fallbacks: 0 };
 }
 
 /**
- * Ingests fixtures only when the stored data is older than maxAgeHours.
- * Safe to call on every startup.
+ * @deprecated TeamStat recomputation is now driven by the API-Football
+ * standings sync (standingsSync.ts) rather than being derived from raw
+ * fixture scores. This is a no-op.
+ */
+export async function recomputeTeamStats(): Promise<RecomputeResult> {
+  logger.warn(
+    '[fixtureService] recomputeTeamStats() is deprecated and is now a no-op. ' +
+      'TeamStat rows are populated by the API-Football standings sync job.',
+  );
+  return { teams: 0, competitions: 0 };
+}
+
+/**
+ * @deprecated Use ensureFixturesFresh() from apifootball/fixturesSync instead.
  */
 export async function ensureFixturesFresh(maxAgeHours = 24 * 7): Promise<void> {
-  try {
-    const lastUpdated = await redis.get(FIXTURES_LAST_UPDATED_KEY);
-    if (lastUpdated) {
-      const ageMs = Date.now() - Date.parse(lastUpdated);
-      if (Number.isFinite(ageMs) && ageMs < maxAgeHours * 60 * 60 * 1000) {
-        logger.info('[fixtureService] Fixture data is fresh — skipping ingestion', { lastUpdated });
-        return;
-      }
-    }
-    await ingestFixtures();
-  } catch (err) {
-    logger.warn('[fixtureService] ensureFixturesFresh failed (non-fatal)', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
+  logger.warn(
+    '[fixtureService] ensureFixturesFresh() is deprecated — delegating to API-Football',
+  );
+  await apiFootballEnsureFixturesFresh();
 }

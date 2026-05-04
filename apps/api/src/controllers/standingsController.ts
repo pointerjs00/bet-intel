@@ -1,185 +1,248 @@
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
 
-function ok(res: Response, data: unknown) {
-  return res.json({ success: true, data });
+function ok<T>(res: Response, data: T): void {
+  res.json({ success: true, data });
 }
 
-function fail(res: Response, err: unknown, context: string) {
-  logger.error(`[Standings] ${context}`, { error: err instanceof Error ? err.message : String(err) });
-  return res.status(500).json({ success: false, error: 'Erro interno do servidor' });
+function fail(res: Response, err: unknown): void {
+  if (err instanceof Error) {
+    logger.error('Standings controller error', { error: err.message, stack: err.stack });
+  }
+  res.status(500).json({ success: false, error: 'Erro interno do servidor' });
 }
 
-// Longest token with 4+ chars from a name, accent-stripped, for fuzzy DB search
-function primaryToken(name: string): string {
-  const tokens = name
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length >= 4);
-  return tokens.sort((a, b) => b.length - a.length)[0] ?? name.toLowerCase();
+/**
+ * Normalise season strings so both API-Football format ("2025") and the
+ * legacy OpenFootball format ("2025-26") resolve to the same DB rows.
+ *
+ * API-Football syncs TeamStat rows with season = "2025" (single year).
+ * The mobile client may send "2025-26" — we strip the suffix before querying.
+ */
+function normaliseSeason(season: string | undefined): string | undefined {
+  if (!season) return undefined;
+  return season.includes('-') ? season.split('-')[0] : season;
 }
 
 // ─── GET /api/fixtures/standings ─────────────────────────────────────────────
 
-export async function leagueTableHandler(req: Request, res: Response) {
+/**
+ * Returns the league table for a given competition + season.
+ * competition — exact competition name string (e.g. "Premier League")
+ * season      — "2025" or "2025-26" (both accepted, normalised internally)
+ */
+export async function leagueTableHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
   try {
-    const competition = String(req.query.competition ?? '');
-    const season = String(req.query.season ?? '2025-26');
-    if (!competition) return res.status(400).json({ success: false, error: 'competition required' });
+    const { competition, season } = req.query as Record<string, string | undefined>;
+
+    if (!competition) {
+      res.status(400).json({ success: false, error: 'competition is required' });
+      return;
+    }
+
+    const normSeason = normaliseSeason(season);
 
     const rows = await prisma.teamStat.findMany({
       where: {
-        competition: { contains: competition, mode: 'insensitive' },
-        season,
+        competition: { equals: competition, mode: 'insensitive' },
+        ...(normSeason ? { season: normSeason } : {}),
       },
-      orderBy: [{ points: 'desc' }, { goalsFor: 'desc' }],
+      orderBy: [{ position: 'asc' }, { points: 'desc' }],
     });
 
+    // Compute derived fields that the mobile TeamStatData type expects
     const data = rows.map((r) => ({
       ...r,
       goalDifference: r.goalsFor - r.goalsAgainst,
-      bttsRate: r.played > 0 ? Math.round((r.bttsCount / r.played) * 100) : 0,
-      over25Rate: r.played > 0 ? Math.round((r.over25Count / r.played) * 100) : 0,
+      bttsRate:       r.played > 0 ? r.bttsCount  / r.played : 0,
+      over25Rate:     r.played > 0 ? r.over25Count / r.played : 0,
+      over15Rate:     r.played > 0 ? r.over15Count / r.played : 0,
+      cleanSheetRate: r.played > 0 ? r.cleanSheets / r.played : 0,
     }));
 
-    return ok(res, data);
+    ok(res, data);
   } catch (err) {
-    return fail(res, err, 'leagueTableHandler');
+    fail(res, err);
   }
 }
 
 // ─── GET /api/fixtures/team-stats ────────────────────────────────────────────
 
-export async function teamStatsHandler(req: Request, res: Response) {
+export async function teamStatsHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
   try {
-    const team = String(req.query.team ?? '');
-    const competition = String(req.query.competition ?? '');
-    const season = String(req.query.season ?? '2025-26');
-    if (!team) return res.status(400).json({ success: false, error: 'team required' });
+    const { team, competition, season } = req.query as Record<
+      string,
+      string | undefined
+    >;
 
-    const token = primaryToken(team);
-    const where: Record<string, unknown> = {
-      team: { contains: token, mode: 'insensitive' },
-    };
-    if (competition) where.competition = { contains: competition, mode: 'insensitive' };
-    if (season) where.season = season;
+    if (!team) {
+      res.status(400).json({ success: false, error: 'team is required' });
+      return;
+    }
+
+    const normSeason = normaliseSeason(season);
 
     const rows = await prisma.teamStat.findMany({
-      where: where as any,
-      orderBy: { updatedAt: 'desc' },
-      take: 5,
+      where: {
+        team: { contains: team, mode: 'insensitive' },
+        ...(competition
+          ? { competition: { contains: competition, mode: 'insensitive' } }
+          : {}),
+        ...(normSeason ? { season: normSeason } : {}),
+      },
+      orderBy: { season: 'desc' },
     });
 
     const data = rows.map((r) => ({
       ...r,
       goalDifference: r.goalsFor - r.goalsAgainst,
-      bttsRate: r.played > 0 ? Math.round((r.bttsCount / r.played) * 100) : 0,
-      over25Rate: r.played > 0 ? Math.round((r.over25Count / r.played) * 100) : 0,
-      over15Rate: r.played > 0 ? Math.round((r.over15Count / r.played) * 100) : 0,
-      cleanSheetRate: r.played > 0 ? Math.round((r.cleanSheets / r.played) * 100) : 0,
+      bttsRate:       r.played > 0 ? r.bttsCount  / r.played : 0,
+      over25Rate:     r.played > 0 ? r.over25Count / r.played : 0,
+      over15Rate:     r.played > 0 ? r.over15Count / r.played : 0,
+      cleanSheetRate: r.played > 0 ? r.cleanSheets / r.played : 0,
     }));
 
-    return ok(res, data);
+    ok(res, data);
   } catch (err) {
-    return fail(res, err, 'teamStatsHandler');
+    fail(res, err);
   }
 }
 
 // ─── GET /api/fixtures/h2h ───────────────────────────────────────────────────
 
-export async function h2hHandler(req: Request, res: Response) {
+export async function h2hHandler(req: Request, res: Response): Promise<void> {
   try {
-    const homeTeam = String(req.query.homeTeam ?? '');
-    const awayTeam = String(req.query.awayTeam ?? '');
-    if (!homeTeam || !awayTeam) {
-      return res.status(400).json({ success: false, error: 'homeTeam and awayTeam required' });
-    }
+    const { homeTeam, awayTeam } = req.query as Record<string, string | undefined>;
 
-    const htok = primaryToken(homeTeam);
-    const atok = primaryToken(awayTeam);
+    if (!homeTeam || !awayTeam) {
+      res
+        .status(400)
+        .json({ success: false, error: 'homeTeam and awayTeam are required' });
+      return;
+    }
 
     const fixtures = await prisma.fixture.findMany({
       where: {
         status: 'FINISHED',
         OR: [
           {
-            homeTeam: { contains: htok, mode: 'insensitive' },
-            awayTeam: { contains: atok, mode: 'insensitive' },
+            homeTeam: { contains: homeTeam, mode: 'insensitive' },
+            awayTeam: { contains: awayTeam, mode: 'insensitive' },
           },
           {
-            homeTeam: { contains: atok, mode: 'insensitive' },
-            awayTeam: { contains: htok, mode: 'insensitive' },
+            homeTeam: { contains: awayTeam, mode: 'insensitive' },
+            awayTeam: { contains: homeTeam, mode: 'insensitive' },
           },
         ],
       },
       orderBy: { kickoffAt: 'desc' },
-      take: 10,
+      take: 20,
     });
 
-    return ok(res, fixtures);
+    ok(res, fixtures);
   } catch (err) {
-    return fail(res, err, 'h2hHandler');
+    fail(res, err);
   }
 }
 
 // ─── GET /api/fixtures/competition-stats ─────────────────────────────────────
 
-export async function competitionStatsHandler(req: Request, res: Response) {
+export async function competitionStatsHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
   try {
-    const competition = String(req.query.competition ?? '');
-    const season = String(req.query.season ?? '2025-26');
-    if (!competition) return res.status(400).json({ success: false, error: 'competition required' });
+    const { competition, season } = req.query as Record<string, string | undefined>;
+
+    if (!competition) {
+      res.status(400).json({ success: false, error: 'competition is required' });
+      return;
+    }
+
+    const normSeason = normaliseSeason(season);
 
     const fixtures = await prisma.fixture.findMany({
       where: {
         competition: { contains: competition, mode: 'insensitive' },
-        season,
         status: 'FINISHED',
         homeScore: { not: null },
         awayScore: { not: null },
+        ...(normSeason ? { season: normSeason } : {}),
       },
-      select: { homeScore: true, awayScore: true, homeTeam: true, awayTeam: true, kickoffAt: true },
+      orderBy: { kickoffAt: 'desc' },
+      take: 1000,
     });
 
-    if (fixtures.length === 0) return ok(res, null);
+    if (fixtures.length === 0) {
+      ok(res, null);
+      return;
+    }
 
-    let totalGoals = 0, bttsCount = 0, over25Count = 0, over15Count = 0;
-    let biggestWin = { margin: 0, homeTeam: '', awayTeam: '', homeScore: 0, awayScore: 0, date: '' };
-    let highestScoring = { total: 0, homeTeam: '', awayTeam: '', homeScore: 0, awayScore: 0, date: '' };
+    const played = fixtures.length;
+    let totalGoals = 0;
+    let btts = 0;
+    let over25 = 0;
+    let over15 = 0;
+    let biggestWin = fixtures[0]!;
+    let biggestWinMargin = 0;
+    let highestScoring = fixtures[0]!;
+    let highestTotal = 0;
 
     for (const f of fixtures) {
       const hg = f.homeScore!;
       const ag = f.awayScore!;
       const total = hg + ag;
-      totalGoals += total;
-      if (hg > 0 && ag > 0) bttsCount++;
-      if (total > 2) over25Count++;
-      if (total > 1) over15Count++;
-
       const margin = Math.abs(hg - ag);
-      if (margin > biggestWin.margin) {
-        biggestWin = { margin, homeTeam: f.homeTeam, awayTeam: f.awayTeam, homeScore: hg, awayScore: ag, date: f.kickoffAt.toISOString() };
+
+      totalGoals += total;
+      if (hg > 0 && ag > 0) btts++;
+      if (total > 2) over25++;
+      if (total > 1) over15++;
+      if (margin > biggestWinMargin) {
+        biggestWinMargin = margin;
+        biggestWin = f;
       }
-      if (total > highestScoring.total) {
-        highestScoring = { total, homeTeam: f.homeTeam, awayTeam: f.awayTeam, homeScore: hg, awayScore: ag, date: f.kickoffAt.toISOString() };
+      if (total > highestTotal) {
+        highestTotal = total;
+        highestScoring = f;
       }
     }
 
-    const played = fixtures.length;
-    return ok(res, {
+    const data = {
       competition,
-      season,
+      season: normSeason ?? (fixtures[0]?.season ?? ''),
       played,
-      avgGoalsPerMatch: Math.round((totalGoals / played) * 100) / 100,
-      bttsRate: Math.round((bttsCount / played) * 100),
-      over25Rate: Math.round((over25Count / played) * 100),
-      over15Rate: Math.round((over15Count / played) * 100),
-      biggestWin,
-      highestScoring,
-    });
+      avgGoalsPerMatch: totalGoals / played,
+      bttsRate: btts / played,
+      over25Rate: over25 / played,
+      over15Rate: over15 / played,
+      biggestWin: {
+        margin: biggestWinMargin,
+        homeTeam: biggestWin.homeTeam,
+        awayTeam: biggestWin.awayTeam,
+        homeScore: biggestWin.homeScore!,
+        awayScore: biggestWin.awayScore!,
+        date: biggestWin.kickoffAt.toISOString(),
+      },
+      highestScoring: {
+        total: highestTotal,
+        homeTeam: highestScoring.homeTeam,
+        awayTeam: highestScoring.awayTeam,
+        homeScore: highestScoring.homeScore!,
+        awayScore: highestScoring.awayScore!,
+        date: highestScoring.kickoffAt.toISOString(),
+      },
+    };
+
+    ok(res, data);
   } catch (err) {
-    return fail(res, err, 'competitionStatsHandler');
+    fail(res, err);
   }
 }

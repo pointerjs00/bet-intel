@@ -2043,8 +2043,8 @@ export default function FixturesScreen() {
     });
   }, [slideAnim]);
 
-  const upcomingQuery = useUpcomingFixtures(5475);
-  const recentQuery = useRecentFixtures(365);
+  const upcomingQuery = useUpcomingFixtures(14);
+  const recentQuery   = useRecentFixtures(3);
   const isLoading = upcomingQuery.isLoading || recentQuery.isLoading;
 
   const rawFixtures = useMemo<Fixture[]>(() => {

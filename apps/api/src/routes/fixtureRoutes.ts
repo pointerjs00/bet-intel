@@ -1,5 +1,9 @@
 import { Router } from 'express';
-import { listFixturesHandler, upcomingFixturesHandler } from '../controllers/fixtureController';
+import {
+  listFixturesHandler,
+  upcomingFixturesHandler,
+  recentFixturesHandler,
+} from '../controllers/fixtureController';
 import {
   leagueTableHandler,
   teamStatsHandler,
@@ -9,10 +13,14 @@ import {
 
 export const fixtureRouter = Router();
 
-// Specific routes before parametric ones
-fixtureRouter.get('/upcoming', upcomingFixturesHandler);
-fixtureRouter.get('/standings', leagueTableHandler);
-fixtureRouter.get('/team-stats', teamStatsHandler);
-fixtureRouter.get('/h2h', h2hHandler);
+// ── Specific named routes MUST come before the parametric /:id routes ─────────
+
+fixtureRouter.get('/upcoming',         upcomingFixturesHandler);
+fixtureRouter.get('/recent',           recentFixturesHandler);   // ← NEW
+fixtureRouter.get('/standings',        leagueTableHandler);
+fixtureRouter.get('/team-stats',       teamStatsHandler);
+fixtureRouter.get('/h2h',              h2hHandler);
 fixtureRouter.get('/competition-stats', competitionStatsHandler);
+
+// ── Generic list (used by boletim builder, search, etc.) ──────────────────────
 fixtureRouter.get('/', listFixturesHandler);

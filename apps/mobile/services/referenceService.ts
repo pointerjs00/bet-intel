@@ -46,27 +46,28 @@ export function useCompetitions(sport?: string) {
   return useQuery({
     queryKey: ['reference', 'competitions', sport],
     queryFn: () => fetchCompetitions(sport),
-    staleTime: 24 * 60 * 60 * 1000, // 24h — reference data rarely changes
+    staleTime: 24 * 60 * 60 * 1000,
   });
 }
 
-export function useTeams(params?: {
-  sport?: string;
-  competition?: string;
-  search?: string;
-}, options?: { enabled?: boolean }) {
+export function useTeams(
+  params?: { sport?: string; competition?: string; search?: string },
+  options?: { enabled?: boolean },
+) {
   const normalizedCompetition = params?.competition?.toLowerCase();
-  const isTennisRankingPool = params?.sport === 'TENNIS' && (
-    normalizedCompetition?.includes('atp tour')
-    || normalizedCompetition?.includes('wta tour')
-  );
+  const isTennisRankingPool =
+    params?.sport === 'TENNIS' &&
+    (normalizedCompetition?.includes('atp tour') ||
+      normalizedCompetition?.includes('wta tour'));
 
   return useQuery({
     queryKey: ['reference', 'teams', params],
     queryFn: () => fetchTeams(params),
     staleTime: isTennisRankingPool ? 5 * 60 * 1000 : 24 * 60 * 60 * 1000,
     refetchOnMount: isTennisRankingPool ? 'always' : true,
-    enabled: (options?.enabled !== false) && (!params?.search || params.search.length >= 2),
+    enabled:
+      options?.enabled !== false &&
+      (!params?.search || params.search.length >= 2),
   });
 }
 
@@ -78,16 +79,24 @@ export function useMarkets(sport?: string) {
   });
 }
 
+// ─── Fixtures ─────────────────────────────────────────────────────────────────
+
 async function fetchUpcomingFixtures(days: number): Promise<Fixture[]> {
   try {
-    const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures/upcoming', { params: { days } });
-    return data.data;
+    const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures/upcoming', {
+      params: { days },
+    });
+    return data.data ?? [];
   } catch {
     return [];
   }
 }
 
-export function useUpcomingFixtures(days = 7) {
+/**
+ * Upcoming (SCHEDULED) fixtures for the next N days.
+ * Pass a sensible value — the screen uses 14.
+ */
+export function useUpcomingFixtures(days = 14) {
   return useQuery({
     queryKey: ['fixtures', 'upcoming', days],
     queryFn: () => fetchUpcomingFixtures(days),
@@ -98,16 +107,22 @@ export function useUpcomingFixtures(days = 7) {
 
 async function fetchRecentFixtures(days: number): Promise<Fixture[]> {
   try {
-    const to = new Date().toISOString();
-    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-    const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures', { params: { from, to } });
+    // Dedicated endpoint that filters status IN (FINISHED, LIVE) server-side,
+    // so there is no overlap with upcoming SCHEDULED fixtures.
+    const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures/recent', {
+      params: { days },
+    });
     return data.data ?? [];
   } catch {
     return [];
   }
 }
 
-export function useRecentFixtures(days = 7) {
+/**
+ * Recently finished / live fixtures for the past N days.
+ * Pass a sensible value — the screen uses 3.
+ */
+export function useRecentFixtures(days = 3) {
   return useQuery({
     queryKey: ['fixtures', 'recent', days],
     queryFn: () => fetchRecentFixtures(days),

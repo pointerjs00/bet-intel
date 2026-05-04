@@ -70,7 +70,14 @@ export interface TeamInsight {
   avgCornersAgainst: number;
   avgYellowCards:    number;
   formLast5:         ('W' | 'D' | 'L')[];
-  recentMatches:     { date: string; homeTeam: string; awayTeam: string; homeScore: number | null; awayScore: number | null; isHome: boolean }[];
+  recentMatches:     {
+    date: string;
+    homeTeam: string;
+    awayTeam: string;
+    homeScore: number | null;
+    awayScore: number | null;
+    isHome: boolean;
+  }[];
 }
 
 export interface H2HInsight {
@@ -82,7 +89,13 @@ export interface H2HInsight {
   avgGoalsPerGame: number;
   over25Pct:       number;
   bttsPct:         number;
-  recentMatches:   { date: string; homeTeam: string; awayTeam: string; homeScore: number | null; awayScore: number | null }[];
+  recentMatches:   {
+    date: string;
+    homeTeam: string;
+    awayTeam: string;
+    homeScore: number | null;
+    awayScore: number | null;
+  }[];
 }
 
 export interface SharpOdds {
@@ -94,7 +107,7 @@ export interface SharpOdds {
   impliedAway:  number | null;
   matchDate:    string | null;
   note:         string;
-  matchLabel?: string
+  matchLabel?:  string;
 }
 
 export interface FixtureInsight {
@@ -115,8 +128,7 @@ export interface FixtureInsight {
   homeTopScorers: { playerName: string; goals: number; assists?: number }[];
   awayTopScorers: { playerName: string; goals: number; assists?: number }[];
   standings:      { home: TeamStatData | null; away: TeamStatData | null };
-  // graceful degradation fallback
-  message?: string;
+  message?:       string;
 }
 
 export interface CompetitionStats {
@@ -127,43 +139,104 @@ export interface CompetitionStats {
   bttsRate: number;
   over25Rate: number;
   over15Rate: number;
-  biggestWin: { margin: number; homeTeam: string; awayTeam: string; homeScore: number; awayScore: number; date: string };
-  highestScoring: { total: number; homeTeam: string; awayTeam: string; homeScore: number; awayScore: number; date: string };
+  biggestWin: {
+    margin: number;
+    homeTeam: string;
+    awayTeam: string;
+    homeScore: number;
+    awayScore: number;
+    date: string;
+  };
+  highestScoring: {
+    total: number;
+    homeTeam: string;
+    awayTeam: string;
+    homeScore: number;
+    awayScore: number;
+    date: string;
+  };
+}
+
+// ─── Season normalisation ─────────────────────────────────────────────────────
+
+/**
+ * API-Football stores seasons as a single year: 2025, 2024, etc.
+ * Old OpenFootball data used "2025-26" / "2024-25" format.
+ * Strip the suffix so both formats resolve to the same DB rows.
+ *
+ * "2025-26" → "2025"
+ * "2024-25" → "2024"
+ * "2025"    → "2025"  (already correct, no-op)
+ */
+function normaliseSeason(season: string): string {
+  return season.includes('-') ? season.split('-')[0]! : season;
 }
 
 // ─── Request functions ────────────────────────────────────────────────────────
 
-async function fetchLeagueTable(competition: string, season: string): Promise<TeamStatData[]> {
+async function fetchLeagueTable(
+  competition: string,
+  season: string,
+): Promise<TeamStatData[]> {
   try {
-    const { data } = await apiClient.get('/fixtures/standings', { params: { competition, season } });
+    const { data } = await apiClient.get('/fixtures/standings', {
+      params: { competition, season: normaliseSeason(season) },
+    });
     return data.data ?? [];
   } catch {
     return [];
   }
 }
 
-async function fetchTeamStats(team: string, competition: string, season: string): Promise<TeamStatData[]> {
+async function fetchTeamStats(
+  team: string,
+  competition: string,
+  season: string,
+): Promise<TeamStatData[]> {
   try {
-    const { data } = await apiClient.get('/fixtures/team-stats', { params: { team, competition, season } });
+    const { data } = await apiClient.get('/fixtures/team-stats', {
+      params: { team, competition, season: normaliseSeason(season) },
+    });
     return data.data ?? [];
   } catch {
     return [];
   }
 }
 
-async function fetchH2H(homeTeam: string, awayTeam: string): Promise<H2HFixture[]> {
+async function fetchH2H(
+  homeTeam: string,
+  awayTeam: string,
+): Promise<H2HFixture[]> {
   try {
-    const { data } = await apiClient.get('/fixtures/h2h', { params: { homeTeam, awayTeam } });
+    const { data } = await apiClient.get('/fixtures/h2h', {
+      params: { homeTeam, awayTeam },
+    });
     return data.data ?? [];
   } catch {
     return [];
   }
 }
 
-async function fetchCompetitionStats(competition: string, season: string): Promise<CompetitionStats | null> {
+async function fetchCompetitionStats(
+  competition: string,
+  season: string,
+): Promise<CompetitionStats | null> {
   try {
-    const { data } = await apiClient.get('/fixtures/competition-stats', { params: { competition, season } });
+    const { data } = await apiClient.get('/fixtures/competition-stats', {
+      params: { competition, season: normaliseSeason(season) },
+    });
     return data.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchFixtureInsight(
+  fixtureId: string,
+): Promise<FixtureInsight | null> {
+  try {
+    const { data } = await apiClient.get(`/fixtures/${fixtureId}/insight`);
+    return data ?? null;
   } catch {
     return null;
   }
@@ -173,9 +246,14 @@ async function fetchCompetitionStats(competition: string, season: string): Promi
 
 const STALE = 60 * 60 * 1000; // 1 hour
 
-export function useLeagueTable(competition: string, season = '2025-26') {
+/**
+ * Season defaults to "2025" (API-Football format).
+ * The LeagueTableModal previously defaulted to "2025-26" — that is now
+ * normalised by normaliseSeason() before hitting the API, so both formats work.
+ */
+export function useLeagueTable(competition: string, season = '2025') {
   return useQuery({
-    queryKey: ['fixtures', 'standings', competition, season],
+    queryKey: ['fixtures', 'standings', competition, normaliseSeason(season)],
     queryFn: () => fetchLeagueTable(competition, season),
     enabled: competition.length > 0,
     staleTime: STALE,
@@ -188,11 +266,11 @@ export function useTeamStats(
   competition: string,
   options?: { enabled?: boolean; season?: string },
 ) {
-  const season = options?.season ?? '2025-26';
+  const season = options?.season ?? '2025';
   return useQuery({
-    queryKey: ['fixtures', 'team-stats', team, competition, season],
+    queryKey: ['fixtures', 'team-stats', team, competition, normaliseSeason(season)],
     queryFn: () => fetchTeamStats(team, competition, season),
-    enabled: (options?.enabled !== false) && team.length > 0,
+    enabled: options?.enabled !== false && team.length > 0,
     staleTime: STALE,
     retry: false,
   });
@@ -206,29 +284,23 @@ export function useHeadToHead(
   return useQuery({
     queryKey: ['fixtures', 'h2h', homeTeam, awayTeam],
     queryFn: () => fetchH2H(homeTeam, awayTeam),
-    enabled: (options?.enabled !== false) && homeTeam.length > 0 && awayTeam.length > 0,
+    enabled:
+      options?.enabled !== false &&
+      homeTeam.length > 0 &&
+      awayTeam.length > 0,
     staleTime: STALE,
     retry: false,
   });
 }
 
-export function useCompetitionStats(competition: string, season = '2025-26') {
+export function useCompetitionStats(competition: string, season = '2025') {
   return useQuery({
-    queryKey: ['fixtures', 'competition-stats', competition, season],
+    queryKey: ['fixtures', 'competition-stats', competition, normaliseSeason(season)],
     queryFn: () => fetchCompetitionStats(competition, season),
     enabled: competition.length > 0,
     staleTime: STALE,
     retry: false,
   });
-}
-
-async function fetchFixtureInsight(fixtureId: string): Promise<FixtureInsight | null> {
-  try {
-    const { data } = await apiClient.get(`/fixtures/${fixtureId}/insight`);
-    return data ?? null;
-  } catch {
-    return null;
-  }
 }
 
 export function useFixtureInsight(fixtureId: string | null) {
