@@ -23,7 +23,7 @@ import { initializeSocketServer } from './sockets';
 import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
 import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankingsJob';
 import { scheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
-import { ensureFixturesFresh } from './services/fixtureService';
+import { ensureFixturesFresh } from './services/apifootball/fixturesSync';
 import { fixtureRouter } from './routes/fixtureRoutes';
 import { footballDataRouter } from './routes/footballDataRoutes';
 import { seed as seedReferenceData } from './prisma/seed';

@@ -53,6 +53,9 @@ import { Input } from '../../components/ui/Input';
 import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useFavourites, useToggleFavouriteMutation, useBulkSetFavouritesMutation } from '../../services/favouritesService';
 import { FavouriteType } from '@betintel/shared';
+import { LeagueTableModal } from '../../components/fixtures/LeagueTableModal';
+import { useFixtureInsight, useLeagueTable } from '../../services/teamStatsService';
+import type { TeamStatData } from '../../services/teamStatsService';
 
 // ─── Country name mapping: English (fixture feed) → Portuguese (asset keys) ──
 
@@ -879,9 +882,424 @@ interface AddSheetProps {
 
 const SHEET_SNAP_COLLAPSED = 0.45; // fraction of screen height when partially open
 
+// ─── Insight Tab (new full-screen design) ────────────────────────────────────
+
+function InsightTab({ fixture }: { fixture: Fixture }) {
+  const { colors } = useTheme();
+  const { data: insight, isLoading, isError } = useFixtureInsight(fixture.id);
+
+  if (isLoading) {
+    return (
+      <View style={newInsightStyles.center}>
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={[newInsightStyles.loadingText, { color: colors.textMuted }]}>A carregar análise…</Text>
+      </View>
+    );
+  }
+
+  if (isError || !insight) {
+    return (
+      <View style={newInsightStyles.center}>
+        <Ionicons name="alert-circle-outline" size={40} color={colors.textMuted} />
+        <Text style={[newInsightStyles.loadingText, { color: colors.textMuted }]}>
+          Sem dados suficientes para este jogo.
+        </Text>
+      </View>
+    );
+  }
+
+  const home = insight.homeTeamAtHome ?? null;
+  const away = insight.awayTeamAway ?? null;
+
+  function pct(n: number | null | undefined): string {
+    if (n == null || !isFinite(n)) return '—';
+    return `${Math.round(n)}%`;
+  }
+  function fmt1(n: number | null | undefined): string {
+    if (n == null || !isFinite(n)) return '—';
+    return n.toFixed(1);
+  }
+
+  const FORM_COLOR: Record<string, string> = { W: '#22c55e', D: '#6b7280', L: '#ef4444' };
+  const FORM_LABEL: Record<string, string> = { W: 'V', D: 'E', L: 'D' };
+
+  function StandingsCard() {
+    const hs  = insight!.standings?.home  ?? null;
+    const as_ = insight!.standings?.away  ?? null;
+    if (!hs && !as_) return null;
+
+    function StatRow({ stat, teamName, isHome }: { stat: TeamStatData; teamName: string; isHome: boolean }) {
+      const gd     = stat.goalsFor - stat.goalsAgainst;
+      const gdStr  = gd >= 0 ? `+${gd}` : String(gd);
+      const color  = isHome ? '#22c55e' : '#ef4444';
+      return (
+        <View style={newInsightStyles.standingsRow}>
+          <View style={[newInsightStyles.standingsPosBox, { backgroundColor: `${color}20` }]}>
+            <Text style={[newInsightStyles.standingsPosText, { color }]}>{stat.position ?? '—'}</Text>
+          </View>
+          <Text style={newInsightStyles.standingsVenueIcon}>{isHome ? '🏠' : '✈️'}</Text>
+          <Text style={[newInsightStyles.standingsTeamName, { color: colors.textPrimary }]} numberOfLines={1}>{teamName}</Text>
+          {[stat.played, stat.won, stat.drawn, stat.lost].map((v, i) => (
+            <Text key={i} style={[newInsightStyles.standingsStat, { color: colors.textSecondary }]}>{v}</Text>
+          ))}
+          <Text style={[newInsightStyles.standingsStat, { color: gd >= 0 ? '#22c55e' : '#ef4444' }]}>{gdStr}</Text>
+          <Text style={[newInsightStyles.standingsStat, { color: colors.textPrimary, fontWeight: '800' }]}>{stat.points}</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={[newInsightStyles.standingsCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+        <View style={newInsightStyles.sectionHeaderRow}>
+          <Ionicons name="trophy-outline" size={14} color={colors.primary} />
+          <Text style={[newInsightStyles.sectionHeaderTitle, { color: colors.primary }]}>CLASSIFICAÇÃO</Text>
+        </View>
+        <View style={newInsightStyles.standingsHeaderRow}>
+          {(['#', '', 'J', 'V', 'E', 'D', 'DG', 'Pts'] as const).map((c, i) => (
+            <Text
+              key={i}
+              style={[
+                i === 0 ? newInsightStyles.standingsHeaderPos
+                  : i === 1 ? newInsightStyles.standingsHeaderTeam
+                  : newInsightStyles.standingsHeaderCol,
+                { color: colors.textMuted },
+              ]}
+            >{c}</Text>
+          ))}
+        </View>
+        {hs  && <StatRow stat={hs}  teamName={fixture.homeTeam} isHome={true}  />}
+        {as_ && <StatRow stat={as_} teamName={fixture.awayTeam} isHome={false} />}
+      </View>
+    );
+  }
+
+  function TeamCard({
+    team,
+    teamName,
+    venue,
+    venueLabel,
+    data,
+    injuries,
+    topScorers,
+  }: {
+    team: 'home' | 'away';
+    teamName: string;
+    venue: string;
+    venueLabel: string;
+    data: typeof home;
+    injuries: NonNullable<typeof insight>['homeInjuries'];
+    topScorers: NonNullable<typeof insight>['homeTopScorers'];
+  }) {
+    if (!data) return null;
+
+    const stats6 = [
+      { label: '+1.5',     value: pct(data.over15Pct) },
+      { label: '+2.5',     value: pct(data.over25Pct) },
+      { label: '+3.5',     value: pct(data.over35Pct) },
+      { label: 'BTTS',     value: pct(data.bttsPct) },
+      { label: 'B. ZERO',  value: pct(data.cleanSheetPct) },
+      { label: 'N. MARCOU',value: pct(data.failedToScorePct) },
+    ];
+
+    return (
+      <View style={[newInsightStyles.teamCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+        {/* Header */}
+        <View style={newInsightStyles.teamCardHeader}>
+          <Text style={newInsightStyles.teamCardVenueIcon}>{venue}</Text>
+          <Text style={[newInsightStyles.teamCardName, { color: colors.textPrimary }]}>{teamName}</Text>
+          <View style={[newInsightStyles.teamCardVenueBadge, { backgroundColor: colors.background }]}>
+            <Text style={[newInsightStyles.teamCardVenueText, { color: colors.textSecondary }]}>{venueLabel}</Text>
+          </View>
+        </View>
+
+        {/* Form last 5 */}
+        <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted }]}>ÚLTIMOS 5 JOGOS</Text>
+        <View style={newInsightStyles.formRow}>
+          {data.formLast5.map((r: string, i: number) => (
+            <View key={i} style={[newInsightStyles.formPill, { backgroundColor: FORM_COLOR[r] ?? colors.border }]}>
+              <Text style={newInsightStyles.formPillText}>{FORM_LABEL[r] ?? r}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={newInsightStyles.formLegend}>
+          {[{ color: '#22c55e', label: 'Vitória' }, { color: '#6b7280', label: 'Empate' }, { color: '#ef4444', label: 'Derrota' }].map((l) => (
+            <View key={l.label} style={newInsightStyles.legendItem}>
+              <View style={[newInsightStyles.legendDot, { backgroundColor: l.color }]} />
+              <Text style={[newInsightStyles.legendText, { color: colors.textMuted }]}>{l.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Key metrics row */}
+        <View style={[newInsightStyles.metricsRow, { borderColor: colors.border }]}>
+          {[
+            { value: fmt1(data.avgGoalsFor),     label: 'MÉD. GM',    color: colors.textPrimary },
+            { value: fmt1(data.avgGoalsAgainst), label: 'MÉD. GS',    color: colors.textPrimary },
+            { value: fmt1(data.avgCornersFor),   label: 'MÉD. CANTOS',color: colors.textPrimary },
+            { value: fmt1(data.avgYellowCards),  label: 'MÉD. AMA.',  color: '#f59e0b' },
+          ].map((m, i) => (
+            <React.Fragment key={m.label}>
+              {i > 0 && <View style={[newInsightStyles.metricDivider, { backgroundColor: colors.border }]} />}
+              <View style={newInsightStyles.metricItem}>
+                <Text style={[newInsightStyles.metricValue, { color: m.color }]}>{m.value}</Text>
+                <Text style={[newInsightStyles.metricLabel, { color: colors.textMuted }]}>{m.label}</Text>
+              </View>
+            </React.Fragment>
+          ))}
+        </View>
+
+        {/* 6-stat grid */}
+        <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted }]}>MERCADOS POPULARES</Text>
+        <View style={newInsightStyles.statsGrid}>
+          {stats6.map((s) => (
+            <View key={s.label} style={[newInsightStyles.statGridItem, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}25` }]}>
+              <Text style={[newInsightStyles.statGridValue, { color: colors.primary }]}>{s.value}</Text>
+              <Text style={[newInsightStyles.statGridLabel, { color: colors.textSecondary }]}>{s.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Injuries / suspensions */}
+        {injuries.length > 0 && (
+          <>
+            <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted }]}>BAIXAS</Text>
+            <View style={newInsightStyles.chipsRow}>
+              {injuries.slice(0, 6).map((inj, i) => (
+                <View key={i} style={[newInsightStyles.injuryChip, { backgroundColor: '#ef444418', borderColor: '#ef444435' }]}>
+                  <Ionicons
+                    name={inj.type === 'suspension' ? 'card-outline' : 'bandage-outline'}
+                    size={11} color="#ef4444"
+                  />
+                  <Text style={[newInsightStyles.injuryChipText, { color: '#ef4444' }]} numberOfLines={1}>
+                    {inj.playerName}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Top scorers */}
+        {topScorers.length > 0 && (
+          <>
+            <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted }]}>MARCADORES</Text>
+            {topScorers.slice(0, 4).map((s, i) => (
+              <View key={i} style={[newInsightStyles.scorerRow, { borderTopColor: colors.border }]}>
+                <Text style={[newInsightStyles.scorerRank, { color: colors.textMuted }]}>{i + 1}</Text>
+                <Text style={[newInsightStyles.scorerName, { color: colors.textPrimary }]} numberOfLines={1}>{s.playerName}</Text>
+                <View style={[newInsightStyles.scorerBadge, { backgroundColor: `${colors.primary}15` }]}>
+                  <Ionicons name="football-outline" size={11} color={colors.primary} />
+                  <Text style={[newInsightStyles.scorerGoals, { color: colors.primary }]}>{s.goals}</Text>
+                </View>
+                {(s.assists ?? 0) > 0 && (
+                  <View style={[newInsightStyles.scorerBadge, { backgroundColor: `${colors.textMuted}15` }]}>
+                    <Ionicons name="arrow-redo-outline" size={11} color={colors.textMuted} />
+                    <Text style={[newInsightStyles.scorerGoals, { color: colors.textMuted }]}>{s.assists}</Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </>
+        )}
+
+        <Text style={[newInsightStyles.sampleNote, { color: colors.textMuted }]}>
+          Baseado em {data.sampleSize} jogos {team === 'home' ? 'em casa' : 'fora'} esta época
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={newInsightStyles.scroll}>
+
+      {/* Season hint */}
+      <View style={[newInsightStyles.hintBanner, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}25` }]}>
+        <Ionicons name="bulb-outline" size={15} color={colors.primary} />
+        <Text style={[newInsightStyles.hintText, { color: colors.textSecondary }]}>
+          Dados desta época. As percentagens referem-se ao desempenho em casa (equipa da casa) e fora (equipa visitante).
+        </Text>
+      </View>
+
+      {/* Combined probability */}
+      {(insight.combinedOver25 != null || insight.combinedBtts != null) && (
+        <View style={[newInsightStyles.probCard, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}25` }]}>
+          <View style={newInsightStyles.probCardHeader}>
+            <Ionicons name="trending-up" size={14} color={colors.primary} />
+            <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>PROBABILIDADE COMBINADA</Text>
+          </View>
+          <Text style={[newInsightStyles.probCardSub, { color: colors.textSecondary }]}>
+            Estimativa baseada nos dados de ambas as equipas
+          </Text>
+          <View style={newInsightStyles.probRow}>
+            {insight.combinedOver25 != null && (
+              <View style={newInsightStyles.probItem}>
+                <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedOver25)}</Text>
+                <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Over 2.5 Golos</Text>
+                <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>3+ golos no jogo</Text>
+              </View>
+            )}
+            {insight.combinedOver25 != null && insight.combinedBtts != null && (
+              <View style={[newInsightStyles.probDivider, { backgroundColor: colors.border }]} />
+            )}
+            {insight.combinedBtts != null && (
+              <View style={newInsightStyles.probItem}>
+                <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedBtts)}</Text>
+                <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Ambas marcam</Text>
+                <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>as duas equipas marcam</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Standings */}
+      <StandingsCard />
+
+      {/* Home team card */}
+      {home != null && (
+        <TeamCard
+          team="home"
+          teamName={fixture.homeTeam}
+          venue="🏠"
+          venueLabel="Em casa"
+          data={home}
+          injuries={insight.homeInjuries ?? []}
+          topScorers={insight.homeTopScorers ?? []}
+        />
+      )}
+
+      {/* Away team card */}
+      {away != null && (
+        <TeamCard
+          team="away"
+          teamName={fixture.awayTeam}
+          venue="✈️"
+          venueLabel="Fora"
+          data={away}
+          injuries={insight.awayInjuries ?? []}
+          topScorers={insight.awayTopScorers ?? []}
+        />
+      )}
+
+      {/* H2H */}
+      {insight.h2h && insight.h2h.total > 0 && (
+        <View>
+          <View style={newInsightStyles.sectionHeaderRow}>
+            <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
+            <Text style={[newInsightStyles.sectionHeaderTitle, { color: colors.primary }]}>HEAD-TO-HEAD</Text>
+          </View>
+          <Text style={[newInsightStyles.sectionHeaderSub, { color: colors.textMuted }]}>
+            Histórico dos últimos {insight.h2h.total} confrontos directos
+          </Text>
+
+          <View style={[newInsightStyles.h2hCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+            <View style={newInsightStyles.h2hBarRow}>
+              <Text style={[newInsightStyles.h2hTeamName, { color: colors.textPrimary }]}>{fixture.homeTeam}</Text>
+              <View style={[newInsightStyles.h2hTrack, { backgroundColor: colors.border }]}>
+                <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.homeWins || 0.01, backgroundColor: '#22c55e' }]} />
+                <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.draws    || 0.01, backgroundColor: '#6b7280' }]} />
+                <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.awayWins || 0.01, backgroundColor: '#ef4444' }]} />
+              </View>
+              <Text style={[newInsightStyles.h2hTeamName, { color: colors.textPrimary, textAlign: 'right' }]}>{fixture.awayTeam}</Text>
+            </View>
+            <View style={newInsightStyles.formLegend}>
+              {[
+                { color: '#22c55e', label: 'Vitória casa' },
+                { color: '#6b7280', label: 'Empate' },
+                { color: '#ef4444', label: 'Vitória fora' },
+              ].map((l) => (
+                <View key={l.label} style={newInsightStyles.legendItem}>
+                  <View style={[newInsightStyles.legendDot, { backgroundColor: l.color }]} />
+                  <Text style={[newInsightStyles.legendText, { color: colors.textMuted }]}>{l.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={[newInsightStyles.h2hStatsRow, { borderTopColor: colors.border }]}>
+              {[
+                { value: String(insight.h2h.homeWins), label: 'V casa',     color: '#22c55e' },
+                { value: String(insight.h2h.draws),    label: 'Empates',    color: colors.textPrimary },
+                { value: String(insight.h2h.awayWins), label: 'V fora',     color: '#ef4444' },
+                { value: fmt1(insight.h2h.avgGoalsPerGame), label: 'Golos/jogo', color: colors.textPrimary },
+                { value: pct(insight.h2h.over25Pct),   label: '+2.5',       color: colors.primary },
+                { value: pct(insight.h2h.bttsPct),     label: 'BTTS',       color: colors.primary },
+              ].map((s) => (
+                <View key={s.label} style={newInsightStyles.h2hStatCol}>
+                  <Text style={[newInsightStyles.h2hStatValue, { color: s.color }]}>{s.value}</Text>
+                  <Text style={[newInsightStyles.h2hStatLabel, { color: colors.textMuted }]}>{s.label}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted, marginTop: 12 }]}>ÚLTIMOS RESULTADOS</Text>
+            {insight.h2h.recentMatches.slice(0, 5).map((m: any, i: number) => (
+              <View key={i} style={[newInsightStyles.h2hRow, { borderTopColor: colors.border }]}>
+                <Text style={[newInsightStyles.h2hDate, { color: colors.textMuted }]}>
+                  {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                </Text>
+                <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary }]}>{m.homeTeam}</Text>
+                <View style={[newInsightStyles.h2hScoreBadge, { backgroundColor: colors.background }]}>
+                  <Text style={[newInsightStyles.h2hScoreText, { color: colors.textPrimary }]}>
+                    {m.homeScore ?? '?'}–{m.awayScore ?? '?'}
+                  </Text>
+                </View>
+                <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary, textAlign: 'right' }]}>{m.awayTeam}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Pinnacle odds */}
+      {insight.sharpOdds?.pinnacleHome != null && (
+        <View>
+          <View style={newInsightStyles.sectionHeaderRow}>
+            <Ionicons name="trending-up" size={16} color={colors.primary} />
+            <Text style={[newInsightStyles.sectionHeaderTitle, { color: colors.primary }]}>ODDS PINNACLE (SHARP)</Text>
+          </View>
+          <Text style={[newInsightStyles.sectionHeaderSub, { color: colors.textMuted }]}>
+            Probabilidades implícitas do mercado de referência mundial
+          </Text>
+          <View style={[newInsightStyles.pinnacleCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+            <View style={newInsightStyles.pinnacleRow}>
+              {[
+                { label: '1 — Casa', odd: insight.sharpOdds.pinnacleHome, implied: insight.sharpOdds.impliedHome },
+                { label: 'X — Empate', odd: insight.sharpOdds.pinnacleDraw, implied: insight.sharpOdds.impliedDraw },
+                { label: '2 — Fora', odd: insight.sharpOdds.pinnacleAway, implied: insight.sharpOdds.impliedAway },
+              ].map(({ label, odd, implied }) => odd != null ? (
+                <View key={label} style={newInsightStyles.pinnacleCol}>
+                  <Text style={[newInsightStyles.pinnacleLabel, { color: colors.textMuted }]}>{label}</Text>
+                  <Text style={[newInsightStyles.pinnacleOdd, { color: colors.textPrimary }]}>{odd.toFixed(2)}</Text>
+                  {implied != null && (
+                    <View style={[newInsightStyles.impliedBadge, { backgroundColor: `${colors.primary}20` }]}>
+                      <Text style={[newInsightStyles.impliedText, { color: colors.primary }]}>{pct(implied * 100)} prob.</Text>
+                    </View>
+                  )}
+                </View>
+              ) : null)}
+            </View>
+            {insight.sharpOdds.matchLabel && (
+              <Text style={[newInsightStyles.pinnacleNote, { color: colors.textMuted, borderTopColor: colors.border }]}>
+                ⓘ Pinnacle closing odds — {insight.sharpOdds.matchLabel}
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Timestamp */}
+      <Text style={[newInsightStyles.timestamp, { color: colors.textMuted }]}>
+        ⏱ Análise calculada em {new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}, {new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+      </Text>
+
+      <View style={{ height: 32 }} />
+    </ScrollView>
+  );
+}
+
 // ─── Add-to-boletim sheet (mirrors boletim create screen) ─────────────────────
 
-// Replace the AddSheet function (everything from `function AddSheet` to the closing brace before `// ─── Fixture card`)
+type AddSheetTab = 'bet' | 'insight' | 'table';
 
 function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const { colors } = useTheme();
@@ -890,7 +1308,16 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
 
-  // Store
+  const [activeTab, setActiveTab] = useState<AddSheetTab>('bet');
+
+  useEffect(() => {
+    if (fixture) {
+      translateY.value = 0;
+      setActiveTab('bet');
+    }
+  }, [fixture?.id]);
+
+  // ── Store (unchanged) ──
   const storeItems       = useBoletinBuilderStore((s) => s.items);
   const storeStake       = useBoletinBuilderStore((s) => s.stake);
   const storeName        = useBoletinBuilderStore((s) => s.name);
@@ -913,7 +1340,6 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const save             = useBoletinBuilderStore((s) => s.save);
   const setItemEventDate = useBoletinBuilderStore((s) => s.setItemEventDate);
 
-  // Selection form state
   const [useCustom, setUseCustom]               = useState(false);
   const [market, setMarket]                     = useState('');
   const [useCustomMarket, setUseCustomMarket]   = useState(false);
@@ -923,9 +1349,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const [showSites, setShowSites]               = useState(false);
   const [showMarkets, setShowMarkets]           = useState(false);
 
-  // Markets query — same as create screen
   const marketsQuery = useMarkets(Sport.FOOTBALL);
-
   const marketSections = useMemo(() => {
     const data = marketsQuery.data ?? [];
     const grouped = new Map<string, typeof data>();
@@ -936,9 +1360,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
     }
     const ORDER = MARKET_CATEGORY_ORDER;
     const sortedCats = [...grouped.keys()].sort(
-      (a, b) =>
-        (ORDER.indexOf(a) === -1 ? 99 : ORDER.indexOf(a)) -
-        (ORDER.indexOf(b) === -1 ? 99 : ORDER.indexOf(b)),
+      (a, b) => (ORDER.indexOf(a) === -1 ? 99 : ORDER.indexOf(a)) - (ORDER.indexOf(b) === -1 ? 99 : ORDER.indexOf(b)),
     );
     const fHome = fixture?.homeTeam ?? '';
     const fAway = fixture?.awayTeam ?? '';
@@ -951,7 +1373,6 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
     }));
   }, [marketsQuery.data, fixture]);
 
-  // Auto-fill selection when market is self-describing
   useEffect(() => {
     if (!useCustomMarket && isSelfDescribing(market) && fixture) {
       setSelection(humanizeMarket(market, fixture.homeTeam, fixture.awayTeam));
@@ -960,50 +1381,25 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
     }
   }, [market, useCustomMarket, fixture]);
 
-  // Gesture-based drag to dismiss (react-native-reanimated + gesture-handler)
   const translateY = useSharedValue(0);
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateY: translateY.value }] }));
 
-  function dismiss() {
-    onClose();
-  }
+  function dismiss() { onClose(); }
 
   const dragGesture = Gesture.Pan()
-    .onUpdate((e) => {
-      if (e.translationY > 0) {
-        translateY.value = e.translationY;
-      }
-    })
+    .onUpdate((e) => { if (e.translationY > 0) translateY.value = e.translationY; })
     .onEnd((e) => {
       if (e.translationY > 120 || e.velocityY > 800) {
-        translateY.value = withTiming(800, { duration: 200 }, () => {
-          runOnJS(dismiss)();
-        });
+        translateY.value = withTiming(800, { duration: 200 }, () => runOnJS(dismiss)());
       } else {
         translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
     });
 
-  useEffect(() => {
-    if (fixture) {
-      translateY.value = 0;
-    }
-  }, [fixture]);
-
-  function resetSelectionForm() {
-    setMarket('');
-    setUseCustomMarket(false);
-    setSelection('');
-    setOdds('');
-  }
+  function resetSelectionForm() { setMarket(''); setUseCustomMarket(false); setSelection(''); setOdds(''); }
 
   const parsedOdds = parseFloat(odds.replace(',', '.'));
-  const effectiveSelection = selection.trim();
-  const effectiveMarket = useCustomMarket ? market.trim() : market.trim();
-  const canAddSelection =
-    !!fixture && !!effectiveMarket && !!effectiveSelection && parsedOdds >= 1.01;
+  const canAddSelection = !!fixture && !!market.trim() && !!selection.trim() && parsedOdds >= 1.01;
 
   const defaultName = useMemo(() => {
     if (!fixture) return '';
@@ -1016,15 +1412,15 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
     if (!fixture || !canAddSelection) return;
     Keyboard.dismiss();
     addItem({
-      id: `${fixture.id}-${effectiveMarket}-${effectiveSelection}-${Date.now()}`,
+      id: `${fixture.id}-${market}-${selection}-${Date.now()}`,
       homeTeam: fixture.homeTeam,
       homeTeamImageUrl: getFixtureTeamLogoUrl(fixture.homeTeam),
       awayTeam: fixture.awayTeam,
       awayTeamImageUrl: getFixtureTeamLogoUrl(fixture.awayTeam),
       competition: fixture.competition,
       sport: Sport.FOOTBALL,
-      market: humanizeMarket(effectiveMarket, fixture.homeTeam, fixture.awayTeam),
-      selection: effectiveSelection,
+      market: humanizeMarket(market, fixture.homeTeam, fixture.awayTeam),
+      selection,
       oddValue: parsedOdds,
       eventDate: fixture.kickoffAt,
     } as BoletinBuilderItem);
@@ -1034,10 +1430,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   };
 
   const handleSave = async () => {
-    if (storeItems.length === 0) {
-      showToast('Adiciona pelo menos uma seleção.', 'error');
-      return;
-    }
+    if (storeItems.length === 0) { showToast('Adiciona pelo menos uma seleção.', 'error'); return; }
     try {
       setIsSaving(true);
       const created = await save();
@@ -1048,31 +1441,27 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
       onClose();
       onAdded();
       router.push(`/boletins/${created.id}`);
-    } catch {
-      showToast('Não foi possível guardar o boletim.', 'error');
-    } finally {
-      setIsSaving(false);
-    }
+    } catch { showToast('Não foi possível guardar o boletim.', 'error'); }
+    finally { setIsSaving(false); }
   };
 
   if (!fixture) return null;
-
   const kickoffTime = formatKickoff(fixture.kickoffAt, fixture.country);
+
+  const TABS: { key: AddSheetTab; label: string; icon: string }[] = [
+    { key: 'bet', label: 'Apostar', icon: 'add-circle-outline' },
+    { key: 'insight', label: 'Análise', icon: 'bar-chart-outline' },
+    { key: 'table', label: 'Tabela', icon: 'trophy-outline' },
+  ];
 
   return (
     <Modal visible={!!fixture} transparent animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={bsStyles.overlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Animated.View style={[bsStyles.sheet, { backgroundColor: colors.background }, animatedStyle]}>
 
-          <Animated.View
-            style={[
-              bsStyles.sheet,
-              { backgroundColor: colors.background },
-              animatedStyle,
-            ]}
-          >
-            {/* ── Drag handle ── */}
+            {/* Drag handle */}
             <GestureDetector gesture={dragGesture}>
               <View style={bsStyles.dragArea}>
                 <View style={[bsStyles.handle, { backgroundColor: colors.border }]} />
@@ -1080,401 +1469,206 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
                   <Pressable hitSlop={12} onPress={onClose} style={bsStyles.closeBtn}>
                     <Ionicons name="chevron-down" size={22} color={colors.textSecondary} />
                   </Pressable>
-                  <Text style={[bsStyles.headerTitle, { color: colors.textPrimary }]}>
-                    Novo boletim
-                  </Text>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text style={[bsStyles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {fixture.homeTeam} vs {fixture.awayTeam}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>
+                      {fixture.competition} · {kickoffTime}
+                    </Text>
+                  </View>
                   <View style={{ width: 34 }} />
                 </View>
               </View>
             </GestureDetector>
 
-            <ScrollView
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={[
-                bsStyles.scrollContent,
-                { paddingBottom: insets.bottom + 90 },
-              ]}
-            >
-              {/* ══ 1. SELEÇÃO ══════════════════════════════════════════════ */}
-              <Text style={[bsStyles.sectionDivider, { color: colors.textSecondary }]}>
-                1. SELEÇÃO
-              </Text>
-
-              <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-                <Text style={[bsStyles.cardTitle, { color: colors.textPrimary }]}>
-                  Adicionar seleção
-                </Text>
-
-                {/* Fixture row */}
-                <View style={[bsStyles.fixturePreview, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <View style={bsStyles.fixturePreviewInner}>
-                    <TeamBadge name={fixture.homeTeam} imageUrl={getFixtureTeamLogoUrl(fixture.homeTeam)} size={22} />
-                    <Text style={[bsStyles.fixturePreviewText, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {fixture.homeTeam}
-                    </Text>
-                    <Text style={[bsStyles.fixturePreviewVs, { color: colors.textMuted }]}>vs</Text>
-                    <Text style={[bsStyles.fixturePreviewText, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {fixture.awayTeam}
-                    </Text>
-                    <TeamBadge name={fixture.awayTeam} imageUrl={getFixtureTeamLogoUrl(fixture.awayTeam)} size={22} />
-                  </View>
-                  <View style={bsStyles.fixturePreviewMeta}>
-                    <CountryFlag country={fixture.country} size={10} />
-                    <Text style={[bsStyles.fixturePreviewComp, { color: colors.textMuted }]}>
-                      {fixture.competition}
-                    </Text>
-                    <Text style={[bsStyles.fixturePreviewTime, { color: colors.primary }]}>
-                      {kickoffTime}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* ── Market picker — same as create screen ── */}
-                {useCustomMarket ? (
-                  <Input
-                    label="Mercado personalizado"
-                    placeholder="Ex: Resultado ao Intervalo..."
-                    value={market}
-                    onChangeText={setMarket}
-                  />
-                ) : (
-                  <PressableScale
-                    onPress={() => setShowMarkets(true)}
-                    style={[
-                      bsStyles.fieldBtn,
-                      { backgroundColor: colors.background, borderColor: colors.border },
-                    ]}
+            {/* Tab bar */}
+            <View style={[tabStyles.bar, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
+              {TABS.map((tab) => {
+                const active = activeTab === tab.key;
+                return (
+                  <Pressable
+                    key={tab.key}
+                    onPress={() => { hapticLight(); setActiveTab(tab.key); }}
+                    style={[tabStyles.tab, active && [tabStyles.tabActive, { borderBottomColor: colors.primary }]]}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary }]}>
-                        MERCADO
-                      </Text>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontSize: 15,
-                          fontWeight: '600',
-                          color: market ? colors.textPrimary : colors.textMuted,
-                        }}
-                      >
-                        {market
-                          ? humanizeMarket(market, fixture.homeTeam, fixture.awayTeam)
-                          : 'Selecionar mercado'}
-                      </Text>
-                    </View>
-                    {market ? (
-                      <Pressable
-                        hitSlop={8}
-                        onPress={() => { setMarket(''); setSelection(''); }}
-                      >
-                        <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                      </Pressable>
-                    ) : (
-                      <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-                    )}
-                  </PressableScale>
-                )}
-
-                <Pressable
-                  onPress={() => { setUseCustomMarket((v) => !v); setMarket(''); setSelection(''); }}
-                  style={bsStyles.customToggle}
-                >
-                  <Ionicons
-                    name={useCustomMarket ? 'list-outline' : 'create-outline'}
-                    size={13}
-                    color={colors.primary}
-                  />
-                  <Text style={[bsStyles.customToggleText, { color: colors.primary }]}>
-                    {useCustomMarket
-                      ? 'Escolher da lista de mercados'
-                      : 'Escrever mercado personalizado'}
-                  </Text>
-                </Pressable>
-
-                {/* ── Selection — only shown when market is not self-describing ── */}
-                {(useCustomMarket || !isSelfDescribing(market)) && (
-                  <>
-                    <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary, marginTop: 4 }]}>
-                      SELEÇÃO
+                    <Ionicons name={tab.icon as any} size={15} color={active ? colors.primary : colors.textMuted} />
+                    <Text style={[tabStyles.tabText, { color: active ? colors.primary : colors.textMuted }]}>
+                      {tab.label}
                     </Text>
-                    {/* Quick-select chips */}
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={[bsStyles.chips, { marginBottom: 6 }]}
-                    >
-                    {['Sim', 'Não', 'Acima de 0,5', 'Acima de 1,5', 'Acima de 2,5', 'Acima de 3,5',
-                      'Abaixo de 1,5', 'Abaixo de 2,5', 'Abaixo de 3,5', '1', 'X', '2',
-                      '1X', 'X2', '12'].map((q) => (
-                        <PressableScale
-                          key={q}
-                          onPress={() => setSelection(q)}
-                          style={[
-                            bsStyles.chip,
-                            {
-                              backgroundColor: selection === q ? colors.primary : colors.background,
-                              borderColor: selection === q ? colors.primary : colors.border,
-                            },
-                          ]}
-                        >
-                          <Text style={[bsStyles.chipText, { color: selection === q ? '#fff' : colors.textSecondary }]}>
-                            {q}
-                          </Text>
-                        </PressableScale>
-                      ))}
-                    </ScrollView>
-                    <View style={[bsStyles.textBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                      <TextInput
-                        style={[bsStyles.textBoxInput, { color: colors.textPrimary }]}
-                        placeholder="Ex: Over 2.5, Casa, Empate…"
-                        placeholderTextColor={colors.textMuted}
-                        value={selection}
-                        onChangeText={setSelection}
-                      />
-                    </View>
-                  </>
-                )}
-
-                {/* ── Odds — NumericInput with custom keyboard ── */}
-                <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary, marginTop: 8 }]}>
-                  ODD
-                </Text>
-                <NumericInput
-                  allowDecimal
-                  maxLength={6}
-                  placeholder="1.85"
-                  value={odds}
-                  onChangeText={setOdds}
-                />
-
-                {/* ── Add button ── */}
-                <Pressable
-                  onPress={handleAddSelection}
-                  disabled={!canAddSelection}
-                  style={[
-                    bsStyles.addSelBtn,
-                    {
-                      borderColor: canAddSelection ? colors.primary : colors.border,
-                      opacity: canAddSelection ? 1 : 0.45,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={18}
-                    color={canAddSelection ? colors.primary : colors.textMuted}
-                  />
-                  <Text style={[bsStyles.addSelBtnText, { color: canAddSelection ? colors.primary : colors.textMuted }]}>
-                    Adicionar ao boletim
-                  </Text>
-                </Pressable>
-              </View>
-
-              {/* ══ 2. APOSTA ═══════════════════════════════════════════════ */}
-              <Text style={[bsStyles.sectionDivider, { color: colors.textSecondary }]}>2. APOSTA</Text>
-
-              <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, flexDirection: 'row' }]}>
-                {[
-                  { label: 'Odds totais', value: Number(storeTotalOdds).toFixed(2), color: colors.textPrimary },
-                  { label: 'Retorno potencial', value: `${Number(storePotential).toFixed(2)} €`, color: colors.primary },
-                  { label: 'ROI estimado', value: storeStake > 0 ? `${(((Number(storePotential) - Number(storeStake)) / Number(storeStake)) * 100).toFixed(1)}%` : '0.0%', color: colors.primary },
-                ].map((col, i) => (
-                  <View key={i} style={{ flex: 1, alignItems: i === 1 ? 'center' : i === 2 ? 'flex-end' : 'flex-start', paddingHorizontal: 4 }}>
-                    <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>{col.label}</Text>
-                    <Text style={{ fontSize: 18, fontWeight: '800', color: col.color }}>{col.value}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 6 }}>Valor da aposta</Text>
-                <NumericInput
-                  allowDecimal
-                  maxLength={8}
-                  placeholder="0,00"
-                  suffix="€"
-                  value={storeStake > 0 ? String(storeStake) : ''}
-                  onChangeText={(v) => setStake(parseFloat(v.replace(',', '.')) || 0)}
-                />
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                  {[5, 10, 20, 50].map((amt) => (
-                    <Pressable
-                      key={amt}
-                      onPress={() => { hapticLight(); setStake(amt); }}
-                      style={[bsStyles.quickStake, { backgroundColor: colors.background, borderColor: colors.border }]}
-                    >
-                      <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{amt},00 €</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* ══ 3. DETALHES ═════════════════════════════════════════════ */}
-              <Text style={[bsStyles.sectionDivider, { color: colors.textSecondary }]}>3. DETALHES</Text>
-
-              <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, gap: 12 }]}>
-                <View style={[bsStyles.textBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                  <TextInput
-                    style={[bsStyles.textBoxInput, { color: colors.textPrimary }]}
-                    placeholder={defaultName || 'Nome'}
-                    placeholderTextColor={colors.textMuted}
-                    value={storeName}
-                    onChangeText={setName}
-                  />
-                </View>
-                <View style={[bsStyles.textBox, { backgroundColor: colors.background, borderColor: colors.border, minHeight: 80 }]}>
-                  <TextInput
-                    style={[bsStyles.textBoxInput, { color: colors.textPrimary }]}
-                    placeholder="Notas"
-                    placeholderTextColor={colors.textMuted}
-                    value={storeNotes}
-                    onChangeText={setNotes}
-                    multiline
-                  />
-                </View>
-                <DatePickerField
-                  label="Data da aposta"
-                  maxDate={new Date()}
-                  placeholder="DD/MM/AAAA (opcional)"
-                  value={(() => {
-                    if (!storeBetDate || storeBetDate.length < 10) return null;
-                    const [dd, mm, yyyy] = storeBetDate.split('/');
-                    const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
-                    return isNaN(d.getTime()) ? null : d;
-                  })()}
-                  onChange={(date) => {
-                    const dd = String(date.getDate()).padStart(2, '0');
-                    const mm = String(date.getMonth() + 1).padStart(2, '0');
-                    setBetDate(`${dd}/${mm}/${date.getFullYear()}`);
-                  }}
-                  onClear={() => setBetDate('')}
-                />
-                <PressableScale
-                  onPress={() => setShowSites(true)}
-                  style={[bsStyles.fieldBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary }]}>SITE DE APOSTAS</Text>
-                    <Text style={{ fontSize: 15, fontWeight: '600', color: storeSiteSlug ? colors.textPrimary : colors.textMuted }}>
-                      {BETTING_SITES.find((s) => s.slug === storeSiteSlug)?.name ?? 'Selecionar site (opcional)'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-                </PressableScale>
-                {[
-                  { label: 'Tornar boletim público', sub: 'Permite mostrar este boletim no teu perfil e em futuras partilhas.', value: storeIsPublic, onChange: setPublic },
-                  { label: 'Aposta gratuita (freebet)', sub: 'A stake era um freebet — não tens dinheiro real em risco.', value: storeIsFreebet, onChange: setFreebet },
-                ].map((row) => (
-                  <View key={row.label} style={[bsStyles.toggleRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{row.label}</Text>
-                      <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 17 }}>{row.sub}</Text>
-                    </View>
-                    <Switch value={row.value} onValueChange={row.onChange} />
-                  </View>
-                ))}
-              </View>
-
-              {/* ══ SELECTIONS LIST ══════════════════════════════════════════ */}
-              {storeItems.length > 0 && (
-                <>
-                  <Text style={[bsStyles.sectionTitle, { color: colors.textPrimary }]}>
-                    Seleções ({storeItems.length})
-                  </Text>
-                  {storeItems.map((item) => (
-                    <View key={item.id}>
-                      <BoletinSelectionRow
-                        item={{
-                          homeTeam: item.homeTeam,
-                          homeTeamImageUrl: item.homeTeamImageUrl,
-                          awayTeam: item.awayTeam,
-                          awayTeamImageUrl: item.awayTeamImageUrl,
-                          competition: item.competition,
-                          market: item.market,
-                          oddValue: String(item.oddValue),
-                          result: ItemResult.PENDING,
-                          selection: item.selection,
-                          sport: item.sport,
-                        }}
-                        onRemove={() => removeItem(item.id)}
-                      />
-                      <Pressable
-                        onPress={() => {
-                          const d = item.eventDate ? new Date(item.eventDate) : new Date();
-                          setItemEventDate(item.id, d.toISOString());
-                        }}
-                        style={[bsStyles.kickoffBtn, {
-                          borderColor: item.eventDate ? colors.primary : colors.border,
-                          backgroundColor: item.eventDate ? `${colors.primary}12` : colors.surfaceRaised,
-                        }]}
-                      >
-                        <Ionicons name="time-outline" size={13} color={item.eventDate ? colors.primary : colors.textMuted} />
-                        <Text style={{ flex: 1, fontSize: 12, fontWeight: '600', color: item.eventDate ? colors.primary : colors.textMuted }}>
-                          {item.eventDate
-                            ? (() => {
-                                const d = new Date(item.eventDate);
-                                return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-                              })()
-                            : 'Definir hora do jogo'}
-                        </Text>
-                        {item.eventDate && (
-                          <Pressable hitSlop={8} onPress={(e) => { e.stopPropagation(); setItemEventDate(item.id, null); }}>
-                            <Ionicons name="close-circle" size={14} color={colors.textMuted} />
-                          </Pressable>
-                        )}
-                      </Pressable>
-                    </View>
-                  ))}
-                </>
-              )}
-            </ScrollView>
-
-            {/* ── Save button ── */}
-            <View style={[bsStyles.footer, { borderTopColor: colors.border, paddingBottom: insets.bottom > 0 ? insets.bottom : 16, backgroundColor: colors.background }]}>
-              <Pressable
-                onPress={handleSave}
-                disabled={isSaving || storeItems.length === 0}
-                style={[
-                  bsStyles.saveBtn,
-                  {
-                    backgroundColor: storeItems.length > 0 ? colors.primary : colors.surfaceRaised,
-                    opacity: storeItems.length === 0 ? 0.5 : 1,
-                  },
-                ]}
-              >
-                {isSaving
-                  ? <ActivityIndicator color="#fff" size="small" />
-                  : <Ionicons name="checkmark-circle-outline" size={20} color={storeItems.length > 0 ? '#fff' : colors.textMuted} />
-                }
-                <Text style={[bsStyles.saveBtnText, { color: storeItems.length > 0 ? '#fff' : colors.textMuted }]}>
-                  Guardar boletim
-                </Text>
-              </Pressable>
+                  </Pressable>
+                );
+              })}
             </View>
+
+            {/* Tab content */}
+            {activeTab === 'insight' && <InsightTab fixture={fixture} />}
+
+            {activeTab === 'table' && (
+              <View style={{ flex: 1 }}>
+                <LeagueTableModal
+                  visible={true}
+                  competition={fixture.competition}
+                  highlightTeams={[fixture.homeTeam, fixture.awayTeam]}
+                  onClose={() => setActiveTab('bet')}
+                  embedded
+                />
+              </View>
+            )}
+
+            {activeTab === 'bet' && (
+              <>
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={[bsStyles.scrollContent, { paddingBottom: insets.bottom + 90 }]}
+                >
+                  {/* ══ 1. SELEÇÃO ══ */}
+                  <Text style={[bsStyles.sectionDivider, { color: colors.textSecondary }]}>1. SELEÇÃO</Text>
+                  <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                    <Text style={[bsStyles.cardTitle, { color: colors.textPrimary }]}>Adicionar seleção</Text>
+                    {useCustomMarket ? (
+                      <Input label="Mercado personalizado" placeholder="Ex: Resultado ao Intervalo..." value={market} onChangeText={setMarket} />
+                    ) : (
+                      <PressableScale onPress={() => setShowMarkets(true)} style={[bsStyles.fieldBtn, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary }]}>MERCADO</Text>
+                          <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: market ? colors.textPrimary : colors.textMuted }}>
+                            {market ? humanizeMarket(market, fixture.homeTeam, fixture.awayTeam) : 'Selecionar mercado'}
+                          </Text>
+                        </View>
+                        {market ? (
+                          <Pressable hitSlop={8} onPress={() => { setMarket(''); setSelection(''); }}>
+                            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                          </Pressable>
+                        ) : <Ionicons name="chevron-down" size={16} color={colors.textMuted} />}
+                      </PressableScale>
+                    )}
+                    <Pressable onPress={() => { setUseCustomMarket((v) => !v); setMarket(''); setSelection(''); }} style={bsStyles.customToggle}>
+                      <Ionicons name={useCustomMarket ? 'list-outline' : 'create-outline'} size={13} color={colors.primary} />
+                      <Text style={[bsStyles.customToggleText, { color: colors.primary }]}>
+                        {useCustomMarket ? 'Escolher da lista de mercados' : 'Escrever mercado personalizado'}
+                      </Text>
+                    </Pressable>
+                    {(useCustomMarket || !isSelfDescribing(market)) && (
+                      <>
+                        <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary, marginTop: 4 }]}>SELEÇÃO</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[bsStyles.chips, { marginBottom: 6 }]}>
+                          {['Sim', 'Não', 'Acima de 0,5', 'Acima de 1,5', 'Acima de 2,5', 'Acima de 3,5', 'Abaixo de 1,5', 'Abaixo de 2,5', 'Abaixo de 3,5', '1', 'X', '2', '1X', 'X2', '12'].map((q) => (
+                            <PressableScale key={q} onPress={() => setSelection(q)} style={[bsStyles.chip, { backgroundColor: selection === q ? colors.primary : colors.background, borderColor: selection === q ? colors.primary : colors.border }]}>
+                              <Text style={[bsStyles.chipText, { color: selection === q ? '#fff' : colors.textSecondary }]}>{q}</Text>
+                            </PressableScale>
+                          ))}
+                        </ScrollView>
+                        <View style={[bsStyles.textBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                          <TextInput style={[bsStyles.textBoxInput, { color: colors.textPrimary }]} placeholder="Ex: Over 2.5, Casa, Empate…" placeholderTextColor={colors.textMuted} value={selection} onChangeText={setSelection} />
+                        </View>
+                      </>
+                    )}
+                    <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary, marginTop: 8 }]}>ODD</Text>
+                    <NumericInput allowDecimal maxLength={6} placeholder="1.85" value={odds} onChangeText={setOdds} />
+                    <Pressable onPress={handleAddSelection} disabled={!canAddSelection} style={[bsStyles.addSelBtn, { borderColor: canAddSelection ? colors.primary : colors.border, opacity: canAddSelection ? 1 : 0.45 }]}>
+                      <Ionicons name="add-circle-outline" size={18} color={canAddSelection ? colors.primary : colors.textMuted} />
+                      <Text style={[bsStyles.addSelBtnText, { color: canAddSelection ? colors.primary : colors.textMuted }]}>Adicionar ao boletim</Text>
+                    </Pressable>
+                  </View>
+
+                  {/* ══ 2. APOSTA ══ */}
+                  <Text style={[bsStyles.sectionDivider, { color: colors.textSecondary }]}>2. APOSTA</Text>
+                  <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, flexDirection: 'row' }]}>
+                    {[
+                      { label: 'Odds totais', value: Number(storeTotalOdds).toFixed(2), color: colors.textPrimary },
+                      { label: 'Retorno potencial', value: `${Number(storePotential).toFixed(2)} €`, color: colors.primary },
+                      { label: 'ROI estimado', value: storeStake > 0 ? `${(((Number(storePotential) - Number(storeStake)) / Number(storeStake)) * 100).toFixed(1)}%` : '0.0%', color: colors.primary },
+                    ].map((col, i) => (
+                      <View key={i} style={{ flex: 1, alignItems: i === 1 ? 'center' : i === 2 ? 'flex-end' : 'flex-start', paddingHorizontal: 4 }}>
+                        <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 4 }}>{col.label}</Text>
+                        <Text style={{ fontSize: 18, fontWeight: '800', color: col.color }}>{col.value}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                    <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 6 }}>Valor da aposta</Text>
+                    <NumericInput allowDecimal maxLength={8} placeholder="0,00" suffix="€" value={storeStake > 0 ? String(storeStake) : ''} onChangeText={(v) => setStake(parseFloat(v.replace(',', '.')) || 0)} />
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                      {[5, 10, 20, 50].map((amt) => (
+                        <Pressable key={amt} onPress={() => { hapticLight(); setStake(amt); }} style={[bsStyles.quickStake, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                          <Text style={{ fontSize: 13, fontWeight: '600', color: colors.textPrimary }}>{amt},00 €</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* ══ 3. DETALHES ══ */}
+                  <Text style={[bsStyles.sectionDivider, { color: colors.textSecondary }]}>3. DETALHES</Text>
+                  <View style={[bsStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, gap: 12 }]}>
+                    <View style={[bsStyles.textBox, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <TextInput style={[bsStyles.textBoxInput, { color: colors.textPrimary }]} placeholder={defaultName || 'Nome'} placeholderTextColor={colors.textMuted} value={storeName} onChangeText={setName} />
+                    </View>
+                    <View style={[bsStyles.textBox, { backgroundColor: colors.background, borderColor: colors.border, minHeight: 80 }]}>
+                      <TextInput style={[bsStyles.textBoxInput, { color: colors.textPrimary }]} placeholder="Notas" placeholderTextColor={colors.textMuted} value={storeNotes} onChangeText={setNotes} multiline />
+                    </View>
+                    <DatePickerField label="Data da aposta" maxDate={new Date()} placeholder="DD/MM/AAAA (opcional)"
+                      value={(() => { if (!storeBetDate || storeBetDate.length < 10) return null; const [dd, mm, yyyy] = storeBetDate.split('/'); const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd)); return isNaN(d.getTime()) ? null : d; })()}
+                      onChange={(date) => { const dd = String(date.getDate()).padStart(2, '0'); const mm = String(date.getMonth() + 1).padStart(2, '0'); setBetDate(`${dd}/${mm}/${date.getFullYear()}`); }}
+                      onClear={() => setBetDate('')}
+                    />
+                    <PressableScale onPress={() => setShowSites(true)} style={[bsStyles.fieldBtn, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[bsStyles.fieldLabel, { color: colors.textSecondary }]}>SITE DE APOSTAS</Text>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: storeSiteSlug ? colors.textPrimary : colors.textMuted }}>
+                          {BETTING_SITES.find((s) => s.slug === storeSiteSlug)?.name ?? 'Selecionar site (opcional)'}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+                    </PressableScale>
+                    {[
+                      { label: 'Tornar boletim público', sub: 'Permite mostrar este boletim no teu perfil e em futuras partilhas.', value: storeIsPublic, onChange: setPublic },
+                      { label: 'Aposta gratuita (freebet)', sub: 'A stake era um freebet — não tens dinheiro real em risco.', value: storeIsFreebet, onChange: setFreebet },
+                    ].map((row) => (
+                      <View key={row.label} style={[bsStyles.toggleRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <View style={{ flex: 1, gap: 3 }}>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: colors.textPrimary }}>{row.label}</Text>
+                          <Text style={{ fontSize: 12, color: colors.textSecondary, lineHeight: 17 }}>{row.sub}</Text>
+                        </View>
+                        <Switch value={row.value} onValueChange={row.onChange} />
+                      </View>
+                    ))}
+                  </View>
+
+                  {storeItems.length > 0 && (
+                    <>
+                      <Text style={[bsStyles.sectionTitle, { color: colors.textPrimary }]}>Seleções ({storeItems.length})</Text>
+                      {storeItems.map((item) => (
+                        <View key={item.id}>
+                          <BoletinSelectionRow item={{ homeTeam: item.homeTeam, homeTeamImageUrl: item.homeTeamImageUrl, awayTeam: item.awayTeam, awayTeamImageUrl: item.awayTeamImageUrl, competition: item.competition, market: item.market, oddValue: String(item.oddValue), result: ItemResult.PENDING, selection: item.selection, sport: item.sport }} onRemove={() => removeItem(item.id)} />
+                          <Pressable onPress={() => { const d = item.eventDate ? new Date(item.eventDate) : new Date(); setItemEventDate(item.id, d.toISOString()); }} style={[bsStyles.kickoffBtn, { borderColor: item.eventDate ? colors.primary : colors.border, backgroundColor: item.eventDate ? `${colors.primary}12` : colors.surfaceRaised }]}>
+                            <Ionicons name="time-outline" size={13} color={item.eventDate ? colors.primary : colors.textMuted} />
+                            <Text style={{ flex: 1, fontSize: 12, fontWeight: '600', color: item.eventDate ? colors.primary : colors.textMuted }}>
+                              {item.eventDate ? (() => { const d = new Date(item.eventDate); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; })() : 'Definir hora do jogo'}
+                            </Text>
+                            {item.eventDate && (<Pressable hitSlop={8} onPress={(e) => { e.stopPropagation(); setItemEventDate(item.id, null); }}><Ionicons name="close-circle" size={14} color={colors.textMuted} /></Pressable>)}
+                          </Pressable>
+                        </View>
+                      ))}
+                    </>
+                  )}
+                </ScrollView>
+
+                <View style={[bsStyles.footer, { borderTopColor: colors.border, paddingBottom: insets.bottom > 0 ? insets.bottom : 16, backgroundColor: colors.background }]}>
+                  <Pressable onPress={handleSave} disabled={isSaving || storeItems.length === 0} style={[bsStyles.saveBtn, { backgroundColor: storeItems.length > 0 ? colors.primary : colors.surfaceRaised, opacity: storeItems.length === 0 ? 0.5 : 1 }]}>
+                    {isSaving ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="checkmark-circle-outline" size={20} color={storeItems.length > 0 ? '#fff' : colors.textMuted} />}
+                    <Text style={[bsStyles.saveBtnText, { color: storeItems.length > 0 ? '#fff' : colors.textMuted }]}>Guardar boletim</Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
           </Animated.View>
         </View>
       </GestureHandlerRootView>
 
-      {/* Market picker modal */}
-      <SearchableDropdown
-        visible={showMarkets}
-        onClose={() => setShowMarkets(false)}
-        title="Mercado"
-        sections={marketSections}
-        onSelect={(val) => { setMarket(val); }}
-        isLoading={marketsQuery.isLoading}
-        initialVisibleCount={8}
-      />
-
-      {/* Site picker modal */}
-      <SearchableDropdown
-        visible={showSites}
-        onClose={() => setShowSites(false)}
-        title="Site de apostas"
-        items={BETTING_SITES.map((s) => ({ label: s.name, value: s.slug }))}
-        onSelect={(val) => setSiteSlug(val)}
-      />
+      <SearchableDropdown visible={showMarkets} onClose={() => setShowMarkets(false)} title="Mercado" sections={marketSections} onSelect={(val) => { setMarket(val); }} isLoading={marketsQuery.isLoading} initialVisibleCount={8} />
+      <SearchableDropdown visible={showSites} onClose={() => setShowSites(false)} title="Site de apostas" items={BETTING_SITES.map((s) => ({ label: s.name, value: s.slug }))} onSelect={(val) => setSiteSlug(val)} />
     </Modal>
   );
 }
@@ -1684,47 +1878,49 @@ function ManageFavouritesModal({
               </Text>
             </View>
           ) : (
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 20 }}>
-              {localOrder.map((key, index) => (
-                <View
-                  key={key}
-                  style={[mgStyles.row, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}
-                >
-                  <View style={mgStyles.rowLeft}>
-                    <Ionicons name="menu" size={18} color={colors.textMuted} />
-                    <Text style={[mgStyles.rowText, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {key}
-                    </Text>
+            <View style={mgStyles.listContainer}>
+              <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
+                {localOrder.map((key, index) => (
+                  <View
+                    key={key}
+                    style={[mgStyles.row, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}
+                  >
+                    <View style={mgStyles.rowLeft}>
+                      <Ionicons name="menu" size={18} color={colors.textMuted} />
+                      <Text style={[mgStyles.rowText, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {key}
+                      </Text>
+                    </View>
+                    <View style={mgStyles.rowActions}>
+                      <Pressable
+                        hitSlop={10}
+                        onPress={() => moveUp(index)}
+                        style={[mgStyles.arrowBtn, { opacity: index === 0 ? 0.3 : 1 }]}
+                      >
+                        <Ionicons name="chevron-up" size={18} color={colors.textPrimary} />
+                      </Pressable>
+                      <Pressable
+                        hitSlop={10}
+                        onPress={() => moveDown(index)}
+                        style={[mgStyles.arrowBtn, { opacity: index === localOrder.length - 1 ? 0.3 : 1 }]}
+                      >
+                        <Ionicons name="chevron-down" size={18} color={colors.textPrimary} />
+                      </Pressable>
+                      <Pressable
+                        hitSlop={10}
+                        onPress={() => {
+                          hapticLight();
+                          onRemove(key);
+                          setLocalOrder((prev) => prev.filter((k) => k !== key));
+                        }}
+                      >
+                        <Ionicons name="close-circle" size={20} color={colors.danger ?? '#ef4444'} />
+                      </Pressable>
+                    </View>
                   </View>
-                  <View style={mgStyles.rowActions}>
-                    <Pressable
-                      hitSlop={10}
-                      onPress={() => moveUp(index)}
-                      style={[mgStyles.arrowBtn, { opacity: index === 0 ? 0.3 : 1 }]}
-                    >
-                      <Ionicons name="chevron-up" size={18} color={colors.textPrimary} />
-                    </Pressable>
-                    <Pressable
-                      hitSlop={10}
-                      onPress={() => moveDown(index)}
-                      style={[mgStyles.arrowBtn, { opacity: index === localOrder.length - 1 ? 0.3 : 1 }]}
-                    >
-                      <Ionicons name="chevron-down" size={18} color={colors.textPrimary} />
-                    </Pressable>
-                    <Pressable
-                      hitSlop={10}
-                      onPress={() => {
-                        hapticLight();
-                        onRemove(key);
-                        setLocalOrder((prev) => prev.filter((k) => k !== key));
-                      }}
-                    >
-                      <Ionicons name="close-circle" size={20} color={colors.danger ?? '#ef4444'} />
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
+                ))}
+              </ScrollView>
+            </View>
           )}
 
           <View style={[mgStyles.footer, { borderTopColor: colors.border }]}>
@@ -1743,14 +1939,22 @@ function ManageFavouritesModal({
 
 const mgStyles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' },
+  sheet: { 
+    borderTopLeftRadius: 24, 
+    borderTopRightRadius: 24, 
+    maxHeight: '80%',
+    minHeight: '50%',
+    display: 'flex',
+    flexDirection: 'column',
+  },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth,
   },
   title: { fontSize: 18, fontWeight: '800' },
-  empty: { alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12 },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12 },
   emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  listContainer: { flex: 1 },
   row: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth,
@@ -2237,4 +2441,164 @@ const bsStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+});
+
+const tabStyles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 11,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {},
+  tabText: { fontSize: 13, fontWeight: '700' },
+});
+
+
+const newInsightStyles = StyleSheet.create({
+  scroll: { paddingHorizontal: 16, paddingTop: 12, gap: 14 },
+
+  hintBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    borderRadius: 10, borderWidth: 1, padding: 10,
+  },
+  hintText: { flex: 1, fontSize: 12, lineHeight: 17 },
+
+  // Combined probability
+  probCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 6 },
+  probCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  probCardTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 0.6 },
+  probCardSub: { fontSize: 12, lineHeight: 16, marginBottom: 4 },
+  probRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  probItem: { flex: 1, alignItems: 'center', gap: 3 },
+  probValue: { fontSize: 40, fontWeight: '900', lineHeight: 48 },
+  probLabel: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
+  probSubLabel: { fontSize: 11, textAlign: 'center' },
+  probDivider: { width: StyleSheet.hairlineWidth, height: 60, marginTop: 8 },
+
+  // Standings mini-card
+  standingsCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 8 },
+  standingsHeaderRow: { flexDirection: 'row', alignItems: 'center' },
+  standingsHeaderPos: { width: 28, fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  standingsHeaderTeam: { flex: 1, fontSize: 10, fontWeight: '700', marginLeft: 4 },
+  standingsHeaderCol: { width: 30, fontSize: 10, fontWeight: '700', textAlign: 'center' },
+  standingsRow: { flexDirection: 'row', alignItems: 'center' },
+  standingsPosBox: { width: 28, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  standingsPosText: { fontSize: 12, fontWeight: '800' },
+  standingsVenueIcon: { fontSize: 14, marginHorizontal: 4 },
+  standingsTeamName: { flex: 1, fontSize: 12, fontWeight: '700' },
+  standingsStat: { width: 30, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+
+  // Team card
+  teamCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  teamCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  teamCardVenueIcon: { fontSize: 16 },
+  teamCardName: { flex: 1, fontSize: 16, fontWeight: '800' },
+  teamCardVenueBadge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
+  teamCardVenueText: { fontSize: 12, fontWeight: '600' },
+
+  sectionLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6 },
+
+  formRow: { flexDirection: 'row', gap: 5 },
+  formPill: {
+    width: 28, height: 28, borderRadius: 6,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  formPillText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+
+  formLegend: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot: { width: 7, height: 7, borderRadius: 3.5 },
+  legendText: { fontSize: 11, fontWeight: '500' },
+
+  // Key metrics (avg goals, corners, yellow cards)
+  metricsRow: {
+    flexDirection: 'row', borderRadius: 10, borderWidth: 1,
+    paddingVertical: 10, overflow: 'hidden',
+  },
+  metricItem: { flex: 1, alignItems: 'center', gap: 3 },
+  metricValue: { fontSize: 20, fontWeight: '800' },
+  metricLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3, textAlign: 'center' },
+  metricDivider: { width: StyleSheet.hairlineWidth, marginVertical: 4 },
+
+  // 6-stat grid (2 rows × 3 cols)
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  statGridItem: {
+    width: '30.5%', borderRadius: 10, borderWidth: 1,
+    alignItems: 'center', paddingVertical: 10, gap: 3,
+  },
+  statGridValue: { fontSize: 20, fontWeight: '900' },
+  statGridLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
+
+  // Injuries
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  injuryChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 5,
+    maxWidth: 160,
+  },
+  injuryChipText: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
+
+  // Top scorers
+  scorerRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 7, borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  scorerRank: { fontSize: 13, fontWeight: '700', minWidth: 18, textAlign: 'center' },
+  scorerName: { flex: 1, fontSize: 13, fontWeight: '600' },
+  scorerBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  scorerGoals: { fontSize: 13, fontWeight: '800' },
+
+  sampleNote: { fontSize: 10, fontWeight: '500' },
+
+  // Section headers (H2H, Pinnacle)
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2, marginTop: 4 },
+  sectionHeaderTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5 },
+  sectionHeaderSub: { fontSize: 12, marginBottom: 8 },
+
+  // H2H
+  h2hCard: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },
+  h2hBarRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  h2hTeamName: { flex: 1, fontSize: 11, fontWeight: '700' },
+  h2hTrack: { flex: 2, height: 8, borderRadius: 4, flexDirection: 'row', overflow: 'hidden' },
+  h2hSeg: { height: '100%' },
+  h2hStatsRow: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10 },
+  h2hStatCol: { flex: 1, alignItems: 'center', gap: 3 },
+  h2hStatValue: { fontSize: 16, fontWeight: '800' },
+  h2hStatLabel: { fontSize: 9, fontWeight: '600' },
+  h2hRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  h2hDate: { fontSize: 10, fontWeight: '500', minWidth: 50 },
+  h2hTeam: { flex: 1, fontSize: 12, fontWeight: '600' },
+  h2hScoreBadge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4, minWidth: 44, alignItems: 'center' },
+  h2hScoreText: { fontSize: 13, fontWeight: '800' },
+
+  // Pinnacle
+  pinnacleCard: { borderRadius: 14, borderWidth: 1, padding: 14 },
+  pinnacleRow: { flexDirection: 'row' },
+  pinnacleCol: { flex: 1, alignItems: 'center', gap: 4 },
+  pinnacleLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
+  pinnacleOdd: { fontSize: 26, fontWeight: '900' },
+  impliedBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  impliedText: { fontSize: 11, fontWeight: '700' },
+  pinnacleNote: {
+    fontSize: 10, fontStyle: 'italic', textAlign: 'center',
+    marginTop: 12, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth,
+  },
+
+  timestamp: { fontSize: 11, textAlign: 'center' },
+
+  // Loading/error states
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 },
+  loadingText: { fontSize: 14, textAlign: 'center' },
 });

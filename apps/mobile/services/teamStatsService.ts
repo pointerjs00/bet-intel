@@ -94,6 +94,7 @@ export interface SharpOdds {
   impliedAway:  number | null;
   matchDate:    string | null;
   note:         string;
+  matchLabel?: string
 }
 
 export interface FixtureInsight {

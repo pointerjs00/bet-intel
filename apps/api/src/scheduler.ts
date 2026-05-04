@@ -3,18 +3,16 @@
 
 import Bull from 'bull';
 import { logger } from './utils/logger';
-import { standingsSyncJob }              from './jobs/standingsSyncJob';
-import { currentSeasonMatchStatSyncJob } from './jobs/currentSeasonMatchStatSyncJob';
-import { injuriesSyncJob }               from './jobs/injuriesSyncJob';
-import { topScorersSyncJob }             from './jobs/topScorersSyncJob';
+import { standingsSyncJob } from './jobs/standingsSyncJob';
+import { injuriesSyncJob }  from './jobs/injuriesSyncJob';
+import { topScorersSyncJob } from './jobs/topScorersSyncJob';
 
 const REDIS_URL = process.env.REDIS_URL!;
 
 const FOOTBALL_DATA_JOBS = [
-  { name: 'standings-sync',          cron: '0 7 * * 1',  handler: standingsSyncJob },
-  { name: 'current-season-csv-sync', cron: '30 7 * * 1', handler: currentSeasonMatchStatSyncJob },
-  { name: 'injuries-sync',           cron: '0 8 * * 1',  handler: injuriesSyncJob },
-  { name: 'top-scorers-sync',        cron: '0 9 * * 1',  handler: topScorersSyncJob },
+  { name: 'standings-sync',   cron: '0 7 * * 1', handler: standingsSyncJob },
+  { name: 'injuries-sync',    cron: '0 8 * * 1', handler: injuriesSyncJob },
+  { name: 'top-scorers-sync', cron: '0 9 * * 1', handler: topScorersSyncJob },
 ] as const;
 
 export async function initFootballDataScheduler(): Promise<void> {

@@ -1,16 +1,15 @@
 /**
  * Fixture Refresh Job
  *
- * Re-fetches all openfootball league files, upserts fixture records, and
- * marks completed matches as FINISHED when score data becomes available.
+ * Fetches upcoming and recent fixtures from API-Football and upserts them.
  *
- * Schedule: every Monday at 06:00 UTC (matches the ATP/WTA ranking jobs).
+ * Schedule: every Monday at 06:00 UTC.
  * Can also be triggered manually via POST /api/fixtures/refresh.
  */
 
 import Bull from 'bull';
 import { logger } from '../utils/logger';
-import { ingestFixtures } from '../services/fixtureService';
+import { fixturesSyncJob } from '../services/apifootball/fixturesSync';
 
 // ─── Queue ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +29,7 @@ fixtureRefreshQueue.on('error', (err) => {
 // ─── Processor ───────────────────────────────────────────────────────────────
 
 fixtureRefreshQueue.process(async (_job) => {
-  return ingestFixtures();
+  return fixturesSyncJob();
 });
 
 fixtureRefreshQueue.on('completed', (_job, result) => {
