@@ -227,7 +227,7 @@ async function fetchFixtureInsight(fixtureId: string): Promise<FixtureInsight | 
 const STALE = 60 * 60 * 1000; // 1 hour
 
 // Season stored in DB is "2025-26" — match it exactly.
-const CURRENT_SEASON = '2025-26';
+const CURRENT_SEASON = '2025';
 
 export function useLeagueTable(competition: string, season = CURRENT_SEASON) {
   return useQuery({

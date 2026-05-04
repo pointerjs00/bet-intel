@@ -26,6 +26,14 @@ function fail(res: Response, err: unknown): void {
  * If no season is provided, we find the most recent season for that competition
  * so the query never returns empty just because of a missing param.
  */
+
+// Add this helper (same as in fixtureController.ts)
+function normaliseSeason(season: string | undefined): string | undefined {
+  if (!season) return undefined;
+  // "2025-26" → "2025", "2025" → "2025" 
+  return season.includes('-') ? season.split('-')[0] : season;
+}
+
 export async function leagueTableHandler(req: Request, res: Response): Promise<void> {
   try {
     const { competition, season } = req.query as Record<string, string | undefined>;
@@ -34,17 +42,10 @@ export async function leagueTableHandler(req: Request, res: Response): Promise<v
       res.status(400).json({ success: false, error: 'competition is required' });
       return;
     }
+    
 
-    // If no season supplied, auto-detect the most recent one for this competition
-    let resolvedSeason = season;
-    if (!resolvedSeason) {
-      const latest = await prisma.teamStat.findFirst({
-        where: { competition: { equals: competition, mode: 'insensitive' } },
-        orderBy: { season: 'desc' },
-        select: { season: true },
-      });
-      resolvedSeason = latest?.season;
-    }
+    // Normalise "2025-26" → "2025" to match API-Football storage format
+    const resolvedSeason = normaliseSeason(season);
 
     const rows = await prisma.teamStat.findMany({
       where: {
