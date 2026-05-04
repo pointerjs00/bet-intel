@@ -114,6 +114,19 @@ const COUNTRY_EN_TO_PT: Record<string, string> = {
   Nigeria: 'Nigéria',
 };
 
+// Add this map near the top of FixturesScreen.tsx alongside FIXTURE_TEAM_ALIASES
+const COMPETITION_ALIASES: Record<string, string> = {
+  'Primeira Liga':     'Liga Portugal Betclic',
+  'Liga NOS':          'Liga Portugal Betclic',
+  'Champions League':  'UEFA Champions League',
+  'Europa League':     'UEFA Europa League',
+  'Conference League': 'UEFA Conference League',
+};
+
+function resolveCompetition(name: string): string {
+  return COMPETITION_ALIASES[name] ?? name;
+}
+
 function resolveCountry(country: string): string {
   return COUNTRY_EN_TO_PT[country] ?? country;
 }
@@ -1508,7 +1521,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
               <View style={{ flex: 1 }}>
                 <LeagueTableModal
                   visible={true}
-                  competition={fixture.competition}
+                  competition={resolveCompetition(fixture.competition)}
                   highlightTeams={[fixture.homeTeam, fixture.awayTeam]}
                   onClose={() => setActiveTab('bet')}
                   embedded
