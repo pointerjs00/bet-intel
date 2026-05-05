@@ -7,6 +7,23 @@ function ok<T>(res: Response, data: T): void {
   res.json({ success: true, data });
 }
 
+// When both a CSV-sourced record (no apiFootballId) and an API-Football record
+// exist for the same match, keep only the API-Football one.
+function deduplicateFixtures(fixtures: any[]): any[] {
+  const best = new Map<string, any>();
+  for (const f of fixtures) {
+    const homeNorm = f.homeTeamNormKey ?? f.homeTeam.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    const awayNorm = f.awayTeamNormKey ?? f.awayTeam.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    const dateStr = (f.kickoffAt as Date).toISOString().slice(0, 10);
+    const key = `${homeNorm}|${awayNorm}|${dateStr}`;
+    const existing = best.get(key);
+    if (!existing || (f.apiFootballId != null && existing.apiFootballId == null)) {
+      best.set(key, f);
+    }
+  }
+  return Array.from(best.values());
+}
+
 function fail(res: Response, err: unknown): void {
   if (err instanceof Error) {
     logger.error('Fixture controller error', { error: err.message, stack: err.stack });
@@ -79,7 +96,7 @@ export async function listFixturesHandler(
       take: 5000,
     });
 
-    ok(res, fixtures);
+    ok(res, deduplicateFixtures(fixtures));
   } catch (err) {
     fail(res, err);
   }
@@ -128,8 +145,9 @@ export async function upcomingFixturesHandler(
       take: 5000,
     });
 
-    redis.setex(cacheKey, 3600, JSON.stringify(fixtures)).catch(() => {});
-    ok(res, fixtures);
+    const deduped = deduplicateFixtures(fixtures);
+    redis.setex(cacheKey, 3600, JSON.stringify(deduped)).catch(() => {});
+    ok(res, deduped);
   } catch (err) {
     fail(res, err);
   }
@@ -181,8 +199,9 @@ export async function recentFixturesHandler(
     });
 
     // 15 min cache — recent results settle quickly
-    redis.setex(cacheKey, 900, JSON.stringify(fixtures)).catch(() => {});
-    ok(res, fixtures);
+    const deduped = deduplicateFixtures(fixtures);
+    redis.setex(cacheKey, 900, JSON.stringify(deduped)).catch(() => {});
+    ok(res, deduped);
   } catch (err) {
     fail(res, err);
   }

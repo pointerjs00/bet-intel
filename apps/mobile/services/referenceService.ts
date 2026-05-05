@@ -130,3 +130,42 @@ export function useRecentFixtures(days = 3) {
     retry: false,
   });
 }
+
+// ─── Fixtures by specific date ────────────────────────────────────────────────
+
+function localDateKey(date: Date): string {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+async function fetchFixturesByDate(date: Date): Promise<Fixture[]> {
+  try {
+    // date has time stripped to local midnight — .getTime() gives the UTC equivalent,
+    // which is the correct lower bound for querying UTC-stored kickoff times.
+    const from = date.toISOString();
+    const to = new Date(date.getTime() + 24 * 60 * 60 * 1000 - 1).toISOString();
+    const { data } = await apiClient.get<{ data: Fixture[] }>('/fixtures', {
+      params: { from, to },
+    });
+    return data.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fixtures for a specific local date. Only enabled when `enabled` is true
+ * (i.e. when the date is outside the upcoming/recent coverage window).
+ * Historical data is cached for 24 hours.
+ */
+export function useFixturesByDate(date: Date, enabled: boolean) {
+  return useQuery({
+    queryKey: ['fixtures', 'by-date', localDateKey(date)],
+    queryFn: () => fetchFixturesByDate(date),
+    staleTime: 24 * 60 * 60 * 1000,
+    enabled,
+    retry: false,
+  });
+}

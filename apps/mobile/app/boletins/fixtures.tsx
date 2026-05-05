@@ -28,7 +28,7 @@ import { TeamBadge } from '../../components/ui/TeamBadge';
 import { CompetitionBadge } from '../../components/ui/CompetitionBadge';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { useTheme } from '../../theme/useTheme';
-import { useUpcomingFixtures, useRecentFixtures } from '../../services/referenceService';
+import { useUpcomingFixtures, useRecentFixtures, useFixturesByDate } from '../../services/referenceService';
 import type { Fixture } from '../../services/referenceService';
 import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
 import type { BoletinBuilderItem } from '../../stores/boletinBuilderStore';
@@ -2067,13 +2067,30 @@ export default function FixturesScreen() {
 
   const upcomingQuery = useUpcomingFixtures(14);
   const recentQuery   = useRecentFixtures(3);
-  const isLoading = upcomingQuery.isLoading || recentQuery.isLoading;
+
+  // Dates outside the upcoming/recent window need a dedicated fetch
+  const needsByDateFetch = useMemo(() => {
+    const todayMs = stripTime(new Date()).getTime();
+    return (
+      selectedDate.getTime() < todayMs - 3 * 24 * 60 * 60 * 1000 ||
+      selectedDate.getTime() > todayMs + 14 * 24 * 60 * 60 * 1000
+    );
+  }, [selectedDate]);
+
+  const byDateQuery = useFixturesByDate(selectedDate, needsByDateFetch);
+
+  const isLoading = needsByDateFetch
+    ? byDateQuery.isLoading
+    : upcomingQuery.isLoading || recentQuery.isLoading;
 
   const rawFixtures = useMemo<Fixture[]>(() => {
+    if (needsByDateFetch) {
+      return byDateQuery.data ?? [];
+    }
     const all = [...(upcomingQuery.data ?? []), ...(recentQuery.data ?? [])];
     const seen = new Set<string>();
     return all.filter((f) => { if (seen.has(f.id)) return false; seen.add(f.id); return true; });
-  }, [upcomingQuery.data, recentQuery.data]);
+  }, [needsByDateFetch, byDateQuery.data, upcomingQuery.data, recentQuery.data]);
 
   const isSearching = search.trim().length > 0;
 
