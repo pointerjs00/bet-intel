@@ -61,7 +61,8 @@ export async function recomputeTeamStats(): Promise<RecomputeResult> {
     htGa: number | null;
   }
   interface Accum {
-    team: string;
+    team: string;      // normalised key
+    teamName: string;  // original display name (properly cased)
     competition: string;
     season: string;
     country: string;
@@ -79,7 +80,7 @@ export async function recomputeTeamStats(): Promise<RecomputeResult> {
   const get = (team: string, comp: string, season: string, country: string): Accum => {
     const normTeam = normaliseTeamName(team);
     const k = key(normTeam, comp, season);
-    if (!map.has(k)) map.set(k, { team: normTeam, competition: comp, season, country, matches: [] });
+    if (!map.has(k)) map.set(k, { team: normTeam, teamName: team, competition: comp, season, country, matches: [] });
     return map.get(k)!;
   };
 
@@ -138,7 +139,7 @@ export async function recomputeTeamStats(): Promise<RecomputeResult> {
     const points = won * 3 + drawn;
     const formLast5 = form.slice(-5).join(',') || null;
     const data = {
-      country: acc.country, played, won, drawn, lost,
+      country: acc.country, teamName: acc.teamName, played, won, drawn, lost,
       goalsFor: gf, goalsAgainst: ga, points,
       homeWon: hW, homeDrawn: hD, homeLost: hL, homeGoalsFor: hGF, homeGoalsAgainst: hGA,
       awayWon: aW, awayDrawn: aD, awayLost: aL, awayGoalsFor: aGF, awayGoalsAgainst: aGA,
