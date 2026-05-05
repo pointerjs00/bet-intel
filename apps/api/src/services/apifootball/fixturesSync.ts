@@ -23,7 +23,7 @@ function mapStatus(short: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' {
   return 'SCHEDULED';
 }
 
-async function upsertFixture(f: any, leagueName: string, season: string): Promise<boolean> {
+export async function upsertFixture(f: any, leagueName: string, season: string): Promise<boolean> {
   const homeTeam  = f.teams.home.name as string;
   const awayTeam  = f.teams.away.name as string;
   const kickoffAt = new Date(f.fixture.date);

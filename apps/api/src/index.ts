@@ -26,6 +26,7 @@ import { scheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
 import { ensureFixturesFresh } from './services/apifootball/fixturesSync';
 import { fixtureRouter } from './routes/fixtureRoutes';
 import { footballDataRouter } from './routes/footballDataRoutes';
+import { adminRouter } from './routes/adminRoutes';
 import { seed as seedReferenceData } from './prisma/seed';
 import { initFootballDataScheduler } from './scheduler';
 
@@ -89,6 +90,7 @@ app.use('/api/notifications', notificationsRouter);
 app.use('/api/favourites', favouritesRouter);
 app.use('/api/fixtures', fixtureRouter);
 app.use('/api', footballDataRouter);
+app.use('/api/admin', adminRouter);
 
 // ─── 404 handler ───────────────────────────────────────────────────────────────
 
