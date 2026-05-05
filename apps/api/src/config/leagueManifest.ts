@@ -28,6 +28,9 @@ export const LEAGUE_MANIFEST = [
   // Dutch
   { name: 'Eredivisie',       country: 'Netherlands',  apiFootballId: 88,  fdCoUkCode: 'N1'  },
 
+  // Turkish
+  { name: 'Süper Lig', country: 'Turkey', apiFootballId: 203, fdCoUkCode: null },
+
   // European
   { name: 'UEFA Champions League', country: 'Europe',  apiFootballId: 2,   fdCoUkCode: null  },
   { name: 'UEFA Europa League',    country: 'Europe',  apiFootballId: 3,   fdCoUkCode: null  },

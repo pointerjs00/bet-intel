@@ -3,9 +3,6 @@ import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
 
 const COMPETITION_ALIASES: Record<string, string> = {
-  'Primeira Liga':          'Liga Portugal Betclic',
-  'Liga NOS':               'Liga Portugal Betclic',
-  'Liga Portugal':          'Liga Portugal Betclic',
   'Champions League':       'UEFA Champions League',
   'Europa League':          'UEFA Europa League',
   'Conference League':      'UEFA Conference League',
