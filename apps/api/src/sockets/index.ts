@@ -3,6 +3,7 @@ import { Server, type Socket } from 'socket.io';
 import type { BoletinResultPayload, FriendActivityPayload } from '@betintel/shared';
 import { verifyAccessToken, type JwtPayload } from '../services/auth/tokenService';
 import { logger } from '../utils/logger';
+import type { LiveScorePayload } from '../jobs/liveScoreJob';
 
 const LIVE_ROOM = 'live';
 let io: Server | null = null;
@@ -123,6 +124,15 @@ export function emitFriendActivity(targetUserIds: string[], payload: FriendActiv
   for (const userId of new Set(targetUserIds)) {
     server.to(userRoomName(userId)).emit('friend:activity', payload);
   }
+}
+
+/** Broadcasts a live fixture score to all clients in the `live` room. */
+export function emitLiveScore(payload: LiveScorePayload): void {
+  const server = getSocketServer();
+  if (!server) {
+    return;
+  }
+  server.to(liveRoomName()).emit('fixture:score', payload);
 }
 
 function extractToken(socket: Socket): string | null {

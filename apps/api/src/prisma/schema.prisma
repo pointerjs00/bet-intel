@@ -192,21 +192,24 @@ model Boletin {
 }
 
 model BoletinItem {
-  id          String     @id @default(cuid())
-  boletinId   String
-  boletin     Boletin    @relation(fields: [boletinId], references: [id], onDelete: Cascade)
-  homeTeam    String
-  awayTeam    String
-  competition String
-  sport       Sport      @default(FOOTBALL)
-  market      String
-  selection   String
-  oddValue    Decimal    @db.Decimal(10, 2)
-  result      ItemResult @default(PENDING)
-  kickoffAt   DateTime?  @db.Timestamptz(3)
+  id               String     @id @default(cuid())
+  boletinId        String
+  boletin          Boletin    @relation(fields: [boletinId], references: [id], onDelete: Cascade)
+  homeTeam         String
+  awayTeam         String
+  competition      String
+  sport            Sport      @default(FOOTBALL)
+  market           String
+  selection        String
+  oddValue         Decimal    @db.Decimal(10, 2)
+  result           ItemResult @default(PENDING)
+  kickoffAt        DateTime?  @db.Timestamptz(3)
+  eventExternalId  String?    // API-Football fixture ID for auto-settlement
+  needsReview      Boolean    @default(false) // auto-settlement confidence < 1.0
 
   @@index([boletinId])
   @@index([kickoffAt])
+  @@index([eventExternalId])
 }
 
 model Friendship {

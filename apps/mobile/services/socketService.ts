@@ -7,10 +7,21 @@ import type {
 } from '@betintel/shared';
 import { socketBaseUrl } from './runtimeConfig';
 
+export interface LiveScorePayload {
+  fixtureId: number;
+  homeTeam: string;
+  awayTeam: string;
+  homeGoals: number;
+  awayGoals: number;
+  elapsed: number | null;
+  statusShort: string;
+}
+
 type SocketEventMap = {
   'boletim:result': BoletinResultPayload;
   'friend:activity': FriendActivityPayload;
   'notification:new': { notification: Notification };
+  'fixture:score': LiveScorePayload;
 };
 
 interface UntypedSocketListenerHost {

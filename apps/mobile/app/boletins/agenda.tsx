@@ -21,6 +21,7 @@ import { CompetitionBadge } from '../../components/ui/CompetitionBadge';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useAgenda } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
+import { useLiveAgendaScores, makeLiveScoreKey, type LiveScore } from '../../hooks/useLiveAgendaScores';
 
 // ─── Sport config ─────────────────────────────────────────────────────────────
 
@@ -190,15 +191,17 @@ function BoletinPickerSheet({
 function AgendaRow({
   item,
   colors,
+  liveScore,
   onPress,
 }: {
   item: AgendaItem;
   colors: Record<string, string>;
+  liveScore?: LiveScore;
   onPress: () => void;
 }) {
   const { emoji, accent } = getSportMeta(item.sport);
   const time = formatKickoff(item.kickoffAt);
-  const status = getKickoffStatus(item.kickoffAt, item.sport);
+  const status = liveScore ? 'live' : getKickoffStatus(item.kickoffAt, item.sport);
   const timeColor = status === 'future' ? accent : '#EF4444';
   const count = item.boletinIds.length;
 
@@ -254,7 +257,20 @@ function AgendaRow({
             </Text>
           </View>
           <View style={styles.vsBlock}>
-            <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
+            {liveScore ? (
+              <>
+                <Text style={[styles.scoreText, { color: '#EF4444' }]}>
+                  {liveScore.homeGoals} – {liveScore.awayGoals}
+                </Text>
+                {liveScore.elapsed !== null && (
+                  <Text style={[styles.elapsedText, { color: '#EF4444' }]}>
+                    {liveScore.elapsed}'
+                  </Text>
+                )}
+              </>
+            ) : (
+              <Text style={[styles.vsText, { color: colors.textMuted }]}>VS</Text>
+            )}
           </View>
           <View style={styles.teamBlock}>
             <TeamBadge name={item.awayTeam} size={36} variant="team" />
@@ -299,6 +315,7 @@ export default function AgendaScreen() {
   const router = useRouter();
   const { colors, tokens: t } = useTheme();
   const query = useAgenda();
+  const liveScores = useLiveAgendaScores();
   const [sheetItem, setSheetItem] = useState<AgendaItem | null>(null);
 
   const sections = useMemo<Section[]>(() => {
@@ -362,7 +379,12 @@ export default function AgendaScreen() {
           </View>
         )}
         renderItem={({ item }) => (
-          <AgendaRow item={item} colors={colors} onPress={() => handleRowPress(item)} />
+          <AgendaRow
+            item={item}
+            colors={colors}
+            liveScore={liveScores[makeLiveScoreKey(item.homeTeam, item.awayTeam)]}
+            onPress={() => handleRowPress(item)}
+          />
         )}
         SectionSeparatorComponent={() => <View style={{ height: 6 }} />}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
@@ -427,8 +449,10 @@ const styles = StyleSheet.create({
   teamsRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   teamBlock: { alignItems: 'center', flex: 1, gap: 6 },
   teamName: { fontSize: 12, fontWeight: '700', textAlign: 'center' },
-  vsBlock: { alignItems: 'center', width: 32 },
+  vsBlock: { alignItems: 'center', width: 40 },
   vsText: { fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  scoreText: { fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+  elapsedText: { fontSize: 10, fontWeight: '700', marginTop: 2 },
 
   betChipRow: { alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingTop: 10 },
   marketChip: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
