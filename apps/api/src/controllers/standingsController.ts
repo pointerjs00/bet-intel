@@ -74,6 +74,7 @@ export async function leagueTableHandler(req: Request, res: Response): Promise<v
 
     const data = rows.map((r) => ({
       ...r,
+      team: r.teamName ?? r.team,
       goalDifference: r.goalsFor - r.goalsAgainst,
       bttsRate:       r.played > 0 ? r.bttsCount  / r.played : 0,
       over25Rate:     r.played > 0 ? r.over25Count / r.played : 0,
@@ -112,6 +113,7 @@ export async function teamStatsHandler(req: Request, res: Response): Promise<voi
 
     const data = rows.map((r) => ({
       ...r,
+      team: r.teamName ?? r.team,
       goalDifference: r.goalsFor - r.goalsAgainst,
       bttsRate:       r.played > 0 ? r.bttsCount  / r.played : 0,
       over25Rate:     r.played > 0 ? r.over25Count / r.played : 0,
