@@ -246,10 +246,12 @@ function toStatsCompetition(name: string): string {
 }
 
 function stripClubAffixes(normKey: string): string {
-  // Strip common prefix abbreviations (CA = Club Atlético, etc.)
-  let s = normKey.replace(/^(fc|afc|ca|cd|cf|gd|sc|sl|ac|as|rc|ud|sd|rcd|ss|us|nk|sk|fk|if|bk) /, '');
-  // Strip common suffix abbreviations (BC = Bergamasca Calcio, CFC = Club Football, etc.)
-  s = s.replace(/ (fc|afc|cfc|bc|sc|bsc|ssc|calcio)$/, '');
+  // Long multi-word prefixes first
+  let s = normKey.replace(/^(1 fc|1 fsv|rasenballsport|football club|sporting club) /, '');
+  // Single-word prefixes (general + German/Dutch/Nordic)
+  s = s.replace(/^(fc|afc|ca|cd|cf|gd|sc|sl|ac|as|rc|ud|sd|rcd|ss|us|nk|sk|fk|if|bk|sv|bsc|vfl|vfb|fsv|tsg|hsv|spvg|esv|jk|ks) /, '');
+  // Common suffixes
+  s = s.replace(/ (fc|afc|cfc|bc|sc|bsc|ssc|calcio|04)$/, '');
   return s.trim();
 }
 

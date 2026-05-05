@@ -2479,7 +2479,7 @@ const mgStyles = StyleSheet.create({
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '80%',
+    height: '75%',
   },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
