@@ -7,21 +7,61 @@ function ok<T>(res: Response, data: T): void {
   res.json({ success: true, data });
 }
 
+// Strip ≤2-char tokens (fc, ac, sc, gd, cd, de, …) and return the remaining words.
+// "gil vicente fc" → ["gil","vicente"]   "gd estoril praia" → ["estoril","praia"]
+function teamTokens(normKey: string): string[] {
+  return normKey.split(' ').filter(w => w.length > 2);
+}
+
+// True when both names refer to the same club despite abbreviation differences.
+// Uses a subset check: if the shorter token-set is fully contained in the longer one
+// the names are considered equivalent.
+// "sc braga" tokens=["braga"] ⊆ "sporting clube de braga" tokens=["sporting","clube","braga"] ✓
+function teamsMatch(normA: string, normB: string): boolean {
+  if (normA === normB) return true;
+  const tokA = teamTokens(normA);
+  const tokB = teamTokens(normB);
+  if (tokA.length === 0 || tokB.length === 0) return false;
+  const [smaller, larger] = tokA.length <= tokB.length
+    ? [tokA, new Set(tokB)]
+    : [tokB, new Set(tokA)];
+  return smaller.every(w => (larger as Set<string>).has(w));
+}
+
 // When both a CSV-sourced record (no apiFootballId) and an API-Football record
 // exist for the same match, keep only the API-Football one.
 function deduplicateFixtures(fixtures: any[]): any[] {
-  const best = new Map<string, any>();
+  // Group by (competition, UTC date) so comparisons stay scoped
+  const groups = new Map<string, any[]>();
   for (const f of fixtures) {
-    const homeNorm = f.homeTeamNormKey ?? f.homeTeam.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
-    const awayNorm = f.awayTeamNormKey ?? f.awayTeam.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
     const dateStr = (f.kickoffAt as Date).toISOString().slice(0, 10);
-    const key = `${homeNorm}|${awayNorm}|${dateStr}`;
-    const existing = best.get(key);
-    if (!existing || (f.apiFootballId != null && existing.apiFootballId == null)) {
-      best.set(key, f);
+    const groupKey = `${f.competition}|${dateStr}`;
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey)!.push(f);
+  }
+
+  const toRemove = new Set<string>();
+
+  for (const group of groups.values()) {
+    const withApiId    = group.filter(f => f.apiFootballId != null);
+    const withoutApiId = group.filter(f => f.apiFootballId == null);
+    if (withApiId.length === 0 || withoutApiId.length === 0) continue;
+
+    for (const apiF of withApiId) {
+      const homeNorm = (apiF.homeTeamNormKey ?? apiF.homeTeam.toLowerCase()) as string;
+      const awayNorm = (apiF.awayTeamNormKey ?? apiF.awayTeam.toLowerCase()) as string;
+      for (const csvF of withoutApiId) {
+        if (toRemove.has(csvF.id)) continue;
+        const csvHome = (csvF.homeTeamNormKey ?? csvF.homeTeam.toLowerCase()) as string;
+        const csvAway = (csvF.awayTeamNormKey ?? csvF.awayTeam.toLowerCase()) as string;
+        if (teamsMatch(homeNorm, csvHome) && teamsMatch(awayNorm, csvAway)) {
+          toRemove.add(csvF.id);
+        }
+      }
     }
   }
-  return Array.from(best.values());
+
+  return toRemove.size > 0 ? fixtures.filter(f => !toRemove.has(f.id)) : fixtures;
 }
 
 function fail(res: Response, err: unknown): void {
