@@ -1467,13 +1467,22 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
     { key: 'table', label: 'Tabela', icon: 'trophy-outline' },
   ];
 
+  const SCREEN_HEIGHT = Dimensions.get('window').height;
+
   return (
     <Modal visible={!!fixture} transparent animationType="slide" onRequestClose={onClose}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={bsStyles.overlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-          <Animated.View style={[bsStyles.sheet, { backgroundColor: colors.background }, animatedStyle]}>
-
+            <Animated.View style={[
+              bsStyles.sheet, 
+              { 
+                backgroundColor: colors.background, 
+                height: '96%',
+                overflow: 'visible',  // ← explicitly override
+              }, 
+              animatedStyle
+            ]}>
             {/* Drag handle */}
             <GestureDetector gesture={dragGesture}>
               <View style={bsStyles.dragArea}>
@@ -1518,7 +1527,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
             {activeTab === 'insight' && <InsightTab fixture={fixture} />}
 
             {activeTab === 'table' && (
-              <View style={{ flex: 1 }}>
+              <View style={{ height: SCREEN_HEIGHT * 0.96 - 120 }}>
                 <LeagueTableModal
                   visible={true}
                   competition={resolveCompetition(fixture.competition)}
@@ -1951,14 +1960,14 @@ function ManageFavouritesModal({
 }
 
 const mgStyles = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
   sheet: { 
     borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24, 
-    maxHeight: '80%',
-    minHeight: '50%',
-    display: 'flex',
-    flexDirection: 'column',
+    borderTopRightRadius: 24,
   },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',

@@ -50,9 +50,9 @@ async function syncLeagueStandings(
     };
 
     await prisma.teamStat.upsert({
-      where: { teamstat_unique: { team: teamName, competition: leagueName, season } },
+      where: { teamstat_unique: { team: teamNormKey, competition: leagueName, season } },
+      create: { team: teamNormKey, competition: leagueName, season, country, ...shared },
       update: shared,
-      create: { team: teamName, competition: leagueName, season, country, ...shared },
     });
   }
 

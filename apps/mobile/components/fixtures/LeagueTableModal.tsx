@@ -338,7 +338,7 @@ function TableContent({
     return Array.from(seen.values());
   }, [total]);
 
-  function renderRow({ item }: { item: TeamStatData & { displayPos: number } }) {
+  function renderRow(item: TeamStatData & { displayPos: number }) {
     const highlight = isHighlighted(item.team, highlightTeams);
     const zone = sortKey === 'default' ? getZone(item.displayPos, total, DEFAULT_ZONES) : null;
 
@@ -437,7 +437,7 @@ function TableContent({
   );
 
   return (
-    <View style={[s.container, { backgroundColor: colors.background, paddingBottom: embedded ? 0 : insets.bottom }]}>
+    <View style={[s.container, { backgroundColor: colors.background, paddingBottom: embedded ? 0 : insets.bottom, flex: 1, minHeight: 400 }]}>
       <View style={[s.header, { borderBottomColor: colors.border }]}>
         <View style={{ flex: 1 }}>
           <Text numberOfLines={1} style={[s.title, { color: colors.textPrimary }]}>{competition}</Text>
@@ -498,13 +498,14 @@ function TableContent({
       ) : rows.length === 0 ? (
         <Text style={[s.empty, { color: colors.textMuted }]}>Sem dados disponíveis</Text>
       ) : (
-        <FlatList
-          data={rows}
-          keyExtractor={(r) => r.id}
-          renderItem={renderRow}
-          showsVerticalScrollIndicator={false}
-          ListFooterComponent={listFooter}
-        />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {rows.map((item) => (
+            <React.Fragment key={item.id}>
+              {renderRow(item)}
+            </React.Fragment>
+          ))}
+          {listFooter}
+        </ScrollView>
       )}
     </View>
   );
