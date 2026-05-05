@@ -147,7 +147,7 @@ export async function recomputeTeamStats(): Promise<RecomputeResult> {
     };
 
     const result = await prisma.teamStat.upsert({
-      where: { teamstat_unique: { team: acc.team, competition: acc.competition, season: acc.season } },
+      where: { teamstat_unique: { team: normaliseTeamName(acc.team), competition: acc.competition, season: acc.season } },
       update: data,
       create: { team: acc.team, competition: acc.competition, season: acc.season, ...data },
       select: { id: true },
