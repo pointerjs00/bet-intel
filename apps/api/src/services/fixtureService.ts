@@ -15,6 +15,7 @@
 
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
+import { normaliseTeamName } from '../utils/nameNormalisation';
 import {
   fixturesSyncJob,
   ensureFixturesFresh as apiFootballEnsureFixturesFresh,
@@ -74,10 +75,11 @@ export async function recomputeTeamStats(): Promise<RecomputeResult> {
 
   const map = new Map<string, Accum>();
   const key = (team: string, comp: string, season: string) =>
-    `${team}|||${comp}|||${season}`;
+    `${normaliseTeamName(team)}|||${comp}|||${season}`;
   const get = (team: string, comp: string, season: string, country: string): Accum => {
-    const k = key(team, comp, season);
-    if (!map.has(k)) map.set(k, { team, competition: comp, season, country, matches: [] });
+    const normTeam = normaliseTeamName(team);
+    const k = key(normTeam, comp, season);
+    if (!map.has(k)) map.set(k, { team: normTeam, competition: comp, season, country, matches: [] });
     return map.get(k)!;
   };
 
