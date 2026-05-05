@@ -1,6 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { requireInternalKey } from '../middleware/requireInternalKey';
 import { runHistoricalBackfill } from '../services/apifootball/historicalBackfill';
+import { recomputeTeamStats } from '../services/fixtureService';
+import { prisma } from '../prisma';
+import { LEAGUE_MANIFEST } from '../config/leagueManifest';
 import { redis } from '../utils/redis';
 import { logger } from '../utils/logger';
 
@@ -21,6 +24,58 @@ adminRouter.post('/backfill-fixtures', (_req: Request, res: Response) => {
     success: true,
     message: 'Historical backfill started in background — monitor server logs for progress',
   });
+});
+
+// POST /api/admin/cleanup-csv-fixtures
+// Deletes CSV-sourced Fixture records for leagues/seasons now covered by the
+// API-Football backfill (identified by apiFootballId IS NULL AND homeTeamApiId IS NULL),
+// then wipes the corresponding TeamStat rows and rebuilds them from clean data.
+// Run once after the historical backfill to eliminate duplicate teams in standings.
+adminRouter.post('/cleanup-csv-fixtures', async (_req: Request, res: Response) => {
+  try {
+    const competitionNames = LEAGUE_MANIFEST.map(l => l.name);
+    // Seasons covered by the backfill (API season 2022-2025 → canonical names)
+    const coveredSeasons = ['2022-23', '2023-24', '2024-25', '2025-26'];
+
+    // CSV records have neither apiFootballId nor homeTeamApiId set
+    const deletedFixtures = await prisma.fixture.deleteMany({
+      where: {
+        apiFootballId: null,
+        homeTeamApiId: null,
+        competition: { in: competitionNames },
+        season: { in: coveredSeasons },
+      },
+    });
+    logger.info(`[admin] Deleted ${deletedFixtures.count} CSV-sourced fixture records`);
+
+    // Wipe TeamStat for covered leagues/seasons so recompute starts from a clean slate
+    const deletedStats = await prisma.teamStat.deleteMany({
+      where: {
+        competition: { in: competitionNames },
+        season: { in: coveredSeasons },
+      },
+    });
+    logger.info(`[admin] Deleted ${deletedStats.count} stale TeamStat rows`);
+
+    // Rebuild TeamStat from the now-clean Fixture table
+    const { teams, competitions } = await recomputeTeamStats();
+    logger.info(`[admin] Rebuilt TeamStat: ${teams} teams across ${competitions} competitions`);
+
+    // Flush fixture cache so upcoming/recent also reflect clean data
+    const cacheKeys = await redis.keys('fixtures:*');
+    if (cacheKeys.length > 0) await redis.del(...cacheKeys);
+
+    res.json({
+      success: true,
+      deletedFixtures: deletedFixtures.count,
+      deletedTeamStats: deletedStats.count,
+      rebuiltTeams: teams,
+      rebuiltCompetitions: competitions,
+    });
+  } catch (err: any) {
+    logger.error('[admin] CSV fixture cleanup failed', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // DELETE /api/admin/fixtures-cache
