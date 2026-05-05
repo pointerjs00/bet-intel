@@ -2,7 +2,7 @@
 
 export const LEAGUE_MANIFEST = [
   // Portuguese (priority — core market)
-  { name: 'Primeira Liga',     country: 'Portugal',     apiFootballId: 94,  fdCoUkCode: 'P'   },
+  { name: 'Liga Portugal Betclic', country: 'Portugal', apiFootballId: 94, fdCoUkCode: 'P' },
   { name: 'Liga Portugal 2',   country: 'Portugal',     apiFootballId: 95,  fdCoUkCode: null  },
 
   // English
