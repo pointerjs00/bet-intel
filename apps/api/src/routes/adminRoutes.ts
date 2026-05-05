@@ -78,6 +78,31 @@ adminRouter.post('/cleanup-csv-fixtures', async (_req: Request, res: Response) =
   }
 });
 
+// GET /api/admin/team-names
+// Returns all distinct teamName values from TeamStat, grouped by competition.
+// Use this to build FIXTURE_TEAM_ALIASES in the mobile app.
+adminRouter.get('/team-names', async (_req: Request, res: Response) => {
+  try {
+    const rows = await prisma.teamStat.findMany({
+      select: { teamName: true, team: true, competition: true },
+      orderBy: [{ competition: 'asc' }, { teamName: 'asc' }],
+    });
+
+    const grouped: Record<string, string[]> = {};
+    for (const r of rows) {
+      const display = r.teamName ?? r.team;
+      if (!grouped[r.competition]) grouped[r.competition] = [];
+      if (!grouped[r.competition].includes(display)) {
+        grouped[r.competition].push(display);
+      }
+    }
+
+    res.json({ success: true, data: grouped });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // DELETE /api/admin/fixtures-cache
 // Flushes all Redis fixture cache keys so the next request re-runs dedup logic.
 adminRouter.delete('/fixtures-cache', async (_req: Request, res: Response) => {
