@@ -58,6 +58,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_TUNED_MODEL_ID: ${{ secrets.OPENAI_TUNED_MODEL_ID }}
           AI_PARSER: ${{ secrets.AI_PARSER }}
+          INTERNAL_ADMIN_KEY: ${{ secrets.INTERNAL_ADMIN_KEY }}
         run: |
           cat > "$RUNNER_TEMP/api.env" <<EOF
           DATABASE_URL=${DATABASE_URL}
@@ -90,6 +91,9 @@ jobs:
           fi
           if [ -n "${AI_PARSER}" ]; then
             echo "AI_PARSER=${AI_PARSER}" >> "$RUNNER_TEMP/api.env"
+          fi
+          if [ -n "${INTERNAL_ADMIN_KEY}" ]; then
+            echo "INTERNAL_ADMIN_KEY=${INTERNAL_ADMIN_KEY}" >> "$RUNNER_TEMP/api.env"
           fi
 
       - name: Upload config files to server
