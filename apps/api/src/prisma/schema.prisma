@@ -64,6 +64,7 @@ enum NotificationType {
   FRIEND_ACCEPTED
   BOLETIN_SHARED
   BOLETIN_RESULT
+  MATCH_STARTING
   SYSTEM
 }
 
@@ -97,6 +98,7 @@ model User {
 
   boletins         Boletin[]
   refreshTokens    RefreshToken[]
+  fixtureWatches   FixtureWatch[]
   friendships      Friendship[]    @relation("UserFriendships")
   friendOf         Friendship[]    @relation("FriendFriendships")
   sentRequests     FriendRequest[] @relation("SentRequests")
@@ -322,6 +324,7 @@ model Fixture {
   elapsedMinutes   Int?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  watches          FixtureWatch[]
 
   @@unique([homeTeam, awayTeam, season, round], name: "fixture_unique")
   @@index([homeTeam, awayTeam, kickoffAt])
@@ -561,4 +564,19 @@ model ScanFeedback {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+// ─── Fixture watch / alert subscriptions ─────────────────────────────────────
+
+model FixtureWatch {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fixtureId String
+  fixture   Fixture  @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, fixtureId])
+  @@index([userId])
+  @@index([fixtureId])
 }

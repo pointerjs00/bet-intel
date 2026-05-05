@@ -25,6 +25,7 @@ import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankin
 import { scheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
 import { ensureFixturesFresh } from './services/apifootball/fixturesSync';
 import { fixtureRouter } from './routes/fixtureRoutes';
+import { fixtureAlertRouter } from './routes/fixtureAlertRoutes';
 import { footballDataRouter } from './routes/footballDataRoutes';
 import { adminRouter } from './routes/adminRoutes';
 import { seed as seedReferenceData } from './prisma/seed';
@@ -89,6 +90,7 @@ app.use('/api/friends', friendsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/favourites', favouritesRouter);
 app.use('/api/fixtures', fixtureRouter);
+app.use('/api/fixture-alerts', fixtureAlertRouter);
 app.use('/api', footballDataRouter);
 app.use('/api/admin', adminRouter);
 
