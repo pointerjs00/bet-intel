@@ -65,6 +65,13 @@ export async function predictionsSyncJob() {
           return isNaN(n) ? null : n;
         };
 
+        // goals.home / goals.away can be strings like "-2.5" — parse to float
+        const toFloat = (v: unknown): number | null => {
+          if (v == null) return null;
+          const n = parseFloat(String(v));
+          return isNaN(n) ? null : n;
+        };
+
         await (prisma as any).fixturePrediction.upsert({
           where: { fixtureId: fixture.id },
           update: {
@@ -75,8 +82,8 @@ export async function predictionsSyncJob() {
             winPctHome:     pctStr(pred.percent?.home),
             winPctDraw:     pctStr(pred.percent?.draw),
             winPctAway:     pctStr(pred.percent?.away),
-            goalsHome:      pred.goals?.home ?? null,
-            goalsAway:      pred.goals?.away ?? null,
+            goalsHome:      toFloat(pred.goals?.home),
+            goalsAway:      toFloat(pred.goals?.away),
             advice:         pred.advice ?? null,
             overUnder:      pred.under_over ?? null,
             btts:           pred.goals_btts === '1' ? true : pred.goals_btts === '0' ? false : null,
@@ -94,8 +101,8 @@ export async function predictionsSyncJob() {
             winPctHome:     pctStr(pred.percent?.home),
             winPctDraw:     pctStr(pred.percent?.draw),
             winPctAway:     pctStr(pred.percent?.away),
-            goalsHome:      pred.goals?.home ?? null,
-            goalsAway:      pred.goals?.away ?? null,
+            goalsHome:      toFloat(pred.goals?.home),
+            goalsAway:      toFloat(pred.goals?.away),
             advice:         pred.advice ?? null,
             overUnder:      pred.under_over ?? null,
             btts:           pred.goals_btts === '1' ? true : pred.goals_btts === '0' ? false : null,
