@@ -1,4 +1,8 @@
 // apps/api/src/services/fixtureInsightService.ts
+//
+// Computes fixture insight data exclusively from the Fixture table,
+// which is populated by API-Football. Team name lookups use
+// normaliseTeamName only — same transform as storage, so names always match.
 
 import { prisma } from '../prisma';
 import { redis }  from '../utils/redis';
@@ -86,9 +90,23 @@ const pct = (count: number, total: number) =>
 const average = (a: number, b: number) =>
   Math.round((a + b) / 2);
 
+// ─── Shared match shape ───────────────────────────────────────────────────────
+
+interface MatchShape {
+  homeTeam:    string;
+  awayTeam:    string;
+  homeScore:   number | null;
+  awayScore:   number | null;
+  homeCorners: number | null;
+  awayCorners: number | null;
+  homeYellow:  number | null;
+  awayYellow:  number | null;
+  date:        Date;
+}
+
 // ─── Team insight ─────────────────────────────────────────────────────────────
 
-function computeTeamInsight(matches: any[], _teamName: string, teamIsHome: boolean): TeamInsight {
+function computeTeamInsight(matches: MatchShape[], _teamName: string, teamIsHome: boolean): TeamInsight {
   const n = matches.length;
   if (n === 0) {
     return {
@@ -99,8 +117,8 @@ function computeTeamInsight(matches: any[], _teamName: string, teamIsHome: boole
     };
   }
 
-  const gf = (m: any) => teamIsHome ? (m.homeScore ?? 0) : (m.awayScore ?? 0);
-  const ga = (m: any) => teamIsHome ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
+  const gf = (m: MatchShape) => teamIsHome ? (m.homeScore ?? 0) : (m.awayScore ?? 0);
+  const ga = (m: MatchShape) => teamIsHome ? (m.awayScore ?? 0) : (m.homeScore ?? 0);
 
   return {
     sampleSize:        n,
@@ -121,29 +139,26 @@ function computeTeamInsight(matches: any[], _teamName: string, teamIsHome: boole
       return scored > conceded ? 'W' : scored === conceded ? 'D' : 'L';
     }),
     recentMatches: matches.slice(0, 20).map(m => ({
-      date:              m.date,
-      homeTeam:          m.homeTeam,
-      awayTeam:          m.awayTeam,
-      homeScore:         m.homeScore,
-      awayScore:         m.awayScore,
-      isHome:            teamIsHome,
-      homeTeamImageUrl:  null,
-      awayTeamImageUrl:  null,
-      time:              m.date,
+      date:      m.date,
+      homeTeam:  m.homeTeam,
+      awayTeam:  m.awayTeam,
+      homeScore: m.homeScore,
+      awayScore: m.awayScore,
+      isHome:    teamIsHome,
     })),
   };
 }
 
 // ─── H2H insight ─────────────────────────────────────────────────────────────
 
-function computeH2HInsight(matches: any[], homeNorm: string, awayNorm: string): H2HInsight {
+function computeH2HInsight(matches: MatchShape[], homeNormKey: string, awayNormKey: string): H2HInsight {
   const atVenue = matches.filter(m =>
-    normaliseTeamName(m.homeTeam) === homeNorm &&
-    normaliseTeamName(m.awayTeam) === awayNorm
+    normaliseTeamName(m.homeTeam) === homeNormKey &&
+    normaliseTeamName(m.awayTeam) === awayNormKey
   );
 
   const homeWins = matches.filter(m => {
-    const teamIsHome = normaliseTeamName(m.homeTeam) === homeNorm;
+    const teamIsHome = normaliseTeamName(m.homeTeam) === homeNormKey;
     return teamIsHome
       ? (m.homeScore ?? 0) > (m.awayScore ?? 0)
       : (m.awayScore ?? 0) > (m.homeScore ?? 0);
@@ -167,28 +182,6 @@ function computeH2HInsight(matches: any[], homeNorm: string, awayNorm: string): 
       date: m.date, homeTeam: m.homeTeam, awayTeam: m.awayTeam,
       homeScore: m.homeScore, awayScore: m.awayScore,
     })),
-  };
-}
-
-// ─── Sharp odds ───────────────────────────────────────────────────────────────
-
-function buildSharpOddsContext(m: any, homeNorm: string): SharpOddsContext {
-  const ph     = m.pinnacleHomeWin!;
-  const pd     = m.pinnacleDraw!;
-  const pa     = m.pinnacleAwayWin!;
-  const margin = 1 / ph + 1 / pd + 1 / pa;
-  const norm   = (raw: number) => +(1 / (raw * margin) * 100).toFixed(1);
-  const teamIsHome = normaliseTeamName(m.homeTeam) === homeNorm;
-
-  return {
-    pinnacleHome: teamIsHome ? ph : pa,
-    pinnacleDraw: pd,
-    pinnacleAway: teamIsHome ? pa : ph,
-    impliedHome:  teamIsHome ? norm(ph) : norm(pa),
-    impliedDraw:  norm(pd),
-    impliedAway:  teamIsHome ? norm(pa) : norm(ph),
-    matchDate: m.date,
-    note: `Pinnacle closing odds — ${m.homeTeam} v ${m.awayTeam}, ${m.date.toISOString().slice(0, 10)}`,
   };
 }
 
@@ -234,26 +227,28 @@ async function getStandingRows(homeTeam: string, awayTeam: string, competition: 
   return { home, away };
 }
 
+// ─── Map Fixture row to MatchShape ────────────────────────────────────────────
+
+function fixtureToShape(f: {
+  homeTeam: string; awayTeam: string;
+  homeScore: number | null; awayScore: number | null;
+  kickoffAt: Date;
+}): MatchShape {
+  return {
+    homeTeam:    f.homeTeam,
+    awayTeam:    f.awayTeam,
+    homeScore:   f.homeScore,
+    awayScore:   f.awayScore,
+    // Fixture table doesn't store corners/cards — default to null (renders as 0 in averages)
+    homeCorners: null,
+    awayCorners: null,
+    homeYellow:  null,
+    awayYellow:  null,
+    date:        f.kickoffAt,
+  };
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
-
-const STATS_COMPETITION_MAP: Record<string, string> = {
-  'Liga Portugal Betclic': 'Primeira Liga',
-  'Liga Portugal 2': 'Segunda Liga',
-};
-
-function toStatsCompetition(name: string): string {
-  return STATS_COMPETITION_MAP[name] ?? name;
-}
-
-function stripClubAffixes(normKey: string): string {
-  // Long multi-word prefixes first
-  let s = normKey.replace(/^(1 fc|1 fsv|rasenballsport|football club|sporting club) /, '');
-  // Single-word prefixes (general + German/Dutch/Nordic)
-  s = s.replace(/^(fc|afc|ca|cd|cf|gd|sc|sl|ac|as|rc|ud|sd|rcd|ss|us|nk|sk|fk|if|bk|sv|bsc|vfl|vfb|fsv|tsg|hsv|spvg|esv|jk|ks) /, '');
-  // Common suffixes
-  s = s.replace(/ (fc|afc|cfc|bc|sc|bsc|ssc|calcio|04)$/, '');
-  return s.trim();
-}
 
 export async function computeFixtureInsight(fixture: {
   id: string;
@@ -262,49 +257,65 @@ export async function computeFixtureInsight(fixture: {
   competition: string;
   kickoffAt: Date;
 }): Promise<FixtureInsight> {
-  const SAMPLE   = 20;
-  const homeNorm = stripClubAffixes(resolveAlias(normaliseTeamName(fixture.homeTeam)));
-  const awayNorm = stripClubAffixes(resolveAlias(normaliseTeamName(fixture.awayTeam)));
+  const SAMPLE = 20;
+
+  // Use same normalisation as fixture storage — guarantees exact key match
+  const homeNormKey = normaliseTeamName(fixture.homeTeam);
+  const awayNormKey = normaliseTeamName(fixture.awayTeam);
 
   const leagueConfig = LEAGUE_MANIFEST.find(l => l.name === fixture.competition);
   const leagueId = leagueConfig?.apiFootballId ?? 0;
 
   const [homeAtHome, awayAway, h2hMatches] = await Promise.all([
-    prisma.matchStat.findMany({
-      where: { homeTeamNormKey: homeNorm, competition: toStatsCompetition(fixture.competition), homeScore: { not: null } },
-      orderBy: { date: 'desc' },
+    // Home team's last SAMPLE finished home games in this competition
+    prisma.fixture.findMany({
+      where: {
+        homeTeamNormKey: homeNormKey,
+        competition: fixture.competition,
+        status: 'FINISHED',
+        homeScore: { not: null },
+        id: { not: fixture.id },
+      },
+      orderBy: { kickoffAt: 'desc' },
       take: SAMPLE,
     }),
-    prisma.matchStat.findMany({
-      where: { awayTeamNormKey: awayNorm, competition: toStatsCompetition(fixture.competition), awayScore: { not: null } },
-      orderBy: { date: 'desc' },
+    // Away team's last SAMPLE finished away games in this competition
+    prisma.fixture.findMany({
+      where: {
+        awayTeamNormKey: awayNormKey,
+        competition: fixture.competition,
+        status: 'FINISHED',
+        awayScore: { not: null },
+        id: { not: fixture.id },
+      },
+      orderBy: { kickoffAt: 'desc' },
       take: SAMPLE,
     }),
-    prisma.matchStat.findMany({
+    // H2H across all competitions and seasons
+    prisma.fixture.findMany({
       where: {
         OR: [
-          { homeTeamNormKey: homeNorm, awayTeamNormKey: awayNorm },
-          { homeTeamNormKey: awayNorm, awayTeamNormKey: homeNorm },
+          { homeTeamNormKey: homeNormKey, awayTeamNormKey: awayNormKey },
+          { homeTeamNormKey: awayNormKey, awayTeamNormKey: homeNormKey },
         ],
+        status: 'FINISHED',
         homeScore: { not: null },
+        id: { not: fixture.id },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { kickoffAt: 'desc' },
       take: 10,
     }),
   ]);
 
-  const homeInsight = computeTeamInsight(homeAtHome, fixture.homeTeam, true);
-  const awayInsight = computeTeamInsight(awayAway, fixture.awayTeam, false);
-  const h2hInsight  = computeH2HInsight(h2hMatches, homeNorm, awayNorm);
+  const homeInsight = computeTeamInsight(homeAtHome.map(fixtureToShape), fixture.homeTeam, true);
+  const awayInsight = computeTeamInsight(awayAway.map(fixtureToShape), fixture.awayTeam, false);
+  const h2hInsight  = computeH2HInsight(h2hMatches.map(fixtureToShape), homeNormKey, awayNormKey);
 
-  const withOdds = h2hMatches.find(m => m.pinnacleHomeWin !== null);
-  const sharpOdds: SharpOddsContext = withOdds
-    ? buildSharpOddsContext(withOdds, homeNorm)
-    : {
-        pinnacleHome: null, pinnacleDraw: null, pinnacleAway: null,
-        impliedHome: null, impliedDraw: null, impliedAway: null,
-        matchDate: null, note: 'No Pinnacle odds available for recent H2H',
-      };
+  const sharpOdds: SharpOddsContext = {
+    pinnacleHome: null, pinnacleDraw: null, pinnacleAway: null,
+    impliedHome: null, impliedDraw: null, impliedAway: null,
+    matchDate: null, note: 'No Pinnacle odds available',
+  };
 
   const [homeInjuries, awayInjuries, homeTopScorers, awayTopScorers, standings] =
     await Promise.all([
