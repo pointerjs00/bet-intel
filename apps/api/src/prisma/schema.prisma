@@ -531,6 +531,223 @@ model TopScorer {
   @@index([teamNormKey])
 }
 
+// ─── Fixture stats (per-match from API-Football /fixtures/statistics) ────────
+
+model FixtureStats {
+  id                  String   @id @default(cuid())
+  fixtureId           String   @unique
+  apiFootballFixtureId Int?    @unique
+
+  homePossession      Float?
+  awayPossession      Float?
+
+  homeShotsTotal      Int?
+  awayShotsTotal      Int?
+  homeShotsOnTarget   Int?
+  awayShotsOnTarget   Int?
+  homeShotsBlocked    Int?
+  awayShotsBlocked    Int?
+
+  homeCorners         Int?
+  awayCorners         Int?
+
+  homeOffsides        Int?
+  awayOffsides        Int?
+
+  homeYellow          Int?
+  awayYellow          Int?
+  homeRed             Int?
+  awayRed             Int?
+
+  homeFouls           Int?
+  awayFouls           Int?
+
+  homeGkSaves         Int?
+  awayGkSaves         Int?
+
+  homePassesTotal     Int?
+  awayPassesTotal     Int?
+  homePassesAccurate  Int?
+  awayPassesAccurate  Int?
+  homePassPct         Float?
+  awayPassPct         Float?
+
+  homeXg              Float?
+  awayXg              Float?
+
+  syncedAt            DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([apiFootballFixtureId])
+}
+
+// ─── Fixture events (goals / cards / subs timeline) ──────────────────────────
+
+model FixtureEvent {
+  id                   String   @id @default(cuid())
+  fixtureId            String
+  apiFootballFixtureId Int?
+
+  minute               Int
+  extraMinute          Int?
+  teamId               Int?
+  teamName             String
+  isHome               Boolean
+
+  type                 String   // Goal | Card | Subst | Var
+  detail               String?  // Normal Goal | Yellow Card | Red Card | …
+  comments             String?
+
+  playerName           String?
+  playerApiId          Int?
+  assistName           String?
+  assistApiId          Int?
+
+  syncedAt             DateTime @default(now())
+
+  @@index([fixtureId])
+  @@index([apiFootballFixtureId])
+}
+
+// ─── Fixture lineups (starting XI + bench) ───────────────────────────────────
+
+model FixtureLineup {
+  id                   String   @id @default(cuid())
+  fixtureId            String
+  apiFootballFixtureId Int?
+  teamId               Int
+  teamName             String
+  isHome               Boolean
+  formation            String?
+  coachId              Int?
+  coachName            String?
+  startingXI           Json     // array of { player: { id, name }, pos, grid }
+  substitutes          Json     // array of { player: { id, name }, pos }
+  syncedAt             DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([fixtureId, teamId], name: "fixlineup_unique")
+  @@index([fixtureId])
+  @@index([apiFootballFixtureId])
+}
+
+// ─── Fixture predictions (from API-Football /predictions) ────────────────────
+
+model FixturePrediction {
+  id                   String   @id @default(cuid())
+  fixtureId            String   @unique
+  apiFootballFixtureId Int?     @unique
+
+  winnerTeamId         Int?
+  winnerTeamName       String?
+  winnerComment        String?
+
+  winPctHome           Float?
+  winPctDraw           Float?
+  winPctAway           Float?
+
+  goalsHome            Float?
+  goalsAway            Float?
+
+  advice               String?
+  overUnder            String?  // "Over 2.5" | "Under 2.5" | null
+  btts                 Boolean?
+
+  h2hHomeWins          Int?
+  h2hDraws             Int?
+  h2hAwayWins          Int?
+
+  syncedAt             DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([apiFootballFixtureId])
+}
+
+// ─── Player season statistics (API-Football /players) ────────────────────────
+
+model PlayerStat {
+  id             String   @id @default(cuid())
+  playerId       Int
+  playerName     String
+  playerNormKey  String
+  playerImageUrl String?
+  nationality    String?
+  age            Int?
+  height         String?
+  weight         String?
+  position       String?
+  number         Int?
+
+  teamId         Int
+  teamName       String
+  teamNormKey    String
+  leagueId       Int
+  leagueName     String
+  season         String
+
+  appearances    Int      @default(0)
+  minutesPlayed  Int      @default(0)
+  goals          Int      @default(0)
+  assists        Int      @default(0)
+  shots          Int      @default(0)
+  shotsOnTarget  Int      @default(0)
+  dribbles       Int      @default(0)
+  dribblesWon    Int      @default(0)
+  keyPasses      Int      @default(0)
+  passAccuracy   Float?
+  tackles        Int      @default(0)
+  interceptions  Int      @default(0)
+  yellowCards    Int      @default(0)
+  yellowRed      Int      @default(0)
+  redCards       Int      @default(0)
+  rating         Float?
+
+  syncedAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([playerId, leagueId, season, teamId], name: "playerstat_unique")
+  @@index([teamNormKey, leagueId, season])
+  @@index([leagueId, season, goals])
+  @@index([playerId])
+}
+
+// ─── Venue / stadium info (API-Football /venues) ─────────────────────────────
+
+model Venue {
+  id         String   @id @default(cuid())
+  apiId      Int      @unique
+  name       String
+  city       String?
+  country    String?
+  address    String?
+  capacity   Int?
+  surface    String?
+  imageUrl   String?
+  syncedAt   DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ─── Coach info (API-Football /coachs) ───────────────────────────────────────
+
+model Coach {
+  id          String   @id @default(cuid())
+  apiId       Int      @unique
+  name        String
+  firstName   String?
+  lastName    String?
+  nationality String?
+  birthDate   DateTime?
+  imageUrl    String?
+  teamId      Int?
+  teamName    String?
+  teamNormKey String?
+  syncedAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamNormKey])
+  @@index([teamId])
+}
+
 // ─── Data sync audit log ──────────────────────────────────────────────────────
 
 model DataSyncLog {

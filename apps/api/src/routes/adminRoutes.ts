@@ -6,6 +6,13 @@ import { prisma } from '../prisma';
 import { LEAGUE_MANIFEST } from '../config/leagueManifest';
 import { redis } from '../utils/redis';
 import { logger } from '../utils/logger';
+import { fixtureStatsSyncJob } from '../jobs/fixtureStatsSyncJob';
+import { fixtureEventsSyncJob } from '../jobs/fixtureEventsSyncJob';
+import { fixtureLineupsSyncJob } from '../jobs/fixtureLineupsSyncJob';
+import { predictionsSyncJob } from '../jobs/predictionsSyncJob';
+import { playerStatsSyncJob } from '../jobs/playerStatsSyncJob';
+import { venueSyncJob } from '../jobs/venueSyncJob';
+import { coachSyncJob } from '../jobs/coachSyncJob';
 
 export const adminRouter = Router();
 
@@ -101,6 +108,29 @@ adminRouter.get('/team-names', async (_req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// POST /api/admin/jobs/run/:jobName
+// Manually triggers any insight sync job. Returns immediately; job runs in background.
+const INSIGHT_JOBS: Record<string, () => Promise<void>> = {
+  'fixture-stats':   fixtureStatsSyncJob,
+  'fixture-events':  fixtureEventsSyncJob,
+  'fixture-lineups': fixtureLineupsSyncJob,
+  'predictions':     predictionsSyncJob,
+  'player-stats':    playerStatsSyncJob,
+  'venues':          venueSyncJob,
+  'coaches':         coachSyncJob,
+};
+
+adminRouter.post('/jobs/run/:jobName', (req: Request, res: Response) => {
+  const { jobName } = req.params;
+  const fn = INSIGHT_JOBS[jobName];
+  if (!fn) {
+    res.status(404).json({ success: false, error: `Unknown job: ${jobName}. Available: ${Object.keys(INSIGHT_JOBS).join(', ')}` });
+    return;
+  }
+  fn().catch((err: Error) => logger.error(`[admin] Job ${jobName} failed`, { error: err.message }));
+  res.json({ success: true, message: `Job '${jobName}' started in background — check server logs` });
 });
 
 // DELETE /api/admin/fixtures-cache

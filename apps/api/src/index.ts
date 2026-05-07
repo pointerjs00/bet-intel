@@ -30,6 +30,13 @@ import { footballDataRouter } from './routes/footballDataRoutes';
 import { adminRouter } from './routes/adminRoutes';
 import { seed as seedReferenceData } from './prisma/seed';
 import { initFootballDataScheduler } from './scheduler';
+import { fixtureStatsSyncJob } from './jobs/fixtureStatsSyncJob';
+import { fixtureEventsSyncJob } from './jobs/fixtureEventsSyncJob';
+import { fixtureLineupsSyncJob } from './jobs/fixtureLineupsSyncJob';
+import { predictionsSyncJob } from './jobs/predictionsSyncJob';
+import { playerStatsSyncJob } from './jobs/playerStatsSyncJob';
+import { venueSyncJob } from './jobs/venueSyncJob';
+import { coachSyncJob } from './jobs/coachSyncJob';
 
 // ─── App setup ─────────────────────────────────────────────────────────────────
 
@@ -209,6 +216,25 @@ async function start(): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
     });
   }
+
+  // Schedule insight data jobs — run once on startup (fire-and-forget) then daily
+  const scheduleInsightJobs = () => {
+    // Fixture stats: every 6h (catches new FINISHED matches)
+    setInterval(() => fixtureStatsSyncJob().catch(e => logger.warn('[scheduler] fixtureStats', { error: e.message })), 6 * 60 * 60 * 1000);
+    // Events: every 6h
+    setInterval(() => fixtureEventsSyncJob().catch(e => logger.warn('[scheduler] fixtureEvents', { error: e.message })), 6 * 60 * 60 * 1000);
+    // Lineups: every 3h (picks up same-day lineups released ~1h before KO)
+    setInterval(() => fixtureLineupsSyncJob().catch(e => logger.warn('[scheduler] fixtureLineups', { error: e.message })), 3 * 60 * 60 * 1000);
+    // Predictions: every 12h
+    setInterval(() => predictionsSyncJob().catch(e => logger.warn('[scheduler] predictions', { error: e.message })), 12 * 60 * 60 * 1000);
+    // Player stats: once per day at off-peak
+    setInterval(() => playerStatsSyncJob().catch(e => logger.warn('[scheduler] playerStats', { error: e.message })), 24 * 60 * 60 * 1000);
+    // Venues + coaches: once per week (metadata rarely changes)
+    setInterval(() => venueSyncJob().catch(e => logger.warn('[scheduler] venues', { error: e.message })), 7 * 24 * 60 * 60 * 1000);
+    setInterval(() => coachSyncJob().catch(e => logger.warn('[scheduler] coaches', { error: e.message })), 7 * 24 * 60 * 60 * 1000);
+  };
+
+  scheduleInsightJobs();
 
   const server = app.listen(PORT, () => {
     logger.info(`BetIntel API listening on port ${PORT}`, { env: process.env.NODE_ENV });

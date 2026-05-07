@@ -55,8 +55,23 @@ import { useFavourites, useToggleFavouriteMutation, useBulkSetFavouritesMutation
 import { FavouriteType } from '@betintel/shared';
 import { useWatchedFixtures, useToggleFixtureWatchMutation } from '../../services/fixtureAlertService';
 import { LeagueTableModal } from '../../components/fixtures/LeagueTableModal';
-import { useFixtureInsight, useLeagueTable } from '../../services/teamStatsService';
-import type { TeamStatData } from '../../services/teamStatsService';
+import {
+  useFixtureInsight,
+  useLeagueTable,
+  useFixtureMatchStats,
+  useFixtureEvents,
+  useFixtureLineups,
+  useFixturePrediction,
+  useTeamPlayerStats,
+} from '../../services/teamStatsService';
+import type {
+  TeamStatData,
+  FixtureMatchStats,
+  FixtureEvent as FixtureEventData,
+  FixtureLineup as FixtureLineupData,
+  FixturePrediction as FixturePredictionData,
+  PlayerStatData,
+} from '../../services/teamStatsService';
 
 // ─── Country name mapping: English (fixture feed) → Portuguese (asset keys) ──
 
@@ -1207,9 +1222,10 @@ interface CalendarPickerProps {
   onSelect: (d: Date) => void;
   onClose: () => void;
   colors: Record<string, string>;
+  activeDates?: Set<string>;
 }
 
-function CalendarPicker({ visible, selectedDate, onSelect, onClose, colors }: CalendarPickerProps) {
+function CalendarPicker({ visible, selectedDate, onSelect, onClose, colors, activeDates }: CalendarPickerProps) {
   const [viewYear, setViewYear] = useState<number>(() => selectedDate.getFullYear());
   const [viewMonth, setViewMonth] = useState<number>(() => selectedDate.getMonth());
 
@@ -1247,6 +1263,11 @@ function CalendarPicker({ visible, selectedDate, onSelect, onClose, colors }: Ca
     return today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === day;
   }
 
+  function hasMatch(day: number) {
+    const key = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return activeDates?.has(key) ?? false;
+  }
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={calStyles.overlay} onPress={onClose}>
@@ -1272,6 +1293,7 @@ function CalendarPicker({ visible, selectedDate, onSelect, onClose, colors }: Ca
                   if (day === null) return <View key={`e-${rowIdx}-${colIdx}`} style={calStyles.cell} />;
                   const sel = isSelected(day);
                   const tod = isToday(day);
+                  const dot = hasMatch(day);
                   return (
                     <Pressable
                       key={day}
@@ -1285,6 +1307,7 @@ function CalendarPicker({ visible, selectedDate, onSelect, onClose, colors }: Ca
                       <Text style={[calStyles.cellText, { color: sel ? '#fff' : tod ? colors.primary : colors.textPrimary }, sel && { fontWeight: '800' }]}>
                         {day}
                       </Text>
+                      {dot && <View style={[calStyles.dot, { backgroundColor: sel ? '#fff' : colors.primary }]} />}
                     </Pressable>
                   );
                 })}
@@ -1315,8 +1338,9 @@ const calStyles = StyleSheet.create({
   dowLabel: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', paddingBottom: 4 },
   grid: { gap: 2 },
   gridRow: { flexDirection: 'row' },
-  cell: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
+  cell: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
   cellSelected: { borderRadius: 999 },
+  dot: { width: 4, height: 4, borderRadius: 2 },
   cellToday: { borderRadius: 999, borderWidth: 1.5 },
   cellText: { fontSize: 13, fontWeight: '500', textAlign: 'center' },
   footer: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, gap: 12 },
@@ -1389,11 +1413,128 @@ interface AddSheetProps {
 
 const SHEET_SNAP_COLLAPSED = 0.45; // fraction of screen height when partially open
 
-// ─── Insight Tab (new full-screen design) ────────────────────────────────────
+// ─── Stat drill modal ────────────────────────────────────────────────────────
+
+interface DrillMatch {
+  date: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  isHome?: boolean;
+}
+
+function StatDrillModal({
+  visible, label, matches, matchFilter, onClose,
+}: {
+  visible: boolean;
+  label: string;
+  matches: DrillMatch[];
+  matchFilter: (m: DrillMatch) => boolean;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme();
+  const matched = matches.filter(matchFilter).length;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={drillStyles.overlay}>
+        <View style={[drillStyles.sheet, { backgroundColor: colors.background }]}>
+          <View style={[drillStyles.header, { borderBottomColor: colors.border }]}>
+            <Pressable hitSlop={12} onPress={onClose} style={drillStyles.closeBtn}>
+              <Ionicons name="chevron-down" size={22} color={colors.textSecondary} />
+            </Pressable>
+            <View style={{ flex: 1, alignItems: 'center' }}>
+              <Text style={[drillStyles.title, { color: colors.textPrimary }]}>{label}</Text>
+              <Text style={[drillStyles.subtitle, { color: colors.textMuted }]}>
+                {matched}/{matches.length} jogos correspondem
+              </Text>
+            </View>
+            <View style={{ width: 34 }} />
+          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={drillStyles.list}>
+            {matches.map((m, i) => {
+              const hit = matchFilter(m);
+              return (
+                <View
+                  key={i}
+                  style={[
+                    drillStyles.row,
+                    { borderColor: colors.border, backgroundColor: hit ? `${colors.primary}18` : colors.surface },
+                    hit && { borderColor: `${colors.primary}50` },
+                  ]}
+                >
+                  <Text style={[drillStyles.rowDate, { color: colors.textMuted }]}>
+                    {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                  </Text>
+                  <Text numberOfLines={1} style={[drillStyles.rowTeam, { color: colors.textSecondary }]}>
+                    {m.homeTeam}
+                  </Text>
+                  <View style={[drillStyles.scoreBox, { backgroundColor: hit ? colors.primary : colors.surfaceRaised }]}>
+                    <Text style={[drillStyles.scoreText, { color: hit ? '#fff' : colors.textPrimary }]}>
+                      {m.homeScore ?? '?'}–{m.awayScore ?? '?'}
+                    </Text>
+                  </View>
+                  <Text numberOfLines={1} style={[drillStyles.rowTeam, { color: colors.textSecondary, textAlign: 'right' }]}>
+                    {m.awayTeam}
+                  </Text>
+                  {hit
+                    ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                    : <View style={{ width: 16 }} />}
+                </View>
+              );
+            })}
+            {matches.length === 0 && (
+              <Text style={[drillStyles.empty, { color: colors.textMuted }]}>Sem jogos disponíveis</Text>
+            )}
+            <View style={{ height: 32 }} />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const drillStyles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.55)' },
+  sheet: { height: '80%', borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  closeBtn: { padding: 4 },
+  title: { fontSize: 16, fontWeight: '800' },
+  subtitle: { fontSize: 12, marginTop: 2 },
+  list: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10 },
+  rowDate: { fontSize: 11, fontWeight: '600', minWidth: 42 },
+  rowTeam: { flex: 1, fontSize: 12, fontWeight: '600' },
+  scoreBox: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
+  scoreText: { fontSize: 13, fontWeight: '800' },
+  empty: { textAlign: 'center', fontSize: 13, marginTop: 32 },
+});
+
+// ─── Insight sub-tab types ────────────────────────────────────────────────────
+
+type InsightSubTab = 'overview' | 'home' | 'away' | 'h2h';
+
+const INSIGHT_SUB_TABS: { key: InsightSubTab; label: string }[] = [
+  { key: 'overview', label: 'Geral' },
+  { key: 'home',     label: 'Casa' },
+  { key: 'away',     label: 'Fora' },
+  { key: 'h2h',      label: 'H2H' },
+];
+
+// ─── Insight Tab ──────────────────────────────────────────────────────────────
 
 function InsightTab({ fixture }: { fixture: Fixture }) {
   const { colors } = useTheme();
   const { data: insight, isLoading, isError } = useFixtureInsight(fixture.id);
+  const { data: prediction } = useFixturePrediction(fixture.id);
+  const [subTab, setSubTab] = useState<InsightSubTab>('overview');
+  const [drillStat, setDrillStat] = useState<{
+    label: string;
+    matches: DrillMatch[];
+    matchFilter: (m: DrillMatch) => boolean;
+  } | null>(null);
+
+  useEffect(() => { setSubTab('overview'); setDrillStat(null); }, [fixture.id]);
 
   if (isLoading) {
     return (
@@ -1488,6 +1629,7 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
     data,
     injuries,
     topScorers,
+    onStatPress,
   }: {
     team: 'home' | 'away';
     teamName: string;
@@ -1496,16 +1638,36 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
     data: typeof home;
     injuries: NonNullable<typeof insight>['homeInjuries'];
     topScorers: NonNullable<typeof insight>['homeTopScorers'];
+    onStatPress: (label: string, filter: (m: DrillMatch) => boolean) => void;
   }) {
     if (!data) return null;
+    const teamIsHome = team === 'home';
 
     const stats6 = [
-      { label: '+1.5',     value: pct(data.over15Pct) },
-      { label: '+2.5',     value: pct(data.over25Pct) },
-      { label: '+3.5',     value: pct(data.over35Pct) },
-      { label: 'BTTS',     value: pct(data.bttsPct) },
-      { label: 'B. ZERO',  value: pct(data.cleanSheetPct) },
-      { label: 'N. MARCOU',value: pct(data.failedToScorePct) },
+      {
+        label: '+1.5', value: pct(data.over15Pct),
+        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > 1,
+      },
+      {
+        label: '+2.5', value: pct(data.over25Pct),
+        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > 2,
+      },
+      {
+        label: '+3.5', value: pct(data.over35Pct),
+        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > 3,
+      },
+      {
+        label: 'BTTS', value: pct(data.bttsPct),
+        filter: (m: DrillMatch) => (m.homeScore ?? 0) > 0 && (m.awayScore ?? 0) > 0,
+      },
+      {
+        label: 'B. ZERO', value: pct(data.cleanSheetPct),
+        filter: (m: DrillMatch) => (teamIsHome ? (m.awayScore ?? 0) : (m.homeScore ?? 0)) === 0,
+      },
+      {
+        label: 'N. MARCOU', value: pct(data.failedToScorePct),
+        filter: (m: DrillMatch) => (teamIsHome ? (m.homeScore ?? 0) : (m.awayScore ?? 0)) === 0,
+      },
     ];
 
     return (
@@ -1555,14 +1717,19 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
           ))}
         </View>
 
-        {/* 6-stat grid */}
+        {/* 6-stat grid — tap to drill into source matches */}
         <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted }]}>MERCADOS POPULARES</Text>
         <View style={newInsightStyles.statsGrid}>
           {stats6.map((s) => (
-            <View key={s.label} style={[newInsightStyles.statGridItem, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}25` }]}>
+            <Pressable
+              key={s.label}
+              onPress={() => { hapticLight(); onStatPress(s.label, s.filter); }}
+              style={[newInsightStyles.statGridItem, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}25` }]}
+            >
               <Text style={[newInsightStyles.statGridValue, { color: colors.primary }]}>{s.value}</Text>
               <Text style={[newInsightStyles.statGridLabel, { color: colors.textSecondary }]}>{s.label}</Text>
-            </View>
+              <Ionicons name="chevron-forward" size={9} color={`${colors.primary}80`} />
+            </Pressable>
           ))}
         </View>
 
@@ -1617,196 +1784,520 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={newInsightStyles.scroll}>
-
-      {/* Season hint */}
-      <View style={[newInsightStyles.hintBanner, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}25` }]}>
-        <Ionicons name="bulb-outline" size={15} color={colors.primary} />
-        <Text style={[newInsightStyles.hintText, { color: colors.textSecondary }]}>
-          Dados desta época. As percentagens referem-se ao desempenho em casa (equipa da casa) e fora (equipa visitante).
-        </Text>
+    <View style={{ flex: 1 }}>
+      {/* Sub-tab bar */}
+      <View style={[insightSubStyles.bar, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
+        {INSIGHT_SUB_TABS.map((t) => {
+          const active = subTab === t.key;
+          return (
+            <Pressable
+              key={t.key}
+              onPress={() => { hapticLight(); setSubTab(t.key); }}
+              style={[insightSubStyles.tab, active && [insightSubStyles.tabActive, { borderBottomColor: colors.primary }]]}
+            >
+              <Text style={[insightSubStyles.tabText, { color: active ? colors.primary : colors.textMuted }]}>
+                {t.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {/* Combined probability */}
-      {(insight.combinedOver25 != null || insight.combinedBtts != null) && (
-        <View style={[newInsightStyles.probCard, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}25` }]}>
-          <View style={newInsightStyles.probCardHeader}>
-            <Ionicons name="trending-up" size={14} color={colors.primary} />
-            <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>PROBABILIDADE COMBINADA</Text>
-          </View>
-          <Text style={[newInsightStyles.probCardSub, { color: colors.textSecondary }]}>
-            Estimativa baseada nos dados de ambas as equipas
-          </Text>
-          <View style={newInsightStyles.probRow}>
-            {insight.combinedOver25 != null && (
-              <View style={newInsightStyles.probItem}>
-                <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedOver25)}</Text>
-                <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Over 2.5 Golos</Text>
-                <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>3+ golos no jogo</Text>
-              </View>
-            )}
-            {insight.combinedOver25 != null && insight.combinedBtts != null && (
-              <View style={[newInsightStyles.probDivider, { backgroundColor: colors.border }]} />
-            )}
-            {insight.combinedBtts != null && (
-              <View style={newInsightStyles.probItem}>
-                <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedBtts)}</Text>
-                <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Ambas marcam</Text>
-                <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>as duas equipas marcam</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      )}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={newInsightStyles.scroll}>
 
-      {/* Standings */}
-      <StandingsCard />
-
-      {/* Home team card */}
-      {home != null && (
-        <TeamCard
-          team="home"
-          teamName={fixture.homeTeam}
-          venue="🏠"
-          venueLabel="Em casa"
-          data={home}
-          injuries={insight.homeInjuries ?? []}
-          topScorers={insight.homeTopScorers ?? []}
-        />
-      )}
-
-      {/* Away team card */}
-      {away != null && (
-        <TeamCard
-          team="away"
-          teamName={fixture.awayTeam}
-          venue="✈️"
-          venueLabel="Fora"
-          data={away}
-          injuries={insight.awayInjuries ?? []}
-          topScorers={insight.awayTopScorers ?? []}
-        />
-      )}
-
-      {/* H2H */}
-      {insight.h2h && insight.h2h.total > 0 && (
-        <View>
-          <View style={newInsightStyles.sectionHeaderRow}>
-            <Ionicons name="swap-horizontal" size={16} color={colors.primary} />
-            <Text style={[newInsightStyles.sectionHeaderTitle, { color: colors.primary }]}>HEAD-TO-HEAD</Text>
-          </View>
-          <Text style={[newInsightStyles.sectionHeaderSub, { color: colors.textMuted }]}>
-            Histórico dos últimos {insight.h2h.total} confrontos directos
-          </Text>
-
-          <View style={[newInsightStyles.h2hCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-            <View style={newInsightStyles.h2hBarRow}>
-              <Text style={[newInsightStyles.h2hTeamName, { color: colors.textPrimary }]}>{fixture.homeTeam}</Text>
-              <View style={[newInsightStyles.h2hTrack, { backgroundColor: colors.border }]}>
-                <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.homeWins || 0.01, backgroundColor: '#22c55e' }]} />
-                <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.draws    || 0.01, backgroundColor: '#6b7280' }]} />
-                <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.awayWins || 0.01, backgroundColor: '#ef4444' }]} />
-              </View>
-              <Text style={[newInsightStyles.h2hTeamName, { color: colors.textPrimary, textAlign: 'right' }]}>{fixture.awayTeam}</Text>
+        {/* ── Geral ── */}
+        {subTab === 'overview' && (
+          <>
+            <View style={[newInsightStyles.hintBanner, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}25` }]}>
+              <Ionicons name="bulb-outline" size={15} color={colors.primary} />
+              <Text style={[newInsightStyles.hintText, { color: colors.textSecondary }]}>
+                Dados desta época — desempenho em casa (equipa da casa) e fora (equipa visitante).
+              </Text>
             </View>
-            <View style={newInsightStyles.formLegend}>
-              {[
-                { color: '#22c55e', label: 'Vitória casa' },
-                { color: '#6b7280', label: 'Empate' },
-                { color: '#ef4444', label: 'Vitória fora' },
-              ].map((l) => (
-                <View key={l.label} style={newInsightStyles.legendItem}>
-                  <View style={[newInsightStyles.legendDot, { backgroundColor: l.color }]} />
-                  <Text style={[newInsightStyles.legendText, { color: colors.textMuted }]}>{l.label}</Text>
+
+            {(insight.combinedOver25 != null || insight.combinedBtts != null) && (
+              <View style={[newInsightStyles.probCard, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}25` }]}>
+                <View style={newInsightStyles.probCardHeader}>
+                  <Ionicons name="trending-up" size={14} color={colors.primary} />
+                  <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>PROBABILIDADE COMBINADA</Text>
                 </View>
-              ))}
-            </View>
-
-            <View style={[newInsightStyles.h2hStatsRow, { borderTopColor: colors.border }]}>
-              {[
-                { value: String(insight.h2h.homeWins), label: 'V casa',     color: '#22c55e' },
-                { value: String(insight.h2h.draws),    label: 'Empates',    color: colors.textPrimary },
-                { value: String(insight.h2h.awayWins), label: 'V fora',     color: '#ef4444' },
-                { value: fmt1(insight.h2h.avgGoalsPerGame), label: 'Golos/jogo', color: colors.textPrimary },
-                { value: pct(insight.h2h.over25Pct),   label: '+2.5',       color: colors.primary },
-                { value: pct(insight.h2h.bttsPct),     label: 'BTTS',       color: colors.primary },
-              ].map((s) => (
-                <View key={s.label} style={newInsightStyles.h2hStatCol}>
-                  <Text style={[newInsightStyles.h2hStatValue, { color: s.color }]}>{s.value}</Text>
-                  <Text style={[newInsightStyles.h2hStatLabel, { color: colors.textMuted }]}>{s.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted, marginTop: 12 }]}>ÚLTIMOS RESULTADOS</Text>
-            {insight.h2h.recentMatches.slice(0, 5).map((m: any, i: number) => (
-              <View key={i} style={[newInsightStyles.h2hRow, { borderTopColor: colors.border }]}>
-                <Text style={[newInsightStyles.h2hDate, { color: colors.textMuted }]}>
-                  {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                <Text style={[newInsightStyles.probCardSub, { color: colors.textSecondary }]}>
+                  Estimativa baseada nos dados de ambas as equipas
                 </Text>
-                <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary }]}>{m.homeTeam}</Text>
-                <View style={[newInsightStyles.h2hScoreBadge, { backgroundColor: colors.background }]}>
-                  <Text style={[newInsightStyles.h2hScoreText, { color: colors.textPrimary }]}>
-                    {m.homeScore ?? '?'}–{m.awayScore ?? '?'}
-                  </Text>
-                </View>
-                <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary, textAlign: 'right' }]}>{m.awayTeam}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Pinnacle odds */}
-      {insight.sharpOdds?.pinnacleHome != null && (
-        <View>
-          <View style={newInsightStyles.sectionHeaderRow}>
-            <Ionicons name="trending-up" size={16} color={colors.primary} />
-            <Text style={[newInsightStyles.sectionHeaderTitle, { color: colors.primary }]}>ODDS PINNACLE (SHARP)</Text>
-          </View>
-          <Text style={[newInsightStyles.sectionHeaderSub, { color: colors.textMuted }]}>
-            Probabilidades implícitas do mercado de referência mundial
-          </Text>
-          <View style={[newInsightStyles.pinnacleCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-            <View style={newInsightStyles.pinnacleRow}>
-              {[
-                { label: '1 — Casa', odd: insight.sharpOdds.pinnacleHome, implied: insight.sharpOdds.impliedHome },
-                { label: 'X — Empate', odd: insight.sharpOdds.pinnacleDraw, implied: insight.sharpOdds.impliedDraw },
-                { label: '2 — Fora', odd: insight.sharpOdds.pinnacleAway, implied: insight.sharpOdds.impliedAway },
-              ].map(({ label, odd, implied }) => odd != null ? (
-                <View key={label} style={newInsightStyles.pinnacleCol}>
-                  <Text style={[newInsightStyles.pinnacleLabel, { color: colors.textMuted }]}>{label}</Text>
-                  <Text style={[newInsightStyles.pinnacleOdd, { color: colors.textPrimary }]}>{odd.toFixed(2)}</Text>
-                  {implied != null && (
-                    <View style={[newInsightStyles.impliedBadge, { backgroundColor: `${colors.primary}20` }]}>
-                      <Text style={[newInsightStyles.impliedText, { color: colors.primary }]}>{pct(implied * 100)} prob.</Text>
+                <View style={newInsightStyles.probRow}>
+                  {insight.combinedOver25 != null && (
+                    <View style={newInsightStyles.probItem}>
+                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedOver25)}</Text>
+                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Over 2.5 Golos</Text>
+                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>3+ golos no jogo</Text>
+                    </View>
+                  )}
+                  {insight.combinedOver25 != null && insight.combinedBtts != null && (
+                    <View style={[newInsightStyles.probDivider, { backgroundColor: colors.border }]} />
+                  )}
+                  {insight.combinedBtts != null && (
+                    <View style={newInsightStyles.probItem}>
+                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedBtts)}</Text>
+                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Ambas marcam</Text>
+                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>as duas equipas marcam</Text>
                     </View>
                   )}
                 </View>
-              ) : null)}
-            </View>
-            {insight.sharpOdds.matchLabel && (
-              <Text style={[newInsightStyles.pinnacleNote, { color: colors.textMuted, borderTopColor: colors.border }]}>
-                ⓘ Pinnacle closing odds — {insight.sharpOdds.matchLabel}
-              </Text>
+              </View>
             )}
+
+            {/* AI Prediction card */}
+            {prediction && (
+              <View style={[newInsightStyles.probCard, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}20` }]}>
+                <View style={newInsightStyles.probCardHeader}>
+                  <Ionicons name="analytics-outline" size={14} color={colors.primary} />
+                  <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>PREVISÃO API-FOOTBALL</Text>
+                </View>
+                {prediction.advice ? (
+                  <Text style={[newInsightStyles.probCardSub, { color: colors.textSecondary, marginBottom: 10 }]}>
+                    {prediction.advice}
+                  </Text>
+                ) : null}
+                <View style={newInsightStyles.probRow}>
+                  {prediction.winPctHome != null && (
+                    <View style={newInsightStyles.probItem}>
+                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{Math.round(prediction.winPctHome)}%</Text>
+                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>{fixture.homeTeam.split(' ')[0]}</Text>
+                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>vitória casa</Text>
+                    </View>
+                  )}
+                  {prediction.winPctDraw != null && (
+                    <View style={newInsightStyles.probItem}>
+                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{Math.round(prediction.winPctDraw)}%</Text>
+                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Empate</Text>
+                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>resultado</Text>
+                    </View>
+                  )}
+                  {prediction.winPctAway != null && (
+                    <View style={newInsightStyles.probItem}>
+                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{Math.round(prediction.winPctAway)}%</Text>
+                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>{fixture.awayTeam.split(' ')[0]}</Text>
+                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>vitória fora</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={[newInsightStyles.probDivider, { backgroundColor: colors.border, marginVertical: 10, width: '100%', height: 1 }]} />
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {prediction.overUnder && (
+                    <View style={[newInsightStyles.impliedBadge, { backgroundColor: `${colors.primary}18` }]}>
+                      <Text style={[newInsightStyles.impliedText, { color: colors.primary }]}>{prediction.overUnder}</Text>
+                    </View>
+                  )}
+                  {prediction.btts != null && (
+                    <View style={[newInsightStyles.impliedBadge, { backgroundColor: `${colors.primary}18` }]}>
+                      <Text style={[newInsightStyles.impliedText, { color: colors.primary }]}>
+                        {prediction.btts ? 'Ambas marcam ✓' : 'Ambas NÃO marcam ✗'}
+                      </Text>
+                    </View>
+                  )}
+                  {prediction.goalsHome != null && prediction.goalsAway != null && (
+                    <View style={[newInsightStyles.impliedBadge, { backgroundColor: `${colors.primary}18` }]}>
+                      <Text style={[newInsightStyles.impliedText, { color: colors.primary }]}>
+                        Golos previstos: {prediction.goalsHome.toFixed(1)} – {prediction.goalsAway.toFixed(1)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
+            <StandingsCard />
+
+            {insight.sharpOdds?.pinnacleHome != null && (
+              <View>
+                <View style={newInsightStyles.sectionHeaderRow}>
+                  <Ionicons name="trending-up" size={16} color={colors.primary} />
+                  <Text style={[newInsightStyles.sectionHeaderTitle, { color: colors.primary }]}>ODDS PINNACLE (SHARP)</Text>
+                </View>
+                <View style={[newInsightStyles.pinnacleCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                  <View style={newInsightStyles.pinnacleRow}>
+                    {[
+                      { label: '1 — Casa', odd: insight.sharpOdds.pinnacleHome, implied: insight.sharpOdds.impliedHome },
+                      { label: 'X — Empate', odd: insight.sharpOdds.pinnacleDraw, implied: insight.sharpOdds.impliedDraw },
+                      { label: '2 — Fora', odd: insight.sharpOdds.pinnacleAway, implied: insight.sharpOdds.impliedAway },
+                    ].map(({ label, odd, implied }) => odd != null ? (
+                      <View key={label} style={newInsightStyles.pinnacleCol}>
+                        <Text style={[newInsightStyles.pinnacleLabel, { color: colors.textMuted }]}>{label}</Text>
+                        <Text style={[newInsightStyles.pinnacleOdd, { color: colors.textPrimary }]}>{odd.toFixed(2)}</Text>
+                        {implied != null && (
+                          <View style={[newInsightStyles.impliedBadge, { backgroundColor: `${colors.primary}20` }]}>
+                            <Text style={[newInsightStyles.impliedText, { color: colors.primary }]}>{pct(implied * 100)} prob.</Text>
+                          </View>
+                        )}
+                      </View>
+                    ) : null)}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            <Text style={[newInsightStyles.timestamp, { color: colors.textMuted }]}>
+              ⏱ {new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}, {new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </>
+        )}
+
+        {/* ── Casa ── */}
+        {subTab === 'home' && (
+          home != null
+            ? <TeamCard
+                team="home" teamName={fixture.homeTeam} venue="🏠" venueLabel="Em casa"
+                data={home} injuries={insight.homeInjuries ?? []} topScorers={insight.homeTopScorers ?? []}
+                onStatPress={(label, filter) => setDrillStat({ label, matches: home.recentMatches, matchFilter: filter })}
+              />
+            : <View style={newInsightStyles.center}>
+                <Text style={{ color: colors.textMuted }}>Sem dados para esta equipa.</Text>
+              </View>
+        )}
+
+        {/* ── Fora ── */}
+        {subTab === 'away' && (
+          away != null
+            ? <TeamCard
+                team="away" teamName={fixture.awayTeam} venue="✈️" venueLabel="Fora"
+                data={away} injuries={insight.awayInjuries ?? []} topScorers={insight.awayTopScorers ?? []}
+                onStatPress={(label, filter) => setDrillStat({ label, matches: away.recentMatches, matchFilter: filter })}
+              />
+            : <View style={newInsightStyles.center}>
+                <Text style={{ color: colors.textMuted }}>Sem dados para esta equipa.</Text>
+              </View>
+        )}
+
+        {/* ── H2H ── */}
+        {subTab === 'h2h' && (
+          insight.h2h && insight.h2h.total > 0
+            ? (
+              <View>
+                <Text style={[newInsightStyles.sectionHeaderSub, { color: colors.textMuted }]}>
+                  Histórico dos últimos {insight.h2h.total} confrontos directos
+                </Text>
+                <View style={[newInsightStyles.h2hCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                  <View style={newInsightStyles.h2hBarRow}>
+                    <Text style={[newInsightStyles.h2hTeamName, { color: colors.textPrimary }]}>{fixture.homeTeam}</Text>
+                    <View style={[newInsightStyles.h2hTrack, { backgroundColor: colors.border }]}>
+                      <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.homeWins || 0.01, backgroundColor: '#22c55e' }]} />
+                      <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.draws    || 0.01, backgroundColor: '#6b7280' }]} />
+                      <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.awayWins || 0.01, backgroundColor: '#ef4444' }]} />
+                    </View>
+                    <Text style={[newInsightStyles.h2hTeamName, { color: colors.textPrimary, textAlign: 'right' }]}>{fixture.awayTeam}</Text>
+                  </View>
+                  <View style={newInsightStyles.formLegend}>
+                    {[
+                      { color: '#22c55e', label: 'Vitória casa' },
+                      { color: '#6b7280', label: 'Empate' },
+                      { color: '#ef4444', label: 'Vitória fora' },
+                    ].map((l) => (
+                      <View key={l.label} style={newInsightStyles.legendItem}>
+                        <View style={[newInsightStyles.legendDot, { backgroundColor: l.color }]} />
+                        <Text style={[newInsightStyles.legendText, { color: colors.textMuted }]}>{l.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <View style={[newInsightStyles.h2hStatsRow, { borderTopColor: colors.border }]}>
+                    {[
+                      { value: String(insight.h2h.homeWins),       label: 'V casa',     color: '#22c55e' },
+                      { value: String(insight.h2h.draws),           label: 'Empates',    color: colors.textPrimary },
+                      { value: String(insight.h2h.awayWins),        label: 'V fora',     color: '#ef4444' },
+                      { value: fmt1(insight.h2h.avgGoalsPerGame),   label: 'Golos/jogo', color: colors.textPrimary },
+                      { value: pct(insight.h2h.over25Pct),          label: '+2.5',       color: colors.primary },
+                      { value: pct(insight.h2h.bttsPct),            label: 'BTTS',       color: colors.primary },
+                    ].map((s) => (
+                      <View key={s.label} style={newInsightStyles.h2hStatCol}>
+                        <Text style={[newInsightStyles.h2hStatValue, { color: s.color }]}>{s.value}</Text>
+                        <Text style={[newInsightStyles.h2hStatLabel, { color: colors.textMuted }]}>{s.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted, marginTop: 12 }]}>ÚLTIMOS RESULTADOS</Text>
+                  {insight.h2h.recentMatches.slice(0, 10).map((m: any, i: number) => (
+                    <View key={i} style={[newInsightStyles.h2hRow, { borderTopColor: colors.border }]}>
+                      <Text style={[newInsightStyles.h2hDate, { color: colors.textMuted }]}>
+                        {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                      </Text>
+                      <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary }]}>{m.homeTeam}</Text>
+                      <View style={[newInsightStyles.h2hScoreBadge, { backgroundColor: colors.background }]}>
+                        <Text style={[newInsightStyles.h2hScoreText, { color: colors.textPrimary }]}>
+                          {m.homeScore ?? '?'}–{m.awayScore ?? '?'}
+                        </Text>
+                      </View>
+                      <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary, textAlign: 'right' }]}>{m.awayTeam}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )
+            : (
+              <View style={newInsightStyles.center}>
+                <Ionicons name="swap-horizontal" size={40} color={colors.textMuted} />
+                <Text style={{ color: colors.textMuted, marginTop: 8 }}>Sem dados de confrontos directos.</Text>
+              </View>
+            )
+        )}
+
+        <View style={{ height: 32 }} />
+      </ScrollView>
+
+      {drillStat && (
+        <StatDrillModal
+          visible={true}
+          label={drillStat.label}
+          matches={drillStat.matches}
+          matchFilter={drillStat.matchFilter}
+          onClose={() => setDrillStat(null)}
+        />
+      )}
+    </View>
+  );
+}
+
+// ─── LineupsTab ───────────────────────────────────────────────────────────────
+
+function LineupsTab({ fixture }: { fixture: Fixture }) {
+  const { colors } = useTheme();
+  const { data: lineups = [], isLoading } = useFixtureLineups(fixture.id);
+
+  if (isLoading) {
+    return (
+      <View style={newInsightStyles.center}>
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={[newInsightStyles.loadingText, { color: colors.textMuted }]}>A carregar escalações…</Text>
+      </View>
+    );
+  }
+
+  if (lineups.length === 0) {
+    return (
+      <View style={newInsightStyles.center}>
+        <Ionicons name="people-outline" size={44} color={colors.textMuted} />
+        <Text style={[newInsightStyles.loadingText, { color: colors.textMuted, marginTop: 10 }]}>
+          Escalações ainda não disponíveis.
+        </Text>
+      </View>
+    );
+  }
+
+  const home = lineups.find((l) => l.isHome);
+  const away = lineups.find((l) => !l.isHome);
+
+  function LineupColumn({ lineup, label }: { lineup: FixtureLineupData; label: string }) {
+    return (
+      <View style={{ flex: 1 }}>
+        <Text style={[lineupStyles.teamLabel, { color: colors.primary }]}>{label}</Text>
+        {lineup.coachName ? (
+          <Text style={[lineupStyles.coachText, { color: colors.textMuted }]}>
+            <Ionicons name="person-outline" size={11} /> {lineup.coachName}
+          </Text>
+        ) : null}
+        {lineup.formation ? (
+          <View style={[lineupStyles.formationBadge, { backgroundColor: `${colors.primary}15` }]}>
+            <Text style={[lineupStyles.formationText, { color: colors.primary }]}>{lineup.formation}</Text>
           </View>
+        ) : null}
+        <Text style={[lineupStyles.sectionLabel, { color: colors.textMuted }]}>TITULARES</Text>
+        {(lineup.startingXI ?? []).map((p: any, i: number) => (
+          <View key={i} style={[lineupStyles.playerRow, { borderBottomColor: colors.border }]}>
+            {p.player?.number != null && (
+              <Text style={[lineupStyles.playerNum, { color: colors.textMuted }]}>{p.player.number}</Text>
+            )}
+            <Text style={[lineupStyles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {p.player?.name ?? ''}
+            </Text>
+            {p.pos && <Text style={[lineupStyles.playerPos, { color: colors.textMuted }]}>{p.pos}</Text>}
+          </View>
+        ))}
+        <Text style={[lineupStyles.sectionLabel, { color: colors.textMuted, marginTop: 8 }]}>SUPLENTES</Text>
+        {(lineup.substitutes ?? []).map((p: any, i: number) => (
+          <View key={i} style={[lineupStyles.playerRow, { borderBottomColor: colors.border, opacity: 0.7 }]}>
+            {p.player?.number != null && (
+              <Text style={[lineupStyles.playerNum, { color: colors.textMuted }]}>{p.player.number}</Text>
+            )}
+            <Text style={[lineupStyles.playerName, { color: colors.textSecondary }]} numberOfLines={1}>
+              {p.player?.name ?? ''}
+            </Text>
+            {p.pos && <Text style={[lineupStyles.playerPos, { color: colors.textMuted }]}>{p.pos}</Text>}
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, gap: 8 }}>
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        {home && <LineupColumn lineup={home} label={fixture.homeTeam} />}
+        {away && <LineupColumn lineup={away} label={fixture.awayTeam} />}
+      </View>
+      <View style={{ height: 32 }} />
+    </ScrollView>
+  );
+}
+
+const lineupStyles = StyleSheet.create({
+  teamLabel:      { fontSize: 13, fontWeight: '700', marginBottom: 4 },
+  coachText:      { fontSize: 11, marginBottom: 4 },
+  formationBadge: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8 },
+  formationText:  { fontSize: 13, fontWeight: '700' },
+  sectionLabel:   { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 4, marginTop: 4 },
+  playerRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: StyleSheet.hairlineWidth, gap: 4 },
+  playerNum:      { width: 18, fontSize: 11, textAlign: 'right' },
+  playerName:     { flex: 1, fontSize: 12 },
+  playerPos:      { fontSize: 10, fontWeight: '600', width: 26, textAlign: 'right' },
+});
+
+// ─── EventsTab ────────────────────────────────────────────────────────────────
+
+const EVENT_ICON: Record<string, { name: string; color: string }> = {
+  Goal:   { name: 'football',        color: '#22c55e' },
+  Card:   { name: 'card',            color: '#f59e0b' },
+  Subst:  { name: 'swap-horizontal', color: '#60a5fa' },
+  Var:    { name: 'tv-outline',      color: '#a78bfa' },
+};
+
+function EventsTab({ fixture }: { fixture: Fixture }) {
+  const { colors } = useTheme();
+  const { data: events = [], isLoading } = useFixtureEvents(fixture.id);
+  const { data: matchStats }             = useFixtureMatchStats(fixture.id);
+
+  if (isLoading) {
+    return (
+      <View style={newInsightStyles.center}>
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={[newInsightStyles.loadingText, { color: colors.textMuted }]}>A carregar eventos…</Text>
+      </View>
+    );
+  }
+
+  const hasScore = fixture.homeScore != null && fixture.awayScore != null;
+  const finished = fixture.status === 'FINISHED';
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14 }}>
+
+      {/* Score banner */}
+      {hasScore && (
+        <View style={[eventStyles.scoreBanner, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <Text style={[eventStyles.scoreName, { color: colors.textSecondary }]} numberOfLines={1}>{fixture.homeTeam}</Text>
+          <Text style={[eventStyles.scoreNum, { color: colors.textPrimary }]}>
+            {fixture.homeScore} – {fixture.awayScore}
+          </Text>
+          <Text style={[eventStyles.scoreName, { color: colors.textSecondary, textAlign: 'right' }]} numberOfLines={1}>{fixture.awayTeam}</Text>
         </View>
       )}
 
-      {/* Timestamp */}
-      <Text style={[newInsightStyles.timestamp, { color: colors.textMuted }]}>
-        ⏱ Análise calculada em {new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}, {new Date().toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
-      </Text>
+      {/* Match stats bars (xG, possession, shots) */}
+      {matchStats && (
+        <View style={[eventStyles.statsCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          {[
+            { label: 'Posse de bola', home: matchStats.homePossession, away: matchStats.awayPossession, fmt: (v: number) => `${v.toFixed(0)}%` },
+            { label: 'Remates',       home: matchStats.homeShotsTotal,  away: matchStats.awayShotsTotal,  fmt: (v: number) => String(v) },
+            { label: 'No alvo',       home: matchStats.homeShotsOnTarget, away: matchStats.awayShotsOnTarget, fmt: (v: number) => String(v) },
+            { label: 'xG',            home: matchStats.homeXg,           away: matchStats.awayXg,           fmt: (v: number) => v.toFixed(2) },
+            { label: 'Cantos',        home: matchStats.homeCorners,      away: matchStats.awayCorners,      fmt: (v: number) => String(v) },
+            { label: 'Faltas',        home: matchStats.homeFouls,        away: matchStats.awayFouls,        fmt: (v: number) => String(v) },
+          ].filter(r => r.home != null && r.away != null).map((row) => {
+            const total = (row.home as number) + (row.away as number) || 1;
+            const homePct = ((row.home as number) / total) * 100;
+            return (
+              <View key={row.label} style={eventStyles.statBarRow}>
+                <Text style={[eventStyles.statBarVal, { color: colors.textPrimary }]}>{row.fmt(row.home as number)}</Text>
+                <View style={{ flex: 1, marginHorizontal: 8 }}>
+                  <Text style={[eventStyles.statBarLabel, { color: colors.textMuted }]}>{row.label}</Text>
+                  <View style={[eventStyles.statBarTrack, { backgroundColor: colors.border }]}>
+                    <View style={[eventStyles.statBarFill, { width: `${homePct}%`, backgroundColor: colors.primary }]} />
+                  </View>
+                </View>
+                <Text style={[eventStyles.statBarVal, { color: colors.textPrimary, textAlign: 'right' }]}>{row.fmt(row.away as number)}</Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* Timeline */}
+      {events.length === 0 ? (
+        finished ? (
+          <View style={newInsightStyles.center}>
+            <Ionicons name="list-outline" size={40} color={colors.textMuted} />
+            <Text style={{ color: colors.textMuted, marginTop: 8 }}>Sem eventos disponíveis.</Text>
+          </View>
+        ) : (
+          <View style={[eventStyles.emptyBox, { borderColor: colors.border }]}>
+            <Ionicons name="time-outline" size={22} color={colors.textMuted} />
+            <Text style={[eventStyles.emptyText, { color: colors.textMuted }]}>
+              Eventos disponíveis após o jogo.
+            </Text>
+          </View>
+        )
+      ) : (
+        <View>
+          <Text style={[eventStyles.timelineLabel, { color: colors.textMuted }]}>LINHA DE TEMPO</Text>
+          {events.map((ev) => {
+            const iconCfg = EVENT_ICON[ev.type] ?? { name: 'ellipse', color: colors.textMuted };
+            const isYellow = ev.type === 'Card' && (ev.detail?.toLowerCase().includes('yellow') || ev.detail?.toLowerCase().includes('amarelo'));
+            const isRed    = ev.type === 'Card' && (ev.detail?.toLowerCase().includes('red') || ev.detail?.toLowerCase().includes('vermelho'));
+            const cardColor = isRed ? '#ef4444' : isYellow ? '#f59e0b' : iconCfg.color;
+
+            return (
+              <View key={ev.id} style={[eventStyles.eventRow, { borderBottomColor: colors.border }]}>
+                <Text style={[eventStyles.eventMin, { color: colors.textMuted }]}>
+                  {ev.minute}{ev.extraMinute ? `+${ev.extraMinute}` : ''}'
+                </Text>
+                <Ionicons name={iconCfg.name as any} size={15} color={cardColor} style={{ marginHorizontal: 6 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[eventStyles.eventPlayer, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {ev.playerName ?? ev.detail ?? ev.type}
+                  </Text>
+                  {ev.assistName && (
+                    <Text style={[eventStyles.eventAssist, { color: colors.textMuted }]} numberOfLines={1}>
+                      ass. {ev.assistName}
+                    </Text>
+                  )}
+                </View>
+                <View style={[eventStyles.eventTeamBadge, { backgroundColor: ev.isHome ? `${colors.primary}15` : colors.surface }]}>
+                  <Text style={[eventStyles.eventTeam, { color: ev.isHome ? colors.primary : colors.textMuted }]} numberOfLines={1}>
+                    {ev.isHome ? fixture.homeTeam : fixture.awayTeam}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
 
       <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
 
+const eventStyles = StyleSheet.create({
+  scoreBanner:    { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12 },
+  scoreName:      { flex: 1, fontSize: 13, fontWeight: '600' },
+  scoreNum:       { fontSize: 26, fontWeight: '800', marginHorizontal: 12 },
+  statsCard:      { borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12, gap: 10 },
+  statBarRow:     { flexDirection: 'row', alignItems: 'center' },
+  statBarLabel:   { fontSize: 10, textAlign: 'center', marginBottom: 3 },
+  statBarVal:     { width: 40, fontSize: 13, fontWeight: '700' },
+  statBarTrack:   { height: 6, borderRadius: 3, overflow: 'hidden' },
+  statBarFill:    { height: 6, borderRadius: 3 },
+  timelineLabel:  { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
+  eventRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  eventMin:       { width: 34, fontSize: 12, fontWeight: '700' },
+  eventPlayer:    { fontSize: 13 },
+  eventAssist:    { fontSize: 11 },
+  eventTeamBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, maxWidth: 110 },
+  eventTeam:      { fontSize: 11, fontWeight: '600' },
+  emptyBox:       { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 12 },
+  emptyText:      { fontSize: 13 },
+});
+
 // ─── Add-to-boletim sheet (mirrors boletim create screen) ─────────────────────
 
-type AddSheetTab = 'bet' | 'insight' | 'table';
+type AddSheetTab = 'bet' | 'insight' | 'lineups' | 'events' | 'table';
 
 function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const { colors } = useTheme();
@@ -1956,9 +2447,11 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const kickoffTime = formatKickoff(fixture.kickoffAt, fixture.country);
 
   const TABS: { key: AddSheetTab; label: string; icon: string }[] = [
-    { key: 'bet', label: 'Apostar', icon: 'add-circle-outline' },
-    { key: 'insight', label: 'Análise', icon: 'bar-chart-outline' },
-    { key: 'table', label: 'Tabela', icon: 'trophy-outline' },
+    { key: 'bet',     label: 'Apostar',    icon: 'add-circle-outline' },
+    { key: 'insight', label: 'Análise',    icon: 'bar-chart-outline' },
+    { key: 'lineups', label: 'Escalações', icon: 'people-outline' },
+    { key: 'events',  label: 'Eventos',    icon: 'list-outline' },
+    { key: 'table',   label: 'Tabela',     icon: 'trophy-outline' },
   ];
 
   const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -1977,23 +2470,49 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
               }, 
               animatedStyle
             ]}>
-            {/* Drag handle */}
+            {/* Drag handle + fixture hero */}
             <GestureDetector gesture={dragGesture}>
               <View style={bsStyles.dragArea}>
                 <View style={[bsStyles.handle, { backgroundColor: colors.border }]} />
-                <View style={bsStyles.headerRow}>
+                {/* Top controls */}
+                <View style={bsStyles.heroControls}>
                   <Pressable hitSlop={12} onPress={onClose} style={bsStyles.closeBtn}>
                     <Ionicons name="chevron-down" size={22} color={colors.textSecondary} />
                   </Pressable>
-                  <View style={{ flex: 1, alignItems: 'center' }}>
-                    <Text style={[bsStyles.headerTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-                      {fixture.homeTeam} vs {fixture.awayTeam}
-                    </Text>
-                    <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 1 }}>
-                      {fixture.competition} · {kickoffTime}
+                  <View style={{ flex: 1 }} />
+                </View>
+                {/* Hero: logos + date/time */}
+                <View style={bsStyles.heroRow}>
+                  <View style={bsStyles.heroTeamCol}>
+                    <Image
+                      source={{ uri: getTeamLogoUrl(fixture.homeTeam) ?? undefined }}
+                      style={bsStyles.heroLogo}
+                      resizeMode="contain"
+                    />
+                    <Text style={[bsStyles.heroTeamName, { color: colors.textPrimary }]} numberOfLines={2}>
+                      {fixture.homeTeam}
                     </Text>
                   </View>
-                  <View style={{ width: 34 }} />
+                  <View style={bsStyles.heroCenterCol}>
+                    <Text style={[bsStyles.heroDate, { color: colors.textPrimary }]}>
+                      {formatDate(fixture.kickoffAt, fixture.country)}
+                    </Text>
+                    <Text style={[bsStyles.heroTime, { color: colors.textSecondary }]}>{kickoffTime}</Text>
+                  </View>
+                  <View style={bsStyles.heroTeamCol}>
+                    <Image
+                      source={{ uri: getTeamLogoUrl(fixture.awayTeam) ?? undefined }}
+                      style={bsStyles.heroLogo}
+                      resizeMode="contain"
+                    />
+                    <Text style={[bsStyles.heroTeamName, { color: colors.textPrimary }]} numberOfLines={2}>
+                      {fixture.awayTeam}
+                    </Text>
+                  </View>
+                </View>
+                {/* Competition strip */}
+                <View style={[bsStyles.competitionStrip, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
+                  <Text style={[bsStyles.competitionStripText, { color: colors.textMuted }]}>{fixture.competition}</Text>
                 </View>
               </View>
             </GestureDetector>
@@ -2019,6 +2538,8 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
 
             {/* Tab content */}
             {activeTab === 'insight' && <InsightTab fixture={fixture} />}
+            {activeTab === 'lineups' && <LineupsTab fixture={fixture} />}
+            {activeTab === 'events'  && <EventsTab  fixture={fixture} />}
 
             {activeTab === 'table' && (
               <View style={{ height: SCREEN_HEIGHT * 0.96 - 120 }}>
@@ -2615,6 +3136,14 @@ export default function FixturesScreen() {
     return all.filter((f) => { if (seen.has(f.id)) return false; seen.add(f.id); return true; });
   }, [needsByDateFetch, byDateQuery.data, upcomingQuery.data, recentQuery.data]);
 
+  const activeDates = useMemo<Set<string>>(() => {
+    const s = new Set<string>();
+    for (const f of rawFixtures) {
+      s.add(adjustedDateKey(f.kickoffAt, f.country));
+    }
+    return s;
+  }, [rawFixtures]);
+
   const isSearching = search.trim().length > 0;
 
   const filtered = useMemo(() => {
@@ -2851,6 +3380,7 @@ export default function FixturesScreen() {
         onSelect={(d) => setSelectedDate(stripTime(d))}
         onClose={() => setShowCalendar(false)}
         colors={colors}
+        activeDates={activeDates}
       />
 
       <AddSheet
@@ -2943,11 +3473,21 @@ const bsStyles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  dragArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 4 },
-  handle: { width: 40, height: 4, borderRadius: 2, marginBottom: 8 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingHorizontal: 18, paddingBottom: 8 },
+  dragArea: { alignItems: 'center', paddingTop: 10, paddingBottom: 0 },
+  handle: { width: 40, height: 4, borderRadius: 2, marginBottom: 6 },
   closeBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: '800' },
+
+  // Fixture hero header
+  heroControls: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 2, width: '100%' },
+  heroRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 20, paddingBottom: 12, gap: 8, width: '100%' },
+  heroTeamCol: { flex: 1, alignItems: 'center', gap: 6 },
+  heroLogo: { width: 64, height: 64 },
+  heroTeamName: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  heroCenterCol: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingTop: 8 },
+  heroDate: { fontSize: 16, fontWeight: '800', textAlign: 'center', letterSpacing: 0.3 },
+  heroTime: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 3 },
+  competitionStrip: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 7, paddingHorizontal: 18, alignItems: 'center', width: '100%' },
+  competitionStripText: { fontSize: 12, fontWeight: '600' },
 
   scrollContent: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
 
@@ -3185,4 +3725,11 @@ const newInsightStyles = StyleSheet.create({
   // Loading/error states
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 },
   loadingText: { fontSize: 14, textAlign: 'center' },
+});
+
+const insightSubStyles = StyleSheet.create({
+  bar: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabActive: {},
+  tabText: { fontSize: 13, fontWeight: '700' },
 });

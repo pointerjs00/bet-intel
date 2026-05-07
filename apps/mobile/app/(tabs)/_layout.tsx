@@ -157,6 +157,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="fixtures"
+        options={{
+          title: 'Jogos',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons color={color} name={focused ? 'football' : 'football-outline'} size={22} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="stats"
         options={{
           title: 'Estatísticas',

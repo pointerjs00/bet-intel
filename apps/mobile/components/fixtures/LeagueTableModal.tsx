@@ -962,19 +962,6 @@ function TableContent({
         ))}
       </View>
 
-      <View style={[s.colHeader, { borderBottomColor: colors.border, backgroundColor: `${colors.primary}08` }]}>
-        <View style={s.zoneStrip} />
-        <Text style={[s.pos, { color: colors.textMuted }]}>#</Text>
-        <Text style={[s.teamName, { color: colors.textMuted }]}>Equipa</Text>
-        <Text style={[s.cell, { color: colors.textMuted }]}>J</Text>
-        <Text style={[s.cell, { color: '#22c55e', fontWeight: '700' }]}>V</Text>
-        <Text style={[s.cell, { color: colors.textMuted }]}>E</Text>
-        <Text style={[s.cell, { color: '#ef4444', fontWeight: '700' }]}>D</Text>
-        <Text style={[s.cell, { color: colors.textMuted }]}>GM</Text>
-        <Text style={[s.cell, { color: colors.textMuted }]}>GS</Text>
-        <Text style={[s.pts, { color: colors.textMuted }]}>Pts</Text>
-      </View>
-
       <View style={[s.abbrevBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.abbrevScroll}>
           {[{ k: 'J', v: 'Jogos' }, { k: 'V', v: 'Vitórias' }, { k: 'E', v: 'Empates' }, { k: 'D', v: 'Derrotas' }, { k: 'GM', v: 'Golos marcados' }, { k: 'GS', v: 'Golos sofridos' }, { k: 'Pts', v: 'Pontos' }].map(({ k, v }) => (
