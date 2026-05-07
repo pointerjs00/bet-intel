@@ -158,20 +158,24 @@ export async function upcomingFixturesHandler(
     const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 365) : 14;
     const team = req.query.team as string | undefined;
 
-    const cacheKey = `fixtures:upcoming:${days}:${team ?? ''}`;
+    const cacheKey = `fixtures:upcoming:v2:${days}:${team ?? ''}`;
     const cached = await redis.get(cacheKey).catch(() => null);
     if (cached) {
       ok(res, JSON.parse(cached));
       return;
     }
 
-    const now = new Date();
+    // Include full today so matches that kicked off earlier today aren't missed.
+    // Weekly status sync means many matches stay SCHEDULED past kickoff — include
+    // LIVE status too so they still appear when the live job does update them.
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
     const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     const fixtures = await prisma.fixture.findMany({
       where: {
-        status: 'SCHEDULED',
-        kickoffAt: { gte: now, lte: until },
+        status: { in: ['SCHEDULED', 'LIVE'] },
+        kickoffAt: { gte: startOfToday, lte: until },
         ...(team
           ? {
               OR: [
@@ -186,7 +190,7 @@ export async function upcomingFixturesHandler(
     });
 
     const deduped = deduplicateFixtures(fixtures);
-    redis.setex(cacheKey, 3600, JSON.stringify(deduped)).catch(() => {});
+    redis.setex(cacheKey, 900, JSON.stringify(deduped)).catch(() => {});
     ok(res, deduped);
   } catch (err) {
     fail(res, err);
@@ -196,10 +200,9 @@ export async function upcomingFixturesHandler(
 // ─── GET /api/fixtures/recent ─────────────────────────────────────────────────
 
 /**
- * Recently FINISHED or LIVE fixtures for the past N days.
- * Explicitly excludes SCHEDULED status so there is zero overlap with /upcoming.
- * Redis-cached for 15 minutes (scores change, but not constantly).
- * Called by useRecentFixtures(3) from the fixtures screen.
+ * Recent fixtures for the past N days: FINISHED, LIVE, and past-due SCHEDULED
+ * (weekly sync means matches often stay SCHEDULED after they end).
+ * Redis-cached for 15 minutes. Called by useRecentFixtures(3) from fixtures screen.
  */
 export async function recentFixturesHandler(
   req: Request,
@@ -210,7 +213,7 @@ export async function recentFixturesHandler(
     const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 30) : 3;
     const team = req.query.team as string | undefined;
 
-    const cacheKey = `fixtures:recent:${days}:${team ?? ''}`;
+    const cacheKey = `fixtures:recent:v2:${days}:${team ?? ''}`;
     const cached = await redis.get(cacheKey).catch(() => null);
     if (cached) {
       ok(res, JSON.parse(cached));
@@ -222,8 +225,9 @@ export async function recentFixturesHandler(
 
     const fixtures = await prisma.fixture.findMany({
       where: {
-        // Explicitly only FINISHED and LIVE — never SCHEDULED
-        status: { in: ['FINISHED', 'LIVE'] },
+        // Include FINISHED/LIVE plus past-due SCHEDULED (weekly sync means many
+        // matches stay SCHEDULED even after they've ended).
+        status: { in: ['FINISHED', 'LIVE', 'SCHEDULED'] },
         kickoffAt: { gte: since, lte: now },
         ...(team
           ? {
