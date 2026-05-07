@@ -1,6 +1,6 @@
 // apps/api/src/jobs/fixtureLineupsSyncJob.ts
-// Fetches starting XI + bench for upcoming/recent fixtures from API-Football /fixtures/lineups.
-// Runs on both SCHEDULED (future, once available ~1h before KO) and FINISHED fixtures.
+// Fetches starting XI + bench for all fixtures (past + upcoming) from API-Football /fixtures/lineups.
+// Processes BATCH_SIZE fixtures per run, newest first, skipping any already synced.
 
 import { prisma } from '../prisma';
 import { redis }  from '../utils/redis';
@@ -11,7 +11,6 @@ const BATCH_SIZE = 40;
 
 export async function fixtureLineupsSyncJob() {
   await runJob('fixtureLineupsSync', async () => {
-    const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000); // past 3 days
     const until = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // next 2 days
 
     const withLineupsRows = await (prisma as any).fixtureLineup.findMany({
@@ -23,10 +22,10 @@ export async function fixtureLineupsSyncJob() {
     const fixtures = await prisma.fixture.findMany({
       where: {
         apiFootballId: { not: null },
-        kickoffAt: { gte: since, lte: until },
+        kickoffAt: { lte: until },
         NOT: { id: { in: Array.from(withLineups) } },
       },
-      orderBy: { kickoffAt: 'asc' },
+      orderBy: { kickoffAt: 'desc' },
       take: BATCH_SIZE,
       select: { id: true, apiFootballId: true, homeTeam: true, awayTeam: true, homeTeamApiId: true, awayTeamApiId: true },
     });
