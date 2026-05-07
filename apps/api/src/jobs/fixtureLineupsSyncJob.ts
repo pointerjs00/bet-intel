@@ -11,24 +11,42 @@ const BATCH_SIZE = 40;
 
 export async function fixtureLineupsSyncJob() {
   await runJob('fixtureLineupsSync', async () => {
-    const until = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000); // next 2 days
-
     const withLineupsRows = await (prisma as any).fixtureLineup.findMany({
       distinct: ['fixtureId'],
       select: { fixtureId: true },
     }) as { fixtureId: string }[];
     const withLineups = new Set<string>(withLineupsRows.map((l) => l.fixtureId));
+    const synced = Array.from(withLineups);
 
-    const fixtures = await prisma.fixture.findMany({
+    const selectFields = { id: true, apiFootballId: true, homeTeam: true, awayTeam: true, homeTeamApiId: true, awayTeamApiId: true };
+
+    // Priority 1: finished/live fixtures — data always available
+    const finishedFixtures = await prisma.fixture.findMany({
       where: {
         apiFootballId: { not: null },
-        kickoffAt: { lte: until },
-        NOT: { id: { in: Array.from(withLineups) } },
+        status: { in: ['FINISHED', 'LIVE'] },
+        ...(synced.length > 0 ? { NOT: { id: { in: synced } } } : {}),
       },
       orderBy: { kickoffAt: 'desc' },
       take: BATCH_SIZE,
-      select: { id: true, apiFootballId: true, homeTeam: true, awayTeam: true, homeTeamApiId: true, awayTeamApiId: true },
+      select: selectFields,
     });
+
+    // Priority 2: fill remaining slots with upcoming fixtures (lineups published ~1hr before kickoff)
+    const slotsLeft = BATCH_SIZE - finishedFixtures.length;
+    const upcomingFixtures = slotsLeft > 0 ? await prisma.fixture.findMany({
+      where: {
+        apiFootballId: { not: null },
+        status: 'SCHEDULED',
+        kickoffAt: { gte: new Date(), lte: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000) },
+        ...(synced.length > 0 ? { NOT: { id: { in: synced } } } : {}),
+      },
+      orderBy: { kickoffAt: 'asc' },
+      take: slotsLeft,
+      select: selectFields,
+    }) : [];
+
+    const fixtures = [...finishedFixtures, ...upcomingFixtures];
 
     let calls = 0, upserted = 0;
 
@@ -82,7 +100,7 @@ export async function fixtureLineupsSyncJob() {
       }
     }
 
-    const remaining = await apiFootball.getRemainingCalls();
-    return { recordsProcessed: fixtures.length, recordsUpserted: upserted, apiCallsMade: calls, apiCallsRemaining: remaining };
+    const apiCallsRemaining = await apiFootball.getRemainingCalls();
+    return { recordsProcessed: fixtures.length, recordsUpserted: upserted, apiCallsMade: calls, apiCallsRemaining };
   });
 }
