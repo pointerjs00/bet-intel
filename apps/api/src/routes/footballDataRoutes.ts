@@ -10,6 +10,7 @@ import { triggerFixtureRefresh }    from '../jobs/fixtureRefreshJob';
 import { syncRecentFixtures }       from '../services/apifootball/fixturesSync';
 import { fixtureStatsSyncJob }      from '../jobs/fixtureStatsSyncJob';
 import { fixtureEventsSyncJob }     from '../jobs/fixtureEventsSyncJob';
+import { fixtureLineupsSyncJob }    from '../jobs/fixtureLineupsSyncJob';
 import { standingsSyncJob }         from '../jobs/standingsSyncJob';
 import { injuriesSyncJob }          from '../jobs/injuriesSyncJob';
 import { topScorersSyncJob }        from '../jobs/topScorersSyncJob';
@@ -67,6 +68,9 @@ footballDataRouter.post('/sync/fixtures/recent', async (_req: Request, res: Resp
     );
     fixtureEventsSyncJob().catch((err: any) =>
       logger.warn('[sync/fixtures/recent] events job failed', { error: err.message })
+    );
+    fixtureLineupsSyncJob().catch((err: any) =>
+      logger.warn('[sync/fixtures/recent] lineups job failed', { error: err.message })
     );
   } catch (err: any) {
     logger.error('[sync/fixtures/recent] failed', { error: err.message });

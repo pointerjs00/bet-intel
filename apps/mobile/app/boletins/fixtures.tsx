@@ -3227,13 +3227,13 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
                       </>
                     ) : fixture.status === 'LIVE' && fixture.homeScore != null ? (
                       <>
-                        <View style={bsStyles.liveRow}>
-                          <View style={[bsStyles.liveDot, { backgroundColor: '#ef4444' }]} />
-                          <Text style={[bsStyles.liveLabel, { color: '#ef4444' }]}>AO VIVO</Text>
-                        </View>
+                        <Text style={[bsStyles.heroStatusLabel, { color: colors.textMuted }]}>{kickoffTime}</Text>
                         <Text style={[bsStyles.heroScore, { color: '#ef4444' }]}>
                           {fixture.homeScore} – {fixture.awayScore}
                         </Text>
+                        {fixture.elapsedMinutes != null && (
+                          <Text style={[bsStyles.heroStatusLabel, { color: '#ef4444' }]}>{fixture.elapsedMinutes}&apos;</Text>
+                        )}
                       </>
                     ) : (
                       <>
@@ -3510,10 +3510,7 @@ const FixtureCard = React.memo(function FixtureCard({
       <View style={styles.cardTimeCol}>
         {isLive ? (
           <>
-            <View style={styles.liveIndicator}>
-              <View style={[styles.liveDot, { backgroundColor: '#ef4444' }]} />
-              <Text style={[styles.liveText, { color: '#ef4444' }]}>AO VIVO</Text>
-            </View>
+            <Text style={[styles.kickoffTimeSmall, { color: colors.textMuted }]}>{kickoffTime}</Text>
             {fixture.elapsedMinutes != null && (
               <Text style={[styles.elapsedText, { color: '#ef4444' }]}>{fixture.elapsedMinutes}&apos;</Text>
             )}

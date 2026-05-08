@@ -16,16 +16,27 @@ export async function fixtureEventsSyncJob() {
     }) as { fixtureId: string }[];
     const withEvents = new Set<string>(withEventsRows.map((e) => e.fixtureId));
 
-    const fixtures = await prisma.fixture.findMany({
+    // LIVE fixtures: always re-fetch (events accumulate during the match)
+    const liveFixtures = await prisma.fixture.findMany({
+      where: { status: 'LIVE', apiFootballId: { not: null } },
+      orderBy: { kickoffAt: 'desc' },
+      take: BATCH_SIZE,
+      select: { id: true, apiFootballId: true, homeTeam: true, awayTeam: true, homeTeamApiId: true, awayTeamApiId: true },
+    });
+
+    // FINISHED fixtures: only those without events yet
+    const finishedFixtures = await prisma.fixture.findMany({
       where: {
         status: 'FINISHED',
         apiFootballId: { not: null },
         NOT: { id: { in: Array.from(withEvents) } },
       },
       orderBy: { kickoffAt: 'desc' },
-      take: BATCH_SIZE,
+      take: Math.max(0, BATCH_SIZE - liveFixtures.length),
       select: { id: true, apiFootballId: true, homeTeam: true, awayTeam: true, homeTeamApiId: true, awayTeamApiId: true },
     });
+
+    const fixtures = [...liveFixtures, ...finishedFixtures];
 
     let calls = 0, upserted = 0;
 

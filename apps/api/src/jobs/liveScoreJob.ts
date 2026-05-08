@@ -131,6 +131,28 @@ export async function liveScoreJob(): Promise<void> {
   }
 
   logger.debug(`[liveScore] Broadcast ${fixtures.length} live fixture scores`);
+
+  // Sync events, stats, and lineups from the already-fetched live response — no extra API calls
+  try {
+    const apiIds = fixtures.map((f: any) => f.fixture.id as number);
+    const dbRows = await prisma.fixture.findMany({
+      where: { apiFootballId: { in: apiIds } },
+      select: { id: true, apiFootballId: true, homeTeamApiId: true, awayTeamApiId: true },
+    });
+    const dbMap = new Map(dbRows.map(r => [r.apiFootballId!, r]));
+
+    await Promise.all(fixtures.map(async (f: any) => {
+      const db = dbMap.get(f.fixture.id as number);
+      if (!db) return;
+      await Promise.allSettled([
+        syncLiveEvents(db.id, db.apiFootballId!, db.homeTeamApiId, f.events ?? []),
+        syncLiveStats(db.id, db.apiFootballId!, f.statistics ?? []),
+        syncLiveLineups(db.id, db.apiFootballId!, db.homeTeamApiId, db.awayTeamApiId, f.lineups ?? []),
+      ]);
+    }));
+  } catch (err: any) {
+    logger.warn('[liveScore] Inline data sync failed', { error: err?.message });
+  }
 }
 
 async function sendMatchNotification(
@@ -200,4 +222,134 @@ async function sendMatchNotification(
   }
 
   await redis.set(dedupeKey, '1', 'EX', 7200).catch(() => {});
+}
+
+async function syncLiveEvents(
+  fixtureId: string,
+  apiFootballFixtureId: number,
+  homeTeamApiId: number | null,
+  events: any[],
+): Promise<void> {
+  if (!events.length) return;
+  await (prisma as any).fixtureEvent.deleteMany({ where: { fixtureId } });
+  for (const ev of events) {
+    const teamId = ev.team?.id as number | undefined;
+    const isHome = teamId != null && teamId === homeTeamApiId;
+    await (prisma as any).fixtureEvent.create({
+      data: {
+        fixtureId,
+        apiFootballFixtureId,
+        minute:      ev.time?.elapsed ?? 0,
+        extraMinute: ev.time?.extra   ?? null,
+        teamId:      teamId ?? null,
+        teamName:    ev.team?.name   ?? '',
+        isHome,
+        type:        ev.type     ?? 'Unknown',
+        detail:      ev.detail   ?? null,
+        comments:    ev.comments ?? null,
+        playerName:  ev.player?.name ?? null,
+        playerApiId: ev.player?.id   ?? null,
+        assistName:  ev.assist?.name ?? null,
+        assistApiId: ev.assist?.id   ?? null,
+      },
+    });
+  }
+  await redis.del(`fixture:events:${fixtureId}`).catch(() => {});
+}
+
+async function syncLiveStats(
+  fixtureId: string,
+  apiFootballFixtureId: number,
+  statistics: any[],
+): Promise<void> {
+  if (statistics.length < 2) return;
+  const home: any[] = statistics[0]?.statistics ?? [];
+  const away: any[] = statistics[1]?.statistics ?? [];
+
+  function val(arr: any[], type: string): number | null {
+    const item = arr.find((s: any) => s.type === type);
+    if (item == null || item.value == null) return null;
+    if (typeof item.value === 'string' && item.value.endsWith('%')) return parseFloat(item.value);
+    const n = parseFloat(String(item.value));
+    return isNaN(n) ? null : n;
+  }
+
+  const statsData = {
+    apiFootballFixtureId,
+    homePossession:     val(home, 'Ball Possession'),
+    awayPossession:     val(away, 'Ball Possession'),
+    homeShotsTotal:     val(home, 'Total Shots'),
+    awayShotsTotal:     val(away, 'Total Shots'),
+    homeShotsOnTarget:  val(home, 'Shots on Goal'),
+    awayShotsOnTarget:  val(away, 'Shots on Goal'),
+    homeShotsBlocked:   val(home, 'Blocked Shots'),
+    awayShotsBlocked:   val(away, 'Blocked Shots'),
+    homeCorners:        val(home, 'Corner Kicks'),
+    awayCorners:        val(away, 'Corner Kicks'),
+    homeOffsides:       val(home, 'Offsides'),
+    awayOffsides:       val(away, 'Offsides'),
+    homeYellow:         val(home, 'Yellow Cards'),
+    awayYellow:         val(away, 'Yellow Cards'),
+    homeRed:            val(home, 'Red Cards'),
+    awayRed:            val(away, 'Red Cards'),
+    homeFouls:          val(home, 'Fouls'),
+    awayFouls:          val(away, 'Fouls'),
+    homeGkSaves:        val(home, 'Goalkeeper Saves'),
+    awayGkSaves:        val(away, 'Goalkeeper Saves'),
+    homePassesTotal:    val(home, 'Total passes'),
+    awayPassesTotal:    val(away, 'Total passes'),
+    homePassesAccurate: val(home, 'Passes accurate'),
+    awayPassesAccurate: val(away, 'Passes accurate'),
+    homePassPct:        val(home, 'Passes %'),
+    awayPassPct:        val(away, 'Passes %'),
+    homeXg:             val(home, 'expected_goals'),
+    awayXg:             val(away, 'expected_goals'),
+    syncedAt: new Date(),
+  };
+
+  await (prisma as any).fixtureStats.upsert({
+    where:  { fixtureId },
+    update: statsData,
+    create: { fixtureId, ...statsData },
+  });
+  await redis.del(`fixture:stats:${fixtureId}`).catch(() => {});
+}
+
+async function syncLiveLineups(
+  fixtureId: string,
+  apiFootballFixtureId: number,
+  homeTeamApiId: number | null,
+  awayTeamApiId: number | null,
+  lineups: any[],
+): Promise<void> {
+  if (!lineups.length) return;
+  for (const lineup of lineups) {
+    const teamId = lineup.team?.id as number;
+    if (!teamId) continue;
+    const isHome = teamId === homeTeamApiId;
+    await (prisma as any).fixtureLineup.upsert({
+      where:  { fixlineup_unique: { fixtureId, teamId } },
+      update: {
+        formation:   lineup.formation      ?? null,
+        coachId:     lineup.coach?.id      ?? null,
+        coachName:   lineup.coach?.name    ?? null,
+        startingXI:  lineup.startXI        ?? [],
+        substitutes: lineup.substitutes    ?? [],
+        syncedAt:    new Date(),
+      },
+      create: {
+        fixtureId,
+        apiFootballFixtureId,
+        teamId,
+        teamName:    lineup.team?.name     ?? '',
+        isHome,
+        formation:   lineup.formation      ?? null,
+        coachId:     lineup.coach?.id      ?? null,
+        coachName:   lineup.coach?.name    ?? null,
+        startingXI:  lineup.startXI        ?? [],
+        substitutes: lineup.substitutes    ?? [],
+      },
+    });
+  }
+  await redis.del(`fixture:lineups:${fixtureId}`).catch(() => {});
 }

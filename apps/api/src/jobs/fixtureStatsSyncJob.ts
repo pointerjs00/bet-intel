@@ -11,23 +11,33 @@ const BATCH_SIZE = 50; // fixtures per run — stay within rate limits
 
 export async function fixtureStatsSyncJob() {
   await runJob('fixtureStatsSync', async () => {
-    // Find finished fixtures with apiFootballId that have no stats yet
+    // LIVE fixtures: always refresh (stats change during the match)
+    const liveFixtures = await prisma.fixture.findMany({
+      where: { status: 'LIVE', apiFootballId: { not: null } },
+      orderBy: { kickoffAt: 'desc' },
+      take: BATCH_SIZE,
+      select: { id: true, apiFootballId: true },
+    });
+
+    // FINISHED fixtures: only those without stats yet
     const existingStats = await (prisma as any).fixtureStats.findMany({
       where: { apiFootballFixtureId: { not: null } },
       select: { apiFootballFixtureId: true },
     }) as { apiFootballFixtureId: number }[];
     const existingIds = existingStats.map((s) => s.apiFootballFixtureId);
 
-    const fixtures = await prisma.fixture.findMany({
+    const finishedFixtures = await prisma.fixture.findMany({
       where: {
         status: 'FINISHED',
         apiFootballId: { not: null },
         ...(existingIds.length > 0 ? { NOT: { apiFootballId: { in: existingIds } } } : {}),
       },
       orderBy: { kickoffAt: 'desc' },
-      take: BATCH_SIZE,
+      take: Math.max(0, BATCH_SIZE - liveFixtures.length),
       select: { id: true, apiFootballId: true },
     });
+
+    const fixtures = [...liveFixtures, ...finishedFixtures];
 
     let calls = 0, upserted = 0;
 
