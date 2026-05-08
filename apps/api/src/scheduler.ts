@@ -8,17 +8,21 @@ import { injuriesSyncJob }  from './jobs/injuriesSyncJob';
 import { topScorersSyncJob } from './jobs/topScorersSyncJob';
 import { autoSettlementJob } from './jobs/autoSettlementJob';
 import { liveScoreJob } from './jobs/liveScoreJob';
+import { syncRecentFixtures } from './services/apifootball/fixturesSync';
 
 const REDIS_URL = process.env.REDIS_URL!;
 
 const FOOTBALL_DATA_JOBS = [
-  { name: 'standings-sync',   cron: '0 7 * * 1',  handler: standingsSyncJob },
-  { name: 'injuries-sync',    cron: '0 8 * * 1',  handler: injuriesSyncJob },
-  { name: 'top-scorers-sync', cron: '0 9 * * 1',  handler: topScorersSyncJob },
+  { name: 'standings-sync',     cron: '0 7 * * 1',   handler: standingsSyncJob },
+  { name: 'injuries-sync',      cron: '0 8 * * 1',   handler: injuriesSyncJob },
+  { name: 'top-scorers-sync',   cron: '0 9 * * 1',   handler: topScorersSyncJob },
   // Auto-settlement: every 5 minutes — resolves BoletinItems for finished fixtures
-  { name: 'auto-settlement',  cron: '*/5 * * * *', handler: autoSettlementJob },
+  { name: 'auto-settlement',    cron: '*/5 * * * *', handler: autoSettlementJob },
   // Live scores: every minute — broadcasts scores to socket clients
-  { name: 'live-score',       cron: '* * * * *',   handler: liveScoreJob },
+  { name: 'live-score',         cron: '* * * * *',   handler: liveScoreJob },
+  // Recent fixture sync: every 3 minutes — corrects SCHEDULED→FINISHED for today's matches
+  // Uses per-league API calls only for leagues with active/recent matches (no-op off-peak)
+  { name: 'recent-fixtures-sync', cron: '*/3 * * * *', handler: syncRecentFixtures },
 ] as const;
 
 export async function initFootballDataScheduler(): Promise<void> {
