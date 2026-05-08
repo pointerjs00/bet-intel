@@ -2,6 +2,37 @@ import { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { redis } from '../utils/redis';
 import { logger } from '../utils/logger';
+import type { LiveScorePayload } from '../jobs/liveScoreJob';
+
+const LIVE_SHORT   = new Set(['1H','2H','HT','ET','BT','P','LIVE','INT','SUSP']);
+const FINISH_SHORT = new Set(['FT','AET','PEN','ABD','AWD','WO','CANC']);
+
+/**
+ * For every fixture that has an apiFootballId, fetch the live:score:{id} key
+ * from Redis (written by liveScoreJob every minute) and overlay scores/status.
+ * This ensures the REST response always reflects the latest live data even when
+ * the DB hasn't been updated yet.
+ */
+async function overlayLiveScores(fixtures: any[]): Promise<void> {
+  const withId = fixtures.filter((f) => f.apiFootballId != null);
+  if (!withId.length) return;
+  const keys = withId.map((f) => `live:score:${f.apiFootballId}`);
+  const values = await redis.mget(...keys).catch(() => [] as (string | null)[]);
+  for (let i = 0; i < withId.length; i++) {
+    const raw = values[i];
+    if (!raw) continue;
+    try {
+      const live: LiveScorePayload = JSON.parse(raw);
+      const f = withId[i];
+      f.homeScore      = live.homeGoals;
+      f.awayScore      = live.awayGoals;
+      f.elapsedMinutes = live.elapsed;
+      f.status = FINISH_SHORT.has(live.statusShort) ? 'FINISHED'
+               : LIVE_SHORT.has(live.statusShort)   ? 'LIVE'
+               : f.status;
+    } catch { /* malformed cache — skip */ }
+  }
+}
 
 function ok<T>(res: Response, data: T): void {
   res.json({ success: true, data });
@@ -158,16 +189,6 @@ export async function upcomingFixturesHandler(
     const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 365) : 14;
     const team = req.query.team as string | undefined;
 
-    const cacheKey = `fixtures:upcoming:v2:${days}:${team ?? ''}`;
-    const cached = await redis.get(cacheKey).catch(() => null);
-    if (cached) {
-      ok(res, JSON.parse(cached));
-      return;
-    }
-
-    // Include full today so matches that kicked off earlier today aren't missed.
-    // Weekly status sync means many matches stay SCHEDULED past kickoff — include
-    // LIVE status too so they still appear when the live job does update them.
     const startOfToday = new Date();
     startOfToday.setUTCHours(0, 0, 0, 0);
     const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
@@ -190,7 +211,7 @@ export async function upcomingFixturesHandler(
     });
 
     const deduped = deduplicateFixtures(fixtures);
-    redis.setex(cacheKey, 900, JSON.stringify(deduped)).catch(() => {});
+    await overlayLiveScores(deduped);
     ok(res, deduped);
   } catch (err) {
     fail(res, err);
@@ -213,20 +234,11 @@ export async function recentFixturesHandler(
     const days = Number.isFinite(rawDays) ? Math.min(Math.max(rawDays, 1), 30) : 3;
     const team = req.query.team as string | undefined;
 
-    const cacheKey = `fixtures:recent:v2:${days}:${team ?? ''}`;
-    const cached = await redis.get(cacheKey).catch(() => null);
-    if (cached) {
-      ok(res, JSON.parse(cached));
-      return;
-    }
-
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const now = new Date();
 
     const fixtures = await prisma.fixture.findMany({
       where: {
-        // Include FINISHED/LIVE plus past-due SCHEDULED (weekly sync means many
-        // matches stay SCHEDULED even after they've ended).
         status: { in: ['FINISHED', 'LIVE', 'SCHEDULED'] },
         kickoffAt: { gte: since, lte: now },
         ...(team
@@ -242,9 +254,8 @@ export async function recentFixturesHandler(
       take: 500,
     });
 
-    // 15 min cache — recent results settle quickly
     const deduped = deduplicateFixtures(fixtures);
-    redis.setex(cacheKey, 900, JSON.stringify(deduped)).catch(() => {});
+    await overlayLiveScores(deduped);
     ok(res, deduped);
   } catch (err) {
     fail(res, err);

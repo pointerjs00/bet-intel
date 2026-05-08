@@ -15,6 +15,7 @@ export interface Fixture {
   homeScore: number | null;
   awayScore: number | null;
   status: string;
+  elapsedMinutes: number | null;
 }
 
 // ─── Request functions ────────────────────────────────────────────────────────

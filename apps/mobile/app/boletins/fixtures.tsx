@@ -3467,8 +3467,8 @@ const FixtureCard = React.memo(function FixtureCard({
   onToggleWatch?: (fixture: Fixture) => void;
 }) {
   const { colors } = useTheme();
-  const isFinished = fixture.homeScore !== null && fixture.awayScore !== null;
-  const isLive = fixture.status === 'live' || fixture.status === 'inprogress';
+  const isFinished = fixture.status === 'FINISHED';
+  const isLive = fixture.status === 'LIVE';
   const kickoffTime = formatKickoff(fixture.kickoffAt);
   const kickoffDate = formatDate(fixture.kickoffAt);
   const isToday = adjustedDateKey(fixture.kickoffAt) === toLocalDateKey(stripTime(new Date()));
@@ -3480,14 +3480,19 @@ const FixtureCard = React.memo(function FixtureCard({
     >
       <View style={styles.cardTimeCol}>
         {isLive ? (
-          <View style={styles.liveIndicator}>
-            <View style={[styles.liveDot, { backgroundColor: colors.danger ?? '#ef4444' }]} />
-            <Text style={[styles.liveText, { color: colors.danger ?? '#ef4444' }]}>AO VIVO</Text>
-          </View>
+          <>
+            <View style={styles.liveIndicator}>
+              <View style={[styles.liveDot, { backgroundColor: '#ef4444' }]} />
+              <Text style={[styles.liveText, { color: '#ef4444' }]}>AO VIVO</Text>
+            </View>
+            {fixture.elapsedMinutes != null && (
+              <Text style={[styles.elapsedText, { color: '#ef4444' }]}>{fixture.elapsedMinutes}&apos;</Text>
+            )}
+          </>
         ) : isFinished ? (
           <>
+            <Text style={[styles.kickoffTimeSmall, { color: colors.textMuted }]}>{kickoffTime}</Text>
             <Text style={[styles.ftLabel, { color: colors.textMuted }]}>FT</Text>
-            {(showDate || !isToday) && <Text style={[styles.cardDateSmall, { color: colors.textMuted }]}>{kickoffDate}</Text>}
           </>
         ) : (
           <>
@@ -3501,13 +3506,13 @@ const FixtureCard = React.memo(function FixtureCard({
         <View style={styles.teamRow}>
           <TeamBadge name={fixture.homeTeam} imageUrl={getFixtureTeamLogoUrl(fixture.homeTeam)} size={18} />
           <Text
-            style={[styles.teamNameSmall, { color: colors.textPrimary }, isFinished && fixture.homeScore! > fixture.awayScore! && { fontWeight: '800' }]}
+            style={[styles.teamNameSmall, { color: colors.textPrimary }, (isFinished || isLive) && (fixture.homeScore ?? 0) > (fixture.awayScore ?? 0) && { fontWeight: '800' }]}
             numberOfLines={1}
           >
             {fixture.homeTeam}
           </Text>
-          {isFinished && (
-            <Text style={[styles.scoreSmall, { color: fixture.homeScore! > fixture.awayScore! ? colors.textPrimary : colors.textMuted, fontWeight: fixture.homeScore! > fixture.awayScore! ? '800' : '500' }]}>
+          {(isFinished || isLive) && fixture.homeScore != null && (
+            <Text style={[styles.scoreSmall, { color: isLive ? '#ef4444' : ((fixture.homeScore > (fixture.awayScore ?? 0)) ? colors.textPrimary : colors.textMuted), fontWeight: (fixture.homeScore > (fixture.awayScore ?? 0)) ? '800' : '500' }]}>
               {fixture.homeScore}
             </Text>
           )}
@@ -3515,13 +3520,13 @@ const FixtureCard = React.memo(function FixtureCard({
         <View style={[styles.teamRow, { marginTop: 6 }]}>
           <TeamBadge name={fixture.awayTeam} imageUrl={getFixtureTeamLogoUrl(fixture.awayTeam)} size={18} />
           <Text
-            style={[styles.teamNameSmall, { color: colors.textPrimary }, isFinished && fixture.awayScore! > fixture.homeScore! && { fontWeight: '800' }]}
+            style={[styles.teamNameSmall, { color: colors.textPrimary }, (isFinished || isLive) && (fixture.awayScore ?? 0) > (fixture.homeScore ?? 0) && { fontWeight: '800' }]}
             numberOfLines={1}
           >
             {fixture.awayTeam}
           </Text>
-          {isFinished && (
-            <Text style={[styles.scoreSmall, { color: fixture.awayScore! > fixture.homeScore! ? colors.textPrimary : colors.textMuted, fontWeight: fixture.awayScore! > fixture.homeScore! ? '800' : '500' }]}>
+          {(isFinished || isLive) && fixture.awayScore != null && (
+            <Text style={[styles.scoreSmall, { color: isLive ? '#ef4444' : ((fixture.awayScore > (fixture.homeScore ?? 0)) ? colors.textPrimary : colors.textMuted), fontWeight: (fixture.awayScore > (fixture.homeScore ?? 0)) ? '800' : '500' }]}>
               {fixture.awayScore}
             </Text>
           )}
@@ -3885,9 +3890,21 @@ export default function FixturesScreen() {
   }, [rawFixtures]);
 
   // ── Live polling ─────────────────────────────────────────────────────────────
-  const hasLiveFixtures = rawFixtures.some((f) => f.status === 'LIVE');
+  // Poll when any fixture IS live, OR when one should be live based on kickoff
+  // time but hasn't been synced yet (bootstrap case: status still 'SCHEDULED').
+  const shouldPollLive = useMemo(() => {
+    const now = Date.now();
+    return rawFixtures.some((f) => {
+      if (f.status === 'LIVE') return true;
+      if (f.status === 'FINISHED') return false;
+      const ko = new Date(f.kickoffAt).getTime();
+      // Match kicked off ≤130 min ago and isn't marked finished
+      return ko <= now && now - ko <= 130 * 60 * 1000;
+    });
+  }, [rawFixtures]);
+
   useEffect(() => {
-    if (!hasLiveFixtures) return;
+    if (!shouldPollLive) return;
     const tick = async () => {
       try {
         await apiClient.post('/sync/fixtures/recent', null, { timeout: 20_000 });
@@ -3895,9 +3912,10 @@ export default function FixturesScreen() {
       upcomingQuery.refetch();
       recentQuery.refetch();
     };
+    tick(); // immediate first sync when we detect a match should be live
     const id = setInterval(tick, 60_000);
     return () => clearInterval(id);
-  }, [hasLiveFixtures]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shouldPollLive]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isSearching = search.trim().length > 0;
 
@@ -4177,6 +4195,7 @@ const styles = StyleSheet.create({
   liveIndicator: { alignItems: 'center', gap: 3 },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
   liveText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
+  elapsedText: { fontSize: 11, fontWeight: '700', textAlign: 'center', marginTop: 1 },
   cardTeamsCol: { flex: 1 },
   teamRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   teamNameSmall: { flex: 1, fontSize: 13, fontWeight: '600' },
