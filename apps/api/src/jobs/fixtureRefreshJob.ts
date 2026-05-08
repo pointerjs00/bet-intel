@@ -52,13 +52,13 @@ export async function scheduleFixtureRefreshJob(): Promise<void> {
     await fixtureRefreshQueue.removeRepeatableByKey(job.key);
   }
 
-  // Every Monday at 06:00 UTC
+  // Every day at 06:00 UTC
   await fixtureRefreshQueue.add(
     {},
-    { repeat: { cron: '0 6 * * 1' }, jobId: 'fixture-refresh-weekly' },
+    { repeat: { cron: '0 6 * * *' }, jobId: 'fixture-refresh-daily' },
   );
 
-  logger.info('[FixtureRefresh] Weekly job scheduled (Mondays 06:00 UTC)');
+  logger.info('[FixtureRefresh] Daily job scheduled (06:00 UTC)');
 }
 
 /**

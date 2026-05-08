@@ -2191,12 +2191,21 @@ const lineupStyles = StyleSheet.create({
 
 // ─── EventsTab ────────────────────────────────────────────────────────────────
 
-const EVENT_ICON: Record<string, { name: string; color: string }> = {
-  Goal:   { name: 'football',        color: '#22c55e' },
-  Card:   { name: 'card',            color: '#f59e0b' },
-  Subst:  { name: 'swap-horizontal', color: '#60a5fa' },
-  Var:    { name: 'tv-outline',      color: '#a78bfa' },
-};
+function EvtIcon({ type, detail }: { type: string; detail: string | null }) {
+  const dl = detail?.toLowerCase() ?? '';
+  if (type === 'Goal') {
+    if (dl.includes('own goal')) return <Text style={{ fontSize: 12, lineHeight: 14 }}>🔴</Text>;
+    if (dl.includes('penalty'))  return <Text style={{ fontSize: 12, lineHeight: 14 }}>⚽P</Text>;
+    return <Text style={{ fontSize: 12, lineHeight: 14 }}>⚽</Text>;
+  }
+  if (type === 'Card') {
+    const isRed = dl.includes('red card') || dl.includes('second yellow');
+    return <View style={{ width: 9, height: 13, backgroundColor: isRed ? '#ef4444' : '#f59e0b', borderRadius: 2 }} />;
+  }
+  if (type === 'subst' || type === 'Subst') return <Ionicons name="swap-vertical-outline" size={13} color="#60a5fa" />;
+  if (type === 'Var')  return <Ionicons name="tv-outline" size={13} color="#a78bfa" />;
+  return <Ionicons name="ellipse" size={7} color="#9ca3af" />;
+}
 
 function EventsTab({ fixture }: { fixture: Fixture }) {
   const { colors } = useTheme();
@@ -2215,50 +2224,138 @@ function EventsTab({ fixture }: { fixture: Fixture }) {
   const hasScore = fixture.homeScore != null && fixture.awayScore != null;
   const finished = fixture.status === 'FINISHED';
 
+  // Sort chronologically for score tracking
+  const sorted = [...events].sort((a, b) =>
+    (a.minute * 100 + (a.extraMinute ?? 0)) - (b.minute * 100 + (b.extraMinute ?? 0))
+  );
+
+  // Build running score after each goal event
+  const scoreAfter: Record<string, { home: number; away: number }> = {};
+  let hg = 0, ag = 0;
+  for (const ev of sorted) {
+    if (ev.type === 'Goal' && !ev.detail?.toLowerCase().includes('missed')) {
+      const own = ev.detail?.toLowerCase().includes('own goal');
+      if (own) { if (ev.isHome) ag++; else hg++; }
+      else      { if (ev.isHome) hg++; else ag++; }
+    }
+    scoreAfter[ev.id] = { home: hg, away: ag };
+  }
+
+  const firstHalf  = sorted.filter(e => e.minute <= 45);
+  const secondHalf = sorted.filter(e => e.minute > 45);
+
+  // HT score
+  let htH = 0, htA = 0;
+  for (const ev of firstHalf) {
+    if (ev.type === 'Goal' && !ev.detail?.toLowerCase().includes('missed')) {
+      const own = ev.detail?.toLowerCase().includes('own goal');
+      if (own) { if (ev.isHome) htA++; else htH++; }
+      else      { if (ev.isHome) htH++; else htA++; }
+    }
+  }
+
+  function renderSep(label: string, score?: string) {
+    return (
+      <View style={evtStyles.sepRow}>
+        <View style={[evtStyles.sepLine, { backgroundColor: colors.border }]} />
+        <View style={[evtStyles.sepBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+          <Text style={[evtStyles.sepLabel, { color: colors.textMuted }]}>{label}</Text>
+          {score != null && <Text style={[evtStyles.sepScore, { color: colors.textPrimary }]}>{score}</Text>}
+        </View>
+        <View style={[evtStyles.sepLine, { backgroundColor: colors.border }]} />
+      </View>
+    );
+  }
+
+  function renderEvent(ev: FixtureEventData) {
+    const isGoal  = ev.type === 'Goal' && !ev.detail?.toLowerCase().includes('missed');
+    const score   = isGoal ? scoreAfter[ev.id] : null;
+    const minLabel = `${ev.minute}${ev.extraMinute ? `+${ev.extraMinute}` : ''}'`;
+    const label   = ev.playerName ?? (ev.detail !== ev.type ? ev.detail : null) ?? ev.type;
+
+    return (
+      <View key={ev.id}>
+        <View style={evtStyles.eventRow}>
+          {/* Home side (left) */}
+          <View style={evtStyles.leftCol}>
+            {ev.isHome && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 5, paddingRight: 4 }}>
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <Text style={[evtStyles.evtPlayer, { color: colors.textPrimary }]} numberOfLines={1}>{label}</Text>
+                  {ev.assistName && (
+                    <Text style={[evtStyles.evtAssist, { color: colors.textMuted }]} numberOfLines={1}>ass. {ev.assistName}</Text>
+                  )}
+                </View>
+                <EvtIcon type={ev.type} detail={ev.detail} />
+              </View>
+            )}
+          </View>
+
+          {/* Center minute */}
+          <View style={evtStyles.centerCol}>
+            <Text style={[evtStyles.minute, { color: colors.textMuted }]}>{minLabel}</Text>
+          </View>
+
+          {/* Away side (right) */}
+          <View style={evtStyles.rightCol}>
+            {!ev.isHome && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 5, paddingLeft: 4 }}>
+                <EvtIcon type={ev.type} detail={ev.detail} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[evtStyles.evtPlayer, { color: colors.textPrimary }]} numberOfLines={1}>{label}</Text>
+                  {ev.assistName && (
+                    <Text style={[evtStyles.evtAssist, { color: colors.textMuted }]} numberOfLines={1}>ass. {ev.assistName}</Text>
+                  )}
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Score badge after goal */}
+        {isGoal && score != null && (
+          <View style={{ alignItems: 'center', marginBottom: 2 }}>
+            <View style={[evtStyles.scoreChip, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}40` }]}>
+              <Text style={[evtStyles.scoreChipText, { color: colors.primary }]}>{score.home} – {score.away}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14 }}>
 
-      {/* Score banner */}
-      {hasScore && (
-        <View style={[eventStyles.scoreBanner, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-          <Text style={[eventStyles.scoreName, { color: colors.textSecondary }]} numberOfLines={1}>{fixture.homeTeam}</Text>
-          <Text style={[eventStyles.scoreNum, { color: colors.textPrimary }]}>
-            {fixture.homeScore} – {fixture.awayScore}
-          </Text>
-          <Text style={[eventStyles.scoreName, { color: colors.textSecondary, textAlign: 'right' }]} numberOfLines={1}>{fixture.awayTeam}</Text>
-        </View>
-      )}
-
-      {/* Match stats bars (xG, possession, shots) */}
+      {/* Match stats bars */}
       {matchStats && (
-        <View style={[eventStyles.statsCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+        <View style={[evtStyles.statsCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
           {[
-            { label: 'Posse de bola', home: matchStats.homePossession, away: matchStats.awayPossession, fmt: (v: number) => `${v.toFixed(0)}%` },
-            { label: 'Remates',       home: matchStats.homeShotsTotal,  away: matchStats.awayShotsTotal,  fmt: (v: number) => String(v) },
-            { label: 'No alvo',       home: matchStats.homeShotsOnTarget, away: matchStats.awayShotsOnTarget, fmt: (v: number) => String(v) },
-            { label: 'xG',            home: matchStats.homeXg,           away: matchStats.awayXg,           fmt: (v: number) => v.toFixed(2) },
-            { label: 'Cantos',        home: matchStats.homeCorners,      away: matchStats.awayCorners,      fmt: (v: number) => String(v) },
-            { label: 'Faltas',        home: matchStats.homeFouls,        away: matchStats.awayFouls,        fmt: (v: number) => String(v) },
+            { label: 'Posse de bola', home: matchStats.homePossession,    away: matchStats.awayPossession,    fmt: (v: number) => `${v.toFixed(0)}%` },
+            { label: 'Remates',       home: matchStats.homeShotsTotal,     away: matchStats.awayShotsTotal,     fmt: (v: number) => String(v) },
+            { label: 'No alvo',       home: matchStats.homeShotsOnTarget,  away: matchStats.awayShotsOnTarget,  fmt: (v: number) => String(v) },
+            { label: 'xG',            home: matchStats.homeXg,             away: matchStats.awayXg,             fmt: (v: number) => v.toFixed(2) },
+            { label: 'Cantos',        home: matchStats.homeCorners,        away: matchStats.awayCorners,        fmt: (v: number) => String(v) },
+            { label: 'Faltas',        home: matchStats.homeFouls,          away: matchStats.awayFouls,          fmt: (v: number) => String(v) },
           ].filter(r => r.home != null && r.away != null).map((row) => {
             const total = (row.home as number) + (row.away as number) || 1;
             const homePct = ((row.home as number) / total) * 100;
             return (
-              <View key={row.label} style={eventStyles.statBarRow}>
-                <Text style={[eventStyles.statBarVal, { color: colors.textPrimary }]}>{row.fmt(row.home as number)}</Text>
+              <View key={row.label} style={evtStyles.statBarRow}>
+                <Text style={[evtStyles.statBarVal, { color: colors.textPrimary }]}>{row.fmt(row.home as number)}</Text>
                 <View style={{ flex: 1, marginHorizontal: 8 }}>
-                  <Text style={[eventStyles.statBarLabel, { color: colors.textMuted }]}>{row.label}</Text>
-                  <View style={[eventStyles.statBarTrack, { backgroundColor: colors.border }]}>
-                    <View style={[eventStyles.statBarFill, { width: `${homePct}%`, backgroundColor: colors.primary }]} />
+                  <Text style={[evtStyles.statBarLabel, { color: colors.textMuted }]}>{row.label}</Text>
+                  <View style={[evtStyles.statBarTrack, { backgroundColor: colors.border }]}>
+                    <View style={[evtStyles.statBarFill, { width: `${homePct}%` as any, backgroundColor: colors.primary }]} />
                   </View>
                 </View>
-                <Text style={[eventStyles.statBarVal, { color: colors.textPrimary, textAlign: 'right' }]}>{row.fmt(row.away as number)}</Text>
+                <Text style={[evtStyles.statBarVal, { color: colors.textPrimary, textAlign: 'right' }]}>{row.fmt(row.away as number)}</Text>
               </View>
             );
           })}
         </View>
       )}
 
-      {/* Timeline */}
       {events.length === 0 ? (
         finished ? (
           <View style={newInsightStyles.center}>
@@ -2266,46 +2363,31 @@ function EventsTab({ fixture }: { fixture: Fixture }) {
             <Text style={{ color: colors.textMuted, marginTop: 8 }}>Sem eventos disponíveis.</Text>
           </View>
         ) : (
-          <View style={[eventStyles.emptyBox, { borderColor: colors.border }]}>
+          <View style={[evtStyles.emptyBox, { borderColor: colors.border }]}>
             <Ionicons name="time-outline" size={22} color={colors.textMuted} />
-            <Text style={[eventStyles.emptyText, { color: colors.textMuted }]}>
-              Eventos disponíveis após o jogo.
-            </Text>
+            <Text style={[evtStyles.emptyText, { color: colors.textMuted }]}>Eventos disponíveis após o jogo.</Text>
           </View>
         )
       ) : (
-        <View>
-          <Text style={[eventStyles.timelineLabel, { color: colors.textMuted }]}>LINHA DE TEMPO</Text>
-          {events.map((ev) => {
-            const iconCfg = EVENT_ICON[ev.type] ?? { name: 'ellipse', color: colors.textMuted };
-            const isYellow = ev.type === 'Card' && (ev.detail?.toLowerCase().includes('yellow') || ev.detail?.toLowerCase().includes('amarelo'));
-            const isRed    = ev.type === 'Card' && (ev.detail?.toLowerCase().includes('red') || ev.detail?.toLowerCase().includes('vermelho'));
-            const cardColor = isRed ? '#ef4444' : isYellow ? '#f59e0b' : iconCfg.color;
+        <View style={{ marginTop: 4 }}>
+          {/* Column headers */}
+          <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+            <Text style={[evtStyles.colHeader, { flex: 1, color: colors.textMuted, textAlign: 'right' }]} numberOfLines={1}>{fixture.homeTeam}</Text>
+            <View style={evtStyles.centerCol} />
+            <Text style={[evtStyles.colHeader, { flex: 1, color: colors.textMuted }]} numberOfLines={1}>{fixture.awayTeam}</Text>
+          </View>
 
-            return (
-              <View key={ev.id} style={[eventStyles.eventRow, { borderBottomColor: colors.border }]}>
-                <Text style={[eventStyles.eventMin, { color: colors.textMuted }]}>
-                  {ev.minute}{ev.extraMinute ? `+${ev.extraMinute}` : ''}'
-                </Text>
-                <Ionicons name={iconCfg.name as any} size={15} color={cardColor} style={{ marginHorizontal: 6 }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[eventStyles.eventPlayer, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {ev.playerName ?? ev.detail ?? ev.type}
-                  </Text>
-                  {ev.assistName && (
-                    <Text style={[eventStyles.eventAssist, { color: colors.textMuted }]} numberOfLines={1}>
-                      ass. {ev.assistName}
-                    </Text>
-                  )}
-                </View>
-                <View style={[eventStyles.eventTeamBadge, { backgroundColor: ev.isHome ? `${colors.primary}15` : colors.surface }]}>
-                  <Text style={[eventStyles.eventTeam, { color: ev.isHome ? colors.primary : colors.textMuted }]} numberOfLines={1}>
-                    {ev.isHome ? fixture.homeTeam : fixture.awayTeam}
-                  </Text>
-                </View>
-              </View>
-            );
-          })}
+          {/* FT separator */}
+          {finished && hasScore && renderSep('FIM', `${fixture.homeScore} – ${fixture.awayScore}`)}
+
+          {[...secondHalf].reverse().map(renderEvent)}
+
+          {/* HT separator — only if both halves have events */}
+          {firstHalf.length > 0 && secondHalf.length > 0 && renderSep('INTERVALO', `${htH} – ${htA}`)}
+
+          {[...firstHalf].reverse().map(renderEvent)}
+
+          {renderSep('INÍCIO')}
         </View>
       )}
 
@@ -2314,25 +2396,30 @@ function EventsTab({ fixture }: { fixture: Fixture }) {
   );
 }
 
-const eventStyles = StyleSheet.create({
-  scoreBanner:    { flexDirection: 'row', alignItems: 'center', borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12 },
-  scoreName:      { flex: 1, fontSize: 13, fontWeight: '600' },
-  scoreNum:       { fontSize: 26, fontWeight: '800', marginHorizontal: 12 },
-  statsCard:      { borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12, gap: 10 },
-  statBarRow:     { flexDirection: 'row', alignItems: 'center' },
-  statBarLabel:   { fontSize: 10, textAlign: 'center', marginBottom: 3 },
-  statBarVal:     { width: 40, fontSize: 13, fontWeight: '700' },
-  statBarTrack:   { height: 6, borderRadius: 3, overflow: 'hidden' },
-  statBarFill:    { height: 6, borderRadius: 3 },
-  timelineLabel:  { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 8, marginTop: 4 },
-  eventRow:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  eventMin:       { width: 34, fontSize: 12, fontWeight: '700' },
-  eventPlayer:    { fontSize: 13 },
-  eventAssist:    { fontSize: 11 },
-  eventTeamBadge: { borderRadius: 6, paddingHorizontal: 6, paddingVertical: 3, maxWidth: 110 },
-  eventTeam:      { fontSize: 11, fontWeight: '600' },
-  emptyBox:       { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 12 },
-  emptyText:      { fontSize: 13 },
+const evtStyles = StyleSheet.create({
+  statsCard:     { borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 12, gap: 10 },
+  statBarRow:    { flexDirection: 'row', alignItems: 'center' },
+  statBarLabel:  { fontSize: 10, textAlign: 'center', marginBottom: 3 },
+  statBarVal:    { width: 40, fontSize: 13, fontWeight: '700' },
+  statBarTrack:  { height: 6, borderRadius: 3, overflow: 'hidden' },
+  statBarFill:   { height: 6, borderRadius: 3 },
+  colHeader:     { fontSize: 11, fontWeight: '700', letterSpacing: 0.3, paddingHorizontal: 4 },
+  eventRow:      { flexDirection: 'row', alignItems: 'center', minHeight: 32, paddingVertical: 3 },
+  leftCol:       { flex: 1 },
+  centerCol:     { width: 44, alignItems: 'center' },
+  rightCol:      { flex: 1 },
+  evtPlayer:     { fontSize: 12, fontWeight: '600' },
+  evtAssist:     { fontSize: 11 },
+  minute:        { fontSize: 11, fontWeight: '700' },
+  scoreChip:     { borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 2, marginBottom: 2 },
+  scoreChipText: { fontSize: 12, fontWeight: '800' },
+  sepRow:        { flexDirection: 'row', alignItems: 'center', marginVertical: 6 },
+  sepLine:       { flex: 1, height: StyleSheet.hairlineWidth },
+  sepBadge:      { borderRadius: 20, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 4, marginHorizontal: 8, alignItems: 'center' },
+  sepLabel:      { fontSize: 9, fontWeight: '700', letterSpacing: 0.8 },
+  sepScore:      { fontSize: 14, fontWeight: '800' },
+  emptyBox:      { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 14, marginTop: 12 },
+  emptyText:     { fontSize: 13 },
 });
 
 // ─── Add-to-boletim sheet (mirrors boletim create screen) ─────────────────────

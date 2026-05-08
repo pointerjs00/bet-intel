@@ -54,7 +54,8 @@ export async function fixtureStatsSyncJob() {
           if (typeof item.value === 'string' && item.value.endsWith('%')) {
             return parseFloat(item.value);
           }
-          return typeof item.value === 'number' ? item.value : parseInt(item.value, 10) || null;
+          const n = parseFloat(String(item.value));
+          return isNaN(n) ? null : n;
         }
 
         await (prisma as any).fixtureStats.upsert({
