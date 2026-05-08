@@ -189,8 +189,9 @@ export async function fixturesSyncJob(): Promise<void> {
   });
 }
 
-// Pull-to-refresh helper — single date-range call, 55s debounce so the 60s
-// live polling loop always gets fresh data without hammering the API
+// Pull-to-refresh helper — per-league calls for affected leagues, 55s debounce.
+// Uses per-league API queries (same as the scheduled sync) so results are reliable
+// even for broad date ranges that would be truncated by the all-leagues endpoint.
 const RECENT_DEBOUNCE_KEY = 'sync:fixtures:recent';
 const RECENT_DEBOUNCE_TTL = 55; // seconds
 
@@ -205,26 +206,57 @@ export async function syncRecentFixtures(): Promise<{ upserted: number; skipped:
   const pad = (n: number) => String(n).padStart(2, '0');
   const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-  const from = new Date(); from.setDate(from.getDate() - 3);
-  const to   = new Date(); to.setDate(to.getDate() + 2);
+  const from = new Date(); from.setDate(from.getDate() - 1);  // yesterday
+  const to   = new Date(); to.setDate(to.getDate() + 1);      // tomorrow
 
-  const resp = await apiFootball.get<any>('/fixtures', {
-    from: toDateStr(from),
-    to:   toDateStr(to),
-  });
+  const season    = getCurrentSeason();
+  const apiSeason = canonicalToApiFootballSeason(season);
 
-  const all: any[] = resp?.response ?? [];
+  // Determine which leagues have LIVE or recently-kicked-off SCHEDULED fixtures so
+  // we query only those leagues (saves API calls). Falls back to all tracked leagues
+  // if nothing is found in the DB (e.g. first startup).
+  const now = new Date();
+  const windowAgo = new Date(now.getTime() - 5 * 60 * 60 * 1000); // 5 hours ago
 
-  // Filter to only leagues we track
-  const leagueMap = new Map<number, typeof LEAGUE_MANIFEST[number]>(LEAGUE_MANIFEST.map(l => [l.apiFootballId, l]));
-  const season = getCurrentSeason();
+  const staleRows = await prisma.fixture.findMany({
+    where: {
+      OR: [
+        { status: 'LIVE' },
+        { status: 'SCHEDULED', kickoffAt: { lte: now, gte: windowAgo } },
+      ],
+    },
+    select: { competition: true },
+    distinct: ['competition'],
+  }).catch(() => [] as { competition: string }[]);
+
+  const staleCompetitions = new Set(staleRows.map(r => r.competition));
+  if (staleCompetitions.size === 0) {
+    // Nothing live or recently kicked-off — no API calls needed
+    logger.debug('[syncRecentFixtures] No active/recent matches — no-op');
+    return { upserted: 0, skipped: false };
+  }
+
+  const leaguesToSync = LEAGUE_MANIFEST.filter(l => staleCompetitions.has(l.name));
+  logger.info(`[syncRecentFixtures] Syncing ${leaguesToSync.length} league(s): ${leaguesToSync.map(l => l.name).join(', ')}`);
 
   let upserted = 0;
-  for (const f of all) {
-    const league = leagueMap.get(f.league?.id as number);
-    if (!league) continue;
-    const ok = await upsertFixture(f, league.name, season);
-    if (ok) upserted++;
+  for (const league of leaguesToSync) {
+    try {
+      const resp = await apiFootball.get<any>('/fixtures', {
+        league: league.apiFootballId,
+        season: apiSeason,
+        from:   toDateStr(from),
+        to:     toDateStr(to),
+      });
+      const all: any[] = resp?.response ?? [];
+      for (const f of all) {
+        const ok = await upsertFixture(f, league.name, season);
+        if (ok) upserted++;
+      }
+      await new Promise(r => setTimeout(r, 200)); // light rate-limit between leagues
+    } catch (e: any) {
+      logger.warn(`[syncRecentFixtures] Skipping ${league.name}: ${e.message}`);
+    }
   }
 
   if (upserted > 0) {

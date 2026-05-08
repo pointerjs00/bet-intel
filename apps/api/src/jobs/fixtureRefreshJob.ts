@@ -52,13 +52,13 @@ export async function scheduleFixtureRefreshJob(): Promise<void> {
     await fixtureRefreshQueue.removeRepeatableByKey(job.key);
   }
 
-  // Every day at 06:00 UTC
+  // Every 2 hours — keeps scores/statuses current throughout the match day
   await fixtureRefreshQueue.add(
     {},
-    { repeat: { cron: '0 6 * * *' }, jobId: 'fixture-refresh-daily' },
+    { repeat: { cron: '0 */2 * * *' }, jobId: 'fixture-refresh-bihourly' },
   );
 
-  logger.info('[FixtureRefresh] Daily job scheduled (06:00 UTC)');
+  logger.info('[FixtureRefresh] Bi-hourly job scheduled (every 2h)');
 }
 
 /**
