@@ -16,6 +16,7 @@ interface Props {
   onClose: () => void;
   /** When true, renders inline without a Modal wrapper (e.g. inside a bottom sheet tab) */
   embedded?: boolean;
+  onTeamPress?: (team: TeamStatData) => void;
 }
 
 // Zone config — adjust thresholds to match competition rules
@@ -787,16 +788,20 @@ type SortKey = 'default' | 'home' | 'away';
 
 // ─── Inner content (shared between embedded and modal) ────────────────────────
 
+type ViewMode = 'stats' | 'form';
+
 function TableContent({
   competition,
   season = '2025-26',
   highlightTeams = [],
   onClose,
   embedded = false,
+  onTeamPress,
 }: Omit<Props, 'visible'>) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const [sortKey, setSortKey] = React.useState<SortKey>('default');
+  const [viewMode, setViewMode] = useState<ViewMode>('stats');
   const [showRules, setShowRules] = useState(false);
   const tableQuery = useLeagueTable(competition, season);
 
@@ -831,9 +836,47 @@ function TableContent({
     return Array.from(seen.values());
   }, [total]);
 
+  const FORM_COLOR: Record<string, string> = { W: '#22c55e', D: '#6b7280', L: '#ef4444' };
+  const FORM_LABEL: Record<string, string> = { W: 'V', D: 'E', L: 'D' };
+
   function renderRow(item: TeamStatData & { displayPos: number }) {
     const highlight = isHighlighted(item.team, highlightTeams);
     const zone = sortKey === 'default' ? getZone(item.displayPos, total, DEFAULT_ZONES) : null;
+    const zoneColor = zone?.color;
+    const rowBg     = highlight ? `${colors.primary}22` : undefined;
+
+    if (viewMode === 'form') {
+      const formPills = (item.formLast5 ?? '').split('').filter(c => 'WDL'.includes(c)).slice(0, 5);
+      return (
+        <Pressable
+          onPress={() => onTeamPress?.(item)}
+          style={[s.row, { borderBottomColor: colors.border }, rowBg ? { backgroundColor: rowBg } : undefined]}
+        >
+          <View style={[s.zoneStrip, { backgroundColor: zoneColor ?? 'transparent' }]} />
+          <Text style={[s.pos, { color: highlight ? colors.primary : zoneColor ?? colors.textMuted }]}>
+            {item.displayPos}
+          </Text>
+          {highlight && <View style={[s.highlightDot, { backgroundColor: colors.primary }]} />}
+          <View style={s.teamCell}>
+            <TeamBadge name={resolveTeamName(item.team)} imageUrl={getTeamLogoUrl(resolveTeamName(item.team))} size={20} />
+            <Text numberOfLines={1} style={[s.teamName, { color: highlight ? colors.primary : colors.textPrimary, fontWeight: highlight ? '800' : '600' }]}>
+              {item.team}
+            </Text>
+          </View>
+          <View style={s.formPillsCell}>
+            {formPills.length > 0
+              ? formPills.map((r, i) => (
+                  <View key={i} style={[s.formPill, { backgroundColor: FORM_COLOR[r] ?? '#6b7280' }]}>
+                    <Text style={s.formPillText}>{FORM_LABEL[r] ?? r}</Text>
+                  </View>
+                ))
+              : <Text style={[s.cell, { color: colors.textMuted }]}>—</Text>
+            }
+          </View>
+          {onTeamPress && <Ionicons name="chevron-forward" size={12} color={colors.textMuted} />}
+        </Pressable>
+      );
+    }
 
     const gf  = sortKey === 'home' ? item.homeGoalsFor     : sortKey === 'away' ? item.awayGoalsFor     : item.goalsFor;
     const ga  = sortKey === 'home' ? item.homeGoalsAgainst : sortKey === 'away' ? item.awayGoalsAgainst : item.goalsAgainst;
@@ -843,11 +886,11 @@ function TableContent({
     const pts = sortKey === 'home' ? w * 3 + d             : sortKey === 'away' ? w * 3 + d             : item.points;
     const p   = sortKey === 'home' ? w + d + l             : sortKey === 'away' ? w + d + l             : item.played;
 
-    const zoneColor = zone?.color;
-    const rowBg     = highlight ? `${colors.primary}22` : undefined;
-
     return (
-      <View style={[s.row, { borderBottomColor: colors.border }, rowBg ? { backgroundColor: rowBg } : undefined]}>
+      <Pressable
+        onPress={() => onTeamPress?.(item)}
+        style={[s.row, { borderBottomColor: colors.border }, rowBg ? { backgroundColor: rowBg } : undefined]}
+      >
         <View style={[s.zoneStrip, { backgroundColor: zoneColor ?? 'transparent' }]} />
         <Text style={[s.pos, { color: highlight ? colors.primary : zoneColor ?? colors.textMuted }]}>
           {item.displayPos}
@@ -873,7 +916,7 @@ function TableContent({
         <Text style={[s.cell, { color: colors.textSecondary }]}>{gf}</Text>
         <Text style={[s.cell, { color: colors.textSecondary }]}>{ga}</Text>
         <Text style={[s.pts, { color: highlight ? colors.primary : colors.textPrimary }]}>{pts}</Text>
-      </View>
+      </Pressable>
     );
   }
 
@@ -960,17 +1003,38 @@ function TableContent({
             </Text>
           </Pressable>
         ))}
+        <Pressable
+          onPress={() => setViewMode(v => v === 'stats' ? 'form' : 'stats')}
+          style={[s.tab, s.viewToggle, { backgroundColor: viewMode === 'form' ? `${colors.primary}18` : undefined }]}
+        >
+          <Ionicons
+            name={viewMode === 'form' ? 'analytics-outline' : 'pulse-outline'}
+            size={15}
+            color={viewMode === 'form' ? colors.primary : colors.textMuted}
+          />
+          <Text style={[s.tabText, { color: viewMode === 'form' ? colors.primary : colors.textMuted, marginLeft: 3 }]}>
+            {viewMode === 'form' ? 'Stats' : 'Forma'}
+          </Text>
+        </Pressable>
       </View>
 
-      <View style={[s.abbrevBar, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.abbrevScroll}>
-          {[{ k: 'J', v: 'Jogos' }, { k: 'V', v: 'Vitórias' }, { k: 'E', v: 'Empates' }, { k: 'D', v: 'Derrotas' }, { k: 'GM', v: 'Golos marcados' }, { k: 'GS', v: 'Golos sofridos' }, { k: 'Pts', v: 'Pontos' }].map(({ k, v }) => (
-            <View key={k} style={s.abbrevItem}>
-              <Text style={[s.abbrevKey, { color: colors.primary }]}>{k}</Text>
-              <Text style={[s.abbrevVal, { color: colors.textMuted }]}>{v}</Text>
-            </View>
-          ))}
-        </ScrollView>
+      <View style={[s.colHeader, { borderBottomColor: colors.border, backgroundColor: `${colors.primary}08` }]}>
+        <View style={s.zoneStrip} />
+        <Text style={[s.pos, { color: colors.textMuted }]}>#</Text>
+        <Text style={[s.teamName, { color: colors.textMuted }]}>Equipa</Text>
+        {viewMode === 'stats' ? (
+          <>
+            <Text style={[s.cell, { color: colors.textMuted }]}>J</Text>
+            <Text style={[s.cell, { color: '#22c55e', fontWeight: '700' }]}>V</Text>
+            <Text style={[s.cell, { color: colors.textMuted }]}>E</Text>
+            <Text style={[s.cell, { color: '#ef4444', fontWeight: '700' }]}>D</Text>
+            <Text style={[s.cell, { color: colors.textMuted }]}>GM</Text>
+            <Text style={[s.cell, { color: colors.textMuted }]}>GS</Text>
+            <Text style={[s.pts, { color: colors.textMuted }]}>Pts</Text>
+          </>
+        ) : (
+          <Text style={[s.pts, { color: colors.textMuted, flex: 1, textAlign: 'right' }]}>Últimos 5</Text>
+        )}
       </View>
 
       {tableQuery.isLoading ? (
@@ -992,13 +1056,11 @@ function TableContent({
 }
 // ─── Public component ─────────────────────────────────────────────────────────
 
-export function LeagueTableModal({ visible, embedded = false, ...rest }: Props) {
-  // Embedded mode: render inline, no Modal wrapper, always "visible"
+export function LeagueTableModal({ visible, embedded = false, onTeamPress, ...rest }: Props) {
   if (embedded) {
-    return <TableContent embedded {...rest} />;
+    return <TableContent embedded onTeamPress={onTeamPress} {...rest} />;
   }
 
-  // Normal modal mode: unchanged behaviour
   return (
     <Modal
       visible={visible}
@@ -1006,7 +1068,7 @@ export function LeagueTableModal({ visible, embedded = false, ...rest }: Props) 
       presentationStyle="pageSheet"
       onRequestClose={rest.onClose}
     >
-      <TableContent {...rest} />
+      <TableContent onTeamPress={onTeamPress} {...rest} />
     </Modal>
   );
 }
@@ -1038,6 +1100,11 @@ const s = StyleSheet.create({
   tabs: { borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row' },
   tab: { alignItems: 'center', flex: 1, paddingVertical: 10 },
   tabText: { fontSize: 13, fontWeight: '700' },
+  viewToggle: { flexDirection: 'row', borderRadius: 6, marginHorizontal: 4, paddingHorizontal: 4 },
+
+  formPillsCell: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end', gap: 3 },
+  formPill: { width: 22, height: 22, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  formPillText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 
   colHeader: {
     alignItems: 'center',

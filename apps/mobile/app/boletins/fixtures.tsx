@@ -48,6 +48,7 @@ import { BETTING_SITES } from '../../utils/sportAssets';
 import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { NumericInput } from '../../components/ui/NumericInput';
 import { useMarkets } from '../../services/referenceService';
+import { apiClient } from '../../services/apiClient';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { Input } from '../../components/ui/Input';
 import { GestureHandlerRootView, Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -1093,91 +1094,46 @@ function fullDateLabel(d: Date): string {
 
 // ─── Timezone helpers ─────────────────────────────────────────────────────────
 
-/**
- * Country-to-UTC-offset map for converting feed times to Lisbon time.
- *
- * The feed stores kickoff times as UTC+1 (Western Europe / Lisbon standard)
- * without a timezone marker. So for Portugal & England (UTC+0/UTC+1 → same
- * as feed) we apply 0 correction. For Central European countries (UTC+1/UTC+2)
- * we subtract 1 hour. For Eastern Europe (UTC+2/UTC+3) we subtract 2 hours.
- *
- * Only applies when the fixture has a valid, non-midnight time.
- */
-const COUNTRY_LISBON_OFFSET: Record<string, number> = {
-  // No correction — feed time IS Lisbon time
-  Portugal: 0,
-  England: 0,
-  Scotland: 0,
-  Ireland: 0,
-
-  // Central Europe (UTC+1 standard / UTC+2 summer) → -1h vs feed
-  Spain: -1,
-  Germany: -1,
-  France: -1,
-  Italy: -1,
-  Netherlands: -1,
-  Belgium: -1,
-  Austria: -1,
-  Switzerland: -1,
-  Norway: -1,
-  Sweden: -1,
-  Denmark: -1,
-  'Czech Republic': -1,
-  Czechia: -1,
-  Slovakia: -1,
-  Hungary: -1,
-  Poland: -1,
-  Croatia: -1,
-  Serbia: -1,
-  Romania: -1, // UTC+2 but close enough for display
-  Monaco: -1,
-
-  // Eastern Europe (UTC+2 standard / UTC+3 summer) → -2h vs feed
-  Ukraine: -2,
-  Russia: -2,
-  Kazakhstan: -2,
-  Turkey: -2,
-  Greece: -2,
-
-  // Non-European — leave as-is (feed origin unknown, don't adjust)
-};
+const LISBON_TZ = 'Europe/Lisbon';
 
 /**
- * Returns false only when the time is exactly 00:00 local in the ISO string itself.
- * We check the raw string rather than the parsed Date to avoid UTC confusion.
- * Strings like "2025-05-02T00:00:00" or ending in "T00:00:00.000Z" are placeholders.
+ * Returns false when the ISO string's time component is exactly T00:00,
+ * which API-Football uses as a "time unknown" placeholder.
  */
 function hasValidTime(iso: string): boolean {
-  // Match T00:00 at the start of the time component
   return !/T00:00/.test(iso);
 }
 
-/**
- * Parse the feed ISO string and apply a per-country Lisbon correction.
- * If the country is unknown or the time is 00:00, returns the raw Date.
- */
-function adjustKickoff(iso: string, country?: string): Date {
-  const d = new Date(iso);
-  if (!hasValidTime(iso)) return d; // midnight placeholder — don't touch
-  const offset = country !== undefined ? (COUNTRY_LISBON_OFFSET[country] ?? 0) : 0;
-  d.setHours(d.getHours() + offset);
-  return d;
-}
-
-function formatKickoff(iso: string, country?: string): string {
+/** Format a UTC ISO string as HH:MM in Europe/Lisbon, regardless of fixture country. */
+function formatKickoff(iso: string): string {
   if (!hasValidTime(iso)) return '--:--';
-  const d = adjustKickoff(iso, country);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  return new Intl.DateTimeFormat('pt-PT', {
+    timeZone: LISBON_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso));
 }
 
-function formatDate(iso: string, country?: string): string {
-  return fullDateLabel(adjustKickoff(iso, country));
+/** Format a UTC ISO string as DD/MM/YYYY in Europe/Lisbon. */
+function formatDate(iso: string): string {
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: LISBON_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso)).split('-');
+  return `${d}/${m}/${y}`;
 }
 
-function adjustedDateKey(iso: string, country?: string): string {
-  return toLocalDateKey(adjustKickoff(iso, country));
+/** YYYY-MM-DD key for a UTC ISO string expressed in Europe/Lisbon (for date grouping). */
+function adjustedDateKey(iso: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: LISBON_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso));
 }
 
 // ─── Grouping helpers ─────────────────────────────────────────────────────────
@@ -1466,17 +1422,23 @@ function StatDrillModal({
                   <Text style={[drillStyles.rowDate, { color: colors.textMuted }]}>
                     {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                   </Text>
-                  <Text numberOfLines={1} style={[drillStyles.rowTeam, { color: colors.textSecondary }]}>
-                    {m.homeTeam}
-                  </Text>
+                  <View style={drillStyles.rowTeamCell}>
+                    <Image source={{ uri: getFixtureTeamLogoUrl(m.homeTeam) ?? undefined }} style={drillStyles.rowBadge} resizeMode="contain" />
+                    <Text numberOfLines={1} style={[drillStyles.rowTeam, { color: colors.textSecondary }]}>
+                      {m.homeTeam}
+                    </Text>
+                  </View>
                   <View style={[drillStyles.scoreBox, { backgroundColor: hit ? colors.primary : colors.surfaceRaised }]}>
                     <Text style={[drillStyles.scoreText, { color: hit ? '#fff' : colors.textPrimary }]}>
                       {m.homeScore ?? '?'}–{m.awayScore ?? '?'}
                     </Text>
                   </View>
-                  <Text numberOfLines={1} style={[drillStyles.rowTeam, { color: colors.textSecondary, textAlign: 'right' }]}>
-                    {m.awayTeam}
-                  </Text>
+                  <View style={[drillStyles.rowTeamCell, { justifyContent: 'flex-end' }]}>
+                    <Text numberOfLines={1} style={[drillStyles.rowTeam, { color: colors.textSecondary, textAlign: 'right' }]}>
+                      {m.awayTeam}
+                    </Text>
+                    <Image source={{ uri: getFixtureTeamLogoUrl(m.awayTeam) ?? undefined }} style={drillStyles.rowBadge} resizeMode="contain" />
+                  </View>
                   {hit
                     ? <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
                     : <View style={{ width: 16 }} />}
@@ -1502,15 +1464,21 @@ const drillStyles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '800' },
   subtitle: { fontSize: 12, marginTop: 2 },
   list: { paddingHorizontal: 16, paddingTop: 12, gap: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, borderWidth: 1, padding: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, borderWidth: 1, padding: 10 },
   rowDate: { fontSize: 11, fontWeight: '600', minWidth: 42 },
+  rowTeamCell: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 },
   rowTeam: { flex: 1, fontSize: 12, fontWeight: '600' },
+  rowBadge: { width: 16, height: 16, flexShrink: 0 },
   scoreBox: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   scoreText: { fontSize: 13, fontWeight: '800' },
   empty: { textAlign: 'center', fontSize: 13, marginTop: 32 },
 });
 
 // ─── Insight sub-tab types ────────────────────────────────────────────────────
+
+const FORM_COLOR: Record<string, string> = { W: '#22c55e', D: '#6b7280', L: '#ef4444' };
+const FORM_LABEL: Record<string, string> = { W: 'V', D: 'E', L: 'D' };
+const OVER_THRESHOLDS = [0.5, 1.5, 2.5, 3.5, 4.5];
 
 type InsightSubTab = 'overview' | 'home' | 'away' | 'h2h';
 
@@ -1527,15 +1495,16 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
   const { colors } = useTheme();
   const { data: insight, isLoading, isError } = useFixtureInsight(fixture.id);
   const { data: prediction } = useFixturePrediction(fixture.id);
-  const { data: matchStats } = useFixtureMatchStats(fixture.id);
   const [subTab, setSubTab] = useState<InsightSubTab>('overview');
   const [drillStat, setDrillStat] = useState<{
     label: string;
     matches: DrillMatch[];
     matchFilter: (m: DrillMatch) => boolean;
   } | null>(null);
+  const [homeThresh, setHomeThresh] = useState<[number, number, number]>([1.5, 2.5, 3.5]);
+  const [awayThresh, setAwayThresh] = useState<[number, number, number]>([1.5, 2.5, 3.5]);
 
-  useEffect(() => { setSubTab('overview'); setDrillStat(null); }, [fixture.id]);
+  useEffect(() => { setSubTab('overview'); setDrillStat(null); setHomeThresh([1.5, 2.5, 3.5]); setAwayThresh([1.5, 2.5, 3.5]); }, [fixture.id]);
 
   if (isLoading) {
     return (
@@ -1568,9 +1537,6 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
     if (n == null || !isFinite(n)) return '—';
     return n.toFixed(1);
   }
-
-  const FORM_COLOR: Record<string, string> = { W: '#22c55e', D: '#6b7280', L: '#ef4444' };
-  const FORM_LABEL: Record<string, string> = { W: 'V', D: 'E', L: 'D' };
 
   function StandingsCard() {
     const hs  = insight!.standings?.home  ?? null;
@@ -1631,6 +1597,8 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
     injuries,
     topScorers,
     onStatPress,
+    thresholds,
+    onThresholdChange,
   }: {
     team: 'home' | 'away';
     teamName: string;
@@ -1640,34 +1608,56 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
     injuries: NonNullable<typeof insight>['homeInjuries'];
     topScorers: NonNullable<typeof insight>['homeTopScorers'];
     onStatPress: (label: string, filter: (m: DrillMatch) => boolean) => void;
+    thresholds: [number, number, number];
+    onThresholdChange: (idx: 0 | 1 | 2, val: number) => void;
   }) {
     if (!data) return null;
     const teamIsHome = team === 'home';
 
+    function overPct(threshold: number): string {
+      const ms = data!.recentMatches;
+      if (!ms.length) return '—';
+      const n = ms.filter(m => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > threshold).length;
+      return `${Math.round((n / ms.length) * 100)}%`;
+    }
+
+    function cycleThreshold(idx: 0 | 1 | 2) {
+      const cur = thresholds[idx];
+      const next = OVER_THRESHOLDS[(OVER_THRESHOLDS.indexOf(cur) + 1) % OVER_THRESHOLDS.length];
+      hapticLight();
+      onThresholdChange(idx, next);
+    }
+
     const stats6 = [
       {
-        label: '+1.5', value: pct(data.over15Pct),
-        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > 1,
+        label: `+${thresholds[0]}`, value: overPct(thresholds[0]),
+        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > thresholds[0],
+        cycleIdx: 0 as 0 | 1 | 2,
       },
       {
-        label: '+2.5', value: pct(data.over25Pct),
-        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > 2,
+        label: `+${thresholds[1]}`, value: overPct(thresholds[1]),
+        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > thresholds[1],
+        cycleIdx: 1 as 0 | 1 | 2,
       },
       {
-        label: '+3.5', value: pct(data.over35Pct),
-        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > 3,
+        label: `+${thresholds[2]}`, value: overPct(thresholds[2]),
+        filter: (m: DrillMatch) => ((m.homeScore ?? 0) + (m.awayScore ?? 0)) > thresholds[2],
+        cycleIdx: 2 as 0 | 1 | 2,
       },
       {
         label: 'BTTS', value: pct(data.bttsPct),
         filter: (m: DrillMatch) => (m.homeScore ?? 0) > 0 && (m.awayScore ?? 0) > 0,
+        cycleIdx: undefined,
       },
       {
         label: 'B. ZERO', value: pct(data.cleanSheetPct),
         filter: (m: DrillMatch) => (teamIsHome ? (m.awayScore ?? 0) : (m.homeScore ?? 0)) === 0,
+        cycleIdx: undefined,
       },
       {
         label: 'N. MARCOU', value: pct(data.failedToScorePct),
         filter: (m: DrillMatch) => (teamIsHome ? (m.homeScore ?? 0) : (m.awayScore ?? 0)) === 0,
+        cycleIdx: undefined,
       },
     ];
 
@@ -1718,7 +1708,7 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
           ))}
         </View>
 
-        {/* 6-stat grid — tap to drill into source matches */}
+        {/* 6-stat grid — tap value to drill, tap ↕ label to cycle threshold */}
         <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted }]}>MERCADOS POPULARES</Text>
         <View style={newInsightStyles.statsGrid}>
           {stats6.map((s) => (
@@ -1728,7 +1718,14 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
               style={[newInsightStyles.statGridItem, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}25` }]}
             >
               <Text style={[newInsightStyles.statGridValue, { color: colors.primary }]}>{s.value}</Text>
-              <Text style={[newInsightStyles.statGridLabel, { color: colors.textSecondary }]}>{s.label}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                <Text style={[newInsightStyles.statGridLabel, { color: colors.textSecondary }]}>{s.label}</Text>
+                {s.cycleIdx !== undefined && (
+                  <Pressable hitSlop={8} onPress={() => cycleThreshold(s.cycleIdx!)}>
+                    <Ionicons name="swap-vertical-outline" size={11} color={`${colors.primary}90`} />
+                  </Pressable>
+                )}
+              </View>
               <Ionicons name="chevron-forward" size={9} color={`${colors.primary}80`} />
             </Pressable>
           ))}
@@ -1809,45 +1806,7 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
         {/* ── Geral ── */}
         {subTab === 'overview' && (
           <>
-            <View style={[newInsightStyles.hintBanner, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}25` }]}>
-              <Ionicons name="bulb-outline" size={15} color={colors.primary} />
-              <Text style={[newInsightStyles.hintText, { color: colors.textSecondary }]}>
-                Dados desta época — desempenho em casa (equipa da casa) e fora (equipa visitante).
-              </Text>
-            </View>
-
-            {(insight.combinedOver25 != null || insight.combinedBtts != null) && (
-              <View style={[newInsightStyles.probCard, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}25` }]}>
-                <View style={newInsightStyles.probCardHeader}>
-                  <Ionicons name="trending-up" size={14} color={colors.primary} />
-                  <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>PROBABILIDADE COMBINADA</Text>
-                </View>
-                <Text style={[newInsightStyles.probCardSub, { color: colors.textSecondary }]}>
-                  Estimativa baseada nos dados de ambas as equipas
-                </Text>
-                <View style={newInsightStyles.probRow}>
-                  {insight.combinedOver25 != null && (
-                    <View style={newInsightStyles.probItem}>
-                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedOver25)}</Text>
-                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Over 2.5 Golos</Text>
-                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>3+ golos no jogo</Text>
-                    </View>
-                  )}
-                  {insight.combinedOver25 != null && insight.combinedBtts != null && (
-                    <View style={[newInsightStyles.probDivider, { backgroundColor: colors.border }]} />
-                  )}
-                  {insight.combinedBtts != null && (
-                    <View style={newInsightStyles.probItem}>
-                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedBtts)}</Text>
-                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Ambas marcam</Text>
-                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>as duas equipas marcam</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* AI Prediction card */}
+            {/* Prediction */}
             {prediction && (
               <View style={[newInsightStyles.probCard, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}20` }]}>
                 <View style={newInsightStyles.probCardHeader}>
@@ -1907,44 +1866,259 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
               </View>
             )}
 
-            {/* Match stats for finished fixtures */}
-            {matchStats && (() => {
-              const rows = [
-                { label: 'Posse', home: matchStats.homePossession, away: matchStats.awayPossession, fmt: (v: number) => `${v.toFixed(0)}%` },
-                { label: 'Remates', home: matchStats.homeShotsTotal, away: matchStats.awayShotsTotal, fmt: (v: number) => String(v) },
-                { label: 'No alvo', home: matchStats.homeShotsOnTarget, away: matchStats.awayShotsOnTarget, fmt: (v: number) => String(v) },
-                { label: 'xG', home: matchStats.homeXg, away: matchStats.awayXg, fmt: (v: number) => v.toFixed(2) },
-                { label: 'Cantos', home: matchStats.homeCorners, away: matchStats.awayCorners, fmt: (v: number) => String(v) },
-                { label: 'Faltas', home: matchStats.homeFouls, away: matchStats.awayFouls, fmt: (v: number) => String(v) },
-              ].filter(r => r.home != null && r.away != null);
-              if (!rows.length) return null;
+            {/* Combined probability */}
+            {(insight.combinedOver25 != null || insight.combinedBtts != null) && (
+              <View style={[newInsightStyles.probCard, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}25` }]}>
+                <View style={newInsightStyles.probCardHeader}>
+                  <Ionicons name="trending-up" size={14} color={colors.primary} />
+                  <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>PROBABILIDADE COMBINADA</Text>
+                </View>
+                <Text style={[newInsightStyles.probCardSub, { color: colors.textSecondary }]}>
+                  Estimativa baseada nos dados de ambas as equipas esta época
+                </Text>
+                <View style={newInsightStyles.probRow}>
+                  {insight.combinedOver25 != null && (
+                    <View style={newInsightStyles.probItem}>
+                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedOver25)}</Text>
+                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Over 2.5 Golos</Text>
+                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>3+ golos no jogo</Text>
+                    </View>
+                  )}
+                  {insight.combinedOver25 != null && insight.combinedBtts != null && (
+                    <View style={[newInsightStyles.probDivider, { backgroundColor: colors.border }]} />
+                  )}
+                  {insight.combinedBtts != null && (
+                    <View style={newInsightStyles.probItem}>
+                      <Text style={[newInsightStyles.probValue, { color: colors.primary }]}>{pct(insight.combinedBtts)}</Text>
+                      <Text style={[newInsightStyles.probLabel, { color: colors.textPrimary }]}>Ambas marcam</Text>
+                      <Text style={[newInsightStyles.probSubLabel, { color: colors.textMuted }]}>as duas equipas marcam</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* Form face-off */}
+            {(home || away) && (
+              <View style={[newInsightStyles.probCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <View style={newInsightStyles.probCardHeader}>
+                  <Ionicons name="pulse-outline" size={14} color={colors.primary} />
+                  <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>FORMA RECENTE</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 8, gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[overviewStyles.faceoffTeam, { color: colors.textPrimary }]} numberOfLines={1}>{fixture.homeTeam}</Text>
+                    <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>em casa · {home?.sampleSize ?? '—'} jogos</Text>
+                    <View style={newInsightStyles.formRow}>
+                      {(home?.formLast5 ?? []).slice(0, 5).map((r, i) => (
+                        <View key={i} style={[newInsightStyles.formPill, { backgroundColor: FORM_COLOR[r] ?? colors.border }]}>
+                          <Text style={newInsightStyles.formPillText}>{FORM_LABEL[r] ?? r}</Text>
+                        </View>
+                      ))}
+                      {!home && <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>sem dados</Text>}
+                    </View>
+                    {home && (
+                      <Text style={[overviewStyles.faceoffSub, { color: colors.textMuted }]}>
+                        {fmt1(home.avgGoalsFor)} gm · {fmt1(home.avgGoalsAgainst)} gs por jogo
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: colors.border, alignSelf: 'stretch' }} />
+                  <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                    <Text style={[overviewStyles.faceoffTeam, { color: colors.textPrimary, textAlign: 'right' }]} numberOfLines={1}>{fixture.awayTeam}</Text>
+                    <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>fora · {away?.sampleSize ?? '—'} jogos</Text>
+                    <View style={[newInsightStyles.formRow, { justifyContent: 'flex-end' }]}>
+                      {(away?.formLast5 ?? []).slice(0, 5).map((r, i) => (
+                        <View key={i} style={[newInsightStyles.formPill, { backgroundColor: FORM_COLOR[r] ?? colors.border }]}>
+                          <Text style={newInsightStyles.formPillText}>{FORM_LABEL[r] ?? r}</Text>
+                        </View>
+                      ))}
+                      {!away && <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>sem dados</Text>}
+                    </View>
+                    {away && (
+                      <Text style={[overviewStyles.faceoffSub, { color: colors.textMuted, textAlign: 'right' }]}>
+                        {fmt1(away.avgGoalsFor)} gm · {fmt1(away.avgGoalsAgainst)} gs por jogo
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Key metrics face-off */}
+            {(home || away) && (() => {
+              const metrics = [
+                { label: 'Golos marcados/jogo', hv: home?.avgGoalsFor,       av: away?.avgGoalsFor,       fmt: (v: number) => v.toFixed(1),        better: 1 },
+                { label: 'Golos sofridos/jogo', hv: home?.avgGoalsAgainst,   av: away?.avgGoalsAgainst,   fmt: (v: number) => v.toFixed(1),        better: -1 },
+                { label: 'Over 2.5 golos',      hv: home?.over25Pct,         av: away?.over25Pct,         fmt: (v: number) => `${Math.round(v)}%`, better: 0 },
+                { label: 'Ambas marcam',         hv: home?.bttsPct,           av: away?.bttsPct,           fmt: (v: number) => `${Math.round(v)}%`, better: 0 },
+                { label: 'Baliza a zero',        hv: home?.cleanSheetPct,     av: away?.cleanSheetPct,     fmt: (v: number) => `${Math.round(v)}%`, better: 1 },
+                { label: 'Não marcou',           hv: home?.failedToScorePct,  av: away?.failedToScorePct,  fmt: (v: number) => `${Math.round(v)}%`, better: -1 },
+                { label: 'Cantos/jogo',          hv: home?.avgCornersFor,     av: away?.avgCornersFor,     fmt: (v: number) => v.toFixed(1),        better: 0 },
+              ].filter(m => m.hv != null || m.av != null);
+              if (!metrics.length) return null;
               return (
                 <View style={[newInsightStyles.probCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                   <View style={newInsightStyles.probCardHeader}>
                     <Ionicons name="stats-chart-outline" size={14} color={colors.primary} />
-                    <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>ESTATÍSTICAS DO JOGO</Text>
+                    <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>MÉTRICAS FACE A FACE</Text>
                   </View>
-                  <View style={{ gap: 10, marginTop: 8 }}>
-                    {rows.map(row => {
-                      const total = (row.home as number) + (row.away as number) || 1;
-                      const homePct = ((row.home as number) / total) * 100;
+                  <View style={{ marginTop: 6 }}>
+                    {metrics.map((m, idx) => {
+                      const homeLeads = m.hv != null && m.av != null && m.better !== 0 && (m.better === 1 ? m.hv > m.av : m.hv < m.av);
+                      const awayLeads = m.hv != null && m.av != null && m.better !== 0 && (m.better === 1 ? m.av > m.hv : m.av < m.hv);
                       return (
-                        <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={{ width: 38, fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{row.fmt(row.home as number)}</Text>
-                          <View style={{ flex: 1, marginHorizontal: 8 }}>
-                            <Text style={{ fontSize: 10, textAlign: 'center', color: colors.textMuted, marginBottom: 3 }}>{row.label}</Text>
-                            <View style={{ height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.border }}>
-                              <View style={{ height: 6, borderRadius: 3, width: `${homePct}%`, backgroundColor: colors.primary }} />
-                            </View>
-                          </View>
-                          <Text style={{ width: 38, fontSize: 13, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' }}>{row.fmt(row.away as number)}</Text>
+                        <View
+                          key={m.label}
+                          style={[overviewStyles.metricRow, idx % 2 === 0 && { backgroundColor: `${colors.textMuted}08` }, { borderRadius: 6 }]}
+                        >
+                          <Text style={[overviewStyles.metricVal, { color: homeLeads ? colors.primary : colors.textSecondary }]}>
+                            {m.hv != null ? m.fmt(m.hv) : '—'}
+                          </Text>
+                          <Text style={[overviewStyles.metricLabel, { color: colors.textMuted }]}>{m.label}</Text>
+                          <Text style={[overviewStyles.metricVal, { color: awayLeads ? colors.primary : colors.textSecondary, textAlign: 'right' }]}>
+                            {m.av != null ? m.fmt(m.av) : '—'}
+                          </Text>
                         </View>
                       );
                     })}
                   </View>
+                  <Text style={[newInsightStyles.sampleNote, { color: colors.textMuted, marginTop: 6 }]}>
+                    {fixture.homeTeam} em casa · {fixture.awayTeam} fora · época atual
+                  </Text>
                 </View>
               );
             })()}
+
+            {/* H2H mini-snapshot */}
+            {insight.h2h && insight.h2h.total > 0 && (
+              <View style={[newInsightStyles.probCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <View style={newInsightStyles.probCardHeader}>
+                  <Ionicons name="swap-horizontal" size={14} color={colors.primary} />
+                  <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>CONFRONTO DIRECTO (H2H)</Text>
+                </View>
+                <Text style={[newInsightStyles.probCardSub, { color: colors.textSecondary }]}>
+                  Últimos {insight.h2h.total} jogos entre estas equipas
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <Text style={[overviewStyles.h2hCount, { color: '#22c55e' }]}>{insight.h2h.homeWins}</Text>
+                  <View style={[newInsightStyles.h2hTrack, { flex: 1 }]}>
+                    <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.homeWins || 0.01, backgroundColor: '#22c55e' }]} />
+                    <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.draws    || 0.01, backgroundColor: '#6b7280' }]} />
+                    <View style={[newInsightStyles.h2hSeg, { flex: insight.h2h.awayWins || 0.01, backgroundColor: '#ef4444' }]} />
+                  </View>
+                  <Text style={[overviewStyles.h2hCount, { color: '#ef4444' }]}>{insight.h2h.awayWins}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 3 }}>
+                  <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]} numberOfLines={1}>{fixture.homeTeam}</Text>
+                  <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>{insight.h2h.draws} empates</Text>
+                  <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]} numberOfLines={1}>{fixture.awayTeam}</Text>
+                </View>
+                <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted, marginTop: 10 }]}>ÚLTIMOS RESULTADOS</Text>
+                {insight.h2h.recentMatches.slice(0, 3).map((m: any, i: number) => (
+                  <View key={i} style={[newInsightStyles.h2hRow, { borderTopColor: colors.border }]}>
+                    <Text style={[newInsightStyles.h2hDate, { color: colors.textMuted }]}>
+                      {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                    </Text>
+                    <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary }]}>{m.homeTeam}</Text>
+                    <View style={[newInsightStyles.h2hScoreBadge, { backgroundColor: colors.background }]}>
+                      <Text style={[newInsightStyles.h2hScoreText, { color: colors.textPrimary }]}>
+                        {m.homeScore ?? '?'}–{m.awayScore ?? '?'}
+                      </Text>
+                    </View>
+                    <Text numberOfLines={1} style={[newInsightStyles.h2hTeam, { color: colors.textSecondary, textAlign: 'right' }]}>{m.awayTeam}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Key players face-off */}
+            {((insight.homeTopScorers?.length ?? 0) > 0 || (insight.awayTopScorers?.length ?? 0) > 0) && (
+              <View style={[newInsightStyles.probCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <View style={newInsightStyles.probCardHeader}>
+                  <Ionicons name="person-outline" size={14} color={colors.primary} />
+                  <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>JOGADORES CHAVE</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[overviewStyles.faceoffTeam, { color: colors.textPrimary }]} numberOfLines={1}>{fixture.homeTeam}</Text>
+                    {(insight.homeTopScorers ?? []).slice(0, 4).map((s, i) => (
+                      <View key={i} style={[overviewStyles.scorerRow, { borderTopColor: colors.border }]}>
+                        <Text style={[overviewStyles.scorerName, { color: colors.textPrimary }]} numberOfLines={1}>{s.playerName}</Text>
+                        <View style={[overviewStyles.scorerBadge, { backgroundColor: `${colors.primary}15` }]}>
+                          <Text style={[overviewStyles.scorerStat, { color: colors.primary }]}>⚽ {s.goals}</Text>
+                        </View>
+                        {(s.assists ?? 0) > 0 && (
+                          <View style={[overviewStyles.scorerBadge, { backgroundColor: `${colors.textMuted}15` }]}>
+                            <Text style={[overviewStyles.scorerStat, { color: colors.textMuted }]}>🅰 {s.assists}</Text>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                    {(insight.homeTopScorers?.length ?? 0) === 0 && (
+                      <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>sem dados</Text>
+                    )}
+                  </View>
+                  <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[overviewStyles.faceoffTeam, { color: colors.textPrimary }]} numberOfLines={1}>{fixture.awayTeam}</Text>
+                    {(insight.awayTopScorers ?? []).slice(0, 4).map((s, i) => (
+                      <View key={i} style={[overviewStyles.scorerRow, { borderTopColor: colors.border }]}>
+                        <Text style={[overviewStyles.scorerName, { color: colors.textPrimary }]} numberOfLines={1}>{s.playerName}</Text>
+                        <View style={[overviewStyles.scorerBadge, { backgroundColor: `${colors.primary}15` }]}>
+                          <Text style={[overviewStyles.scorerStat, { color: colors.primary }]}>⚽ {s.goals}</Text>
+                        </View>
+                        {(s.assists ?? 0) > 0 && (
+                          <View style={[overviewStyles.scorerBadge, { backgroundColor: `${colors.textMuted}15` }]}>
+                            <Text style={[overviewStyles.scorerStat, { color: colors.textMuted }]}>🅰 {s.assists}</Text>
+                          </View>
+                        )}
+                      </View>
+                    ))}
+                    {(insight.awayTopScorers?.length ?? 0) === 0 && (
+                      <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>sem dados</Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Injuries face-off */}
+            {((insight.homeInjuries?.length ?? 0) > 0 || (insight.awayInjuries?.length ?? 0) > 0) && (
+              <View style={[newInsightStyles.probCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <View style={newInsightStyles.probCardHeader}>
+                  <Ionicons name="bandage-outline" size={14} color="#ef4444" />
+                  <Text style={[newInsightStyles.probCardTitle, { color: '#ef4444' }]}>BAIXAS E SUSPENSOS</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[overviewStyles.faceoffTeam, { color: colors.textPrimary }]} numberOfLines={1}>{fixture.homeTeam}</Text>
+                    {(insight.homeInjuries ?? []).slice(0, 5).map((inj, i) => (
+                      <View key={i} style={overviewStyles.injuryRow}>
+                        <Ionicons name={inj.type === 'suspension' ? 'card-outline' : 'bandage-outline'} size={11} color="#ef4444" />
+                        <Text style={[overviewStyles.injuryName, { color: colors.textSecondary }]} numberOfLines={1}>{inj.playerName}</Text>
+                      </View>
+                    ))}
+                    {(insight.homeInjuries?.length ?? 0) === 0 && (
+                      <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>sem baixas</Text>
+                    )}
+                  </View>
+                  <View style={{ width: StyleSheet.hairlineWidth, backgroundColor: colors.border }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={[overviewStyles.faceoffTeam, { color: colors.textPrimary }]} numberOfLines={1}>{fixture.awayTeam}</Text>
+                    {(insight.awayInjuries ?? []).slice(0, 5).map((inj, i) => (
+                      <View key={i} style={overviewStyles.injuryRow}>
+                        <Ionicons name={inj.type === 'suspension' ? 'card-outline' : 'bandage-outline'} size={11} color="#ef4444" />
+                        <Text style={[overviewStyles.injuryName, { color: colors.textSecondary }]} numberOfLines={1}>{inj.playerName}</Text>
+                      </View>
+                    ))}
+                    {(insight.awayInjuries?.length ?? 0) === 0 && (
+                      <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]}>sem baixas</Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            )}
 
             <StandingsCard />
 
@@ -1989,6 +2163,8 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
                 team="home" teamName={fixture.homeTeam} venue="🏠" venueLabel="Em casa"
                 data={home} injuries={insight.homeInjuries ?? []} topScorers={insight.homeTopScorers ?? []}
                 onStatPress={(label, filter) => setDrillStat({ label, matches: home.recentMatches, matchFilter: filter })}
+                thresholds={homeThresh}
+                onThresholdChange={(i, v) => setHomeThresh(p => { const n = [...p] as [number,number,number]; n[i] = v; return n; })}
               />
             : <View style={newInsightStyles.center}>
                 <Text style={{ color: colors.textMuted }}>Sem dados para esta equipa.</Text>
@@ -2002,6 +2178,8 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
                 team="away" teamName={fixture.awayTeam} venue="✈️" venueLabel="Fora"
                 data={away} injuries={insight.awayInjuries ?? []} topScorers={insight.awayTopScorers ?? []}
                 onStatPress={(label, filter) => setDrillStat({ label, matches: away.recentMatches, matchFilter: filter })}
+                thresholds={awayThresh}
+                onThresholdChange={(i, v) => setAwayThresh(p => { const n = [...p] as [number,number,number]; n[i] = v; return n; })}
               />
             : <View style={newInsightStyles.center}>
                 <Text style={{ color: colors.textMuted }}>Sem dados para esta equipa.</Text>
@@ -2095,6 +2273,104 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
   );
 }
 
+// ─── Pitch layout helpers ─────────────────────────────────────────────────────
+
+const pitchStyles = StyleSheet.create({
+  formBar:        { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
+  formSide:       { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  formBadge:      { width: 36, height: 36 },
+  formTeamName:   { fontSize: 13, fontWeight: '700' },
+  formFormation:  { fontSize: 20, fontWeight: '900', marginTop: 2 },
+  formDivider:    { width: StyleSheet.hairlineWidth, height: 44 },
+  pitch:          { backgroundColor: '#1b4d30', paddingVertical: 12 },
+  halfPitch:      { paddingVertical: 6, gap: 8 },
+  pitchRow:       { flexDirection: 'row', justifyContent: 'space-evenly', paddingHorizontal: 8 },
+  dot:            { alignItems: 'center', width: 60, gap: 4 },
+  circle:         { width: 42, height: 42, borderRadius: 21, borderWidth: 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  playerPhoto:    { width: 42, height: 42 },
+  circleInner:    { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  circleInitial:  { fontSize: 15, fontWeight: '800' },
+  dotLabel:       { fontSize: 9, fontWeight: '600', color: '#e5e7eb', textAlign: 'center' },
+  centerZone:     { alignItems: 'center', paddingVertical: 8 },
+  centerDash:     { width: '80%', borderTopWidth: 1, borderStyle: 'dashed' },
+  subsSection:    { padding: 14, borderTopWidth: StyleSheet.hairlineWidth },
+  subsTitle:      { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 10 },
+  subRow:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 5, borderBottomWidth: StyleSheet.hairlineWidth },
+  subPos:         { fontSize: 10, fontWeight: '700', width: 24 },
+  subName:        { flex: 1, fontSize: 12 },
+  coachSection:   { flexDirection: 'row', alignItems: 'center', padding: 14, borderTopWidth: StyleSheet.hairlineWidth, gap: 8 },
+  coachLabel:     { fontSize: 9, fontWeight: '700', letterSpacing: 0.8, textAlign: 'center' },
+  coachName:      { fontSize: 12, fontWeight: '600', flex: 1 },
+});
+
+type PitchPlayer = FixtureLineupData['startingXI'][number];
+
+const apfPlayerPhoto = (id: number) => `https://media.api-sports.io/football/players/${id}.png`;
+
+function PitchPlayerDot({ p, accent }: { p: PitchPlayer; accent: string }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const photoUri = p.player?.id ? apfPlayerPhoto(p.player.id) : null;
+  const parts = (p.player?.name ?? '').trim().split(' ');
+  const label = parts.length > 1 ? parts[parts.length - 1] : (p.player?.name ?? '');
+
+  return (
+    <View style={pitchStyles.dot}>
+      <View style={[pitchStyles.circle, { borderColor: accent }]}>
+        {photoUri && !photoFailed ? (
+          <Image
+            source={{ uri: photoUri }}
+            style={pitchStyles.playerPhoto}
+            resizeMode="cover"
+            onError={() => setPhotoFailed(true)}
+          />
+        ) : (
+          <View style={[pitchStyles.circleInner, { backgroundColor: accent + '35' }]}>
+            <Text style={[pitchStyles.circleInitial, { color: '#fff' }]}>
+              {(p.player?.name ?? '?').charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text style={pitchStyles.dotLabel} numberOfLines={1}>{label}</Text>
+    </View>
+  );
+}
+
+/**
+ * Groups startingXI players into formation rows.
+ * Prefers the API-provided `grid` field (row:col). When `grid` is absent or
+ * invalid (API-Football omits it for many matches), falls back to parsing the
+ * formation string — e.g. "4-3-3" → rows of [1, 4, 3, 3].
+ */
+function groupByFormation(
+  players: PitchPlayer[],
+  formation: string | null,
+): Record<number, PitchPlayer[]> {
+  const hasGrid = players.some((p) => p.grid && !/^0/.test(p.grid));
+  if (hasGrid) {
+    const groups: Record<number, PitchPlayer[]> = {};
+    for (const p of players) {
+      const row = p.grid ? parseInt(p.grid.split(':')[0], 10) : 99;
+      if (!groups[row]) groups[row] = [];
+      groups[row].push(p);
+    }
+    return groups;
+  }
+
+  // Formation-string fallback: "4-3-3" → lineSizes = [1,4,3,3]
+  const lineSizes = formation
+    ? [1, ...formation.split('-').map(Number)]
+    : [players.length];
+
+  const groups: Record<number, PitchPlayer[]> = {};
+  let idx = 0;
+  lineSizes.forEach((count, i) => {
+    groups[i + 1] = players.slice(idx, idx + count);
+    idx += count;
+  });
+  return groups;
+}
+
 // ─── LineupsTab ───────────────────────────────────────────────────────────────
 
 function LineupsTab({ fixture }: { fixture: Fixture }) {
@@ -2124,70 +2400,97 @@ function LineupsTab({ fixture }: { fixture: Fixture }) {
   const home = lineups.find((l) => l.isHome);
   const away = lineups.find((l) => !l.isHome);
 
-  function LineupColumn({ lineup, label }: { lineup: FixtureLineupData; label: string }) {
-    return (
-      <View style={{ flex: 1 }}>
-        <Text style={[lineupStyles.teamLabel, { color: colors.primary }]}>{label}</Text>
-        {lineup.coachName ? (
-          <Text style={[lineupStyles.coachText, { color: colors.textMuted }]}>
-            <Ionicons name="person-outline" size={11} /> {lineup.coachName}
-          </Text>
-        ) : null}
-        {lineup.formation ? (
-          <View style={[lineupStyles.formationBadge, { backgroundColor: `${colors.primary}15` }]}>
-            <Text style={[lineupStyles.formationText, { color: colors.primary }]}>{lineup.formation}</Text>
-          </View>
-        ) : null}
-        <Text style={[lineupStyles.sectionLabel, { color: colors.textMuted }]}>TITULARES</Text>
-        {(lineup.startingXI ?? []).map((p: any, i: number) => (
-          <View key={i} style={[lineupStyles.playerRow, { borderBottomColor: colors.border }]}>
-            {p.player?.number != null && (
-              <Text style={[lineupStyles.playerNum, { color: colors.textMuted }]}>{p.player.number}</Text>
-            )}
-            <Text style={[lineupStyles.playerName, { color: colors.textPrimary }]} numberOfLines={1}>
-              {p.player?.name ?? ''}
-            </Text>
-            {p.pos && <Text style={[lineupStyles.playerPos, { color: colors.textMuted }]}>{p.pos}</Text>}
-          </View>
-        ))}
-        <Text style={[lineupStyles.sectionLabel, { color: colors.textMuted, marginTop: 8 }]}>SUPLENTES</Text>
-        {(lineup.substitutes ?? []).map((p: any, i: number) => (
-          <View key={i} style={[lineupStyles.playerRow, { borderBottomColor: colors.border, opacity: 0.7 }]}>
-            {p.player?.number != null && (
-              <Text style={[lineupStyles.playerNum, { color: colors.textMuted }]}>{p.player.number}</Text>
-            )}
-            <Text style={[lineupStyles.playerName, { color: colors.textSecondary }]} numberOfLines={1}>
-              {p.player?.name ?? ''}
-            </Text>
-            {p.pos && <Text style={[lineupStyles.playerPos, { color: colors.textMuted }]}>{p.pos}</Text>}
-          </View>
-        ))}
-      </View>
-    );
-  }
+  const homeGroups = groupByFormation(home?.startingXI ?? [], home?.formation ?? null);
+  const awayGroups = groupByFormation(away?.startingXI ?? [], away?.formation ?? null);
+  const homeRows = Object.keys(homeGroups).map(Number).sort((a, b) => a - b);
+  const awayRows = Object.keys(awayGroups).map(Number).sort((a, b) => b - a); // reversed = attack on top
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 14, gap: 8 }}>
-      <View style={{ flexDirection: 'row', gap: 12 }}>
-        {home && <LineupColumn lineup={home} label={fixture.homeTeam} />}
-        {away && <LineupColumn lineup={away} label={fixture.awayTeam} />}
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Formation header */}
+      <View style={[pitchStyles.formBar, { backgroundColor: colors.surfaceRaised, borderBottomColor: colors.border }]}>
+        <View style={pitchStyles.formSide}>
+          <Image source={{ uri: getTeamLogoUrl(fixture.homeTeam) ?? undefined }} style={pitchStyles.formBadge} resizeMode="contain" />
+          <View style={{ flex: 1 }}>
+            <Text style={[pitchStyles.formTeamName, { color: colors.textPrimary }]} numberOfLines={1}>{fixture.homeTeam}</Text>
+            <Text style={[pitchStyles.formFormation, { color: '#60a5fa' }]}>{home?.formation ?? '?'}</Text>
+          </View>
+        </View>
+        <View style={[pitchStyles.formDivider, { backgroundColor: colors.border }]} />
+        <View style={[pitchStyles.formSide, { flexDirection: 'row-reverse' }]}>
+          <Image source={{ uri: getTeamLogoUrl(fixture.awayTeam) ?? undefined }} style={pitchStyles.formBadge} resizeMode="contain" />
+          <View style={{ flex: 1, alignItems: 'flex-end' }}>
+            <Text style={[pitchStyles.formTeamName, { color: colors.textPrimary }]} numberOfLines={1}>{fixture.awayTeam}</Text>
+            <Text style={[pitchStyles.formFormation, { color: '#f97316' }]}>{away?.formation ?? '?'}</Text>
+          </View>
+        </View>
       </View>
-      <View style={{ height: 32 }} />
+
+      {/* Pitch */}
+      <View style={pitchStyles.pitch}>
+        <View style={pitchStyles.halfPitch}>
+          {homeRows.map((row) => (
+            <View key={`h${row}`} style={pitchStyles.pitchRow}>
+              {(homeGroups[row] ?? []).map((p, i) => (
+                <PitchPlayerDot key={`${p.player?.id ?? i}`} p={p} accent="#60a5fa" />
+              ))}
+            </View>
+          ))}
+        </View>
+        <View style={pitchStyles.centerZone}>
+          <View style={[pitchStyles.centerDash, { borderColor: 'rgba(255,255,255,0.2)' }]} />
+        </View>
+        <View style={pitchStyles.halfPitch}>
+          {awayRows.map((row) => (
+            <View key={`a${row}`} style={pitchStyles.pitchRow}>
+              {(awayGroups[row] ?? []).map((p, i) => (
+                <PitchPlayerDot key={`${p.player?.id ?? i}`} p={p} accent="#f97316" />
+              ))}
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Substitutes */}
+      <View style={[pitchStyles.subsSection, { borderTopColor: colors.border }]}>
+        <Text style={[pitchStyles.subsTitle, { color: colors.textMuted }]}>SUPLENTES</Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <View style={{ flex: 1, gap: 4 }}>
+            {(home?.substitutes ?? []).map((p, i) => (
+              <View key={i} style={[pitchStyles.subRow, { borderBottomColor: colors.border }]}>
+                <Text style={[pitchStyles.subPos, { color: '#60a5fa' }]}>{p.pos}</Text>
+                <Text style={[pitchStyles.subName, { color: colors.textSecondary }]} numberOfLines={1}>{p.player?.name}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            {(away?.substitutes ?? []).map((p, i) => (
+              <View key={i} style={[pitchStyles.subRow, { borderBottomColor: colors.border, flexDirection: 'row-reverse' }]}>
+                <Text style={[pitchStyles.subPos, { color: '#f97316' }]}>{p.pos}</Text>
+                <Text style={[pitchStyles.subName, { color: colors.textSecondary, textAlign: 'right' }]} numberOfLines={1}>{p.player?.name}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* Coaches */}
+      {(home?.coachName || away?.coachName) && (
+        <View style={[pitchStyles.coachSection, { borderTopColor: colors.border }]}>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Ionicons name="person-outline" size={12} color="#60a5fa" />
+            <Text style={[pitchStyles.coachName, { color: colors.textSecondary }]} numberOfLines={1}>{home?.coachName ?? '—'}</Text>
+          </View>
+          <Text style={[pitchStyles.coachLabel, { color: colors.textMuted }]}>TREINADORES</Text>
+          <View style={{ flex: 1, flexDirection: 'row-reverse', alignItems: 'center', gap: 5 }}>
+            <Ionicons name="person-outline" size={12} color="#f97316" />
+            <Text style={[pitchStyles.coachName, { color: colors.textSecondary, textAlign: 'right' }]} numberOfLines={1}>{away?.coachName ?? '—'}</Text>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }
-
-const lineupStyles = StyleSheet.create({
-  teamLabel:      { fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  coachText:      { fontSize: 11, marginBottom: 4 },
-  formationBadge: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8 },
-  formationText:  { fontSize: 13, fontWeight: '700' },
-  sectionLabel:   { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 4, marginTop: 4 },
-  playerRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, borderBottomWidth: StyleSheet.hairlineWidth, gap: 4 },
-  playerNum:      { width: 18, fontSize: 11, textAlign: 'right' },
-  playerName:     { flex: 1, fontSize: 12 },
-  playerPos:      { fontSize: 10, fontWeight: '600', width: 26, textAlign: 'right' },
-});
 
 // ─── EventsTab ────────────────────────────────────────────────────────────────
 
@@ -2422,9 +2725,249 @@ const evtStyles = StyleSheet.create({
   emptyText:     { fontSize: 13 },
 });
 
+// ─── Team Profile Sheet ────────────────────────────────────────────────────────
+
+const TEAM_FORM_COLOR: Record<string, string> = { W: '#22c55e', D: '#6b7280', L: '#ef4444' };
+const TEAM_FORM_LABEL: Record<string, string> = { W: 'V', D: 'E', L: 'D' };
+
+function TeamProfileSheet({ team, onClose }: { team: TeamStatData; onClose: () => void }) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const formPills = (team.formLast5 ?? '').split('').filter((c) => 'WDL'.includes(c)).slice(0, 5);
+  const pct = (n: number, d: number) => (d === 0 ? '—' : `${Math.round((n / d) * 100)}%`);
+  const avg = (n: number, d: number) => (d === 0 ? '—' : (n / d).toFixed(2));
+
+  const HomeRow = () => (
+    <View style={[tpStyles.splitRow, { borderBottomColor: colors.border }]}>
+      <Text style={[tpStyles.splitLabel, { color: colors.textSecondary }]}>🏠 Casa</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.homeWon + team.homeDrawn + team.homeLost}</Text>
+      <Text style={[tpStyles.splitCell, { color: '#22c55e' }]}>{team.homeWon}</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.homeDrawn}</Text>
+      <Text style={[tpStyles.splitCell, { color: '#ef4444' }]}>{team.homeLost}</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.homeGoalsFor}</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.homeGoalsAgainst}</Text>
+      <Text style={[tpStyles.splitPts, { color: colors.textPrimary }]}>{team.homeWon * 3 + team.homeDrawn}</Text>
+    </View>
+  );
+  const AwayRow = () => (
+    <View style={[tpStyles.splitRow, { borderBottomColor: colors.border }]}>
+      <Text style={[tpStyles.splitLabel, { color: colors.textSecondary }]}>✈️ Fora</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.awayWon + team.awayDrawn + team.awayLost}</Text>
+      <Text style={[tpStyles.splitCell, { color: '#22c55e' }]}>{team.awayWon}</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.awayDrawn}</Text>
+      <Text style={[tpStyles.splitCell, { color: '#ef4444' }]}>{team.awayLost}</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.awayGoalsFor}</Text>
+      <Text style={[tpStyles.splitCell, { color: colors.textSecondary }]}>{team.awayGoalsAgainst}</Text>
+      <Text style={[tpStyles.splitPts, { color: colors.textPrimary }]}>{team.awayWon * 3 + team.awayDrawn}</Text>
+    </View>
+  );
+
+  return (
+    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={[tpStyles.container, { backgroundColor: colors.background, paddingBottom: insets.bottom }]}>
+        {/* Header */}
+        <View style={[tpStyles.header, { borderBottomColor: colors.border }]}>
+          <Pressable hitSlop={12} onPress={onClose}>
+            <Ionicons name="chevron-down" size={22} color={colors.textMuted} />
+          </Pressable>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Image
+              source={{ uri: getTeamLogoUrl(team.team) ?? undefined }}
+              style={tpStyles.headerBadge}
+              resizeMode="contain"
+            />
+            <Text style={[tpStyles.teamName, { color: colors.textPrimary }]}>{team.team}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              {getLeagueLogoUrl(team.competition) ? (
+                <Image
+                  source={{ uri: getLeagueLogoUrl(team.competition) ?? undefined }}
+                  style={tpStyles.metaLeagueLogo}
+                  resizeMode="contain"
+                />
+              ) : null}
+              <Text style={[tpStyles.meta, { color: colors.textMuted }]}>{team.competition} · {team.season}</Text>
+            </View>
+          </View>
+          <View style={{ width: 34 }} />
+        </View>
+
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={tpStyles.scroll}>
+          {/* Position + points hero row */}
+          <View style={[tpStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+            <View style={tpStyles.heroRow}>
+              {[
+                { label: 'Posição', value: team.position != null ? `#${team.position}` : '—' },
+                { label: 'Pontos', value: String(team.points) },
+                { label: 'J', value: String(team.played) },
+                { label: 'DG', value: `${team.goalDifference >= 0 ? '+' : ''}${team.goalDifference}` },
+              ].map((item, i) => (
+                <React.Fragment key={item.label}>
+                  {i > 0 && <View style={[tpStyles.vDivider, { backgroundColor: colors.border }]} />}
+                  <View style={tpStyles.heroCell}>
+                    <Text style={[tpStyles.heroVal, { color: colors.primary }]}>{item.value}</Text>
+                    <Text style={[tpStyles.heroLabel, { color: colors.textMuted }]}>{item.label}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+
+          {/* W/D/L record bar */}
+          {team.played > 0 && (() => {
+            const wPct = team.won / team.played;
+            const dPct = team.drawn / team.played;
+            const lPct = team.lost / team.played;
+            return (
+              <View style={[tpStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                <View style={tpStyles.recordRow}>
+                  <View style={tpStyles.recordCell}>
+                    <Text style={[tpStyles.recordVal, { color: '#22c55e' }]}>{team.won}</Text>
+                    <Text style={[tpStyles.recordLabel, { color: colors.textMuted }]}>V</Text>
+                  </View>
+                  <View style={tpStyles.recordCell}>
+                    <Text style={[tpStyles.recordVal, { color: colors.textSecondary }]}>{team.drawn}</Text>
+                    <Text style={[tpStyles.recordLabel, { color: colors.textMuted }]}>E</Text>
+                  </View>
+                  <View style={tpStyles.recordCell}>
+                    <Text style={[tpStyles.recordVal, { color: '#ef4444' }]}>{team.lost}</Text>
+                    <Text style={[tpStyles.recordLabel, { color: colors.textMuted }]}>D</Text>
+                  </View>
+                  <View style={[tpStyles.vDivider, { backgroundColor: colors.border, marginHorizontal: 8 }]} />
+                  <View style={tpStyles.recordCell}>
+                    <Text style={[tpStyles.recordVal, { color: colors.textPrimary }]}>{team.goalsFor}</Text>
+                    <Text style={[tpStyles.recordLabel, { color: colors.textMuted }]}>GM</Text>
+                  </View>
+                  <View style={tpStyles.recordCell}>
+                    <Text style={[tpStyles.recordVal, { color: colors.textPrimary }]}>{team.goalsAgainst}</Text>
+                    <Text style={[tpStyles.recordLabel, { color: colors.textMuted }]}>GS</Text>
+                  </View>
+                </View>
+                <View style={tpStyles.wdlBar}>
+                  {wPct > 0 && <View style={[tpStyles.wdlSegW, { flex: wPct }]} />}
+                  {dPct > 0 && <View style={[tpStyles.wdlSegD, { flex: dPct }]} />}
+                  {lPct > 0 && <View style={[tpStyles.wdlSegL, { flex: lPct }]} />}
+                </View>
+              </View>
+            );
+          })()}
+
+          {/* Form */}
+          {formPills.length > 0 && (
+            <View style={[tpStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+              <Text style={[tpStyles.sectionTitle, { color: colors.textMuted }]}>FORMA RECENTE</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {formPills.map((r, i) => (
+                  <View key={i} style={[tpStyles.formPill, { backgroundColor: TEAM_FORM_COLOR[r] ?? '#6b7280' }]}>
+                    <Text style={tpStyles.formPillText}>{TEAM_FORM_LABEL[r] ?? r}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Home/Away split */}
+          <View style={[tpStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+            <Text style={[tpStyles.sectionTitle, { color: colors.textMuted }]}>CASA vs FORA</Text>
+            <View style={[tpStyles.splitHeader, { borderBottomColor: colors.border }]}>
+              <Text style={[tpStyles.splitLabel, { color: colors.textMuted }]} />
+              {['J', 'V', 'E', 'D', 'GM', 'GS', 'Pts'].map((h) => (
+                <Text key={h} style={[tpStyles.splitCell, { color: colors.textMuted, fontWeight: '700' }]}>{h}</Text>
+              ))}
+            </View>
+            <HomeRow />
+            <AwayRow />
+          </View>
+
+          {/* Key rates */}
+          <View style={[tpStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+            <Text style={[tpStyles.sectionTitle, { color: colors.textMuted }]}>MÉTRICAS</Text>
+            <View style={tpStyles.metricsGrid}>
+              {[
+                { label: 'BTTS', value: pct(team.bttsCount, team.played) },
+                { label: '+1.5', value: pct(team.over15Count, team.played) },
+                { label: '+2.5', value: pct(team.over25Count, team.played) },
+                { label: 'B. ZERO', value: pct(team.cleanSheets, team.played) },
+                { label: 'N. MARCOU', value: pct(team.failedToScore, team.played) },
+                { label: 'Méd. GM', value: avg(team.goalsFor, team.played) },
+                { label: 'Méd. GS', value: avg(team.goalsAgainst, team.played) },
+                { label: 'Comebacks', value: String(team.comebacks) },
+              ].map((m) => (
+                <View key={m.label} style={[tpStyles.metricItem, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                  <Text style={[tpStyles.metricVal, { color: colors.primary }]}>{m.value}</Text>
+                  <Text style={[tpStyles.metricLabel, { color: colors.textMuted }]}>{m.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Half-time record */}
+          <View style={[tpStyles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+            <Text style={[tpStyles.sectionTitle, { color: colors.textMuted }]}>AO INTERVALO</Text>
+            <View style={tpStyles.htRow}>
+              {[
+                { label: 'Vitórias', value: team.htWon, color: '#22c55e' },
+                { label: 'Empates', value: team.htDrawn, color: colors.textSecondary },
+                { label: 'Derrotas', value: team.htLost, color: '#ef4444' },
+              ].map((item, i) => (
+                <React.Fragment key={item.label}>
+                  {i > 0 && <View style={[tpStyles.vDivider, { backgroundColor: colors.border }]} />}
+                  <View style={tpStyles.heroCell}>
+                    <Text style={[tpStyles.heroVal, { color: item.color }]}>{item.value}</Text>
+                    <Text style={[tpStyles.heroLabel, { color: colors.textMuted }]}>{item.label}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+
+          <View style={{ height: 24 }} />
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+const tpStyles = StyleSheet.create({
+  container: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 8 },
+  headerBadge: { width: 56, height: 56 },
+  metaLeagueLogo: { width: 14, height: 14 },
+  teamName: { fontSize: 17, fontWeight: '800', marginTop: 6 },
+  meta: { fontSize: 12 },
+  recordRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 10 },
+  recordCell: { alignItems: 'center', gap: 2 },
+  recordVal: { fontSize: 20, fontWeight: '900' },
+  recordLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+  wdlBar: { flexDirection: 'row', height: 6, borderRadius: 3, overflow: 'hidden' },
+  wdlSegW: { backgroundColor: '#22c55e' },
+  wdlSegD: { backgroundColor: '#6b7280' },
+  wdlSegL: { backgroundColor: '#ef4444' },
+  scroll: { padding: 16, gap: 12 },
+  card: { borderRadius: 12, borderWidth: 1, padding: 14 },
+  sectionTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6, marginBottom: 2 },
+  heroRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  heroCell: { alignItems: 'center', flex: 1 },
+  heroVal: { fontSize: 22, fontWeight: '900' },
+  heroLabel: { fontSize: 10, fontWeight: '600', marginTop: 2 },
+  vDivider: { width: StyleSheet.hairlineWidth, marginVertical: 4 },
+  formPill: { width: 28, height: 28, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  formPillText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  splitHeader: { flexDirection: 'row', paddingVertical: 6, borderBottomWidth: StyleSheet.hairlineWidth, marginTop: 6 },
+  splitRow: { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  splitLabel: { width: 60, fontSize: 12, fontWeight: '600' },
+  splitCell: { flex: 1, fontSize: 12, textAlign: 'center' },
+  splitPts: { width: 30, fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  metricItem: { width: '22%', flexGrow: 1, borderRadius: 8, borderWidth: 1, padding: 10, alignItems: 'center', gap: 4 },
+  metricVal: { fontSize: 16, fontWeight: '800' },
+  metricLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 0.3, textAlign: 'center' },
+  htRow: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 8 },
+});
+
 // ─── Add-to-boletim sheet (mirrors boletim create screen) ─────────────────────
 
 type AddSheetTab = 'bet' | 'insight' | 'lineups' | 'events' | 'table';
+const TAB_KEYS: AddSheetTab[] = ['bet', 'insight', 'lineups', 'events', 'table'];
 
 function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const { colors } = useTheme();
@@ -2434,6 +2977,22 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const { showToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<AddSheetTab>('bet');
+  const activeTabRef = useRef<AddSheetTab>(activeTab);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+  const tabSwipePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 25 && Math.abs(g.dx) > Math.abs(g.dy) * 1.8,
+      onPanResponderRelease: (_, g) => {
+        const idx = TAB_KEYS.indexOf(activeTabRef.current);
+        if (g.dx < -50 && idx < TAB_KEYS.length - 1) {
+          hapticLight(); setActiveTab(TAB_KEYS[idx + 1]);
+        } else if (g.dx > 50 && idx > 0) {
+          hapticLight(); setActiveTab(TAB_KEYS[idx - 1]);
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (fixture) {
@@ -2473,6 +3032,9 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   const [isSaving, setIsSaving]                 = useState(false);
   const [showSites, setShowSites]               = useState(false);
   const [showMarkets, setShowMarkets]           = useState(false);
+  const [teamProfile, setTeamProfile]           = useState<TeamStatData | null>(null);
+
+  const { data: insightForProfile } = useFixtureInsight(fixture?.id ?? null);
 
   const marketsQuery = useMarkets(Sport.FOOTBALL);
   const marketSections = useMemo(() => {
@@ -2571,7 +3133,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   };
 
   if (!fixture) return null;
-  const kickoffTime = formatKickoff(fixture.kickoffAt, fixture.country);
+  const kickoffTime = formatKickoff(fixture.kickoffAt);
 
   const TABS: { key: AddSheetTab; label: string }[] = [
     { key: 'bet',     label: 'Apostar' },
@@ -2580,24 +3142,6 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
     { key: 'events',  label: 'Eventos' },
     { key: 'table',   label: 'Tabela' },
   ];
-  const TAB_KEYS: AddSheetTab[] = ['bet', 'insight', 'lineups', 'events', 'table'];
-  const activeTabRef = useRef<AddSheetTab>(activeTab);
-  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
-  const tabSwipePan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) =>
-        Math.abs(g.dx) > 25 && Math.abs(g.dx) > Math.abs(g.dy) * 1.8,
-      onPanResponderRelease: (_, g) => {
-        const idx = TAB_KEYS.indexOf(activeTabRef.current);
-        if (g.dx < -50 && idx < TAB_KEYS.length - 1) {
-          hapticLight(); setActiveTab(TAB_KEYS[idx + 1]);
-        } else if (g.dx > 50 && idx > 0) {
-          hapticLight(); setActiveTab(TAB_KEYS[idx - 1]);
-        }
-      },
-    })
-  ).current;
-
   const SCREEN_HEIGHT = Dimensions.get('window').height;
 
   return (
@@ -2627,7 +3171,11 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
                 </View>
                 {/* Hero: logos + date/time */}
                 <View style={bsStyles.heroRow}>
-                  <View style={bsStyles.heroTeamCol}>
+                  <Pressable
+                    style={bsStyles.heroTeamCol}
+                    onPress={() => { const t = insightForProfile?.standings?.home; if (t) setTeamProfile(t); }}
+                    hitSlop={4}
+                  >
                     <Image
                       source={{ uri: getTeamLogoUrl(fixture.homeTeam) ?? undefined }}
                       style={bsStyles.heroLogo}
@@ -2636,14 +3184,42 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
                     <Text style={[bsStyles.heroTeamName, { color: colors.textPrimary }]} numberOfLines={2}>
                       {fixture.homeTeam}
                     </Text>
-                  </View>
+                  </Pressable>
                   <View style={bsStyles.heroCenterCol}>
-                    <Text style={[bsStyles.heroDate, { color: colors.textPrimary }]}>
-                      {formatDate(fixture.kickoffAt, fixture.country)}
-                    </Text>
-                    <Text style={[bsStyles.heroTime, { color: colors.textSecondary }]}>{kickoffTime}</Text>
+                    {fixture.status === 'FINISHED' && fixture.homeScore != null ? (
+                      <>
+                        <Text style={[bsStyles.heroStatusLabel, { color: colors.textMuted }]}>FT</Text>
+                        <Text style={[bsStyles.heroScore, { color: colors.textPrimary }]}>
+                          {fixture.homeScore} – {fixture.awayScore}
+                        </Text>
+                        <Text style={[bsStyles.heroDate, { color: colors.textMuted, fontSize: 11, marginTop: 2 }]}>
+                          {formatDate(fixture.kickoffAt)}
+                        </Text>
+                      </>
+                    ) : fixture.status === 'LIVE' && fixture.homeScore != null ? (
+                      <>
+                        <View style={bsStyles.liveRow}>
+                          <View style={[bsStyles.liveDot, { backgroundColor: '#ef4444' }]} />
+                          <Text style={[bsStyles.liveLabel, { color: '#ef4444' }]}>AO VIVO</Text>
+                        </View>
+                        <Text style={[bsStyles.heroScore, { color: '#ef4444' }]}>
+                          {fixture.homeScore} – {fixture.awayScore}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={[bsStyles.heroDate, { color: colors.textPrimary }]}>
+                          {formatDate(fixture.kickoffAt)}
+                        </Text>
+                        <Text style={[bsStyles.heroTime, { color: colors.textSecondary }]}>{kickoffTime}</Text>
+                      </>
+                    )}
                   </View>
-                  <View style={bsStyles.heroTeamCol}>
+                  <Pressable
+                    style={bsStyles.heroTeamCol}
+                    onPress={() => { const t = insightForProfile?.standings?.away; if (t) setTeamProfile(t); }}
+                    hitSlop={4}
+                  >
                     <Image
                       source={{ uri: getTeamLogoUrl(fixture.awayTeam) ?? undefined }}
                       style={bsStyles.heroLogo}
@@ -2652,11 +3228,20 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
                     <Text style={[bsStyles.heroTeamName, { color: colors.textPrimary }]} numberOfLines={2}>
                       {fixture.awayTeam}
                     </Text>
-                  </View>
+                  </Pressable>
                 </View>
                 {/* Competition strip */}
                 <View style={[bsStyles.competitionStrip, { borderTopColor: colors.border, borderBottomColor: colors.border }]}>
-                  <Text style={[bsStyles.competitionStripText, { color: colors.textMuted }]}>{fixture.competition}</Text>
+                  {getLeagueLogoUrl(fixture.competition) ? (
+                    <Image
+                      source={{ uri: getLeagueLogoUrl(fixture.competition) ?? undefined }}
+                      style={bsStyles.competitionLogo}
+                      resizeMode="contain"
+                    />
+                  ) : null}
+                  <Text style={[bsStyles.competitionStripText, { color: colors.textMuted }]}>
+                    {fixture.competition}{fixture.round ? ` · ${fixture.round}` : ''}
+                  </Text>
                 </View>
               </View>
             </GestureDetector>
@@ -2698,6 +3283,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
                     competition={resolveCompetition(fixture.competition)}
                     highlightTeams={[fixture.homeTeam, fixture.awayTeam]}
                     onClose={() => setActiveTab('bet')}
+                    onTeamPress={(t) => setTeamProfile(t)}
                     embedded
                   />
                 </View>
@@ -2857,6 +3443,8 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
 
       <SearchableDropdown visible={showMarkets} onClose={() => setShowMarkets(false)} title="Mercado" sections={marketSections} onSelect={(val) => { setMarket(val); }} isLoading={marketsQuery.isLoading} initialVisibleCount={8} />
       <SearchableDropdown visible={showSites} onClose={() => setShowSites(false)} title="Site de apostas" items={BETTING_SITES.map((s) => ({ label: s.name, value: s.slug }))} onSelect={(val) => setSiteSlug(val)} />
+
+      {teamProfile && <TeamProfileSheet team={teamProfile} onClose={() => setTeamProfile(null)} />}
     </Modal>
   );
 }
@@ -2881,9 +3469,9 @@ const FixtureCard = React.memo(function FixtureCard({
   const { colors } = useTheme();
   const isFinished = fixture.homeScore !== null && fixture.awayScore !== null;
   const isLive = fixture.status === 'live' || fixture.status === 'inprogress';
-  const kickoffTime = formatKickoff(fixture.kickoffAt, fixture.country);
-  const kickoffDate = formatDate(fixture.kickoffAt, fixture.country);
-  const isToday = adjustedDateKey(fixture.kickoffAt, fixture.country) === toLocalDateKey(stripTime(new Date()));
+  const kickoffTime = formatKickoff(fixture.kickoffAt);
+  const kickoffDate = formatDate(fixture.kickoffAt);
+  const isToday = adjustedDateKey(fixture.kickoffAt) === toLocalDateKey(stripTime(new Date()));
 
   return (
     <PressableScale
@@ -3291,10 +3879,25 @@ export default function FixturesScreen() {
   const activeDates = useMemo<Set<string>>(() => {
     const s = new Set<string>();
     for (const f of rawFixtures) {
-      s.add(adjustedDateKey(f.kickoffAt, f.country));
+      s.add(adjustedDateKey(f.kickoffAt));
     }
     return s;
   }, [rawFixtures]);
+
+  // ── Live polling ─────────────────────────────────────────────────────────────
+  const hasLiveFixtures = rawFixtures.some((f) => f.status === 'LIVE');
+  useEffect(() => {
+    if (!hasLiveFixtures) return;
+    const tick = async () => {
+      try {
+        await apiClient.post('/sync/fixtures/recent', null, { timeout: 20_000 });
+      } catch { /* non-fatal */ }
+      upcomingQuery.refetch();
+      recentQuery.refetch();
+    };
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, [hasLiveFixtures]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isSearching = search.trim().length > 0;
 
@@ -3302,7 +3905,7 @@ export default function FixturesScreen() {
     let list = rawFixtures;
     if (!isSearching) {
       const key = toLocalDateKey(selectedDate);
-      list = list.filter((f) => adjustedDateKey(f.kickoffAt, f.country) === key);
+      list = list.filter((f) => adjustedDateKey(f.kickoffAt) === key);
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
@@ -3401,8 +4004,15 @@ export default function FixturesScreen() {
     }),
   ).current;
 
-  const handleRefresh = useCallback(() => { upcomingQuery.refetch(); recentQuery.refetch(); }, [upcomingQuery, recentQuery]);
-  const isRefreshing = upcomingQuery.isFetching || recentQuery.isFetching;
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await apiClient.post('/sync/fixtures/recent', null, { timeout: 25000 });
+    } catch { /* non-fatal — still refetch local data */ }
+    await Promise.all([upcomingQuery.refetch(), recentQuery.refetch()]);
+    setIsRefreshing(false);
+  }, [upcomingQuery, recentQuery]);
 
   const renderItem = useCallback(
     ({ item, index, section }: { item: Fixture; index: number; section: Section }) => (
@@ -3507,7 +4117,7 @@ export default function FixturesScreen() {
               renderItem={renderItem}
               renderSectionHeader={renderSectionHeader}
               stickySectionHeadersEnabled
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 90 }]}
               ItemSeparatorComponent={null}
               refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
               showsVerticalScrollIndicator={false}
@@ -3638,8 +4248,14 @@ const bsStyles = StyleSheet.create({
   heroCenterCol: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, paddingTop: 8 },
   heroDate: { fontSize: 16, fontWeight: '800', textAlign: 'center', letterSpacing: 0.3 },
   heroTime: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 3 },
-  competitionStrip: { borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 7, paddingHorizontal: 18, alignItems: 'center', width: '100%' },
+  competitionStrip: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 7, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%' },
   competitionStripText: { fontSize: 12, fontWeight: '600' },
+  competitionLogo: { width: 16, height: 16 },
+  heroStatusLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, textAlign: 'center' },
+  heroScore: { fontSize: 30, fontWeight: '900', textAlign: 'center', letterSpacing: 1 },
+  liveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  liveDot: { width: 7, height: 7, borderRadius: 3.5 },
+  liveLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
 
   scrollContent: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
 
@@ -3788,12 +4404,12 @@ const newInsightStyles = StyleSheet.create({
 
   sectionLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 0.6 },
 
-  formRow: { flexDirection: 'row', gap: 5 },
+  formRow: { flexDirection: 'row', gap: 3 },
   formPill: {
-    width: 28, height: 28, borderRadius: 6,
+    width: 22, height: 22, borderRadius: 4,
     alignItems: 'center', justifyContent: 'center',
   },
-  formPillText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  formPillText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 
   formLegend: { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -3889,4 +4505,20 @@ const insightSubStyles = StyleSheet.create({
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabActive: {},
   tabText: { fontSize: 13, fontWeight: '700' },
+});
+
+const overviewStyles = StyleSheet.create({
+  faceoffTeam:  { fontSize: 12, fontWeight: '700' },
+  faceoffVenue: { fontSize: 10, marginTop: 1, marginBottom: 4 },
+  faceoffSub:   { fontSize: 11, marginTop: 4 },
+  metricRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 4 },
+  metricVal:    { width: 50, fontSize: 13, fontWeight: '700' },
+  metricLabel:  { flex: 1, fontSize: 11, textAlign: 'center' },
+  h2hCount:     { fontSize: 20, fontWeight: '900', minWidth: 22, textAlign: 'center' },
+  scorerRow:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, borderTopWidth: StyleSheet.hairlineWidth },
+  scorerName:   { flex: 1, fontSize: 12, fontWeight: '600' },
+  scorerBadge:  { borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
+  scorerStat:   { fontSize: 11, fontWeight: '700' },
+  injuryRow:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 3 },
+  injuryName:   { flex: 1, fontSize: 12, fontWeight: '500' },
 });

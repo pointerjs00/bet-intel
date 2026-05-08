@@ -126,7 +126,7 @@ export function useRecentFixtures(days = 3) {
   return useQuery({
     queryKey: ['fixtures', 'recent', days],
     queryFn: () => fetchRecentFixtures(days),
-    staleTime: 30 * 60 * 1000,
+    staleTime: 60 * 1000, // short stale time so live score refetches are effective
     retry: false,
   });
 }
