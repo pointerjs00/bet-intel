@@ -116,15 +116,20 @@ async function syncLeague(
   apiSeason: number,
   season: string,
 ): Promise<{ upserted: number; calls: number }> {
-  const [upcomingResp, recentResp] = await Promise.all([
-    apiFootball.get<any>('/fixtures', { league: leagueId, season: apiSeason, next: 14 }),
-    apiFootball.get<any>('/fixtures', { league: leagueId, season: apiSeason, last: 3  }),
-  ]);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-  const all: any[] = [
-    ...(upcomingResp?.response ?? []),
-    ...(recentResp?.response  ?? []),
-  ];
+  const from = new Date(); from.setDate(from.getDate() - 10);
+  const to   = new Date(); to.setDate(to.getDate() + 14);
+
+  const resp = await apiFootball.get<any>('/fixtures', {
+    league: leagueId,
+    season: apiSeason,
+    from:   toDateStr(from),
+    to:     toDateStr(to),
+  });
+
+  const all: any[] = resp?.response ?? [];
 
   // Deduplicate by fixture ID
   const seen = new Set<number>();
@@ -140,7 +145,7 @@ async function syncLeague(
     if (ok) upserted++;
   }
 
-  return { upserted, calls: 2 };
+  return { upserted, calls: 1 };
 }
 
 export async function fixturesSyncJob(): Promise<void> {
