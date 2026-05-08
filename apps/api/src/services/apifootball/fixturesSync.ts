@@ -6,6 +6,7 @@
 
 import { prisma } from '../../prisma';
 import { apiFootball } from '../apiFootballClient';
+import { redis } from '../../utils/redis';
 import { LEAGUE_MANIFEST } from '../../config/leagueManifest';
 import { normaliseTeamName } from '../../utils/nameNormalisation';
 import { canonicalToApiFootballSeason, getCurrentSeason } from '../../utils/seasonUtils';
@@ -186,6 +187,53 @@ export async function fixturesSyncJob(): Promise<void> {
     const remaining = await apiFootball.getRemainingCalls();
     return { recordsUpserted: totalUpserted, apiCallsMade: totalCalls, apiCallsRemaining: remaining };
   });
+}
+
+// Pull-to-refresh helper — single date-range call, 3-min server-side debounce
+const RECENT_DEBOUNCE_KEY = 'sync:fixtures:recent';
+const RECENT_DEBOUNCE_TTL = 3 * 60; // seconds
+
+export async function syncRecentFixtures(): Promise<{ upserted: number; skipped: boolean }> {
+  const alreadyRunning = await redis.get(RECENT_DEBOUNCE_KEY).catch(() => null);
+  if (alreadyRunning) {
+    logger.debug('[syncRecentFixtures] Debounced — skipping');
+    return { upserted: 0, skipped: true };
+  }
+  await redis.set(RECENT_DEBOUNCE_KEY, '1', 'EX', RECENT_DEBOUNCE_TTL).catch(() => {});
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const toDateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  const from = new Date(); from.setDate(from.getDate() - 3);
+  const to   = new Date(); to.setDate(to.getDate() + 2);
+
+  const resp = await apiFootball.get<any>('/fixtures', {
+    from: toDateStr(from),
+    to:   toDateStr(to),
+  });
+
+  const all: any[] = resp?.response ?? [];
+
+  // Filter to only leagues we track
+  const leagueMap = new Map(LEAGUE_MANIFEST.map(l => [l.apiFootballId, l]));
+  const season = getCurrentSeason();
+
+  let upserted = 0;
+  for (const f of all) {
+    const league = leagueMap.get(f.league?.id as number);
+    if (!league) continue;
+    const ok = await upsertFixture(f, league.name, season);
+    if (ok) upserted++;
+  }
+
+  if (upserted > 0) {
+    await recomputeTeamStats().catch((e: Error) =>
+      logger.warn('[syncRecentFixtures] TeamStat recompute failed', { error: e.message }),
+    );
+  }
+
+  logger.info(`[syncRecentFixtures] Done: ${upserted} fixtures upserted`);
+  return { upserted, skipped: false };
 }
 
 // Startup helper

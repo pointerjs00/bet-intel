@@ -7,6 +7,9 @@ import { standingsDataController }  from '../controllers/standingsDataController
 import { injuriesController }       from '../controllers/injuriesController';
 import { topScorersController }     from '../controllers/topScorersController';
 import { triggerFixtureRefresh }    from '../jobs/fixtureRefreshJob';
+import { syncRecentFixtures }       from '../services/apifootball/fixturesSync';
+import { fixtureStatsSyncJob }      from '../jobs/fixtureStatsSyncJob';
+import { fixtureEventsSyncJob }     from '../jobs/fixtureEventsSyncJob';
 import { standingsSyncJob }         from '../jobs/standingsSyncJob';
 import { injuriesSyncJob }          from '../jobs/injuriesSyncJob';
 import { topScorersSyncJob }        from '../jobs/topScorersSyncJob';
@@ -53,4 +56,20 @@ footballDataRouter.post('/sync/topscorers', async (_req: Request, res: Response)
   topScorersSyncJob().catch((err: any) =>
     logger.error('[sync/topscorers] job failed', { error: err.message })
   );
+});
+
+footballDataRouter.post('/sync/fixtures/recent', async (_req: Request, res: Response) => {
+  try {
+    const result = await syncRecentFixtures();
+    res.json({ ok: true, ...result });
+    fixtureStatsSyncJob().catch((err: any) =>
+      logger.warn('[sync/fixtures/recent] stats job failed', { error: err.message })
+    );
+    fixtureEventsSyncJob().catch((err: any) =>
+      logger.warn('[sync/fixtures/recent] events job failed', { error: err.message })
+    );
+  } catch (err: any) {
+    logger.error('[sync/fixtures/recent] failed', { error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
