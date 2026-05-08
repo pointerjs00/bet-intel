@@ -53,11 +53,14 @@ export async function liveScoreJob(): Promise<void> {
     const prevRaw = await redis.get(`live:score:${payload.fixtureId}`).catch(() => null);
     const prev: LiveScorePayload | null = prevRaw ? JSON.parse(prevRaw) : null;
 
+    // Finished matches get a long TTL so overlayLiveScores keeps the correct
+    // result visible until the DB sync catches up (live matches: 120s refresh cycle)
+    const redisTtl = FINISHED_STATUSES.has(payload.statusShort) ? 86400 : 120;
     await redis.set(
       `live:score:${payload.fixtureId}`,
       JSON.stringify(payload),
       'EX',
-      120,
+      redisTtl,
     ).catch(() => {});
 
     emitLiveScore(payload);
@@ -132,7 +135,7 @@ export async function liveScoreJob(): Promise<void> {
 
   logger.debug(`[liveScore] Broadcast ${fixtures.length} live fixture scores`);
 
-  // Sync events, stats, and lineups from the already-fetched live response — no extra API calls
+  // Persist scores/status to DB and sync events/stats/lineups from the already-fetched response
   try {
     const apiIds = fixtures.map((f: any) => f.fixture.id as number);
     const dbRows = await prisma.fixture.findMany({
@@ -144,7 +147,20 @@ export async function liveScoreJob(): Promise<void> {
     await Promise.all(fixtures.map(async (f: any) => {
       const db = dbMap.get(f.fixture.id as number);
       if (!db) return;
+      const statusShort = f.fixture.status?.short ?? 'LIVE';
+      const mappedStatus = FINISHED_STATUSES.has(statusShort) ? 'FINISHED' : 'LIVE';
+
       await Promise.allSettled([
+        // Keep DB in sync so stale SCHEDULED/LIVE rows are corrected before Redis TTL expires
+        prisma.fixture.updateMany({
+          where: { apiFootballId: f.fixture.id as number },
+          data: {
+            homeScore:      f.goals?.home  ?? null,
+            awayScore:      f.goals?.away  ?? null,
+            elapsedMinutes: f.fixture.status?.elapsed ?? null,
+            status:         mappedStatus,
+          },
+        }),
         syncLiveEvents(db.id, db.apiFootballId!, db.homeTeamApiId, f.events ?? []),
         syncLiveStats(db.id, db.apiFootballId!, f.statistics ?? []),
         syncLiveLineups(db.id, db.apiFootballId!, db.homeTeamApiId, db.awayTeamApiId, f.lineups ?? []),

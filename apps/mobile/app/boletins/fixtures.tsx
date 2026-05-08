@@ -3937,8 +3937,8 @@ export default function FixturesScreen() {
       if (f.status === 'LIVE') return true;
       if (f.status === 'FINISHED') return false;
       const ko = new Date(f.kickoffAt).getTime();
-      // Match kicked off ≤130 min ago and isn't marked finished
-      return ko <= now && now - ko <= 130 * 60 * 1000;
+      // Match kicked off ≤210 min ago and isn't marked finished (covers ET + penalties + buffer)
+      return ko <= now && now - ko <= 210 * 60 * 1000;
     });
   }, [rawFixtures]);
 
