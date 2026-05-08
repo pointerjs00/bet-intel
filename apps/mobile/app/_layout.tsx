@@ -208,28 +208,39 @@ function NotificationLifecycleManager() {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     });
 
+    const LIVE_MATCH_NOTIF_TYPES = new Set([
+      'GOAL_SCORED', 'HALF_TIME', 'SECOND_HALF_START', 'MATCH_FINISHED', 'RED_CARD', 'MATCH_STARTING',
+    ]);
+
     const unsubscribeResponse = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown> | undefined;
       if (!data) return;
-  
+
       // Kickoff reminder: open the specific boletin detail so the user can resolve it
       if (data.type === 'KICKOFF_REMINDER' && data.boletinId && typeof data.boletinId === 'string') {
         router.push(`/boletins/${data.boletinId}`);
         return;
       }
-  
+
+      // Live match notifications → open fixture detail on the fixtures screen
+      if (data.fixtureId && typeof data.fixtureId === 'string' && LIVE_MATCH_NOTIF_TYPES.has(data.type as string)) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (router as any).push({ pathname: '/(tabs)/fixtures', params: { openFixtureId: data.fixtureId } });
+        return;
+      }
+
       // Boletin settled or shared → open boletin detail
       if (data.boletinId && typeof data.boletinId === 'string') {
         router.push(`/boletins/${data.boletinId}`);
         return;
       }
-  
+
       // Social notifications → open notification centre
       if (data.type === 'FRIEND_REQUEST' || data.type === 'FRIEND_ACCEPTED') {
         router.push('/notifications');
         return;
       }
-  
+
       // Generic fallback
       if (data.notificationId) {
         router.push('/notifications');

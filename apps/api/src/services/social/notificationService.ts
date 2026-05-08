@@ -103,7 +103,20 @@ export async function dispatchStoredNotifications(
   return notifications;
 }
 
-/** Returns paginated notifications for the authenticated user. */
+// Match event types go to push only — they are NOT surfaced in the in-app notification list
+const MATCH_EVENT_TYPES: NotificationType[] = [
+  'MATCH_STARTING' as NotificationType,
+  'GOAL_SCORED' as NotificationType,
+  'HALF_TIME' as NotificationType,
+  'SECOND_HALF_START' as NotificationType,
+  'MATCH_FINISHED' as NotificationType,
+  'RED_CARD' as NotificationType,
+];
+
+/** Returns paginated notifications for the authenticated user.
+ * Match event notifications (goals, cards, etc.) are excluded — they appear
+ * only as push alerts and do not count towards the in-app notification badge.
+ */
 export async function listNotifications(
   userId: string,
   pagination: PaginationInput,
@@ -112,15 +125,17 @@ export async function listNotifications(
   const limit = pagination.limit;
   const skip = (page - 1) * limit;
 
+  const socialWhere = { userId, type: { notIn: MATCH_EVENT_TYPES } };
+
   const [rows, total, unreadCount] = await Promise.all([
     prisma.notification.findMany({
-      where: { userId },
+      where: socialWhere,
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,
     }),
-    prisma.notification.count({ where: { userId } }),
-    prisma.notification.count({ where: { userId, isRead: false } }),
+    prisma.notification.count({ where: socialWhere }),
+    prisma.notification.count({ where: { ...socialWhere, isRead: false } }),
   ]);
 
   return {

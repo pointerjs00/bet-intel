@@ -229,21 +229,23 @@ async function getStandingRows(homeTeam: string, awayTeam: string, competition: 
 
 // ─── Map Fixture row to MatchShape ────────────────────────────────────────────
 
+type StatsMap = Map<string, { homeCorners: number | null; awayCorners: number | null; homeYellow: number | null; awayYellow: number | null }>;
+
 function fixtureToShape(f: {
-  homeTeam: string; awayTeam: string;
+  id: string; homeTeam: string; awayTeam: string;
   homeScore: number | null; awayScore: number | null;
   kickoffAt: Date;
-}): MatchShape {
+}, statsMap?: StatsMap): MatchShape {
+  const s = statsMap?.get(f.id);
   return {
     homeTeam:    f.homeTeam,
     awayTeam:    f.awayTeam,
     homeScore:   f.homeScore,
     awayScore:   f.awayScore,
-    // Fixture table doesn't store corners/cards — default to null (renders as 0 in averages)
-    homeCorners: null,
-    awayCorners: null,
-    homeYellow:  null,
-    awayYellow:  null,
+    homeCorners: s?.homeCorners ?? null,
+    awayCorners: s?.awayCorners ?? null,
+    homeYellow:  s?.homeYellow  ?? null,
+    awayYellow:  s?.awayYellow  ?? null,
     date:        f.kickoffAt,
   };
 }
@@ -278,6 +280,7 @@ export async function computeFixtureInsight(fixture: {
       },
       orderBy: { kickoffAt: 'desc' },
       take: SAMPLE,
+      select: { id: true, homeTeam: true, awayTeam: true, homeScore: true, awayScore: true, kickoffAt: true },
     }),
     // Away team's last SAMPLE finished away games in this competition
     prisma.fixture.findMany({
@@ -290,6 +293,7 @@ export async function computeFixtureInsight(fixture: {
       },
       orderBy: { kickoffAt: 'desc' },
       take: SAMPLE,
+      select: { id: true, homeTeam: true, awayTeam: true, homeScore: true, awayScore: true, kickoffAt: true },
     }),
     // H2H across all competitions and seasons
     prisma.fixture.findMany({
@@ -304,12 +308,26 @@ export async function computeFixtureInsight(fixture: {
       },
       orderBy: { kickoffAt: 'desc' },
       take: 10,
+      select: { id: true, homeTeam: true, awayTeam: true, homeScore: true, awayScore: true, kickoffAt: true },
     }),
   ]);
 
-  const homeInsight = computeTeamInsight(homeAtHome.map(fixtureToShape), fixture.homeTeam, true);
-  const awayInsight = computeTeamInsight(awayAway.map(fixtureToShape), fixture.awayTeam, false);
-  const h2hInsight  = computeH2HInsight(h2hMatches.map(fixtureToShape), homeNormKey, awayNormKey);
+  // Fetch FixtureStats for all retrieved fixtures in one query to populate
+  // corners and yellow cards (these aren't stored on the Fixture row itself)
+  const allIds = [...new Set([
+    ...homeAtHome.map(f => f.id),
+    ...awayAway.map(f => f.id),
+    ...h2hMatches.map(f => f.id),
+  ])];
+  const statsRows = await prisma.fixtureStats.findMany({
+    where: { fixtureId: { in: allIds } },
+    select: { fixtureId: true, homeCorners: true, awayCorners: true, homeYellow: true, awayYellow: true },
+  });
+  const statsMap: StatsMap = new Map(statsRows.map(s => [s.fixtureId, s]));
+
+  const homeInsight = computeTeamInsight(homeAtHome.map(f => fixtureToShape(f, statsMap)), fixture.homeTeam, true);
+  const awayInsight = computeTeamInsight(awayAway.map(f => fixtureToShape(f, statsMap)), fixture.awayTeam, false);
+  const h2hInsight  = computeH2HInsight(h2hMatches.map(f => fixtureToShape(f, statsMap)), homeNormKey, awayNormKey);
 
   const sharpOdds: SharpOddsContext = {
     pinnacleHome: null, pinnacleDraw: null, pinnacleAway: null,

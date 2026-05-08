@@ -19,7 +19,7 @@ import {
   Image,
   Switch,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown, useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS, } from 'react-native-reanimated';
@@ -2282,7 +2282,7 @@ const pitchStyles = StyleSheet.create({
   formTeamName:   { fontSize: 13, fontWeight: '700' },
   formFormation:  { fontSize: 20, fontWeight: '900', marginTop: 2 },
   formDivider:    { width: StyleSheet.hairlineWidth, height: 44 },
-  pitch:          { backgroundColor: '#1b4d30', paddingVertical: 12 },
+  pitch:          { backgroundColor: '#1b4d30', paddingVertical: 12, overflow: 'hidden' },
   halfPitch:      { paddingVertical: 6, gap: 8 },
   pitchRow:       { flexDirection: 'row', justifyContent: 'space-evenly', paddingHorizontal: 8 },
   dot:            { alignItems: 'center', width: 60, gap: 4 },
@@ -2291,8 +2291,21 @@ const pitchStyles = StyleSheet.create({
   circleInner:    { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   circleInitial:  { fontSize: 15, fontWeight: '800' },
   dotLabel:       { fontSize: 9, fontWeight: '600', color: '#e5e7eb', textAlign: 'center' },
-  centerZone:     { alignItems: 'center', paddingVertical: 8 },
-  centerDash:     { width: '80%', borderTopWidth: 1, borderStyle: 'dashed' },
+  // Center zone — holds the midfield line, center circle, and center spot
+  centerZone:     { alignItems: 'center', justifyContent: 'center', height: 90, position: 'relative' },
+  centerLine:     { position: 'absolute', left: 0, right: 0, borderTopWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
+  centerCircle:   { width: 80, height: 80, borderRadius: 40, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
+  centerSpot:     { width: 7, height: 7, borderRadius: 3.5, backgroundColor: 'rgba(255,255,255,0.5)' },
+  // Corner arcs — 28px circles whose centres sit exactly on each corner of the pitch
+  cornerArc:      { position: 'absolute', width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
+  cornerTL:       { top: -14, left: -14 },
+  cornerTR:       { top: -14, right: -14 },
+  cornerBL:       { bottom: -14, left: -14 },
+  cornerBR:       { bottom: -14, right: -14 },
+  // Goal-area boxes at top and bottom of pitch (no outer edge border — the pitch edge acts as the goal line)
+  goalAreaBox:    { position: 'absolute', width: '42%', height: 20, left: '29%', borderLeftWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' },
+  goalAreaTop:    { top: 0, borderBottomWidth: 1.5 },
+  goalAreaBottom: { bottom: 0, borderTopWidth: 1.5 },
   subsSection:    { padding: 14, borderTopWidth: StyleSheet.hairlineWidth },
   subsTitle:      { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 10 },
   subRow:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 5, borderBottomWidth: StyleSheet.hairlineWidth },
@@ -2428,6 +2441,16 @@ function LineupsTab({ fixture }: { fixture: Fixture }) {
 
       {/* Pitch */}
       <View style={pitchStyles.pitch}>
+        {/* Pitch markings overlay — no pointer events */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <View style={[pitchStyles.cornerArc, pitchStyles.cornerTL]} />
+          <View style={[pitchStyles.cornerArc, pitchStyles.cornerTR]} />
+          <View style={[pitchStyles.cornerArc, pitchStyles.cornerBL]} />
+          <View style={[pitchStyles.cornerArc, pitchStyles.cornerBR]} />
+          <View style={[pitchStyles.goalAreaBox, pitchStyles.goalAreaTop]} />
+          <View style={[pitchStyles.goalAreaBox, pitchStyles.goalAreaBottom]} />
+        </View>
+
         <View style={pitchStyles.halfPitch}>
           {homeRows.map((row) => (
             <View key={`h${row}`} style={pitchStyles.pitchRow}>
@@ -2437,9 +2460,15 @@ function LineupsTab({ fixture }: { fixture: Fixture }) {
             </View>
           ))}
         </View>
+
+        {/* Center line + circle + spot */}
         <View style={pitchStyles.centerZone}>
-          <View style={[pitchStyles.centerDash, { borderColor: 'rgba(255,255,255,0.2)' }]} />
+          <View style={pitchStyles.centerLine} />
+          <View style={pitchStyles.centerCircle}>
+            <View style={pitchStyles.centerSpot} />
+          </View>
         </View>
+
         <View style={pitchStyles.halfPitch}>
           {awayRows.map((row) => (
             <View key={`a${row}`} style={pitchStyles.pitchRow}>
@@ -3772,6 +3801,8 @@ const mgStyles = StyleSheet.create({
 export default function FixturesScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const { openFixtureId } = useLocalSearchParams<{ openFixtureId?: string }>();
+  const openFixtureHandled = useRef(false);
 
   const [search, setSearch] = useState('');
   const [selectedFixture, setSelectedFixture] = useState<Fixture | null>(null);
@@ -3880,6 +3911,17 @@ export default function FixturesScreen() {
     const seen = new Set<string>();
     return all.filter((f) => { if (seen.has(f.id)) return false; seen.add(f.id); return true; });
   }, [needsByDateFetch, byDateQuery.data, upcomingQuery.data, recentQuery.data]);
+
+  // Auto-open a fixture when arriving via push notification deep-link
+  useEffect(() => {
+    if (!openFixtureId || openFixtureHandled.current) return;
+    const all = [...(upcomingQuery.data ?? []), ...(recentQuery.data ?? [])];
+    const target = all.find((f) => f.id === openFixtureId);
+    if (target) {
+      openFixtureHandled.current = true;
+      setSelectedFixture(target);
+    }
+  }, [openFixtureId, upcomingQuery.data, recentQuery.data]);
 
   const activeDates = useMemo<Set<string>>(() => {
     const s = new Set<string>();

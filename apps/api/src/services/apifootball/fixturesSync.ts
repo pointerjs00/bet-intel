@@ -189,9 +189,10 @@ export async function fixturesSyncJob(): Promise<void> {
   });
 }
 
-// Pull-to-refresh helper — single date-range call, 3-min server-side debounce
+// Pull-to-refresh helper — single date-range call, 55s debounce so the 60s
+// live polling loop always gets fresh data without hammering the API
 const RECENT_DEBOUNCE_KEY = 'sync:fixtures:recent';
-const RECENT_DEBOUNCE_TTL = 3 * 60; // seconds
+const RECENT_DEBOUNCE_TTL = 55; // seconds
 
 export async function syncRecentFixtures(): Promise<{ upserted: number; skipped: boolean }> {
   const alreadyRunning = await redis.get(RECENT_DEBOUNCE_KEY).catch(() => null);

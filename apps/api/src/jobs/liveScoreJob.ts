@@ -75,8 +75,9 @@ export async function liveScoreJob(): Promise<void> {
     // Goal detection
     if (payload.homeGoals !== prev.homeGoals || payload.awayGoals !== prev.awayGoals) {
       const scoringTeam = payload.homeGoals > prev.homeGoals ? payload.homeTeam : payload.awayTeam;
+      const goalMinute = payload.elapsed != null ? ` (${payload.elapsed}')` : '';
       await sendMatchNotification(payload, 'GOAL_SCORED' as NotificationType, 'GOALS',
-        `⚽ Golo! ${scoringTeam}`,
+        `⚽ Golo! ${scoringTeam}${goalMinute}`,
         `${payload.homeTeam} ${payload.homeGoals}–${payload.awayGoals} ${payload.awayTeam}`,
         `notif:goal:${payload.fixtureId}:${payload.homeGoals}-${payload.awayGoals}`
       ).catch(err => logger.warn('[liveScore] Goal notification error', { err: err?.message }));
@@ -94,8 +95,8 @@ export async function liveScoreJob(): Promise<void> {
     // Second half start (transition from HT to 2H)
     if (payload.statusShort === '2H' && prev.statusShort === 'HT') {
       await sendMatchNotification(payload, 'SECOND_HALF_START' as NotificationType, 'HALF_TIME',
-        '▶️ Segundo tempo',
-        `${payload.homeTeam} vs ${payload.awayTeam} — segundo tempo começou`,
+        '▶️ 2ª parte',
+        `${payload.homeTeam} vs ${payload.awayTeam} — 2ª parte começou`,
         `notif:2h:${payload.fixtureId}`
       ).catch(err => logger.warn('[liveScore] 2H notification error', { err: err?.message }));
     }
@@ -120,8 +121,9 @@ export async function liveScoreJob(): Promise<void> {
       if (alreadySent) continue;
       const playerName = card.player?.name ?? 'Jogador';
       const teamName = card.team?.name ?? '';
+      const cardMinute = card.time?.elapsed != null ? ` (${card.time.elapsed}')` : '';
       await sendMatchNotification(payload, 'RED_CARD' as NotificationType, 'RED_CARD',
-        `🟥 Cartão vermelho — ${playerName}`,
+        `🟥 Cartão vermelho — ${playerName}${cardMinute}`,
         `${teamName} | ${payload.homeTeam} ${payload.homeGoals}–${payload.awayGoals} ${payload.awayTeam}`,
         cardKey
       ).catch(err => logger.warn('[liveScore] Red card notification error', { err: err?.message }));
@@ -191,7 +193,7 @@ async function sendMatchNotification(
   if (eligibleUserIds.length > 0) {
     await createNotifications(
       eligibleUserIds.map(userId => ({ userId, type, title, body,
-        data: { fixtureId: fixture.id, apiFootballId: payload.fixtureId },
+        data: { fixtureId: fixture.id, apiFootballId: payload.fixtureId, type: String(type) },
       })),
     );
     logger.info(`[liveScore] Sent ${type} to ${eligibleUserIds.length} users for fixture ${payload.fixtureId}`);
