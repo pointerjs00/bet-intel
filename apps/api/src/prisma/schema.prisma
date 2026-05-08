@@ -65,7 +65,19 @@ enum NotificationType {
   BOLETIN_SHARED
   BOLETIN_RESULT
   MATCH_STARTING
+  GOAL_SCORED
+  HALF_TIME
+  SECOND_HALF_START
+  MATCH_FINISHED
+  RED_CARD
   SYSTEM
+}
+
+enum FixtureNotifPref {
+  GOALS
+  HALF_TIME
+  MATCH_END
+  RED_CARD
 }
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -86,6 +98,7 @@ model User {
   avatarUrl           String?
   bio                 String?
   expoPushToken       String?
+  fixtureNotifPrefs   String[]     @default(["GOALS", "HALF_TIME", "MATCH_END", "RED_CARD"])
   theme               Theme        @default(SYSTEM)
   currency            String       @default("EUR")
   defaultBoletinsPublic Boolean    @default(false)

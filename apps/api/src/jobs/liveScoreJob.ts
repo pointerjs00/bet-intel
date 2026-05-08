@@ -2,8 +2,8 @@
 //
 // Polls API-Football for all currently live fixtures, caches scores in Redis,
 // and broadcasts `fixture:score` events via Socket.io to the `live` room.
-// Also sends push notifications to users who watch the fixture or have a
-// pending bet on it when a match enters its first two minutes.
+// Sends push notifications for goals, halftime, second half, match end, and
+// red cards to users who watch the fixture or have a pending bet on it.
 // Runs every minute while matches are in play.
 
 import { NotificationType } from '@prisma/client';
@@ -23,6 +23,8 @@ export interface LiveScorePayload {
   elapsed: number | null;
   statusShort: string;
 }
+
+const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
 
 export async function liveScoreJob(): Promise<void> {
   let data: any;
@@ -47,6 +49,10 @@ export async function liveScoreJob(): Promise<void> {
       statusShort: f.fixture.status?.short ?? 'LIVE',
     };
 
+    // Read previous state before overwriting
+    const prevRaw = await redis.get(`live:score:${payload.fixtureId}`).catch(() => null);
+    const prev: LiveScorePayload | null = prevRaw ? JSON.parse(prevRaw) : null;
+
     await redis.set(
       `live:score:${payload.fixtureId}`,
       JSON.stringify(payload),
@@ -56,30 +62,92 @@ export async function liveScoreJob(): Promise<void> {
 
     emitLiveScore(payload);
 
-    // Fire kickoff notifications only in the first 2 minutes of the match
+    // Kickoff notification (first 2 minutes)
     if (payload.elapsed !== null && payload.elapsed <= 2) {
-      await sendKickoffNotifications(payload).catch(err =>
-        logger.warn('[liveScore] Kickoff notification error', { fixtureId: payload.fixtureId, err: err?.message }),
-      );
+      await sendMatchNotification(payload, 'MATCH_STARTING' as NotificationType, 'GOALS',
+        'Jogo em curso', `${payload.homeTeam} vs ${payload.awayTeam} começou!`,
+        `notif:kickoff:${payload.fixtureId}`
+      ).catch(err => logger.warn('[liveScore] Kickoff notification error', { err: err?.message }));
+    }
+
+    if (!prev) continue;
+
+    // Goal detection
+    if (payload.homeGoals !== prev.homeGoals || payload.awayGoals !== prev.awayGoals) {
+      const scoringTeam = payload.homeGoals > prev.homeGoals ? payload.homeTeam : payload.awayTeam;
+      await sendMatchNotification(payload, 'GOAL_SCORED' as NotificationType, 'GOALS',
+        `⚽ Golo! ${scoringTeam}`,
+        `${payload.homeTeam} ${payload.homeGoals}–${payload.awayGoals} ${payload.awayTeam}`,
+        `notif:goal:${payload.fixtureId}:${payload.homeGoals}-${payload.awayGoals}`
+      ).catch(err => logger.warn('[liveScore] Goal notification error', { err: err?.message }));
+    }
+
+    // Half time
+    if (payload.statusShort === 'HT' && prev.statusShort !== 'HT') {
+      await sendMatchNotification(payload, 'HALF_TIME' as NotificationType, 'HALF_TIME',
+        '🕐 Intervalo',
+        `${payload.homeTeam} ${payload.homeGoals}–${payload.awayGoals} ${payload.awayTeam} (Intervalo)`,
+        `notif:ht:${payload.fixtureId}`
+      ).catch(err => logger.warn('[liveScore] HT notification error', { err: err?.message }));
+    }
+
+    // Second half start (transition from HT to 2H)
+    if (payload.statusShort === '2H' && prev.statusShort === 'HT') {
+      await sendMatchNotification(payload, 'SECOND_HALF_START' as NotificationType, 'HALF_TIME',
+        '▶️ Segundo tempo',
+        `${payload.homeTeam} vs ${payload.awayTeam} — segundo tempo começou`,
+        `notif:2h:${payload.fixtureId}`
+      ).catch(err => logger.warn('[liveScore] 2H notification error', { err: err?.message }));
+    }
+
+    // Match finished
+    if (FINISHED_STATUSES.has(payload.statusShort) && !FINISHED_STATUSES.has(prev.statusShort)) {
+      await sendMatchNotification(payload, 'MATCH_FINISHED' as NotificationType, 'MATCH_END',
+        '🏁 Fim do jogo',
+        `${payload.homeTeam} ${payload.homeGoals}–${payload.awayGoals} ${payload.awayTeam} (FT)`,
+        `notif:ft:${payload.fixtureId}`
+      ).catch(err => logger.warn('[liveScore] FT notification error', { err: err?.message }));
+    }
+
+    // Red card detection via events array
+    const events: any[] = f.events ?? [];
+    const redCards = events.filter((e: any) =>
+      e.type === 'Card' && e.detail === 'Red Card'
+    );
+    for (const card of redCards) {
+      const cardKey = `notif:red:${payload.fixtureId}:${card.time?.elapsed}:${card.player?.id ?? card.player?.name}`;
+      const alreadySent = await redis.get(cardKey).catch(() => null);
+      if (alreadySent) continue;
+      const playerName = card.player?.name ?? 'Jogador';
+      const teamName = card.team?.name ?? '';
+      await sendMatchNotification(payload, 'RED_CARD' as NotificationType, 'RED_CARD',
+        `🟥 Cartão vermelho — ${playerName}`,
+        `${teamName} | ${payload.homeTeam} ${payload.homeGoals}–${payload.awayGoals} ${payload.awayTeam}`,
+        cardKey
+      ).catch(err => logger.warn('[liveScore] Red card notification error', { err: err?.message }));
     }
   }
 
   logger.debug(`[liveScore] Broadcast ${fixtures.length} live fixture scores`);
 }
 
-async function sendKickoffNotifications(payload: LiveScorePayload): Promise<void> {
-  const dedupeKey = `notif:kickoff:${payload.fixtureId}`;
+async function sendMatchNotification(
+  payload: LiveScorePayload,
+  type: NotificationType,
+  prefKey: string,
+  title: string,
+  body: string,
+  dedupeKey: string,
+): Promise<void> {
   const alreadySent = await redis.get(dedupeKey).catch(() => null);
   if (alreadySent) return;
 
-  // Find the internal Fixture row by apiFootballId
   const fixture = await prisma.fixture.findUnique({
     where: { apiFootballId: payload.fixtureId },
-    select: { id: true, homeTeam: true, awayTeam: true },
+    select: { id: true },
   });
   if (!fixture) return;
 
-  // Collect user IDs from: (1) FixtureWatch rows, (2) pending BoletinItems for this fixture
   const [watches, betItems] = await Promise.all([
     prisma.fixtureWatch.findMany({
       where: { fixtureId: fixture.id },
@@ -95,30 +163,39 @@ async function sendKickoffNotifications(payload: LiveScorePayload): Promise<void
     }),
   ]);
 
-  const userIds = [
+  const allUserIds = [
     ...new Set([
       ...watches.map(w => w.userId),
       ...betItems.map(b => b.boletin.userId),
     ]),
   ];
 
-  if (!userIds.length) {
-    // Mark as sent anyway so we don't query again next minute
-    await redis.set(dedupeKey, '1', 'EX', 3600).catch(() => {});
+  if (!allUserIds.length) {
+    await redis.set(dedupeKey, '1', 'EX', 7200).catch(() => {});
     return;
   }
 
-  await createNotifications(
-    userIds.map(userId => ({
-      userId,
-      type: NotificationType.MATCH_STARTING,
-      title: 'Jogo em curso',
-      body: `${fixture.homeTeam} vs ${fixture.awayTeam} começou!`,
-      data: { fixtureId: fixture.id, apiFootballId: payload.fixtureId },
-    })),
-  );
+  // Filter by user notification preferences
+  const users = await (prisma as any).user.findMany({
+    where: { id: { in: allUserIds } },
+    select: { id: true, fixtureNotifPrefs: true },
+  }) as { id: string; fixtureNotifPrefs: string[] }[];
 
-  // TTL 1 hour — prevents repeat notifications if the job sees elapsed=1,2 in consecutive polls
-  await redis.set(dedupeKey, '1', 'EX', 3600).catch(() => {});
-  logger.info(`[liveScore] Sent kickoff notifications for fixture ${payload.fixtureId} to ${userIds.length} users`);
+  const eligibleUserIds = users
+    .filter(u => {
+      const prefs: string[] = (u as any).fixtureNotifPrefs ?? ['GOALS', 'HALF_TIME', 'MATCH_END', 'RED_CARD'];
+      return prefs.includes(prefKey);
+    })
+    .map(u => u.id);
+
+  if (eligibleUserIds.length > 0) {
+    await createNotifications(
+      eligibleUserIds.map(userId => ({ userId, type, title, body,
+        data: { fixtureId: fixture.id, apiFootballId: payload.fixtureId },
+      })),
+    );
+    logger.info(`[liveScore] Sent ${type} to ${eligibleUserIds.length} users for fixture ${payload.fixtureId}`);
+  }
+
+  await redis.set(dedupeKey, '1', 'EX', 7200).catch(() => {});
 }

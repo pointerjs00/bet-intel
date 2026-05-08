@@ -6,7 +6,10 @@ import {
   markNotificationRead,
   sendTestPushToUser,
 } from '../services/social/notificationService';
+import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
+
+const VALID_PREFS = ['GOALS', 'HALF_TIME', 'MATCH_END', 'RED_CARD'] as const;
 
 function ok<T>(res: Response, data: T, meta?: unknown): void {
   res.json({ success: true, data, ...(meta ? { meta } : {}) });
@@ -85,6 +88,45 @@ export async function testPushHandler(req: Request, res: Response): Promise<void
   try {
     const result = await sendTestPushToUser(requireUserId(req));
     ok(res, result);
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** GET /api/notifications/fixture-prefs — returns user's fixture notification preferences. */
+export async function getFixtureNotifPrefsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const user = await (prisma as any).user.findUnique({
+      where: { id: requireUserId(req) },
+      select: { fixtureNotifPrefs: true },
+    }) as { fixtureNotifPrefs: string[] } | null;
+    const prefs: string[] = user?.fixtureNotifPrefs ?? [...VALID_PREFS];
+    ok(res, {
+      goals:    prefs.includes('GOALS'),
+      halfTime: prefs.includes('HALF_TIME'),
+      matchEnd: prefs.includes('MATCH_END'),
+      redCard:  prefs.includes('RED_CARD'),
+    });
+  } catch (err) {
+    fail(res, err);
+  }
+}
+
+/** PUT /api/notifications/fixture-prefs — updates user's fixture notification preferences. */
+export async function updateFixtureNotifPrefsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const { goals, halfTime, matchEnd, redCard } = req.body as Record<string, boolean>;
+    const prefs: string[] = [
+      ...(goals    !== false ? ['GOALS']     : []),
+      ...(halfTime !== false ? ['HALF_TIME'] : []),
+      ...(matchEnd !== false ? ['MATCH_END'] : []),
+      ...(redCard  !== false ? ['RED_CARD']  : []),
+    ];
+    await (prisma as any).user.update({
+      where: { id: requireUserId(req) },
+      data: { fixtureNotifPrefs: prefs },
+    });
+    ok(res, { goals: prefs.includes('GOALS'), halfTime: prefs.includes('HALF_TIME'), matchEnd: prefs.includes('MATCH_END'), redCard: prefs.includes('RED_CARD') });
   } catch (err) {
     fail(res, err);
   }

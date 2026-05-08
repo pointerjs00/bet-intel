@@ -31,6 +31,9 @@ import {
   getApiErrorMessage,
   useMeProfile,
   useUpdateProfileMutation,
+  useFixtureNotifPrefs,
+  useUpdateFixtureNotifPrefsMutation,
+  type FixtureNotifPrefs,
 } from '../services/socialService';
 import { useAuthStore } from '../stores/authStore';
 import { useBoletinBuilderStore } from '../stores/boletinBuilderStore';
@@ -98,6 +101,13 @@ export default function SettingsScreen() {
 
   const profileQuery = useMeProfile();
   const updateProfileMutation = useUpdateProfileMutation();
+  const fixturePrefsQuery = useFixtureNotifPrefs();
+  const updateFixturePrefsMutation = useUpdateFixtureNotifPrefsMutation();
+  const [fixturePrefs, setFixturePrefs] = React.useState<FixtureNotifPrefs>({ goals: true, halfTime: true, matchEnd: true, redCard: true });
+
+  useEffect(() => {
+    if (fixturePrefsQuery.data) setFixturePrefs(fixturePrefsQuery.data);
+  }, [fixturePrefsQuery.data]);
   const linkGoogleAccountMutation = useLinkGoogleAccountMutation();
   const unlinkGoogleAccountMutation = useUnlinkGoogleAccountMutation();
   const setPasswordMutation = useSetPasswordMutation();
@@ -647,6 +657,38 @@ export default function SettingsScreen() {
                 </Text>
               </PressableScale>
             </View>
+
+            {/* Fixture event notifications */}
+            <Text style={[styles.toggleTitle, { color: colors.textPrimary, marginTop: 4 }]}>Notificações de jogos</Text>
+            <Text style={[styles.toggleSubtitle, { color: colors.textSecondary, marginBottom: 4 }]}>
+              Recebe alertas para jogos nos teus boletins ou com notificação ativa.
+            </Text>
+            {([
+              { key: 'goals',    label: 'Golos',          sub: 'Alerta quando há um golo' },
+              { key: 'halfTime', label: 'Intervalo',       sub: 'Início e fim do intervalo' },
+              { key: 'matchEnd', label: 'Fim do jogo',     sub: 'Resultado final' },
+              { key: 'redCard',  label: 'Cartão vermelho', sub: 'Expulsões' },
+            ] as Array<{ key: keyof FixtureNotifPrefs; label: string; sub: string }>).map(row => (
+              <View key={row.key} style={[styles.toggleRow, { borderColor: colors.border }]}>
+                <View style={styles.toggleCopy}>
+                  <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>{row.label}</Text>
+                  <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>{row.sub}</Text>
+                </View>
+                <Switch
+                  value={fixturePrefs[row.key]}
+                  onValueChange={async (v) => {
+                    const next = { ...fixturePrefs, [row.key]: v };
+                    setFixturePrefs(next);
+                    try {
+                      await updateFixturePrefsMutation.mutateAsync(next);
+                    } catch {
+                      setFixturePrefs(fixturePrefs);
+                      showToast('Erro ao guardar preferências.', 'error');
+                    }
+                  }}
+                />
+              </View>
+            ))}
           </Card>
         </Animated.View>
 

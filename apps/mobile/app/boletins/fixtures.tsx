@@ -1527,6 +1527,7 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
   const { colors } = useTheme();
   const { data: insight, isLoading, isError } = useFixtureInsight(fixture.id);
   const { data: prediction } = useFixturePrediction(fixture.id);
+  const { data: matchStats } = useFixtureMatchStats(fixture.id);
   const [subTab, setSubTab] = useState<InsightSubTab>('overview');
   const [drillStat, setDrillStat] = useState<{
     label: string;
@@ -1905,6 +1906,45 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
                 </View>
               </View>
             )}
+
+            {/* Match stats for finished fixtures */}
+            {matchStats && (() => {
+              const rows = [
+                { label: 'Posse', home: matchStats.homePossession, away: matchStats.awayPossession, fmt: (v: number) => `${v.toFixed(0)}%` },
+                { label: 'Remates', home: matchStats.homeShotsTotal, away: matchStats.awayShotsTotal, fmt: (v: number) => String(v) },
+                { label: 'No alvo', home: matchStats.homeShotsOnTarget, away: matchStats.awayShotsOnTarget, fmt: (v: number) => String(v) },
+                { label: 'xG', home: matchStats.homeXg, away: matchStats.awayXg, fmt: (v: number) => v.toFixed(2) },
+                { label: 'Cantos', home: matchStats.homeCorners, away: matchStats.awayCorners, fmt: (v: number) => String(v) },
+                { label: 'Faltas', home: matchStats.homeFouls, away: matchStats.awayFouls, fmt: (v: number) => String(v) },
+              ].filter(r => r.home != null && r.away != null);
+              if (!rows.length) return null;
+              return (
+                <View style={[newInsightStyles.probCard, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                  <View style={newInsightStyles.probCardHeader}>
+                    <Ionicons name="stats-chart-outline" size={14} color={colors.primary} />
+                    <Text style={[newInsightStyles.probCardTitle, { color: colors.primary }]}>ESTATÍSTICAS DO JOGO</Text>
+                  </View>
+                  <View style={{ gap: 10, marginTop: 8 }}>
+                    {rows.map(row => {
+                      const total = (row.home as number) + (row.away as number) || 1;
+                      const homePct = ((row.home as number) / total) * 100;
+                      return (
+                        <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ width: 38, fontSize: 13, fontWeight: '700', color: colors.textPrimary }}>{row.fmt(row.home as number)}</Text>
+                          <View style={{ flex: 1, marginHorizontal: 8 }}>
+                            <Text style={{ fontSize: 10, textAlign: 'center', color: colors.textMuted, marginBottom: 3 }}>{row.label}</Text>
+                            <View style={{ height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: colors.border }}>
+                              <View style={{ height: 6, borderRadius: 3, width: `${homePct}%`, backgroundColor: colors.primary }} />
+                            </View>
+                          </View>
+                          <Text style={{ width: 38, fontSize: 13, fontWeight: '700', color: colors.textPrimary, textAlign: 'right' }}>{row.fmt(row.away as number)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              );
+            })()}
 
             <StandingsCard />
 
@@ -2446,13 +2486,30 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
   if (!fixture) return null;
   const kickoffTime = formatKickoff(fixture.kickoffAt, fixture.country);
 
-  const TABS: { key: AddSheetTab; label: string; icon: string }[] = [
-    { key: 'bet',     label: 'Apostar',    icon: 'add-circle-outline' },
-    { key: 'insight', label: 'Análise',    icon: 'bar-chart-outline' },
-    { key: 'lineups', label: 'Escalações', icon: 'people-outline' },
-    { key: 'events',  label: 'Eventos',    icon: 'list-outline' },
-    { key: 'table',   label: 'Tabela',     icon: 'trophy-outline' },
+  const TABS: { key: AddSheetTab; label: string }[] = [
+    { key: 'bet',     label: 'Apostar' },
+    { key: 'insight', label: 'Análise' },
+    { key: 'lineups', label: 'Escalações' },
+    { key: 'events',  label: 'Eventos' },
+    { key: 'table',   label: 'Tabela' },
   ];
+  const TAB_KEYS: AddSheetTab[] = ['bet', 'insight', 'lineups', 'events', 'table'];
+  const activeTabRef = useRef<AddSheetTab>(activeTab);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+  const tabSwipePan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 25 && Math.abs(g.dx) > Math.abs(g.dy) * 1.8,
+      onPanResponderRelease: (_, g) => {
+        const idx = TAB_KEYS.indexOf(activeTabRef.current);
+        if (g.dx < -50 && idx < TAB_KEYS.length - 1) {
+          hapticLight(); setActiveTab(TAB_KEYS[idx + 1]);
+        } else if (g.dx > 50 && idx > 0) {
+          hapticLight(); setActiveTab(TAB_KEYS[idx - 1]);
+        }
+      },
+    })
+  ).current;
 
   const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -2519,39 +2576,45 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
 
             {/* Tab bar */}
             <View style={[tabStyles.bar, { borderBottomColor: colors.border, backgroundColor: colors.surface }]}>
-              {TABS.map((tab) => {
-                const active = activeTab === tab.key;
-                return (
-                  <Pressable
-                    key={tab.key}
-                    onPress={() => { hapticLight(); setActiveTab(tab.key); }}
-                    style={[tabStyles.tab, active && [tabStyles.tabActive, { borderBottomColor: colors.primary }]]}
-                  >
-                    <Ionicons name={tab.icon as any} size={15} color={active ? colors.primary : colors.textMuted} />
-                    <Text style={[tabStyles.tabText, { color: active ? colors.primary : colors.textMuted }]}>
-                      {tab.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tabStyles.scrollContent}>
+                {TABS.map((tab) => {
+                  const active = activeTab === tab.key;
+                  return (
+                    <Pressable
+                      key={tab.key}
+                      onPress={() => { hapticLight(); setActiveTab(tab.key); }}
+                      style={tabStyles.tab}
+                    >
+                      <Text style={[tabStyles.tabText, {
+                        color: active ? colors.textPrimary : colors.textMuted,
+                        fontWeight: active ? '700' : '500',
+                      }]}>
+                        {tab.label}
+                      </Text>
+                      <View style={[tabStyles.underline, { backgroundColor: active ? colors.textPrimary : 'transparent' }]} />
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
             </View>
 
-            {/* Tab content */}
-            {activeTab === 'insight' && <InsightTab fixture={fixture} />}
-            {activeTab === 'lineups' && <LineupsTab fixture={fixture} />}
-            {activeTab === 'events'  && <EventsTab  fixture={fixture} />}
+            {/* Tab content — horizontal swipe changes tabs */}
+            <View style={{ flex: 1 }} {...tabSwipePan.panHandlers}>
+              {activeTab === 'insight' && <InsightTab fixture={fixture} />}
+              {activeTab === 'lineups' && <LineupsTab fixture={fixture} />}
+              {activeTab === 'events'  && <EventsTab  fixture={fixture} />}
 
-            {activeTab === 'table' && (
-              <View style={{ height: SCREEN_HEIGHT * 0.96 - 120 }}>
-                <LeagueTableModal
-                  visible={true}
-                  competition={resolveCompetition(fixture.competition)}
-                  highlightTeams={[fixture.homeTeam, fixture.awayTeam]}
-                  onClose={() => setActiveTab('bet')}
-                  embedded
-                />
-              </View>
-            )}
+              {activeTab === 'table' && (
+                <View style={{ height: SCREEN_HEIGHT * 0.96 - 120 }}>
+                  <LeagueTableModal
+                    visible={true}
+                    competition={resolveCompetition(fixture.competition)}
+                    highlightTeams={[fixture.homeTeam, fixture.awayTeam]}
+                    onClose={() => setActiveTab('bet')}
+                    embedded
+                  />
+                </View>
+              )}
 
             {activeTab === 'bet' && (
               <>
@@ -2700,6 +2763,7 @@ function AddSheet({ fixture, onClose, onAdded }: AddSheetProps) {
                 </View>
               </>
             )}
+            </View>{/* end tab content swipe wrapper */}
           </Animated.View>
         </View>
       </GestureHandlerRootView>
@@ -3027,6 +3091,7 @@ const mgStyles = StyleSheet.create({
 
 export default function FixturesScreen() {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [search, setSearch] = useState('');
   const [selectedFixture, setSelectedFixture] = useState<Fixture | null>(null);
@@ -3309,7 +3374,7 @@ export default function FixturesScreen() {
           ),
         }}
       />
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         {/* Search bar */}
         <View style={[styles.searchWrap, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           <View style={[styles.searchInner, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
@@ -3569,21 +3634,26 @@ const bsStyles = StyleSheet.create({
 
 const tabStyles = StyleSheet.create({
   bar: {
-    flexDirection: 'row',
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  scrollContent: {
+    paddingHorizontal: 4,
+  },
   tab: {
-    flex: 1,
-    flexDirection: 'row',
+    paddingHorizontal: 18,
+    paddingTop: 13,
+    paddingBottom: 0,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 11,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+  },
+  tabText: { fontSize: 14, letterSpacing: 0.1 },
+  underline: {
+    marginTop: 10,
+    height: 2.5,
+    width: '100%',
+    minWidth: 24,
+    borderRadius: 1.5,
   },
   tabActive: {},
-  tabText: { fontSize: 13, fontWeight: '700' },
 });
 
 

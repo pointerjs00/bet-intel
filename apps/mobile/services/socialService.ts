@@ -290,6 +290,36 @@ export function useMarkAllNotificationsReadMutation(page = 1, limit = 20) {
   });
 }
 
+export interface FixtureNotifPrefs {
+  goals: boolean;
+  halfTime: boolean;
+  matchEnd: boolean;
+  redCard: boolean;
+}
+
+export function useFixtureNotifPrefs() {
+  return useQuery({
+    queryKey: ['notif-prefs', 'fixture'],
+    queryFn: async () => {
+      const response = await apiClient.get<ApiResponse<FixtureNotifPrefs>>('/notifications/fixture-prefs');
+      return response.data.data as FixtureNotifPrefs;
+    },
+  });
+}
+
+export function useUpdateFixtureNotifPrefsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (prefs: FixtureNotifPrefs) => {
+      const response = await apiClient.put<ApiResponse<FixtureNotifPrefs>>('/notifications/fixture-prefs', prefs);
+      return response.data.data as FixtureNotifPrefs;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['notif-prefs', 'fixture'], data);
+    },
+  });
+}
+
 async function invalidateFriendQueries(queryClient: ReturnType<typeof useQueryClient>) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: socialQueryKeys.friends }),

@@ -6,6 +6,8 @@ import {
   markAllNotificationsReadHandler,
   markNotificationReadHandler,
   testPushHandler,
+  getFixtureNotifPrefsHandler,
+  updateFixtureNotifPrefsHandler,
 } from '../controllers/notificationsController';
 
 const notificationsRouter: Router = Router();
@@ -16,5 +18,7 @@ notificationsRouter.get('/', listNotificationsHandler);
 notificationsRouter.post('/test-push', testPushHandler);
 notificationsRouter.patch('/read-all', markAllNotificationsReadHandler);
 notificationsRouter.patch('/:id/read', markNotificationReadHandler);
+notificationsRouter.get('/fixture-prefs', getFixtureNotifPrefsHandler);
+notificationsRouter.put('/fixture-prefs', updateFixtureNotifPrefsHandler);
 
 export { notificationsRouter };
