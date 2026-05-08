@@ -216,7 +216,7 @@ export async function syncRecentFixtures(): Promise<{ upserted: number; skipped:
   const all: any[] = resp?.response ?? [];
 
   // Filter to only leagues we track
-  const leagueMap = new Map(LEAGUE_MANIFEST.map(l => [l.apiFootballId, l]));
+  const leagueMap = new Map<number, typeof LEAGUE_MANIFEST[number]>(LEAGUE_MANIFEST.map(l => [l.apiFootballId, l]));
   const season = getCurrentSeason();
 
   let upserted = 0;
