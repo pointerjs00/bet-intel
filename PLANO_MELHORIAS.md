@@ -35,7 +35,7 @@ Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main`
 | #16 | Parcial | Quem não é dono já não vê as outras partilhas. O arredondamento ficou: o import usa de propósito a odd total do talão. |
 | #17, #52 | Feito | Ficheiros sensíveis fora do Git (continuam no disco) e `.gitignore` atualizado. |
 | #20 | Feito | `staleTime` de 30 s e 2 tentativas por omissão. |
-| #24 | Parcial | `redis.keys` substituído por `SCAN`. O índice `Boletin(userId, createdAt)` precisa de uma migração. |
+| #24 | Feito | `redis.keys` substituído por `SCAN`. Diferenças entre a base de dados e o schema acertadas (enum, precisão das datas, nomes de índices) e índice `Boletin(userId, createdAt)` criado, aplicado em produção a 10/11/2026. Colunas antigas `visibility` removidas numa segunda migração (todos os boletins estavam em PRIVATE; nenhum código as lia). |
 | #46 | Feito | O scan marca para revisão boletins cujo produto das odds difere mais de 3% da odd total, ou cujo retorno não bate (1 em 88 boletins reais é um falso alarme: odd aumentada). |
 | #47 | Feito | A importação em massa cria os boletins dentro da transação, com timeout de 120 s. |
 | #51 | Feito | Caminho OpenAI e scripts de fine-tuning removidos; `openai` e `@google/generative-ai` desinstalados. A análise IA das estatísticas passou também para o SDK novo. |
