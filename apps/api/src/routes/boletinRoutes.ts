@@ -8,6 +8,7 @@ import {
   exportBoletinsHandler,
   getAgendaHandler,
   getLiveItemsHandler,
+  getReviewItemsHandler,
   getBoletinHandler,
   listBoletinsHandler,
   listSharedBoletinsHandler,
@@ -27,6 +28,7 @@ betintelRouter.use(authenticate);
 boletinCollectionRouter.get('/', listBoletinsHandler);
 boletinCollectionRouter.get('/agenda', getAgendaHandler);
 boletinCollectionRouter.get('/live', getLiveItemsHandler);
+boletinCollectionRouter.get('/review', getReviewItemsHandler);
 boletinCollectionRouter.get('/export', exportBoletinsHandler);
 boletinCollectionRouter.post('/', createBoletinHandler);
 boletinCollectionRouter.post('/import/pdf', json({ limit: '15mb' }), parsePdfHandler);

@@ -12,7 +12,7 @@ import { ListCard, ListRow, useCardElevation } from '../../components/ui/ListCar
 import { MetricTile, SectionHeader } from '../../components/ui/SectionHeader';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { useBoletins, useLiveItems, type LiveItem } from '../../services/boletinService';
+import { useBoletins, useLiveItems, useReviewItems, type LiveItem } from '../../services/boletinService';
 import { useUnreadNotificationsCount } from '../../services/socialService';
 import { useAuthStore } from '../../stores/authStore';
 import { useTheme } from '../../theme/useTheme';
@@ -50,6 +50,7 @@ export default function HomeDashboard() {
   const user = useAuthStore((s) => s.user);
   const boletinsQuery = useBoletins();
   const liveQuery = useLiveItems();
+  const reviewCount = useReviewItems().data?.length ?? 0;
   const unread = useUnreadNotificationsCount().data ?? 0;
 
   const boletins = useMemo(() => boletinsQuery.data ?? [], [boletinsQuery.data]);
@@ -179,6 +180,19 @@ export default function HomeDashboard() {
             {live.map((item) => <LiveRow item={item} key={item.itemId} onPress={() => router.push(`/boletins/${item.boletinId}`)} />)}
           </ListCard>
         </>
+      ) : null}
+
+      {/* Auto-settlement could not decide (plan #36) */}
+      {reviewCount > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/boletins/rever')}
+          style={[styles.banner, elevation, { backgroundColor: colors.surface }]}
+        >
+          <Ionicons color={colors.warning} name="alert-circle-outline" size={20} />
+          <AppText style={styles.flex} variant="bodyStrong">{reviewCount} seleç{reviewCount === 1 ? 'ão' : 'ões'} a rever</AppText>
+          <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+        </Pressable>
       ) : null}
 
       {/* Pending to resolve */}
