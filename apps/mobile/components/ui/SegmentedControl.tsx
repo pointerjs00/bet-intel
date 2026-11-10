@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable } from './Pressable';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/useTheme';
 import { hapticLight } from '../../utils/haptics';

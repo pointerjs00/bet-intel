@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import type { RollingWindowStats } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';

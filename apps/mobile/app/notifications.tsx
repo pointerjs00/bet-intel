@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import {
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '../components/ui/Pressable';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';

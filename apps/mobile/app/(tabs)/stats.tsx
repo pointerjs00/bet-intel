@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Animated as RNAnimated, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated as RNAnimated, Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { useSwipeToDismiss } from '../../hooks/useSwipeToDismiss';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -263,7 +264,7 @@ function ByHourSection({
         visible={modalVisible}
       >
         <View style={byHourStyles.modalBackdrop}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={handleClose} />
+          <Pressable feedback="none" style={StyleSheet.absoluteFillObject} onPress={handleClose} />
           <RNAnimated.View style={[byHourStyles.modalSheet, { backgroundColor: colors.surface, paddingBottom: keyboardVisible ? 10 : 36 }, swipeAnimatedStyle]}>
             {/* Handle */}
             <View {...swipePanHandlers} style={byHourStyles.handleArea}>

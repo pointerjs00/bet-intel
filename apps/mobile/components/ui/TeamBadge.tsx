@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import type { ImageSourcePropType } from 'react-native';
 import { getCountryFlagUrl, getPlayerPhotoUrl, getTeamLogoSource, getTeamLogoUrl } from '../../utils/sportAssets';
 import { lookupSportAsset, useSportAssetsStore } from '../../stores/sportAssetsStore';
@@ -164,6 +165,10 @@ export function TeamBadge({
         <Image
           source={imageSource}
           style={isPlayer ? { width: size, height: size, borderRadius } : { width: size, height: size }}
+          // Memory + disk cache: crests repeat across every list, so they load once per install.
+          cachePolicy="memory-disk"
+          recyclingKey={typeof imageSource === 'object' && imageSource && 'uri' in imageSource ? imageSource.uri : name}
+          transition={120}
           onError={() => {
             setImgFailed(true);
             if (!disableRemoteFallback && !imageUrl && !fallbackUri) {
@@ -175,7 +180,7 @@ export function TeamBadge({
               });
             }
           }}
-          resizeMode={isPlayer ? 'cover' : 'contain'}
+          contentFit={isPlayer ? 'cover' : 'contain'}
         />
       ) : (
         <Text

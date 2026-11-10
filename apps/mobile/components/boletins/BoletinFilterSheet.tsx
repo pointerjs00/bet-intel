@@ -3,13 +3,13 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Image,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   UIManager,
   View,
 } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import GorhomBottomSheet, {
   BottomSheetScrollView,
   BottomSheetBackdrop,

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { Bar, CartesianChart, Line } from 'victory-native';
 import type { PersonalStats, StatsTimelinePoint } from '@betintel/shared';

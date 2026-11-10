@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import type { StatsTimelinePoint } from '@betintel/shared';
 import { Area, CartesianChart, Line } from 'victory-native';
 import { DashPathEffect, Line as SkiaLine } from '@shopify/react-native-skia';

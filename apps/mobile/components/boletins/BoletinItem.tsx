@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { ItemResult, Sport } from '@betintel/shared';
 import Animated, {
   Easing,

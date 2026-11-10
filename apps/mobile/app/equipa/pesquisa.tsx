@@ -2,7 +2,8 @@
 // user's own bets (tennis players, other leagues). Empty field → recent searches + the teams the
 // user bets on most. Opens the team history.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';

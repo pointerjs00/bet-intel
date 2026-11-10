@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   StyleProp,
   Text,
@@ -9,6 +8,7 @@ import {
   ViewStyle,
   type PressableProps,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,

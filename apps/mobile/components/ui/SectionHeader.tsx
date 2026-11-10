@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Pressable } from './Pressable';
 import { AppText } from './AppText';
 
 /** Section title with an optional action link on the right ("Ver todos"). */

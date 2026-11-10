@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable } from './Pressable';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import { OnHeroContext } from './AppText';

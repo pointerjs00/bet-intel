@@ -1,7 +1,8 @@
 // Novo boletim — single entry point for every way of logging a bet (redesign D9).
 // Opened by the central "+" of the tab bar; each mode leads to its existing flow.
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';

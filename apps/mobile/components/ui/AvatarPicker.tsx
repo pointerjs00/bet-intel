@@ -3,11 +3,11 @@ import {
   ActivityIndicator,
   Dimensions,
   Modal,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';

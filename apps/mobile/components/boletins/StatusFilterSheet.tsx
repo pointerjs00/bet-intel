@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,7 +48,7 @@ export function StatusFilterSheet({ visible, onClose, selected, onChange, counts
   return (
     <Modal animationType="none" onRequestClose={onClose} statusBarTranslucent transparent visible={visible}>
       <Animated.View entering={FadeIn.duration(160)} style={styles.backdrop}>
-        <Pressable accessibilityLabel="Fechar" onPress={onClose} style={StyleSheet.absoluteFill} />
+        <Pressable feedback="none" accessibilityLabel="Fechar" onPress={onClose} style={StyleSheet.absoluteFill} />
         <Animated.View
           entering={SlideInDown.springify().damping(20).stiffness(220)}
           style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: bottom + 16 }]}

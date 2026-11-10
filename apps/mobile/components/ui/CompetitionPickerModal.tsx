@@ -6,7 +6,6 @@ import {
   LayoutAnimation,
   Modal,
   Platform,
-  Pressable,
   PressableProps,
   StyleProp,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {

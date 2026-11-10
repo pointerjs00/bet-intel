@@ -15,7 +15,12 @@ import Animated, {
  */
 export function Appear({ index = 0, children, style }: { index?: number; children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
-    <Animated.View entering={FadeInDown.duration(320).delay(Math.min(index, 8) * 40).withInitialValues({ transform: [{ translateY: 8 }] })} style={style}>
+    // Only the first screenful animates in; rows mounted while scrolling appear at once, so
+    // fast scrolling never queues entering animations.
+    <Animated.View
+      entering={index < 8 ? FadeInDown.duration(260).delay(index * 35).withInitialValues({ transform: [{ translateY: 8 }] }) : undefined}
+      style={style}
+    >
       {children}
     </Animated.View>
   );

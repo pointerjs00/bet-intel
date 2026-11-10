@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { ionicon } from '../types/icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';

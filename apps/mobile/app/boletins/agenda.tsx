@@ -3,13 +3,13 @@ import {
   Animated,
   Modal,
   PanResponder,
-  Pressable,
   RefreshControl,
   SectionList,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -145,7 +145,7 @@ function BoletinPickerSheet({
 
   return (
     <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+      <Pressable feedback="none" style={styles.sheetBackdrop} onPress={onClose} />
       <Animated.View
         style={[
           styles.sheet,

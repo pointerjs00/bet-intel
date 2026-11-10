@@ -1,10 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Image, LogBox, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, LogBox, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../components/ui/Pressable';
 import { Stack, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { enableFreeze } from 'react-native-screens';
+import { clearPersistedQueryCache, persistQueryCache, restoreQueryCache } from '../services/queryPersistence';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -29,6 +32,7 @@ import {
   syncDevicePushToken,
 } from '../services/notificationService';
 import { boletinQueryKeys, listBoletinsRequest } from '../services/boletinService';
+import { prefetchPersonalStats } from '../services/statsService';
 import { useSharedImage } from '../hooks/useSharedImage';
 import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
@@ -51,10 +55,18 @@ const queryClient = new QueryClient({
       // Avoid refetching the same data on every mount/focus; screens that need fresher
       // data set their own staleTime or invalidate via sockets.
       staleTime: 30_000,
+      // Keep unused data around long enough to be persisted and reused on the next open.
+      gcTime: 24 * 3600e3,
       retry: 2,
     },
   },
 });
+
+// Screens that are not visible (other tabs, screens under the top of a stack) stop re-rendering.
+enableFreeze(true);
+// Open with the last session's data while fresh data loads in the background.
+void restoreQueryCache(queryClient);
+persistQueryCache(queryClient);
 
 /** Prefetches the home screen key queries so the boletins list appears instantly. */
 function usePrefetchHomeData(isAuthenticated: boolean) {
@@ -73,6 +85,8 @@ function usePrefetchHomeData(isAuthenticated: boolean) {
         staleTime: 30_000,
       }),
     );
+    // Análise's default view takes a few seconds server-side; start it now so the tab opens ready.
+    void safeFetch(() => prefetchPersonalStats(qc));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 }
@@ -88,6 +102,16 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const refreshUser = useAuthStore((state) => state.refreshUser);
   usePrefetchHomeData(isAuthenticated);
   useSharedImage();
+
+  // Logout: drop every cached response (memory and disk) so the next account starts clean.
+  const wasAuthenticated = useRef(isAuthenticated);
+  useEffect(() => {
+    if (wasAuthenticated.current && !isAuthenticated) {
+      queryClient.clear();
+      void clearPersistedQueryCache();
+    }
+    wasAuthenticated.current = isAuthenticated;
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void hydrate();

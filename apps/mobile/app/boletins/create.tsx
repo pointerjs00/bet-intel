@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   SectionList,
   StyleSheet,
@@ -15,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -1489,11 +1489,11 @@ export default function CreateBoletinScreen() {
         animationType="fade"
         onRequestClose={() => setSelectionEventDateTarget(null)}
       >
-        <Pressable
+        <Pressable feedback="none"
           style={eventDateModalStyles.backdrop}
           onPress={() => setSelectionEventDateTarget(null)}
         >
-          <Pressable style={[eventDateModalStyles.sheet, { backgroundColor: colors.surface }]} onPress={() => {}}>
+          <Pressable feedback="none" style={[eventDateModalStyles.sheet, { backgroundColor: colors.surface }]} onPress={() => {}}>
             <Text style={[eventDateModalStyles.title, { color: colors.textPrimary }]}>Hora do jogo</Text>
             <Text style={[eventDateModalStyles.hint, { color: colors.textMuted }]}>
               Vais receber um lembrete 15 min antes e no início do jogo.

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable } from './Pressable';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/useTheme';
 import { useCardElevation } from './ListCard';

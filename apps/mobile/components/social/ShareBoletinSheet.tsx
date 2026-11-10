@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { FriendshipDetail } from '@betintel/shared';

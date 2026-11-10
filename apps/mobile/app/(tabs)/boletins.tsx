@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   BackHandler,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { useFocusEffect, useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -723,6 +723,12 @@ export default function HomeScreen() {
         }}
         data={listData}
         keyExtractor={keyExtractor}
+        // Render a screenful first and grow in small batches so scrolling stays at 60 fps.
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        updateCellsBatchingPeriod={40}
+        windowSize={9}
+        removeClippedSubviews
         onRefresh={() => {
           hapticLight();
           void boletinsQuery.refetch();
@@ -967,16 +973,12 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
         refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
-        windowSize={11}
-        maxToRenderPerBatch={20}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={15}
       />
 
       {/* Notification bubble overlay */}
       {showNotifBubble ? (
         <>
-                  <Pressable
+                  <Pressable feedback="none"
                     accessibilityRole="button"
                     accessibilityLabel="Fechar notificações"
                     onPress={() => setShowNotifBubble(false)}
@@ -1069,7 +1071,7 @@ export default function HomeScreen() {
       {/* FAB create menu overlay */}
       {fabOpen && (
         <>
-          <Pressable
+          <Pressable feedback="none"
             onPress={() => {
               fabIconRotation.value = withSpring(0, { damping: 15, stiffness: 300 });
               setFabOpen(false);
@@ -1141,7 +1143,7 @@ export default function HomeScreen() {
 
         return (
           <>
-            <Pressable onPress={() => setSelectedNotif(null)} style={StyleSheet.absoluteFill} />
+            <Pressable feedback="none" onPress={() => setSelectedNotif(null)} style={StyleSheet.absoluteFill} />
             <Animated.View
               entering={SlideInDown.springify().damping(22).stiffness(280)}
               exiting={FadeOut.duration(120)}

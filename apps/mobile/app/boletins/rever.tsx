@@ -1,7 +1,8 @@
 // "A rever" queue (plan #36): selections the auto-settlement could not decide with certainty
 // (unknown market, uncertain team match, abandoned/postponed game). One tap resolves each.
 import React from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useRouter } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';

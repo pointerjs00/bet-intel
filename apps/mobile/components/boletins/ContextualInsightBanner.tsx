@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import type { BoletinDetail } from '@betintel/shared';

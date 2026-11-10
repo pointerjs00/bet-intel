@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { getCompetitionBranding, getLeagueLogoUrl, getCountryFlagEmoji } from '../../utils/sportAssets';
 
 interface CompetitionBadgeProps {
@@ -46,11 +47,11 @@ function CompetitionBadgeComponent({
           source={{
             uri,
             headers: { 'User-Agent': 'BetIntel/1.0 (ReactNative; mobile app) okhttp/4.9.2' },
-            cache: 'force-cache',
           }}
+          cachePolicy="memory-disk"
           style={{ width: size, height: size }}
           onError={() => setImgFailed(true)}
-          resizeMode="contain"
+          contentFit="contain"
         />
       </View>
     );

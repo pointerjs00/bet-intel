@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   useAnimatedStyle,
@@ -112,7 +113,7 @@ export const TableSortButton = React.memo(function TableSortButton({
         visible={modalVisible}
       >
         <View style={styles.modalBackdrop}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={handleClose} />
+          <Pressable feedback="none" style={StyleSheet.absoluteFillObject} onPress={handleClose} />
           <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             {/* Handle */}
             <View style={[styles.handle, { backgroundColor: colors.border }]} />

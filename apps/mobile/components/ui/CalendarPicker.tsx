@@ -1,12 +1,12 @@
 ﻿import React, { useState } from 'react';
 import {
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
 import { PressableScale } from './PressableScale';
@@ -299,7 +299,7 @@ export function CalendarPicker({
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable feedback="none" style={styles.backdrop} onPress={onClose}>
         <Pressable
           style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={(e) => e.stopPropagation()}

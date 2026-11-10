@@ -1,6 +1,7 @@
 // Match detail (redesign D8): score, incidents and team stats from ESPN via /api/sports.
 import React from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
