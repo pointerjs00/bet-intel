@@ -15,10 +15,7 @@
     "prisma:migrate:dev": "node ../../node_modules/prisma/build/index.js migrate dev --schema src/prisma/schema.prisma",
     "prisma:migrate:deploy": "node ../../node_modules/prisma/build/index.js migrate deploy --schema src/prisma/schema.prisma",
     "prisma:studio": "node ../../node_modules/prisma/build/index.js studio --schema src/prisma/schema.prisma",
-    "prisma:seed": "node ../../node_modules/ts-node/dist/bin.js src/prisma/seed.ts",
-    "scrape:all": "node -e \"require('../../node_modules/ts-node/register/transpile-only'); require('./src/jobs/scrapeJobs').initScrapeJobs().then(() => require('./src/services/scraper/scraperRegistry').runAllScrapers()).then(() => process.exit(0)).catch((error) => { console.error(error); process.exit(1); })\"",
-    "maintenance:dedupe-betclic-event": "node ../../node_modules/ts-node/dist/bin.js src/scripts/dedupeBetclicEvent.ts",
-    "maintenance:repair-betclic-fetched-events": "node ../../node_modules/ts-node/dist/bin.js src/scripts/repairBetclicFetchedEvents.ts"
+    "prisma:seed": "node ../../node_modules/ts-node/dist/bin.js src/prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
@@ -47,8 +44,6 @@
     "puppeteer-extra-plugin-stealth": "^2.11.2",
     "rate-limit-redis": "^4.2.0",
     "socket.io": "^4.7.5",
-    "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1",
     "winston": "^3.13.0",
     "zod": "^3.22.4"
   },
@@ -63,8 +58,6 @@
     "@types/node": "^20.14.0",
     "@types/nodemailer": "^6.4.15",
     "@types/sharp": "^0.32.0",
-    "@types/swagger-jsdoc": "^6.0.4",
-    "@types/swagger-ui-express": "^4.1.6",
     "prisma": "^5.14.0",
     "sharp": "^0.34.5",
     "ts-node": "^10.9.2",
