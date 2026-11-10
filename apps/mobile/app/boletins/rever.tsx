@@ -9,6 +9,7 @@ import { ItemResult } from '@betintel/shared';
 import { AppText } from '../../components/ui/AppText';
 import { ListCard, ListRow } from '../../components/ui/ListCard';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useToast } from '../../components/ui/Toast';
 import { useReviewItems, useUpdateBoletinItemsMutation, type ReviewItem } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
@@ -61,7 +62,12 @@ export default function ReviewQueueScreen() {
           <ListCard>
             {items.map((item) => (
               <View key={item.id} style={styles.item}>
-                <Pressable accessibilityHint="Abre o boletim" accessibilityRole="button" onPress={() => router.push(`/boletins/${item.boletinId}`)}>
+                <Pressable accessibilityHint="Abre o boletim" accessibilityRole="button" onPress={() => router.push(`/boletins/${item.boletinId}`)} style={styles.head}>
+                  <View style={styles.crests}>
+                    <TeamBadge name={item.homeTeam} size={30} />
+                    <TeamBadge name={item.awayTeam} size={22} style={styles.crestBack} />
+                  </View>
+                  <View style={styles.flex}>
                   <AppText numberOfLines={1} variant="bodyStrong">{item.homeTeam} vs {item.awayTeam}</AppText>
                   <AppText numberOfLines={2} variant="caption">
                     {item.market} · {item.selection} · @{formatOdds(item.oddValue)}
@@ -69,6 +75,7 @@ export default function ReviewQueueScreen() {
                   <AppText variant="label">
                     {item.competition}{item.kickoffAt ? ` · ${formatShortDateTime(item.kickoffAt)}` : ''}{item.boletinName ? ` · ${item.boletinName}` : ''}
                   </AppText>
+                  </View>
                 </Pressable>
                 <View style={styles.actions}>
                   {([
@@ -102,6 +109,10 @@ const styles = StyleSheet.create({
   content: { gap: 14, padding: 20, paddingBottom: 48 },
   empty: { alignItems: 'center', gap: 8, paddingVertical: 48 },
   item: { gap: 10, padding: 16 },
+  head: { flexDirection: 'row', gap: 12 },
+  flex: { flex: 1 },
+  crests: { height: 40, width: 40 },
+  crestBack: { bottom: 0, position: 'absolute', right: 0 },
   actions: { flexDirection: 'row', gap: 8 },
   action: { alignItems: 'center', borderRadius: 12, flex: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', minHeight: 44 },
 });

@@ -19,6 +19,7 @@ import Animated, { FadeInDown, FadeInUp, FadeOutUp } from 'react-native-reanimat
 import { ItemResult, Sport } from '@betintel/shared';
 
 import { Card } from '../../components/ui/Card';
+import { TeamBadge } from '../../components/ui/TeamBadge';
 import { Button } from '../../components/ui/Button';
 import { NumericInput } from '../../components/ui/NumericInput';
 import { useToast } from '../../components/ui/Toast';
@@ -238,6 +239,13 @@ export default function QuickLogScreen() {
                 autoCapitalize="words"
               />
             </View>
+            {/* Crest preview: confirms the typed name was recognised */}
+            {homeTeam.trim().length > 2 || awayTeam.trim().length > 2 ? (
+              <View style={styles.crestPreview}>
+                {homeTeam.trim().length > 2 ? <TeamBadge name={homeTeam.trim()} size={36} variant={sport === Sport.TENNIS ? 'player' : 'auto'} /> : <View style={styles.crestSpacer} />}
+                {awayTeam.trim().length > 2 ? <TeamBadge name={awayTeam.trim()} size={36} variant={sport === Sport.TENNIS ? 'player' : 'auto'} /> : <View style={styles.crestSpacer} />}
+              </View>
+            ) : null}
           </Card>
 
           {/* Market pills */}
@@ -437,6 +445,8 @@ const styles = StyleSheet.create({
   pillLabel: { fontSize: 13, fontWeight: '600' },
   teamsCard: { gap: 10 },
   teamsRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  crestPreview: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 },
+  crestSpacer: { height: 36, width: 36 },
   teamInput: {
     borderRadius: 10,
     borderWidth: 1,
