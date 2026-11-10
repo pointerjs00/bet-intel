@@ -115,6 +115,10 @@ module.exports = ({ config }) => ({
       {
         android: {
           usesCleartextTraffic: true,
+          // R8 strips expo-modules-core JSI classes: release crashes at start with
+          // "Cannot read property 'NativeModule' of undefined". Keep minification off.
+          enableProguardInReleaseBuilds: false,
+          enableShrinkResourcesInReleaseBuilds: false,
         },
       },
     ],
