@@ -155,7 +155,15 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
     >
       {/* Compact v2 card (redesign: simple and concise). Full detail on tap; long-press
           shows the quick preview; share/delete on swipe. */}
+      {/* v3: thin status-coloured strip along the top edge */}
+      <View pointerEvents="none" style={[styles.cTopBar, { backgroundColor: statusAccentColor(boletin.status, colors) }]} />
       <View style={styles.cRow}>
+        {boletin.items.length === 1 && boletin.items[0] ? (
+          <View style={styles.cCrests}>
+            <TeamBadge name={boletin.items[0].homeTeam} size={30} variant={boletin.items[0].sport === 'TENNIS' ? 'player' : 'auto'} />
+            <TeamBadge name={boletin.items[0].awayTeam} size={22} style={styles.cCrestBack} variant={boletin.items[0].sport === 'TENNIS' ? 'player' : 'auto'} />
+          </View>
+        ) : null}
         <View style={styles.cMain}>
           <Text numberOfLines={1} style={[styles.cTitle, { color: colors.textPrimary }]}>
             {boletinTitle(boletin)}
@@ -198,6 +206,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
             return (
               <View key={item.id} style={styles.cLeg}>
                 <Ionicons color={icon.color} name={icon.name} size={14} />
+                <TeamBadge name={item.homeTeam} size={18} variant={item.sport === 'TENNIS' ? 'player' : 'auto'} />
                 <Text numberOfLines={1} style={[styles.cLegText, { color: colors.textSecondary }]}>
                   {item.homeTeam} vs {item.awayTeam} · {item.selection}
                 </Text>
@@ -314,6 +323,9 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   cRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 },
+  cTopBar: { borderTopLeftRadius: 18, borderTopRightRadius: 18, height: 3, left: 0, position: 'absolute', right: 0, top: 0 },
+  cCrests: { height: 40, width: 40 },
+  cCrestBack: { bottom: 0, position: 'absolute', right: 0 },
   cMain: { flex: 1, gap: 2 },
   cTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
   cSub: { fontFamily: 'Inter_400Regular', fontSize: 13 },

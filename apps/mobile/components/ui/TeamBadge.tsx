@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
-import { getPlayerPhotoUrl, getTeamLogoSource, getTeamLogoUrl } from '../../utils/sportAssets';
+import { getCountryFlagUrl, getPlayerPhotoUrl, getTeamLogoSource, getTeamLogoUrl } from '../../utils/sportAssets';
 import { lookupSportAsset, useSportAssetsStore } from '../../stores/sportAssetsStore';
 
 const teamLogoFallbackCache = new Map<string, string | null>();
@@ -107,7 +107,8 @@ export function TeamBadge({
   const [fallbackUri, setFallbackUri] = useState<string | null>(null);
   const espnUri = useSportAssetsStore((s) => lookupSportAsset(s, name, variant));
   const localSource = !imageUrl && !espnUri && variant !== 'player' ? getTeamLogoSource(name) : null;
-  const directUri = imageUrl ?? espnUri ?? (variant === 'player' ? getPlayerPhotoUrl(name) : getTeamLogoUrl(name));
+  // National teams ("Portugal", "Dinamarca") have no club crest: fall back to the country flag.
+  const directUri = imageUrl ?? espnUri ?? (variant === 'player' ? getPlayerPhotoUrl(name) : (getTeamLogoUrl(name) ?? getCountryFlagUrl(name)));
   const activeUri = imgFailed ? fallbackUri : (directUri ?? fallbackUri);
   const imageSource: ImageSourcePropType | undefined = localSource && !imgFailed
     ? localSource

@@ -214,7 +214,8 @@ export default function RootLayout() {
             <ConnectivityBanner />
             <ShareBoletinProvider>
               <AuthGate>
-                <StatusBar style={isDark ? 'light' : 'dark'} />
+                {/* key: remount on theme change so Android re-applies the icon colour */}
+                <StatusBar key={isDark ? 'dark' : 'light'} style={isDark ? 'light' : 'dark'} />
                 <View style={[styles.flex, { backgroundColor: colors.background }]}>
                   <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
                     <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />

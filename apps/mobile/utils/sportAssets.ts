@@ -37,6 +37,7 @@ export const COUNTRY_FLAGS: Record<string, string> = {
   Portugal:       FLAG_CDN('pt'),
   Inglaterra:     FLAG_CDN('gb-eng'),
   Escócia:        FLAG_CDN('gb-sct'),
+  'País de Gales': FLAG_CDN('gb-wls'),
   Espanha:        FLAG_CDN('es'),
   Itália:         FLAG_CDN('it'),
   Alemanha:       FLAG_CDN('de'),

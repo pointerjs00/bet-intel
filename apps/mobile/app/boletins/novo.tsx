@@ -65,21 +65,25 @@ export default function NovoBoletinScreen() {
       <AppText accessibilityRole="header" variant="title">Novo boletim</AppText>
       <AppText variant="caption">Como queres registar a aposta?</AppText>
       <ListCard style={styles.list}>
-        {MODES.map((mode) => (
+        {MODES.map((mode, i) => {
+          // One colour per way of registering, so the four options read apart at a glance.
+          const tint = [colors.primary, colors.accentText, colors.warning, colors.info][i] ?? colors.primary;
+          return (
           <ListRow
             accessibilityLabel={mode.title}
             key={mode.title}
             onPress={() => { hapticLight(); router.replace(mode.route); }}
             style={styles.row}
           >
-            <View style={[styles.iconWrap, { backgroundColor: `${colors.primary}1F` }]}>{mode.icon(colors.primary)}</View>
+            <View style={[styles.iconWrap, { backgroundColor: `${tint}22` }]}>{mode.icon(tint)}</View>
             <View style={styles.flex}>
               <AppText variant="bodyStrong">{mode.title}</AppText>
               <AppText variant="caption">{mode.description}</AppText>
             </View>
             <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
           </ListRow>
-        ))}
+          );
+        })}
       </ListCard>
     </View>
   );
