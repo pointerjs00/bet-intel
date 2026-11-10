@@ -115,7 +115,7 @@ function getBorderColor(variant: ButtonProps['variant'], colors: ReturnType<type
     case 'ghost':
       return colors.border;
     case 'secondary':
-      return colors.border;
+      return colors.surfaceRaised;
     case 'danger':
       return colors.danger;
     case 'primary':
@@ -132,7 +132,7 @@ function getTextColor(variant: ButtonProps['variant'], colors: ReturnType<typeof
     case 'danger':
     case 'primary':
     default:
-      return '#FFFFFF';
+      return colors.onPrimary;
   }
 }
 
@@ -144,13 +144,13 @@ function getHeight(size: ButtonProps['size']) {
       return 52;
     case 'md':
     default:
-      return 44;
+      return 48;
   }
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     justifyContent: 'center',
     paddingHorizontal: 16,

@@ -153,193 +153,74 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
       ]}
       accessibilityHint="Abre o boletim"
     >
-      {/* Header row */}
-      <View style={styles.headerRow}>
-        <View style={styles.headerLeft}>
-          <StatusPill status={boletin.status} />
-          {boletin.isFreebet ? (
-            <View style={[styles.freebetBadge, { backgroundColor: `${colors.info}22`, borderColor: `${colors.info}55` }]}>
-              <Text style={[styles.freebetText, { color: colors.info }]}>Freebet</Text>
-            </View>
-          ) : null}
-          {boletin.siteSlug ? (
-            <SiteBadge colors={colors} slug={boletin.siteSlug} />
+      {/* Compact v2 card (redesign: simple and concise). Full detail on tap; long-press
+          shows the quick preview; share/delete on swipe. */}
+      <View style={styles.cRow}>
+        <View style={styles.cMain}>
+          <Text numberOfLines={1} style={[styles.cTitle, { color: colors.textPrimary }]}>
+            {boletinTitle(boletin)}
+          </Text>
+          {boletin.items.length === 1 ? (
+            <Text numberOfLines={1} style={[styles.cSub, { color: colors.textSecondary }]}>
+              {boletin.items[0]!.selection}
+            </Text>
           ) : null}
         </View>
-        <Text style={[styles.date, { color: colors.textSecondary }]}>
-          {formatLongDate(boletin.betDate ?? boletin.createdAt)}
+        <View style={styles.cRight}>
+          {(() => {
+            const stake = Number(boletin.stake);
+            if (boletin.status === BoletinStatus.PENDING) {
+              return (
+                <>
+                  <Text style={[styles.cAmount, { color: colors.textPrimary }]}>{formatCurrency(boletin.potentialReturn)}</Text>
+                  <Text style={[styles.cAmountHint, { color: colors.textMuted }]}>{formatCurrency(boletin.stake)} apostados</Text>
+                </>
+              );
+            }
+            const ret = Number(boletin.actualReturn ?? (boletin.status === BoletinStatus.CASHOUT ? boletin.cashoutAmount ?? 0 : 0));
+            const profit = ret - (boletin.isFreebet ? 0 : stake);
+            return (
+              <>
+                <Text style={[styles.cAmount, { color: profit > 0 ? colors.positive : profit < 0 ? colors.negative : colors.textSecondary }]}>
+                  {profit > 0 ? '+' : profit < 0 ? '−' : ''}{formatCurrency(Math.abs(profit))}
+                </Text>
+                <Text style={[styles.cAmountHint, { color: colors.textMuted }]}>{formatCurrency(boletin.stake)} · @{formatOdds(boletin.totalOdds)}</Text>
+              </>
+            );
+          })()}
+        </View>
+      </View>
+
+      {boletin.items.length > 1 ? (
+        <View style={styles.cLegs}>
+          {boletin.items.slice(0, 4).map((item) => {
+            const icon = itemResultIcon(item.result, colors);
+            return (
+              <View key={item.id} style={styles.cLeg}>
+                <Ionicons color={icon.color} name={icon.name} size={14} />
+                <Text numberOfLines={1} style={[styles.cLegText, { color: colors.textSecondary }]}>
+                  {item.homeTeam} vs {item.awayTeam} · {item.selection}
+                </Text>
+              </View>
+            );
+          })}
+          {boletin.items.length > 4 ? (
+            <Text style={[styles.cLegText, { color: colors.textMuted }]}>+ {boletin.items.length - 4} seleções</Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      <View style={styles.cMeta}>
+        <StatusPill compact status={boletin.status} />
+        {boletin.isFreebet ? (
+          <View style={[styles.freebetBadge, { backgroundColor: `${colors.info}22`, borderColor: 'transparent' }]}>
+            <Text style={[styles.freebetText, { color: colors.info }]}>Freebet</Text>
+          </View>
+        ) : null}
+        <Text numberOfLines={1} style={[styles.cMetaText, { color: colors.textMuted }]}>
+          {[BETTING_SITES.find((s) => s.slug === boletin.siteSlug)?.name, new Date(boletin.betDate ?? boletin.createdAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '')].filter(Boolean).join(' · ')}
         </Text>
       </View>
-
-      {/* Name */}
-      <Text style={[styles.name, { color: colors.textPrimary }]}>
-        {boletinTitle(boletin)}
-      </Text>
-
-      {/* Metrics — PATCHED: raised boxes, no emoji, uppercase labels, monospace values */}
-      <View style={styles.metricsRow}>
-        <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Stake</Text>
-          <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
-        </View>
-        <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Odds</Text>
-          <Text style={[styles.metricValue, { color: colors.gold }]}>{formatOdds(boletin.totalOdds)}</Text>
-        </View>
-        {boletin.status === BoletinStatus.LOST ? (
-          <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>
-              {boletin.isFreebet ? 'Freebet' : 'Perdido'}
-            </Text>
-            <Text style={[styles.metricValue, { color: boletin.isFreebet ? colors.info : colors.danger }]}>
-              {boletin.isFreebet ? 'Grátis' : `-${formatCurrency(boletin.stake)}`}
-            </Text>
-          </View>
-        ) : boletin.status === BoletinStatus.CASHOUT ? (
-          <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Cashout</Text>
-            <Text style={[styles.metricValue, { color: colors.gold }]}>
-              {formatCurrency(boletin.cashoutAmount ?? boletin.actualReturn ?? '0')}
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.metric, { backgroundColor: colors.surfaceRaised }]}>
-            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Retorno</Text>
-            <Text style={[styles.metricValue, { color: colors.primary }]}>
-              {formatCurrency(boletin.actualReturn ?? boletin.potentialReturn)}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Collapsed preview (always shown, up to 3 items) */}
-      {!expanded ? (
-        <View style={styles.previewList}>
-          {boletin.items.slice(0, 3).map((item) => {
-            const icon = itemResultIcon(item.result, colors);
-            return (
-              <View key={item.id} style={styles.previewRow}>
-                {/* Result dot */}
-                <View style={[styles.resultDot, { backgroundColor: icon.color }]} />
-
-                {/* Home badge */}
-                <TeamBadge
-                  name={item.homeTeam}
-                  size={20}
-                  imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.homeTeam) ?? null) : null}
-                  variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
-                />
-
-                <Text style={[styles.previewVs, { color: colors.textMuted }]}>vs</Text>
-
-                {/* Away badge */}
-                <TeamBadge
-                  name={item.awayTeam}
-                  size={20}
-                  imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.awayTeam) ?? null) : null}
-                  variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
-                />
-
-                {/* Selection — PATCHED: split into two Text elements, odds right-aligned in gold */}
-                <Text numberOfLines={1} style={[styles.previewMeta, { color: colors.textMuted, flex: 1 }]}>
-                  {'  '}{item.selection}
-                </Text>
-                <Text style={[styles.previewOdds, { color: colors.gold }]}>
-                  {formatOdds(item.oddValue)}
-                </Text>
-
-                {/* Insights button */}
-                {onItemPress ? (
-                  <Pressable
-                    hitSlop={10}
-                    onPress={(e) => { e.stopPropagation(); onItemPress(item); }}
-                    style={[styles.previewInsightsBtn, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30` }]}
-                  >
-                    <Ionicons name="stats-chart-outline" size={13} color={colors.primary} />
-                  </Pressable>
-                ) : null}
-              </View>
-            );
-          })}
-          {boletin.items.length > 3 ? (
-            <Text style={[styles.previewMore, { color: colors.textMuted }]}>
-              + {boletin.items.length - 3} mais
-            </Text>
-          ) : null}
-        </View>
-      ) : (
-        /* Expanded: all items with full detail */
-        <View style={styles.expandedList}>
-          {boletin.items.map((item) => {
-            const icon = itemResultIcon(item.result, colors);
-            return (
-              <View
-                key={item.id}
-                style={[
-                  styles.expandedItem,
-                  {
-                    backgroundColor: `${icon.color}10`,
-                    borderColor: colors.border,
-                    borderLeftColor: icon.color,
-                    borderLeftWidth: 3,
-                  },
-                ]}
-              >
-                <View style={styles.expandedItemTop}>
-                  <Ionicons color={icon.color} name={icon.name} size={16} />
-                  <View style={styles.expandedTeams}>
-                    <TeamBadge
-                      name={item.homeTeam}
-                      size={14}
-                      imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.homeTeam) ?? null) : null}
-                      variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
-                    />
-                    <Text numberOfLines={1} style={[styles.expandedTeamText, { color: colors.textPrimary }]}>
-                      {item.homeTeam}
-                    </Text>
-                    <Text style={[styles.expandedVs, { color: colors.textMuted }]}>vs</Text>
-                    <Text numberOfLines={1} style={[styles.expandedTeamText, { color: colors.textPrimary }]}>
-                      {item.awayTeam}
-                    </Text>
-                    <TeamBadge
-                      name={item.awayTeam}
-                      size={14}
-                      imageUrl={item.sport === Sport.TENNIS ? (tennisPhotoMap.get(item.awayTeam) ?? null) : null}
-                      variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
-                    />
-                  </View>
-                  <Text style={[styles.expandedOdd, { color: colors.gold }]}>
-                    {formatOdds(item.oddValue)}
-                  </Text>
-                </View>
-                <View style={styles.expandedMetaRow}>
-                  <CompetitionBadge name={item.competition} size={13} />
-                  <Text numberOfLines={1} style={[styles.expandedMeta, { color: colors.textMuted, flex: 1 }]}>
-                    {item.competition} • {item.market} • {item.selection}
-                  </Text>
-                </View>
-                {onItemPress ? (
-                  <>
-                    <View style={[styles.expandedInsightsDivider, { backgroundColor: colors.border }]} />
-                    <Pressable
-                      hitSlop={4}
-                      onPress={(e) => { e.stopPropagation(); onItemPress(item); }}
-                      style={styles.expandedInsightsRow}
-                    >
-                      <Ionicons name="stats-chart-outline" size={12} color={colors.primary} />
-                      <Text style={[styles.expandedInsightsLabel, { color: colors.primary }]}>Ver detalhes</Text>
-                      <Ionicons name="chevron-forward" size={12} color={colors.primary} />
-                    </Pressable>
-                  </>
-                ) : null}
-              </View>
-            );
-          })}
-        </View>
-      )}
-
-      {/* Redesign D6: no inline action row. Tap opens the detail; share and delete are on
-          swipe (SwipeableBoletinCard) and image/duplicate/edit in the detail screen. */}
     </PressableScale>
 
     {/* Long-press quick preview modal */}
@@ -432,6 +313,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: 16,
   },
+  cRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 },
+  cMain: { flex: 1, gap: 2 },
+  cTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
+  cSub: { fontFamily: 'Inter_400Regular', fontSize: 13 },
+  cRight: { alignItems: 'flex-end', gap: 2 },
+  cAmount: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 17 },
+  cAmountHint: { fontFamily: 'Inter_400Regular', fontSize: 12 },
+  cLegs: { gap: 4 },
+  cLeg: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  cLegText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  cMeta: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  cMetaText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'right' },
   statusStripe: {
     bottom: 0,
     left: 0,

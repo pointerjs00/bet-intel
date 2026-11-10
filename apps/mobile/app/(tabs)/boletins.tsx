@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   BackHandler,
@@ -34,6 +34,7 @@ import {
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { AppText } from '../../components/ui/AppText';
+import { ListCard, ListRow } from '../../components/ui/ListCard';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PressableScale } from '../../components/ui/PressableScale';
@@ -764,53 +765,28 @@ export default function HomeScreen() {
               </View>
             </Animated.View>
 
-            {/* Summary card */}
-            <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
-              <PressableScale onPress={() => router.push('/(tabs)/stats')}>
-                <Card style={[styles.summaryCard, { borderColor: colors.border }]}>
-                  <View style={styles.summaryMetric}>
-                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Total apostado</Text>
-                    <Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{formatCurrency(summary.totalStaked)}</Text>
-                  </View>
-                  <View style={styles.summaryMetric}>
-                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Retorno</Text>
-                    <Text style={[styles.summaryValue, { color: colors.primary }]}>{formatCurrency(summary.totalReturned)}</Text>
-                  </View>
-                  <View style={styles.summaryMetric}>
-                    <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>ROI</Text>
-                    <Text style={[styles.summaryValue, { color: roi >= 0 ? colors.primary : colors.danger }]}>{roi.toFixed(1)}%</Text>
-                  </View>
-                  <View style={styles.summaryChevron}>
-                    <Ionicons color={colors.textMuted} name="chevron-forward" size={16} />
-                  </View>
-                </Card>
-              </PressableScale>
-            </Animated.View>
-
-            {/* Contextual insight banner */}
-            {!boletinsQuery.isLoading && boletins.length > 0 && (
-              <ContextualInsightBanner boletins={boletins} pendingCount={pendingCount} />
-            )}
+            {/* One quiet summary line (the full numbers live on Início and Análise) */}
+            <Pressable accessibilityHint="Abre a análise" accessibilityRole="button" onPress={() => router.push('/(tabs)/stats')}>
+              <AppText variant="caption">
+                {boletins.length} boletin{boletins.length === 1 ? '' : 's'} · {formatCurrency(summary.totalStaked)} apostados · ROI{' '}
+                <AppText tone={roi >= 0 ? 'positive' : 'negative'} variant="caption">{roi >= 0 ? '+' : ''}{roi.toFixed(1).replace('.', ',')}%</AppText>
+              </AppText>
+            </Pressable>
 
             {/* Batch resolve shortcut */}
             {pendingCount > 1 && (
-              <Animated.View entering={FadeInDown.delay(40).duration(160).springify()}>
-                <PressableScale
-                  onPress={() => router.push('/boletins/batch-resolve')}
-                  style={[styles.batchResolveBtn, { backgroundColor: `${colors.warning}18`, borderColor: colors.warning }]}
-                >
-                  <Ionicons color={colors.warning} name="checkmark-done" size={18} />
-                  <Text style={[styles.batchResolveBtnText, { color: colors.warning }]}>
-                    Resolver {pendingCount} pendentes
-                  </Text>
-                  <Ionicons color={colors.warning} name="chevron-forward" size={16} />
-                </PressableScale>
-              </Animated.View>
+              <ListCard>
+                <ListRow onPress={() => router.push('/boletins/batch-resolve')}>
+                  <Ionicons color={colors.warning} name="checkmark-done" size={20} />
+                  <AppText style={styles.flex1} variant="bodyStrong">Resolver {pendingCount} pendentes</AppText>
+                  <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+                </ListRow>
+              </ListCard>
             )}
 
-            {/* Search bar */}
-            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()}>
-              <View style={[styles.searchBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            {/* Search + status + advanced filters in one row */}
+            <Animated.View entering={FadeInDown.delay(45).duration(160).springify()} style={styles.controlsRow}>
+              <View style={[styles.searchBar, styles.flex1, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
                 <Ionicons color={colors.textMuted} name="search" size={18} />
                 <TextInput
                   onChangeText={setSearchQuery}
@@ -830,36 +806,16 @@ export default function HomeScreen() {
                   </Pressable>
                 ) : null}
               </View>
-            </Animated.View>
 
-            {/* Status dropdown + advanced filter button */}
-            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()} style={styles.controlsRow}>
-              {/* Status dropdown trigger */}
+              {/* Status filter (icon + count) */}
               <PressableScale
+                accessibilityLabel={activeStatuses.size > 0 ? `Estado, ${activeStatuses.size} selecionados` : 'Filtrar por estado'}
+                accessibilityRole="button"
                 onPress={() => { hapticLight(); setShowStatusDropdown(true); }}
-                style={[styles.statusDropdownTrigger, { backgroundColor: activeStatuses.size > 0 ? 'rgba(0,168,67,0.12)' : colors.surfaceRaised, borderColor: activeStatuses.size > 0 ? colors.primary : colors.border }]}
+                style={[styles.filterBtn, { backgroundColor: activeStatuses.size > 0 ? `${colors.primary}24` : colors.surface, borderColor: 'transparent' }]}
               >
-                <Ionicons color={activeStatuses.size > 0 ? colors.primary : colors.textSecondary} name="funnel-outline" size={15} />
-                <Text
-                  numberOfLines={1}
-                  style={[styles.statusDropdownLabel, { color: activeStatuses.size > 0 ? colors.primary : colors.textSecondary }]}
-                >
-                  {activeStatuses.size === 0
-                    ? 'Estado'
-                    : activeStatuses.size === 1
-                      ? (STATUS_FILTERS.find((f) => activeStatuses.has(f.key))?.label ?? 'Estado')
-                      : `${activeStatuses.size} estados`}
-                </Text>
-                {activeStatuses.size > 0 ? (
-                  <Pressable
-                    hitSlop={8}
-                    onPress={(e) => { e.stopPropagation(); hapticLight(); setActiveStatuses(new Set()); }}
-                  >
-                    <Ionicons color={colors.primary} name="close-circle" size={15} />
-                  </Pressable>
-                ) : (
-                  <Ionicons color={colors.textMuted} name="chevron-down" size={15} />
-                )}
+                <Ionicons color={activeStatuses.size > 0 ? colors.primary : colors.textSecondary} name="funnel-outline" size={18} />
+                {activeStatuses.size > 0 ? <Text style={[styles.filterBtnBadge, { backgroundColor: colors.primary }]}>{activeStatuses.size}</Text> : null}
               </PressableScale>
 
               <SearchableDropdown
@@ -880,13 +836,13 @@ export default function HomeScreen() {
                   styles.filterBtn,
                   {
                     backgroundColor:
-                      activeFilterCount > 0 || !isDefaultSort ? colors.primary : colors.surfaceRaised,
-                    borderColor: activeFilterCount > 0 || !isDefaultSort ? colors.primary : colors.border,
+                      activeFilterCount > 0 || !isDefaultSort ? `${colors.primary}24` : colors.surface,
+                    borderColor: 'transparent',
                   },
                 ]}
               >
                 <Ionicons
-                  color={activeFilterCount > 0 || !isDefaultSort ? '#fff' : colors.textSecondary}
+                  color={activeFilterCount > 0 || !isDefaultSort ? colors.primary : colors.textSecondary}
                   name="options-outline"
                   size={18}
                 />
@@ -1485,7 +1441,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
-  filterBtnBadge: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  filterBtnBadge: { borderRadius: 8, color: '#0B0D0C', fontSize: 10, fontWeight: '800', minWidth: 16, overflow: 'hidden', paddingHorizontal: 3, position: 'absolute', right: 4, textAlign: 'center', top: 4 },
+  flex1: { flex: 1 },
   clearFilters: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
   clearFiltersRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 },
   resultsCount: { fontSize: 13, fontWeight: '600' },
