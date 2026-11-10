@@ -859,6 +859,25 @@ function serializeBoletinDetail(boletin: Prisma.BoletinGetPayload<{ include: typ
   };
 }
 
+/** Selections that auto-settlement could not decide (plan #36 "A rever" queue). */
+export async function listItemsToReview(userId: string) {
+  const items = await prisma.boletinItem.findMany({
+    where: { needsReview: true, result: ItemResult.PENDING, boletin: { userId } },
+    select: {
+      id: true, boletinId: true, homeTeam: true, awayTeam: true, competition: true, sport: true,
+      market: true, selection: true, oddValue: true, kickoffAt: true, boletin: { select: { name: true } },
+    },
+    orderBy: { kickoffAt: 'asc' },
+  });
+  return items.map((i) => ({
+    ...i,
+    oddValue: i.oddValue.toString(),
+    kickoffAt: i.kickoffAt ? i.kickoffAt.toISOString() : null,
+    boletinName: i.boletin.name,
+    boletin: undefined,
+  }));
+}
+
 /** Live state of one selection, as written by liveBetTrackerJob (Redis `live:item:<id>`). */
 export interface LiveItemState {
   itemId: string;

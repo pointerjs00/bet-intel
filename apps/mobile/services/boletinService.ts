@@ -100,6 +100,31 @@ export interface LiveItem {
   updatedAt: string;
 }
 
+/** A selection auto-settlement could not decide (plan #36). */
+export interface ReviewItem {
+  id: string;
+  boletinId: string;
+  boletinName: string | null;
+  homeTeam: string;
+  awayTeam: string;
+  competition: string;
+  sport: string;
+  market: string;
+  selection: string;
+  oddValue: string;
+  kickoffAt: string | null;
+}
+
+/** Selections waiting for a manual result ("A rever" queue). */
+export function useReviewItems() {
+  return useQuery({
+    queryKey: ['boletins', 'review'],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<ReviewItem[]>>('/boletins/review')).data.data,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 /** Selections in play right now, refreshed every 30 s while the screen is open. */
 export function useLiveItems() {
   return useQuery({

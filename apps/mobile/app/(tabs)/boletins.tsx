@@ -1019,9 +1019,9 @@ export default function HomeScreen() {
         }
         showsVerticalScrollIndicator={false}
         refreshing={boletinsQuery.isRefetching && !boletinsQuery.isLoading}
-        windowSize={101}
+        windowSize={11}
         maxToRenderPerBatch={20}
-        updateCellsBatchingPeriod={5}
+        updateCellsBatchingPeriod={50}
         initialNumToRender={15}
       />
 

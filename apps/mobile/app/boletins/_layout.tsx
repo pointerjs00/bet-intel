@@ -22,6 +22,7 @@ export default function BoletinsLayout() {
       <Stack.Screen name="quick-log" options={{ headerShown: false }} />
       <Stack.Screen name="batch-resolve" />
       <Stack.Screen name="fixtures" options={{ title: 'Jogos' }} />
+      <Stack.Screen name="rever" options={{ title: 'A rever' }} />
       <Stack.Screen name="novo" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
     </Stack>
   );

@@ -33,10 +33,10 @@ import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import * as Sentry from '@sentry/react-native';
-import '../global.css';
 
 // Dev only: /boletins/live returns 404 against an API that predates the live tracker endpoint.
-LogBox.ignoreLogs(['[API] 404 Not Found: GET /boletins/live']);
+// Endpoints that exist only after the next API deploy; the screens already treat a 404 as "empty".
+LogBox.ignoreLogs(['[API] 404 Not Found: GET /boletins/live', '[API] 404 Not Found: GET /boletins/review']);
 
 // Error tracking: off until EXPO_PUBLIC_SENTRY_DSN is set (create the Sentry project, then add the DSN to .env / EAS).
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
@@ -218,6 +218,7 @@ export default function RootLayout() {
                     <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="settings" options={{ headerShown: true }} />
+                    <Stack.Screen name="limites" options={{ headerShown: true }} />
                     <Stack.Screen name="notifications" />
                     <Stack.Screen name="user/[username]" />
                     <Stack.Screen name="boletins" />
