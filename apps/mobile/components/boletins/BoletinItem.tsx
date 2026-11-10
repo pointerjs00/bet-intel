@@ -164,7 +164,7 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
               <ResultToggleButton
                 accessibilityLabel="Marcar como ganhou"
                 active={item.result === ItemResult.WON}
-                activeBackground="rgba(0,200,81,0.18)"
+                activeBackground={`${colors.positive}2E`}
                 activeColor={colors.primary}
                 icon="checkmark"
                 inactiveBackground={colors.surfaceRaised}
@@ -174,7 +174,7 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
               <ResultToggleButton
                 accessibilityLabel="Marcar como perdeu"
                 active={item.result === ItemResult.LOST}
-                activeBackground="rgba(255,59,48,0.18)"
+                activeBackground={`${colors.negative}2E`}
                 activeColor={colors.danger}
                 icon="close"
                 inactiveBackground={colors.surfaceRaised}
@@ -184,7 +184,7 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
               <ResultToggleButton
                 accessibilityLabel="Marcar como cancelado"
                 active={item.result === ItemResult.VOID}
-                activeBackground="rgba(0,122,255,0.18)"
+                activeBackground={`${colors.info}2E`}
                 activeColor={colors.info}
                 icon="remove"
                 inactiveBackground={colors.surfaceRaised}
@@ -310,14 +310,14 @@ function ResultToggleButton({
 function getResultMeta(result: ItemResult, colors: ReturnType<typeof useTheme>['colors']) {
   switch (result) {
     case ItemResult.WON:
-      return { icon: 'checkmark', color: colors.primary, background: 'rgba(0, 200, 81, 0.12)', a11yLabel: 'Ganhou' } as const;
+      return { icon: 'checkmark', color: colors.positive, background: `${colors.positive}1F`, a11yLabel: 'Ganhou' } as const;
     case ItemResult.LOST:
-      return { icon: 'close', color: colors.danger, background: 'rgba(255, 59, 48, 0.12)', a11yLabel: 'Perdeu' } as const;
+      return { icon: 'close', color: colors.negative, background: `${colors.negative}1F`, a11yLabel: 'Perdeu' } as const;
     case ItemResult.VOID:
-      return { icon: 'remove', color: colors.info, background: 'rgba(0, 122, 255, 0.12)', a11yLabel: 'Cancelado' } as const;
+      return { icon: 'remove', color: colors.info, background: `${colors.info}1F`, a11yLabel: 'Cancelado' } as const;
     case ItemResult.PENDING:
     default:
-      return { icon: 'time-outline', color: colors.warning, background: 'rgba(255, 149, 0, 0.12)', a11yLabel: 'Pendente' } as const;
+      return { icon: 'time-outline', color: colors.warning, background: `${colors.warning}1F`, a11yLabel: 'Pendente' } as const;
   }
 }
 

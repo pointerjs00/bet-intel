@@ -19,6 +19,12 @@ export const tokens = {
       textMuted: '#8E9791',
       gold: '#F2C94C',
       live: '#FF6B5E',
+      /** Profit and won states as text (brighter than primary for contrast on dark surfaces). */
+      positive: '#5BE39A',
+      /** Losses as text. */
+      negative: '#FF8A7F',
+      /** Text and icons on a primary-coloured fill. */
+      onPrimary: '#FFFFFF',
     },
     light: {
       background: '#F4F3EF',
@@ -35,6 +41,9 @@ export const tokens = {
       textMuted: '#6B7078',
       gold: '#8A6A00',
       live: '#C2412D',
+      positive: '#0E6B42',
+      negative: '#B23A27',
+      onPrimary: '#FFFFFF',
     },
   },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },

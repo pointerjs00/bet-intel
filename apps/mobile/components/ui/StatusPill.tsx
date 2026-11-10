@@ -9,9 +9,9 @@ type PillKind = BoletinStatus | 'LIVE' | 'REVIEW';
 
 /** Status always shown with icon + text, never colour alone (PLANO_MELHORIAS.md §6.1). */
 export function StatusPill({ status, compact = false }: { status: PillKind; compact?: boolean }) {
-  const { colors, isDark } = useTheme();
-  const positive = isDark ? '#5BE39A' : colors.primary;
-  const negative = isDark ? '#FF8A7F' : colors.danger;
+  const { colors } = useTheme();
+  const positive = colors.positive;
+  const negative = colors.negative;
   const meta: Record<PillKind, { label: string; icon: React.ComponentProps<typeof Ionicons>['name']; color: string }> = {
     [BoletinStatus.WON]: { label: 'Ganhou', icon: 'checkmark', color: positive },
     [BoletinStatus.LOST]: { label: 'Perdeu', icon: 'close', color: negative },

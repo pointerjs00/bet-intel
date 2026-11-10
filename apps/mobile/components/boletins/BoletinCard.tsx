@@ -28,7 +28,6 @@ import { formatCurrency, formatLongDate, formatOdds } from '../../utils/formatte
 import { hapticMedium } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 import { useTeams } from '../../services/referenceService';
-import { StatusBadge } from './StatusBadge';
 import { StatusPill } from '../ui/StatusPill';
 import { useCardElevation } from '../ui/ListCard';
 
@@ -45,23 +44,26 @@ interface BoletinCardProps {
   onItemPress?: (item: BoletinDetail['items'][number]) => void;
 }
 
-function statusAccentColor(status: BoletinStatus): string {
+function statusAccentColor(status: BoletinStatus, colors: ReturnType<typeof useTheme>['colors']): string {
   switch (status) {
-    case BoletinStatus.WON:     return '#00C851';
-    case BoletinStatus.LOST:    return '#FF3B30';
-    case BoletinStatus.CASHOUT: return '#FFD700';
+    case BoletinStatus.WON: return colors.positive;
+    case BoletinStatus.LOST: return colors.negative;
+    case BoletinStatus.CASHOUT: return colors.gold;
     case BoletinStatus.VOID:
-    case BoletinStatus.PARTIAL: return '#A0A0A0';
-    default:                    return '#FF9500'; // PENDING
+    case BoletinStatus.PARTIAL: return colors.textSecondary;
+    default: return colors.warning; // PENDING
   }
 }
 
-function itemResultIcon(result: ItemResult): { name: React.ComponentProps<typeof Ionicons>['name']; color: string } {
+function itemResultIcon(
+  result: ItemResult,
+  colors: ReturnType<typeof useTheme>['colors'],
+): { name: React.ComponentProps<typeof Ionicons>['name']; color: string } {
   switch (result) {
-    case 'WON': return { name: 'checkmark-circle', color: '#00C851' };
-    case 'LOST': return { name: 'close-circle', color: '#FF3B30' };
-    case 'VOID': return { name: 'remove-circle', color: '#A0A0A0' };
-    default: return { name: 'time-outline', color: '#FF9500' };
+    case 'WON': return { name: 'checkmark-circle', color: colors.positive };
+    case 'LOST': return { name: 'close-circle', color: colors.negative };
+    case 'VOID': return { name: 'remove-circle', color: colors.textSecondary };
+    default: return { name: 'time-outline', color: colors.warning };
   }
 }
 
@@ -156,8 +158,8 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
         <View style={styles.headerLeft}>
           <StatusPill status={boletin.status} />
           {boletin.isFreebet ? (
-            <View style={[styles.freebetBadge, { backgroundColor: 'rgba(0,122,255,0.15)', borderColor: 'rgba(0,122,255,0.35)' }]}>
-              <Text style={[styles.freebetText, { color: '#007AFF' }]}>Freebet</Text>
+            <View style={[styles.freebetBadge, { backgroundColor: `${colors.info}22`, borderColor: `${colors.info}55` }]}>
+              <Text style={[styles.freebetText, { color: colors.info }]}>Freebet</Text>
             </View>
           ) : null}
           {boletin.siteSlug ? (
@@ -214,7 +216,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
       {!expanded ? (
         <View style={styles.previewList}>
           {boletin.items.slice(0, 3).map((item) => {
-            const icon = itemResultIcon(item.result);
+            const icon = itemResultIcon(item.result, colors);
             return (
               <View key={item.id} style={styles.previewRow}>
                 {/* Result dot */}
@@ -269,7 +271,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
         /* Expanded: all items with full detail */
         <View style={styles.expandedList}>
           {boletin.items.map((item) => {
-            const icon = itemResultIcon(item.result);
+            const icon = itemResultIcon(item.result, colors);
             return (
               <View
                 key={item.id}
@@ -351,8 +353,8 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
       <Pressable style={previewStyles.backdrop} onPress={() => setShowPreview(false)}>
         <Pressable onPress={(e) => e.stopPropagation()} style={[previewStyles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {/* Status header */}
-          <View style={[previewStyles.header, { backgroundColor: statusAccentColor(boletin.status) + '18', borderBottomColor: statusAccentColor(boletin.status) + '35' }]}>
-            <StatusBadge status={boletin.status} />
+          <View style={[previewStyles.header, { backgroundColor: statusAccentColor(boletin.status, colors) + '18', borderBottomColor: statusAccentColor(boletin.status, colors) + '35' }]}>
+            <StatusPill status={boletin.status} />
             {boletin.siteSlug ? <SiteBadge slug={boletin.siteSlug} colors={colors} /> : null}
             <Text style={[previewStyles.date, { color: colors.textMuted }]}>
               {formatLongDate(boletin.betDate ?? boletin.createdAt)}
@@ -401,7 +403,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
           {/* Selections */}
           <View style={previewStyles.items}>
             {boletin.items.map((item) => {
-              const icon = itemResultIcon(item.result);
+              const icon = itemResultIcon(item.result, colors);
               return (
                 <View key={item.id} style={[previewStyles.item, { borderBottomColor: colors.border }]}>
                   <Ionicons name={icon.name} size={14} color={icon.color} />

@@ -46,7 +46,7 @@ import {
   submitScanFeedbackRequest,
 } from '../../services/importService';
 import { scheduleSelectionReminders } from '../../services/notificationService';
-import { StatusBadge } from '../../components/boletins/StatusBadge';
+import { StatusPill } from '../../components/ui/StatusPill';
 import { NumericKeyboard } from '../../components/ui/NumericKeyboard';
 import { useMarkets } from '../../services/referenceService';
 import { humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
@@ -914,7 +914,7 @@ export default function ImportReviewScreen() {
                     });
                   }}
                 >
-                  <StatusBadge status={(boletinStatusEdits.get(index) ?? item.status) as BoletinStatus} />
+                  <StatusPill status={(boletinStatusEdits.get(index) ?? item.status) as BoletinStatus} />
                 </PressableScale>
               </View>
             </View>
@@ -1150,7 +1150,7 @@ export default function ImportReviewScreen() {
                             cycleItemResult(index, selectionIndex, current);
                           }}
                         >
-                          <StatusBadge
+                          <StatusPill
                             status={
                               getItemResult(
                                 index,

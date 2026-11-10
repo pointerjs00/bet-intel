@@ -6,7 +6,6 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
-import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { AppText } from '../../components/ui/AppText';
 import { ListCard, ListRow, useCardElevation } from '../../components/ui/ListCard';
