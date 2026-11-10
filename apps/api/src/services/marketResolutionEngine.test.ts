@@ -93,12 +93,23 @@ test('correct score and draw no bet', () => {
   assert.equal(r('Empate Anula Aposta', 'Benfica', { ...FT, awayScore: 2 }), 'VOID');
 });
 
-test('unsupported markets go to review', () => {
+test('unsupported markets, or player markets without events, go to review', () => {
+  // FT has no goal list or line-ups: scorer markets can't be settled from it.
   assert.equal(r('Jogador marca e Equipa vence', 'Pavlidis marca e SL Benfica vence'), null);
-  assert.equal(r('Resultado handicap', 'FC Porto (+1)'), null);
   assert.equal(r('Marcador ou o seu substituto', 'Pavlidis'), null);
   assert.equal(r('Próximo marcador - Golo 4', 'Pavlidis'), null);
+  assert.equal(r('Vencedor da eliminatória', 'SL Benfica'), null);
   assert.equal(r('Mercado inventado', 'qualquer coisa'), null);
+});
+
+test('handicap: European (handicap draw is its own outcome) and Asian (whole line pushes)', () => {
+  // Benfica 2-1 Porto
+  assert.equal(r('Resultado handicap', 'FC Porto (+1)'), 'LOST'); // 2-2 after handicap: the "draw" outcome wins
+  assert.equal(r('Resultado handicap', 'FC Porto (+2)'), 'WON');
+  assert.equal(r('Handicap', 'SL Benfica -1'), 'LOST');
+  assert.equal(r('Handicap asiático', 'SL Benfica -1'), 'VOID');
+  assert.equal(r('Handicap asiático', 'SL Benfica -0.5'), 'WON');
+  assert.equal(r('Handicap asiático', 'SL Benfica -0.75'), null); // quarter line
 });
 
 test('match status: cancelled is void, abandoned/postponed need review, extra time needs 90-minute score', () => {

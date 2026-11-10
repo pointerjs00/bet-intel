@@ -6,7 +6,7 @@
 // Date ranges return HTTP 400 for soccer: request one day per call.
 // The mappers are pure functions so they can be tested against recorded responses.
 
-import type { MatchIncident, MatchStatus, MatchTeamStats, NormalizedMatch, ScorePair } from './types';
+import type { MatchIncident, MatchPlayer, MatchStatus, MatchTeamStats, NormalizedMatch, ScorePair } from './types';
 import { recordAssets } from './assetRegistry';
 import { ProviderFormatError, tracked } from './providerHealth';
 import { countryToPt } from '../../utils/countryNames';
@@ -58,6 +58,8 @@ interface EspnCompetition {
   status?: { type?: EspnStatusType; displayClock?: string };
   competitors?: EspnCompetitor[];
   venue?: { fullName?: string };
+  /** Scoreboard key events (goals, cards). */
+  details?: Array<{ redCard?: boolean; team?: { id?: string } }>;
 }
 interface EspnEvent { id?: string; date?: string; competitions?: EspnCompetition[] }
 interface EspnScoreboard { leagues?: Array<{ id?: string; name?: string; slug?: string }>; events?: EspnEvent[] }
@@ -65,14 +67,24 @@ interface EspnKeyEvent {
   type?: { text?: string; type?: string };
   text?: string;
   clock?: { value?: number; displayValue?: string };
+  period?: { number?: number };
   team?: { id?: string };
   participants?: Array<{ athlete?: { displayName?: string } }>;
+}
+interface EspnRosterEntry {
+  starter?: boolean;
+  subbedIn?: boolean;
+  subbedOut?: boolean;
+  athlete?: { displayName?: string };
+  stats?: Array<{ name?: string; value?: number }>;
 }
 interface EspnSummary {
   header?: { id?: string; league?: { id?: string; name?: string; slug?: string }; competitions?: EspnCompetition[] };
   boxscore?: { teams?: Array<{ team?: { id?: string }; statistics?: Array<{ name?: string; displayValue?: string }> }> };
   keyEvents?: EspnKeyEvent[];
   gameInfo?: { venue?: { fullName?: string } };
+  rosters?: Array<{ homeAway?: string; team?: { id?: string }; roster?: EspnRosterEntry[] }>;
+  commentary?: Array<{ play?: { type?: { type?: string }; period?: { number?: number }; team?: { displayName?: string } } }>;
 }
 
 // ─── Mapping helpers ─────────────────────────────────────────────────────────
@@ -129,6 +141,7 @@ function mapTeamStats(list: Array<{ name?: string; displayValue?: string }> | un
       case 'shotsOnTarget': s.shotsOnTarget = v; break;
       case 'possessionPct': s.possession = v; break;
       case 'foulsCommitted': s.fouls = v; break;
+      case 'offsides': s.offsides = v; break;
       default: break;
     }
   }
@@ -182,12 +195,73 @@ export function mapEspnSummary(json: EspnSummary): NormalizedMatch | null {
       type,
       minute: k.clock?.displayValue ?? '',
       clockSeconds: toNum(k.clock?.value),
+      period: toNum(k.period?.number),
       side,
       player: k.participants?.[0]?.athlete?.displayName ?? null,
-      assist: type === 'GOAL' ? k.participants?.[1]?.athlete?.displayName ?? null : null,
+      // Goals: the assist. Substitutions: ESPN lists [player in, player out].
+      assist: type === 'GOAL' || type === 'SUB' ? k.participants?.[1]?.athlete?.displayName ?? null : null,
     }];
   });
+
+  match.players = mapPlayers(json.rosters, homeId);
+  match.cornersByHalf = mapCornersByHalf(json.commentary, match.home.name, match.away.name, match.stats);
   return match;
+}
+
+const statValue = (e: EspnRosterEntry, name: string): number => toNum(e.stats?.find((s) => s.name === name)?.value) ?? 0;
+
+/** Players who took part (starters and used substitutes) with their match stats. */
+export function mapPlayers(rosters: EspnSummary['rosters'], homeId: string): MatchPlayer[] | null {
+  if (!rosters?.length) return null;
+  const out: MatchPlayer[] = [];
+  for (const r of rosters) {
+    const side: 'home' | 'away' = r.homeAway === 'home' || r.team?.id === homeId ? 'home' : 'away';
+    for (const e of r.roster ?? []) {
+      const name = e.athlete?.displayName;
+      if (!name) continue;
+      out.push({
+        name,
+        side,
+        started: Boolean(e.starter),
+        subbedIn: Boolean(e.subbedIn),
+        subbedOut: Boolean(e.subbedOut),
+        goals: statValue(e, 'totalGoals'),
+        assists: statValue(e, 'goalAssists'),
+        shots: statValue(e, 'totalShots'),
+        shotsOnTarget: statValue(e, 'shotsOnTarget'),
+        fouls: statValue(e, 'foulsCommitted'),
+        yellowCards: statValue(e, 'yellowCards'),
+        redCards: statValue(e, 'redCards'),
+      });
+    }
+  }
+  return out.length ? out : null;
+}
+
+/**
+ * Corners per half, counted from the play-by-play ("Corner Awarded"). Only returned when the
+ * count agrees with the box-score total, so a partial feed never settles a first-half market.
+ */
+export function mapCornersByHalf(
+  commentary: EspnSummary['commentary'],
+  homeName: string,
+  awayName: string,
+  stats: NormalizedMatch['stats'],
+): NormalizedMatch['cornersByHalf'] {
+  const plays = (commentary ?? []).map((c) => c.play).filter((p) => p?.type?.type === 'corner-awarded');
+  if (!plays.length) return null;
+  const split = { first: { home: 0, away: 0 }, second: { home: 0, away: 0 } };
+  for (const p of plays) {
+    const team = p?.team?.displayName ?? '';
+    const side = team === homeName ? 'home' : team === awayName ? 'away' : null;
+    if (!side) return null;
+    const half = (p?.period?.number ?? 1) === 1 ? split.first : split.second;
+    half[side]++;
+  }
+  const hTotal = split.first.home + split.second.home;
+  const aTotal = split.first.away + split.second.away;
+  if (stats && (stats.home.corners !== hTotal || stats.away.corners !== aTotal)) return null;
+  return split;
 }
 
 function mapCompetition(
@@ -214,6 +288,12 @@ function mapCompetition(
     stats: null,
     incidents: [],
     venue,
+    redCards: comp.details
+      ? {
+        home: comp.details.filter((d) => d.redCard && d.team?.id === home?.team?.id).length,
+        away: comp.details.filter((d) => d.redCard && d.team?.id === away?.team?.id).length,
+      }
+      : null,
   };
 }
 

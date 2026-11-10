@@ -14,6 +14,7 @@ import { StatusPill } from '../../components/ui/StatusPill';
 import { Appear, LiveDot } from '../../components/ui/Appear';
 import { HeroCard, HeroTile } from '../../components/ui/HeroCard';
 import { TeamBadge } from '../../components/ui/TeamBadge';
+import { MarketSelection } from '../../components/boletins/MarketSelection';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useBoletins, useLiveItems, useReviewItems, type LiveItem } from '../../services/boletinService';
 import { useUnreadNotificationsCount } from '../../services/socialService';
@@ -279,7 +280,11 @@ export default function HomeDashboard() {
                 ) : null}
                 <View style={styles.flex}>
                   <AppText numberOfLines={1} variant="bodyStrong">{titleOf(b)}</AppText>
-                  <AppText numberOfLines={1} variant="caption">{subtitleOf(b)}</AppText>
+                  {b.items.length === 1 && b.items[0] ? (
+                    <MarketSelection market={b.items[0].market} selection={b.items[0].selection} trailing={`@${formatOdds(b.totalOdds)}`} />
+                  ) : (
+                    <AppText numberOfLines={1} variant="caption">{subtitleOf(b)}</AppText>
+                  )}
                 </View>
                 <View style={styles.right}>
                   {pending ? (
@@ -320,7 +325,7 @@ function LiveRow({ item, onPress }: { item: LiveItem; onPress: () => void }) {
           <TeamBadge name={item.away} size={22} variant={item.sport === 'TENNIS' ? 'player' : 'auto'} />
           <AppText numberOfLines={1} style={styles.flex} variant="bodyStrong">{item.away}</AppText>
         </View>
-        <AppText numberOfLines={1} variant="caption">{item.selection}</AppText>
+        <MarketSelection market={item.market} selection={item.selection} />
       </View>
       <AppText style={styles.liveScore} variant="number">{item.score ?? '–'}</AppText>
       {item.verdict ? (

@@ -11,6 +11,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { TeamBadge } from '../ui/TeamBadge';
+import { MarketSelection } from './MarketSelection';
+import type { ItemMatch } from '../../services/sportsService';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { useTheme } from '../../theme/useTheme';
 import { formatOdds } from '../../utils/formatters';
@@ -34,7 +36,61 @@ interface BoletinItemProps {
   onEdit?: () => void;
   onResultChange?: (result: ItemResult) => void;
   onInsights?: () => void;
+  /** Real match (score, state) when it was found in the data feeds. */
+  match?: ItemMatch | null;
+  /** Opens the match (football detail). */
+  onMatchPress?: () => void;
 }
+
+const LIVE = new Set(['LIVE', 'HALFTIME']);
+
+/** "Terminado", "Int.", "67'", "Adiado"… for the score block. */
+function matchStateLabel(m: ItemMatch): string {
+  if (m.status === 'FINISHED') return 'Terminado';
+  if (m.status === 'HALFTIME') return 'Intervalo';
+  if (m.status === 'LIVE') return m.sport === 'TENNIS' ? 'Ao vivo' : m.statusDetail || 'Ao vivo';
+  if (m.status === 'POSTPONED') return 'Adiado';
+  if (m.status === 'CANCELLED') return 'Cancelado';
+  if (m.status === 'RETIRED') return 'Desistência';
+  if (m.status === 'WALKOVER') return 'Walkover';
+  return formatKickoff(m.kickoffAt);
+}
+
+/** Sofascore-style two-line score: crest, name and score per side; the winner in bold. */
+function ScoreBlock({ item, match, onPress }: { item: BoletinItemProps['item']; match: ItemMatch; onPress?: () => void }) {
+  const { colors } = useTheme();
+  const variant = item.sport === Sport.TENNIS ? 'player' : 'team';
+  const s = match.score;
+  const live = LIVE.has(match.status);
+  const done = match.status === 'FINISHED';
+  const side = (name: string, score: number | undefined, other: number | undefined, imageUrl?: string | null) => {
+    const winner = done && score !== undefined && other !== undefined && score > other;
+    const loser = done && score !== undefined && other !== undefined && score < other;
+    return (
+      <View style={styles.scoreRow}>
+        <TeamBadge imageUrl={imageUrl} name={name} size={22} variant={variant} />
+        <Text numberOfLines={1} style={[styles.scoreName, { color: loser ? colors.textSecondary : colors.textPrimary, fontWeight: winner ? '800' : '600' }]}>{name}</Text>
+        {score !== undefined ? (
+          <Text style={[styles.scoreValue, { color: live ? colors.live : loser ? colors.textSecondary : colors.textPrimary }]}>{score}</Text>
+        ) : null}
+      </View>
+    );
+  };
+  return (
+    <Pressable accessibilityHint={onPress ? 'Abre o jogo' : undefined} disabled={!onPress} onPress={onPress} style={[styles.scoreBlock, { backgroundColor: colors.surfaceRaised }]}>
+      <View style={styles.scoreState}>
+        {live ? <View style={[styles.liveDot, { backgroundColor: colors.live }]} /> : null}
+        <Text style={[styles.scoreStateText, { color: live ? colors.live : colors.textSecondary }]}>{matchStateLabel(match)}</Text>
+        {match.halfTime && done ? <Text style={[styles.scoreStateText, { color: colors.textMuted }]}>Int. {match.halfTime.home}-{match.halfTime.away}</Text> : null}
+        {match.line ? <Text numberOfLines={1} style={[styles.scoreStateText, styles.flexShrink, { color: colors.textMuted }]}>{match.line}</Text> : null}
+      </View>
+      {side(match.home, s?.home, s?.away, teamNamesEqual(match.home, item.homeTeam) ? item.homeTeamImageUrl : item.awayTeamImageUrl)}
+      {side(match.away, s?.away, s?.home, teamNamesEqual(match.away, item.awayTeam) ? item.awayTeamImageUrl : item.homeTeamImageUrl)}
+    </Pressable>
+  );
+}
+
+const teamNamesEqual = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** Formats a kickoff ISO string as "DD/MM  HH:MM" */
 function formatKickoff(iso: string): string {
@@ -71,7 +127,7 @@ function getKickoffStatus(iso: string, sport?: Sport): KickoffStatus {
 }
 
 /** Renders one selection row in builder and detail contexts. */
-function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }: BoletinItemProps) {
+function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights, match, onMatchPress }: BoletinItemProps) {
   const { colors } = useTheme();
   const resultMeta = getResultMeta(item.result, colors);
 
@@ -101,33 +157,28 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
       />
       <View style={styles.headerRow}>
         <View style={styles.titleWrap}>
-          <View style={styles.teamRow}>
-            <TeamBadge
-              imageUrl={item.homeTeamImageUrl}
-              name={item.homeTeam}
-              size={28}
-              variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
-            />
-            <Text style={[styles.vsText, { color: colors.textSecondary }]}>vs</Text>
-            <TeamBadge
-              imageUrl={item.awayTeamImageUrl}
-              name={item.awayTeam}
-              size={28}
-              variant={item.sport === Sport.TENNIS ? 'player' : 'team'}
-            />
-            {onEdit ? (
-              <Pressable hitSlop={10} onPress={onEdit} style={styles.editIconBtn}>
-                <Ionicons color={colors.info} name="create-outline" size={17} />
-              </Pressable>
-            ) : null}
-          </View>
+          {match ? (
+            <ScoreBlock item={item} match={match} onPress={onMatchPress} />
+          ) : (
+            <>
+              <View style={styles.teamRow}>
+                <TeamBadge imageUrl={item.homeTeamImageUrl} name={item.homeTeam} size={24} variant={item.sport === Sport.TENNIS ? 'player' : 'team'} />
+                <Text numberOfLines={1} style={[styles.teamsSubtitle, { color: colors.textPrimary }]}>{item.homeTeam}</Text>
+              </View>
+              <View style={styles.teamRow}>
+                <TeamBadge imageUrl={item.awayTeamImageUrl} name={item.awayTeam} size={24} variant={item.sport === Sport.TENNIS ? 'player' : 'team'} />
+                <Text numberOfLines={1} style={[styles.teamsSubtitle, { color: colors.textPrimary }]}>{item.awayTeam}</Text>
+              </View>
+            </>
+          )}
+          {onEdit ? (
+            <Pressable hitSlop={10} onPress={onEdit} style={styles.editIconBtn}>
+              <Ionicons color={colors.info} name="create-outline" size={17} />
+            </Pressable>
+          ) : null}
 
-          <Text numberOfLines={1} style={[styles.teamsSubtitle, { color: colors.textPrimary }]}>
-            {item.homeTeam} vs {item.awayTeam}
-          </Text>
-
-          {/* ── Kickoff date/time — own dedicated row ───────────────── */}
-          {item.kickoffAt ? (
+          {/* ── Kickoff date/time — own dedicated row (when the match isn't known) ── */}
+          {item.kickoffAt && !match ? (
             <View style={styles.kickoffRow}>
               <Ionicons
                 name={kickoffStatus === 'live' ? 'radio-button-on' : kickoffStatus === 'finished' ? 'checkmark-circle-outline' : 'time-outline'}
@@ -203,12 +254,7 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
 
       <View style={styles.footerRow}>
         <View style={styles.metaBlock}>
-          <Text style={[styles.metaLabel, { color: colors.textSecondary }]}>Mercado</Text>
-          <Text style={[styles.metaValue, { color: colors.textPrimary }]}>
-            {item.market === item.selection
-              ? item.market
-              : `${item.market} • ${item.selection}`}
-          </Text>
+          <MarketSelection market={item.market === item.selection ? 'Seleção' : item.market} selection={item.selection} />
           {item.needsReview && item.result === ItemResult.PENDING ? (
             <View
               accessibilityLabel="A liquidação automática não teve certeza: marca o resultado à mão"
@@ -512,8 +558,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   teamsSubtitle: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 14,
+    fontWeight: '700',
     flexShrink: 1,
   },
+  scoreBlock: { borderRadius: 12, gap: 6, paddingHorizontal: 10, paddingVertical: 8 },
+  scoreState: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  scoreStateText: { fontSize: 11, fontWeight: '700' },
+  scoreRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  scoreName: { flex: 1, fontSize: 14 },
+  scoreValue: { fontSize: 16, fontWeight: '800', fontVariant: ['tabular-nums'], minWidth: 18, textAlign: 'right' },
+  liveDot: { borderRadius: 4, height: 7, width: 7 },
+  flexShrink: { flexShrink: 1 },
 });

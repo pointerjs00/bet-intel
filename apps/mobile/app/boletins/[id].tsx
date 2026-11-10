@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Keyboard, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useItemMatches } from '../../services/sportsService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -65,6 +66,8 @@ const SPORT_OPTIONS: Array<{ key: Sport; label: string; icon: string }> = [
 export default function BoletinDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  // Real score of each selection's match (ESPN), shown in the selection rows.
+  const itemMatches = useItemMatches(id);
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
@@ -1175,6 +1178,13 @@ export default function BoletinDetailScreen() {
                   ? (tennisPhotoLookup.get(item.awayTeam) ?? null)
                   : null,
               }}
+              match={itemMatches.data?.[item.id] ?? null}
+              onMatchPress={(() => {
+                const m = itemMatches.data?.[item.id];
+                return m && m.sport === 'FOOTBALL' && m.league
+                  ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: m.league! } })
+                  : undefined;
+              })()}
               onRemove={canEdit && isEditing ? () => {
                 setRemoveItemTarget({ boletinId: boletin.id, itemId: item.id });
               } : undefined}

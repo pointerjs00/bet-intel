@@ -45,10 +45,46 @@ export function resolveTennisMarket(market: string, selection: string, r: Tennis
 
   const m = norm(market);
   const s = norm(selection);
-  if (/handicap|aces|duplas faltas|break|tie-?break|primeiro|exato de jogos/.test(m)) return null;
+  // No free source has aces, double faults or break points per match (see ESTUDO_ESTATISTICAS.md).
+  if (/aces|duplas faltas|break point|(?<!tie-)\bbreaks?\b|primeiro (jogo|ponto)|exato de jogos/.test(m)) return null;
 
   const setsA = r.sets.filter((x) => setWinner(x) === 'A').length;
   const setsB = r.sets.filter((x) => setWinner(x) === 'B').length;
+  const yes = /^(sim|yes)$/.test(s);
+  const no = /^(nao|no)$/.test(s);
+
+  // Tie-break: in the match, or in set N (a 7-6 / 6-7 set).
+  if (/tie-?break/.test(m)) {
+    const tb = (x: TennisSet) => (x.a === 7 && x.b === 6) || (x.a === 6 && x.b === 7);
+    const n = m.match(/\b([1-5])\.?\s*(?:o|º)?\s*set\b|\bset\s*([1-5])\b/);
+    const happened = n ? (r.sets[Number(n[1] ?? n[2]) - 1] ? tb(r.sets[Number(n[1] ?? n[2]) - 1]!) : null) : r.sets.some(tb);
+    if (happened === null) return 'VOID'; // that set wasn't played
+    if (yes || no) return happened === yes ? 'WON' : 'LOST';
+    return null;
+  }
+
+  // Handicap of games (default) or of sets: "Jannik Sinner (-3.5)".
+  if (/handicap/.test(m)) {
+    const hm = s.match(/^(.+?)\s*\(?\s*([+-]\d+(?:\.\d+)?)\s*\)?$/);
+    if (!hm) return null;
+    const p = playerOf(hm[1]!, ctx);
+    if (!p) return null;
+    const bySets = /\bsets?\b/.test(m) && !/jogos|games/.test(m);
+    const gamesA = r.sets.reduce((acc, x) => acc + x.a, 0);
+    const gamesB = r.sets.reduce((acc, x) => acc + x.b, 0);
+    const diff = bySets ? (p === 'A' ? setsA - setsB : setsB - setsA) : (p === 'A' ? gamesA - gamesB : gamesB - gamesA);
+    const adj = diff + parseFloat(hm[2]!);
+    if (adj === 0) return 'VOID';
+    return adj > 0 ? 'WON' : 'LOST';
+  }
+
+  // "Vence pelo menos um set" — player in the selection, or in the market with "Sim"/"Não".
+  if (/pelo menos (um|1) set|ganha (um|1) set|to win a set/.test(m)) {
+    const p = playerOf(yes || no ? m.replace(/.*(pelo menos (um|1) set|ganha (um|1) set|to win a set)\s*[-–:]?\s*/, '') : s, ctx);
+    if (!p) return null;
+    const won = (p === 'A' ? setsA : setsB) >= 1;
+    return won === !no ? 'WON' : 'LOST';
+  }
 
   // Set-specific markets: "1.º Set - Vencedor", "Vencedor do 2.º set"
   const setNo = m.match(/\b([1-5])\.?\s*(?:o|º)?\s*set\b|\bset\s*([1-5])\b/);
@@ -96,4 +132,53 @@ export function resolveTennisMarket(market: string, selection: string, r: Tennis
     return p ? (p === r.winner ? 'WON' : 'LOST') : null;
   }
   return null;
+}
+
+export interface TennisLive {
+  /** As if the match ended now with the current leader winning. */
+  ifEndedNow: TennisResolution | null;
+  /** Set when what is left can't change it (a set already won, a tie-break already played…). */
+  decided: TennisResolution | null;
+}
+
+/**
+ * Live state of a tennis bet. `sets` are the sets so far, the last one possibly in progress
+ * (`lastSetDone` says whether it is over).
+ */
+export function assessTennisLive(market: string, selection: string, sets: TennisSet[], lastSetDone: boolean, ctx: TennisContext): TennisLive {
+  const done = lastSetDone ? sets : sets.slice(0, -1);
+  const setsA = done.filter((x) => setWinner(x) === 'A').length;
+  const setsB = done.filter((x) => setWinner(x) === 'B').length;
+  const leader = setsA > setsB ? 'A' : setsB > setsA ? 'B' : null;
+  const ifEndedNow = leader && done.length
+    ? resolveTennisMarket(market, selection, { status: 'FINISHED', sets: done, winner: leader }, ctx)
+    : null;
+  const m = norm(market);
+  const s = norm(selection);
+
+  // A finished set settles its own markets.
+  const setNo = m.match(/\b([1-5])\.?\s*(?:o|º)?\s*set\b|\bset\s*([1-5])\b/);
+  if (setNo) {
+    const idx = Number(setNo[1] ?? setNo[2]) - 1;
+    if (idx < done.length) {
+      return { ifEndedNow, decided: resolveTennisMarket(market, selection, { status: 'FINISHED', sets: done, winner: leader ?? 'A' }, ctx) };
+    }
+    return { ifEndedNow, decided: null };
+  }
+  // A tie-break already played answers "Haverá tie-break?".
+  if (/tie-?break/.test(m) && done.some((x) => (x.a === 7 && x.b === 6) || (x.a === 6 && x.b === 7))) {
+    return { ifEndedNow, decided: /^(sim|yes)$/.test(s) ? 'WON' : /^(nao|no)$/.test(s) ? 'LOST' : null };
+  }
+  // A set already won answers "Vence pelo menos um set".
+  if (/pelo menos (um|1) set|ganha (um|1) set/.test(m)) {
+    const p = playerOf(s, ctx);
+    if (p && (p === 'A' ? setsA : setsB) >= 1) return { ifEndedNow, decided: 'WON' };
+  }
+  // Games only go up: an "over" line already passed is won.
+  const tot = s.match(/(mais de|acima de|over|menos de|abaixo de|under)\s*(\d+(?:\.\d+)?)/);
+  if (tot && /total|jogos|games/.test(`${m} ${s}`) && !/\bsets?\b/.test(m) && !s.slice(0, tot.index).trim()) {
+    const games = sets.reduce((acc, x) => acc + x.a + x.b, 0);
+    if (games > parseFloat(tot[2]!)) return { ifEndedNow, decided: /mais|acima|over/.test(tot[1]!) ? 'WON' : 'LOST' };
+  }
+  return { ifEndedNow, decided: null };
 }

@@ -9,7 +9,7 @@
 import { logger } from '../utils/logger';
 import { redis } from '../utils/redis';
 import { recordAssets, espnTennisHeadshot } from '../services/sportsData/assetRegistry';
-import { ESPN_FOOTBALL_LEAGUES } from '../services/sportsData/espnFootball';
+import { ESPN_FOOTBALL_LEAGUES, NATIONAL_TEAM_LEAGUES } from '../services/sportsData/espnFootball';
 import { countryToPt } from '../utils/countryNames';
 
 const UA = 'BetIntel/1.0 (personal use)';
@@ -19,7 +19,11 @@ const EXTRA_FOOTBALL = [
 ];
 const NATIONAL_LISTS = ['fifa.world', 'uefa.nations'];
 
-interface EspnTeam { displayName?: string; shortDisplayName?: string; name?: string; logos?: Array<{ href?: string }> }
+interface EspnTeam { id?: string; displayName?: string; shortDisplayName?: string; name?: string; logos?: Array<{ href?: string }> }
+
+/** Team index for search and team history: Redis hash `sports:teams`, field `<sport>:<espnId>`. */
+export interface IndexedTeam { id: string; sport: 'FOOTBALL' | 'BASKETBALL'; name: string; logo: string | null; leagues: string[]; national: boolean }
+export const TEAM_INDEX_KEY = 'sports:teams';
 
 async function getJson<T>(url: string): Promise<T | null> {
   try {
@@ -46,18 +50,30 @@ function namesOf(t: EspnTeam, national: boolean): string[] {
 
 export async function syncTeamLogos(): Promise<number> {
   const teams: Record<string, string> = {};
-  const add = (list: EspnTeam[], national = false) => {
+  const index = new Map<string, IndexedTeam>();
+  const add = (list: EspnTeam[], sport: IndexedTeam['sport'], league: string, national = false) => {
     for (const t of list) {
-      const logo = t.logos?.[0]?.href;
-      if (!logo) continue;
-      for (const n of namesOf(t, national)) teams[n] ??= logo;
+      const logo = t.logos?.[0]?.href ?? null;
+      if (logo) for (const n of namesOf(t, national)) teams[n] ??= logo;
+      if (!t.id || !t.displayName) continue;
+      const key = `${sport}:${t.id}`;
+      const entry = index.get(key) ?? { id: t.id, sport, name: national ? countryToPt(t.displayName) : t.displayName, logo, leagues: [], national };
+      if (!entry.leagues.includes(league)) entry.leagues.push(league);
+      index.set(key, entry);
     }
   };
   const club = [...new Set([...Object.values(ESPN_FOOTBALL_LEAGUES), ...EXTRA_FOOTBALL])].filter((s) => !s.startsWith('fifa.') && !s.startsWith('conmebol.') && s !== 'uefa.nations' && !s.startsWith('uefa.euro'));
-  for (const league of club) add(await espnTeams('soccer', league));
-  for (const league of NATIONAL_LISTS) add(await espnTeams('soccer', league), true);
-  add(await espnTeams('basketball', 'nba'));
+  for (const league of club) add(await espnTeams('soccer', league), 'FOOTBALL', league);
+  for (const league of NATIONAL_LISTS) add(await espnTeams('soccer', league), 'FOOTBALL', league, true);
+  // National teams also play the other national competitions (friendlies, qualifiers, Euro…).
+  for (const t of index.values()) {
+    if (t.national) for (const l of NATIONAL_TEAM_LEAGUES) if (!t.leagues.includes(l)) t.leagues.push(l);
+  }
+  add(await espnTeams('basketball', 'nba'), 'BASKETBALL', 'nba');
   recordAssets(teams, {});
+  if (index.size) {
+    await redis.hset(TEAM_INDEX_KEY, Object.fromEntries([...index].map(([k, v]) => [k, JSON.stringify(v)]))).catch(() => {});
+  }
   return Object.keys(teams).length;
 }
 

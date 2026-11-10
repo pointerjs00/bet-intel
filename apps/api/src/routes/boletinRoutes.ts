@@ -17,6 +17,9 @@ import {
   updateBoletinItemHandler,
   updateBoletinItemsHandler,
 } from '../controllers/boletinController';
+import { prisma } from '../prisma';
+import { coverageOf } from '../services/marketCoverage';
+import { findItemMatches } from '../services/sportsData/itemMatch';
 import { betclicApiHandler, bulkImportHandler, parsePdfHandler, scanAiHandler, scanFeedbackHandler } from '../controllers/importController';
 
 const boletinCollectionRouter: Router = Router();
@@ -29,6 +32,14 @@ boletinCollectionRouter.get('/', listBoletinsHandler);
 boletinCollectionRouter.get('/agenda', getAgendaHandler);
 boletinCollectionRouter.get('/live', getLiveItemsHandler);
 boletinCollectionRouter.get('/review', getReviewItemsHandler);
+// Which of the user's markets settle automatically and which go to review (the Betclic catalogue as seen in real slips).
+boletinCollectionRouter.get('/market-coverage', async (req, res) => {
+  const items = await prisma.boletinItem.findMany({
+    where: { boletin: { userId: req.user!.sub } },
+    select: { sport: true, market: true, selection: true, homeTeam: true, awayTeam: true },
+  });
+  res.json({ success: true, data: coverageOf(items.map((i) => ({ ...i, sport: String(i.sport) }))) });
+});
 boletinCollectionRouter.get('/export', exportBoletinsHandler);
 boletinCollectionRouter.post('/', createBoletinHandler);
 boletinCollectionRouter.post('/import/pdf', json({ limit: '15mb' }), parsePdfHandler);
@@ -38,6 +49,16 @@ boletinCollectionRouter.post('/import/betclic-api', betclicApiHandler);
 boletinCollectionRouter.post('/import/bulk', bulkImportHandler);
 
 betintelRouter.get('/shared', listSharedBoletinsHandler);
+/** Real score of each selection's match (ESPN), for the boletim detail. */
+betintelRouter.get('/:id/results', async (req, res) => {
+  const boletin = await prisma.boletin.findFirst({
+    where: { id: req.params.id, userId: req.user!.sub },
+    select: { items: { select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true } } },
+  });
+  if (!boletin) { res.status(404).json({ success: false, error: 'Boletim não encontrado' }); return; }
+  const data = await findItemMatches(boletin.items.map((i) => ({ ...i, sport: String(i.sport) })));
+  res.json({ success: true, data });
+});
 betintelRouter.get('/:id', getBoletinHandler);
 betintelRouter.patch('/:id', updateBoletinHandler);
 betintelRouter.patch('/:id/items', updateBoletinItemsHandler);

@@ -11,14 +11,14 @@ import { ItemResult, NotificationType } from '@prisma/client';
 import { prisma } from '../prisma';
 import { redis } from '../utils/redis';
 import { logger } from '../utils/logger';
-import { resolveMarket, teamNamesMatch, type FixtureResult } from '../services/marketResolutionEngine';
+import { assessLive, resolveMarket, teamNamesMatch, type FixtureResult } from '../services/marketResolutionEngine';
 import { ESPN_FOOTBALL_LEAGUES, fetchEspnFootballDay, fetchEspnFootballMatch } from '../services/sportsData/espnFootball';
-import { toFixtureResult } from '../services/sportsData/settlementBridge';
+import { toFixtureResult, toLiveSnapshot } from '../services/sportsData/settlementBridge';
 import type { NormalizedMatch } from '../services/sportsData/types';
 import { fetchEspnTennisDay, toTennisResult, type TennisMatch } from '../services/sportsData/espnTennis';
-import { resolveTennisMarket } from '../services/tennisMarketEngine';
-import { fetchEspnNbaDay, type BasketballMatch } from '../services/sportsData/espnBasketball';
-import { resolveBasketballMarket } from '../services/basketballMarketEngine';
+import { assessTennisLive, resolveTennisMarket } from '../services/tennisMarketEngine';
+import { fetchEspnNbaDay, fetchEspnNbaGame, type BasketballMatch } from '../services/sportsData/espnBasketball';
+import { assessBasketballLive, resolveBasketballMarket } from '../services/basketballMarketEngine';
 import { fetchLiveTennisPoints, findLivePoints, type LiveTennisPoints } from '../services/sportsData/livescoreTennis';
 
 // One LiveScore request per ~15 s, shared by every live tennis match in a tracker pass.
@@ -53,34 +53,8 @@ interface MatchState { status: NormalizedMatch['status']; home: number | null; a
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
 
-/** Maps a competition name as stored on a boletim item to an ESPN league slug. */
-export function espnLeagueFor(competition: string): string | null {
-  const c = norm(competition);
-  if (/\b(2\.?|ii)\b|liga 2|segunda|serie b|ligue 2|championship|primera rfef/.test(c)) return null;
-  if (/liga portugal|primeira liga|liga betclic/.test(c)) return 'por.1';
-  if (/premier league/.test(c) && !/russian|scottish|ukrain/.test(c)) return 'eng.1';
-  if (/^la ?liga|laliga/.test(c)) return 'esp.1';
-  if (/^bundesliga/.test(c)) return 'ger.1';
-  if (/^serie a$|serie a italia|italian serie a/.test(c)) return 'ita.1';
-  if (/^ligue 1/.test(c)) return 'fra.1';
-  if (/eredivisie/.test(c)) return 'ned.1';
-  if (/super lig/.test(c)) return 'tur.1';
-  if (/champions league|liga dos campeoes/.test(c)) return 'uefa.champions';
-  if (/europa league|liga europa/.test(c)) return 'uefa.europa';
-  if (/conference league|liga conferencia/.test(c)) return 'uefa.europa.conf';
-  // National teams
-  if (/nations league|liga das nacoes/.test(c)) return 'uefa.nations';
-  if (/amigav|friendl/.test(c) && !/club|clube/.test(c)) return 'fifa.friendly';
-  if (/(mundial|world cup|campeonato do mundo)/.test(c)) {
-    if (/qualif|apuramento/.test(c)) return /conmebol|sul.?americ/.test(c) ? 'fifa.worldq.conmebol' : 'fifa.worldq.uefa';
-    return 'fifa.world';
-  }
-  if (/euro/.test(c) && !/europa/.test(c)) return /qualif|apuramento/.test(c) ? 'uefa.euroq' : 'uefa.euro';
-  if (/copa america/.test(c)) return 'conmebol.america';
-  const exact = ESPN_FOOTBALL_LEAGUES[competition];
-  return exact ?? null;
-}
-
+export { espnLeagueFor } from '../services/sportsData/leagueMap';
+import { espnLeagueFor } from '../services/sportsData/leagueMap';
 export async function liveBetTrackerJob(): Promise<void> {
   for (let i = 0; i < POLLS_PER_RUN; i++) {
     try {
@@ -140,16 +114,25 @@ async function trackBasketball(): Promise<void> {
     entry.items.push(item);
     byMatch.set(found.providerMatchId, entry);
   }
-  for (const { match, items: group } of byMatch.values()) await handleBasketballUpdate(match, group);
+  for (const { match, items: group } of byMatch.values()) {
+    // The game summary adds the box score (player props); the scoreboard is the fallback.
+    const started = match.status !== 'SCHEDULED' && match.status !== 'POSTPONED' && match.status !== 'CANCELLED';
+    const detailed = started ? await fetchEspnNbaGame(match.providerMatchId).catch(() => null) : null;
+    await handleBasketballUpdate(detailed ?? match, group);
+  }
+}
+
+function assessBasketball(item: BasketballItem, m: BasketballMatch) {
+  if (!m.score) return { ifEndedNow: null, decided: null };
+  // Quarters already over: all of them at the end, 2 at half time, all but the current one live.
+  const completed = m.status === 'FINISHED' ? m.periods.length : m.status === 'HALFTIME' ? 2 : Math.max(0, m.periods.length - 1);
+  const r = { ...m.score, periods: m.periods, players: m.players ?? null };
+  const live = assessBasketballLive(item.market, item.selection, r, completed, { home: m.home.name, away: m.away.name });
+  return m.status === 'FINISHED' ? { ifEndedNow: live.ifEndedNow, decided: live.ifEndedNow } : live;
 }
 
 function basketballVerdict(item: BasketballItem, m: BasketballMatch): string | null {
-  if (!m.score) return null;
-  const r = resolveBasketballMarket(item.market, item.selection, { ...m.score, periods: m.periods }, { home: m.home.name, away: m.away.name });
-  const done = m.status === 'FINISHED';
-  if (r === 'WON') return done ? 'ganha' : 'a ganhar';
-  if (r === 'LOST') return done ? 'perdida' : 'a perder';
-  return null;
+  return verdictOf(assessBasketball(item, m));
 }
 
 async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[]): Promise<void> {
@@ -175,6 +158,9 @@ async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[
   await writeLiveItems(group.map((it) => ({ id: it.id, verdict: basketballVerdict(it, m) })), {
     status: m.status, detail: m.statusDetail, home: m.home.name, away: m.away.name, score, sport: 'BASKETBALL',
   });
+  if (m.status === 'LIVE' || m.status === 'HALFTIME') {
+    await notifyDecided(group, id, `${m.home.name} ${score ?? ''} ${m.away.name}`, (it) => assessBasketball(it, m).decided);
+  }
 
   const touched = new Set<string>();
   if (m.status === 'CANCELLED') {
@@ -189,7 +175,7 @@ async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[
       await notify(asGroup, fakeMatch, NotificationType.MATCH_FINISHED, 'MATCH_END', '🏁 Fim do jogo', (its) => `${m.home.name} ${score} ${m.away.name}${line(its)}`);
     }
     for (const item of group) {
-      const res = resolveBasketballMarket(item.market, item.selection, { ...m.score, periods: m.periods }, { home: m.home.name, away: m.away.name });
+      const res = resolveBasketballMarket(item.market, item.selection, { ...m.score, periods: m.periods, players: m.players ?? null }, { home: m.home.name, away: m.away.name });
       if (res === null) {
         await prisma.boletinItem.update({ where: { id: item.id }, data: { needsReview: true } });
         continue;
@@ -272,18 +258,18 @@ function tennisCtx(item: TennisItem, m: TennisMatch) {
   return { playerA: [m.playerA], playerB: [m.playerB] };
 }
 
+function assessTennis(item: TennisItem, m: TennisMatch) {
+  if (m.sets.length === 0) return { ifEndedNow: null, decided: null };
+  if (m.status === 'FINISHED' && m.winner) {
+    const r = resolveTennisMarket(item.market, item.selection, { status: 'FINISHED', sets: m.sets, winner: m.winner }, tennisCtx(item, m));
+    return { ifEndedNow: r, decided: r };
+  }
+  // Live: the last set in the list is the one being played.
+  return assessTennisLive(item.market, item.selection, m.sets, false, tennisCtx(item, m));
+}
+
 function tennisVerdict(item: TennisItem, m: TennisMatch): string | null {
-  if (m.sets.length === 0) return null;
-  // Provisional: treat the current leader in sets as the winner.
-  const setsA = m.sets.filter((s) => s.a > s.b).length;
-  const setsB = m.sets.filter((s) => s.b > s.a).length;
-  const finished = m.status === 'FINISHED';
-  const winner = m.winner ?? (setsA > setsB ? 'A' : setsB > setsA ? 'B' : null);
-  if (!winner) return null;
-  const r = resolveTennisMarket(item.market, item.selection, { status: 'FINISHED', sets: m.sets, winner }, tennisCtx(item, m));
-  if (r === 'WON') return finished ? 'ganha' : 'a ganhar';
-  if (r === 'LOST') return finished ? 'perdida' : 'a perder';
-  return null;
+  return verdictOf(assessTennis(item, m));
 }
 
 async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<void> {
@@ -325,6 +311,9 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
   await writeLiveItems(group.map((it) => ({ id: it.id, verdict: tennisVerdict(it, m) })), {
     status: m.status, detail: liveDetail, home: m.playerA, away: m.playerB, score: liveScore || null, sport: 'TENNIS',
   });
+  if (m.status === 'LIVE') {
+    await notifyDecided(group as unknown as PendingItem[], id, `${m.playerA} ${score} ${m.playerB}`, (it) => assessTennis(it as unknown as TennisItem, m).decided);
+  }
 
   const result = toTennisResult(m);
   if (!result) return;
@@ -440,27 +429,66 @@ async function once(key: string): Promise<boolean> {
   return ok === 'OK';
 }
 
-/** Provisional verdict of a selection as if the match ended now. */
-function liveVerdict(item: PendingItem, m: NormalizedMatch): 'a ganhar' | 'a perder' | null {
-  if (!m.score) return null;
-  const fixture: FixtureResult = {
-    homeScore: m.score.home, awayScore: m.score.away,
-    htHomeScore: m.halfTime?.home ?? null, htAwayScore: m.halfTime?.away ?? null,
-    statusShort: 'FT', homeCorners: m.stats?.home.corners ?? null, awayCorners: m.stats?.away.corners ?? null,
-  };
-  const r = resolveMarket(item.market, item.selection, fixture, { homeNames: [item.homeTeam, m.home.name], awayNames: [item.awayTeam, m.away.name] });
-  return r === 'WON' ? 'a ganhar' : r === 'LOST' ? 'a perder' : null;
+export type Verdict = 'ganha' | 'perdida' | 'a ganhar' | 'a perder';
+
+/** "ganha"/"perdida" once nothing can change it, otherwise "a ganhar"/"a perder" as if it ended now. */
+export function verdictOf(a: { ifEndedNow: string | null; decided: string | null }): Verdict | null {
+  if (a.decided === 'WON') return 'ganha';
+  if (a.decided === 'LOST') return 'perdida';
+  if (a.ifEndedNow === 'WON') return 'a ganhar';
+  if (a.ifEndedNow === 'LOST') return 'a perder';
+  return null;
+}
+
+/** Live assessment of a football selection from the current match (score, stats, scorers, cards). */
+function assessFootball(item: PendingItem, m: NormalizedMatch) {
+  const live = toLiveSnapshot(m);
+  if (!live) return { ifEndedNow: null, decided: null };
+  return assessLive(item.market, item.selection, live.fixture, live.phase, { homeNames: [item.homeTeam, m.home.name], awayNames: [item.awayTeam, m.away.name] });
+}
+
+function liveVerdict(item: PendingItem, m: NormalizedMatch): Verdict | null {
+  return verdictOf(assessFootball(item, m));
 }
 
 function verdictLine(items: PendingItem[], m: NormalizedMatch): string {
-  const finished = m.status === 'FINISHED';
   const parts = items.map((it) => {
     const v = liveVerdict(it, m);
-    if (!v) return null;
-    const label = finished ? (v === 'a ganhar' ? 'ganha' : 'perdida') : v;
-    return `${it.selection} (${label})`;
+    return v ? `${it.selection} (${v})` : null;
   }).filter(Boolean);
   return parts.length ? ` · ${parts.join(', ')}` : '';
+}
+
+/**
+ * Tells the user, once per selection, when a bet is decided before the end
+ * ("Mais de 2,5 golos já está ganha", "Gyökeres marcou: seleção ganha").
+ */
+async function notifyDecided<T extends { id: string; selection: string; boletinId: string; boletin: PendingItem['boletin'] }>(
+  group: T[],
+  matchId: string,
+  scoreLine: string,
+  decidedOf: (it: T) => string | null,
+): Promise<void> {
+  const fresh: Array<{ it: T; won: boolean }> = [];
+  for (const it of group) {
+    const d = decidedOf(it);
+    if ((d === 'WON' || d === 'LOST') && await once(`notif:decided:${it.id}`)) fresh.push({ it, won: d === 'WON' });
+  }
+  if (!fresh.length) return;
+  const byUser = new Map<string, typeof fresh>();
+  for (const f of fresh) byUser.set(f.it.boletin.userId, [...(byUser.get(f.it.boletin.userId) ?? []), f]);
+  const inputs = [...byUser.entries()]
+    .filter(([, fs]) => (fs[0]!.it.boletin.user.fixtureNotifPrefs ?? []).includes('GOALS'))
+    .map(([userId, fs]) => {
+      const won = fs.filter((f) => f.won);
+      const lost = fs.filter((f) => !f.won);
+      const title = won.length && !lost.length ? `✅ ${won.length === 1 ? 'Seleção ganha' : `${won.length} seleções ganhas`} antes do fim`
+        : lost.length && !won.length ? `❌ ${lost.length === 1 ? 'Seleção perdida' : `${lost.length} seleções perdidas`}`
+          : '⚖️ Seleções decididas';
+      const body = `${fs.map((f) => `${f.it.selection} (${f.won ? 'ganha' : 'perdida'})`).join(', ')} · ${scoreLine}`;
+      return { userId, type: NotificationType.BOLETIN_RESULT, title, body, data: { boletinId: fs[0]!.it.boletinId, espnMatchId: matchId, type: 'BET_DECIDED' } };
+    });
+  if (inputs.length) await createNotifications(inputs);
 }
 
 async function notify(
@@ -510,13 +538,24 @@ async function handleMatchUpdate(m: NormalizedMatch, group: PendingItem[]): Prom
     await notify(group, m, NotificationType.HALF_TIME, 'HALF_TIME', '🕐 Intervalo', (its) => `${title}${verdictLine(its, m)}`);
   }
 
-  await writeLiveItems(group.map((it) => {
-    const v = liveVerdict(it, m);
-    return { id: it.id, verdict: v && m.status === 'FINISHED' ? (v === 'a ganhar' ? 'ganha' : 'perdida') : v };
-  }), {
+  // Red cards (preference RED_CARD), once per card.
+  if (isLive) {
+    const reds = m.incidents.filter((i) => i.type === 'RED' || i.type === 'SECOND_YELLOW');
+    for (const red of reds) {
+      if (!(await once(`notif:espn:${id}:red:${red.player ?? ''}:${red.minute}`))) continue;
+      const team = red.side === 'home' ? m.home.name : red.side === 'away' ? m.away.name : '';
+      await notify(group, m, NotificationType.RED_CARD, 'RED_CARD', `🟥 Vermelho${red.player ? `: ${red.player}` : ''}${red.minute ? ` (${red.minute})` : ''}`,
+        (its) => `${team ? `${team} · ` : ''}${title}${verdictLine(its, m)}`);
+    }
+  }
+
+  await writeLiveItems(group.map((it) => ({ id: it.id, verdict: liveVerdict(it, m) })), {
     status: m.status, detail: m.statusDetail, home: m.home.name, away: m.away.name,
     score: m.score ? `${m.score.home}-${m.score.away}` : null, sport: 'FOOTBALL',
   });
+
+  // Bets decided before the final whistle (an over line passed, a scorer who scored…).
+  if (isLive) await notifyDecided(group, id, title, (it) => assessFootball(it, m).decided);
 
   const fixture = toFixtureResult(m);
   if (!fixture) return; // still playing or scheduled
