@@ -204,6 +204,7 @@ model Boletin {
   sharedWith SharedBoletin[]
 
   @@index([userId, status])
+  @@index([userId, createdAt])
 }
 
 model BoletinItem {
