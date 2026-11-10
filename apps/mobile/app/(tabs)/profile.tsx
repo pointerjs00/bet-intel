@@ -22,6 +22,7 @@ import {
   getApiErrorMessage,
   useMarkAllNotificationsReadMutation,
   useMarkNotificationReadMutation,
+  useFriendRequests,
   useMeProfile,
   useNotifications,
   useUpdateProfileMutation,
@@ -35,6 +36,7 @@ export default function ProfileScreen() {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
+  const pendingFriendRequests = useFriendRequests().data?.received.length ?? 0;
 
   const profileQuery = useMeProfile();
   const statsSummaryQuery = useStatsSummary('month');
@@ -94,6 +96,21 @@ export default function ProfileScreen() {
             <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Perfil</Text>
             <Text style={[styles.title, { color: colors.textPrimary }]}>A tua conta</Text>
           </View>
+          {/* Amigos left the tab bar in the redesign (D4): reachable from here. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={pendingFriendRequests > 0 ? `Amigos, ${pendingFriendRequests} pedidos` : 'Amigos'}
+            onPress={() => router.push('/(tabs)/friends')}
+            hitSlop={12}
+            style={[styles.settingsBtn, { backgroundColor: colors.surfaceRaised, marginRight: 8 }]}
+          >
+            <Ionicons name="people-outline" size={22} color={colors.textSecondary} />
+            {pendingFriendRequests > 0 ? (
+              <View style={[styles.friendsBadge, { backgroundColor: colors.danger }]}>
+                <Text style={styles.friendsBadgeText}>{pendingFriendRequests > 9 ? '9+' : pendingFriendRequests}</Text>
+              </View>
+            ) : null}
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Definições"
@@ -384,6 +401,8 @@ const styles = StyleSheet.create({
   headerTextWrap: { gap: 4, flex: 1 },
   eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
+  friendsBadge: { alignItems: 'center', borderRadius: 9, height: 18, justifyContent: 'center', minWidth: 18, paddingHorizontal: 4, position: 'absolute', right: -2, top: -2 },
+  friendsBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
   settingsBtn: {
     width: 40,
     height: 40,

@@ -603,7 +603,7 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { colors, tokens } = useTheme();
-  const [period, setPeriod] = useState<StatsPeriod>('month');
+  const [period, setPeriod] = useState<StatsPeriod>('year');
   // Custom date range (overrides period chips when both are set)
   const [useCustomRange, setUseCustomRange] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date | null>(null);
@@ -750,12 +750,12 @@ export default function StatsScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <Stack.Screen options={{ title: 'Estatísticas' }} />
+      <Stack.Screen options={{ title: 'Análise' }} />
 
       {/* Fixed header — stays visible while scrolling */}
       <View style={[styles.fixedHeader, { paddingTop: insets.top, backgroundColor: colors.background }]}>
         <View style={styles.headerTopRow}>
-          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Estatísticas</Text>
+          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Análise</Text>
           <View style={{ flexDirection: 'row', gap: 4 }}>
             <TouchableOpacity onPress={() => setShowCustomize(true)} hitSlop={8} style={styles.headerIconBtn}>
               <Ionicons color={colors.textSecondary} name="options-outline" size={22} />
@@ -917,12 +917,22 @@ export default function StatsScreen() {
             <Card style={{ gap: 12 }}><Skeleton height={18} width={140} /><Skeleton height={160} width="100%" /></Card>
           </View>
         ) : stats.summary.totalBoletins === 0 ? (
-          <EmptyState
-            icon="chart-line"
-            title="Sem estatísticas"
-            message="Cria o teu primeiro boletim para começares a ver a evolução das tuas apostas aqui."
-            action={<Button onPress={() => router.push('/boletins/create')} title="Criar boletim" />}
-          />
+          (boletinsQuery.data?.length ?? 0) > 0 && (period !== 'all' || useCustomRange) ? (
+            // Has bets, just none in this period (e.g. "Este Mês" during a break).
+            <EmptyState
+              icon="calendar-blank-outline"
+              title="Sem apostas neste período"
+              message="Não registaste apostas neste intervalo. Vê o histórico completo ou escolhe outro período."
+              action={<Button onPress={() => { setPeriod('all'); setUseCustomRange(false); }} title="Ver desde sempre" />}
+            />
+          ) : (
+            <EmptyState
+              icon="chart-line"
+              title="Sem estatísticas"
+              message="Regista o teu primeiro boletim para começares a ver a evolução das tuas apostas aqui."
+              action={<Button onPress={() => router.push('/boletins/novo')} title="Criar boletim" />}
+            />
+          )
         ) : (
           <View style={styles.contentStack}>
             {getEffectiveOrder().map((sectionId) => {

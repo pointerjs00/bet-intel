@@ -33,6 +33,7 @@ import {
 } from '../../components/boletins/BoletinFilterSheet';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { AppText } from '../../components/ui/AppText';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PressableScale } from '../../components/ui/PressableScale';
@@ -738,24 +739,10 @@ export default function HomeScreen() {
             {/* Title row */}
             <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.titleRow}>
               <View style={styles.titleBlock}>
-                <Text style={[styles.logo, { color: colors.textPrimary }]}>BetIntel</Text>
-                <Text style={[styles.tagline, { color: colors.textMuted }]}>O teu tracker de apostas</Text>
+                {/* Redesign D4/D6: notifications live in Início and "+" in the tab bar. */}
+                <AppText accessibilityRole="header" variant="title">Boletins</AppText>
               </View>
               <View style={styles.topActions}>
-                <PressableScale
-                  scaleDown={0.88}
-                  accessibilityRole="button"
-                  accessibilityLabel="Notificações"
-                  onPress={() => { hapticLight(); setShowNotifBubble((v) => !v); }}
-                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
-                >
-                  <Ionicons color={colors.textSecondary} name="notifications-outline" size={20} />
-                  {unreadCount > 0 ? (
-                    <View style={[styles.notifBadge, { backgroundColor: colors.danger }]}>
-                      <Text style={styles.notifBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-                    </View>
-                  ) : null}
-                </PressableScale>
                 <PressableScale
                   scaleDown={0.88}
                   accessibilityRole="button"
@@ -773,23 +760,6 @@ export default function HomeScreen() {
                   style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
                 >
                   <Ionicons color={colors.textSecondary} name="journal-outline" size={20} />
-                </PressableScale>
-                <PressableScale
-                  scaleDown={0.88}
-                  accessibilityRole="button"
-                  accessibilityLabel={fabOpen ? 'Fechar menu' : 'Criar boletim'}
-                  onPress={() => {
-                    hapticLight();
-                    setFabOpen((v) => {
-                      fabIconRotation.value = withSpring(!v ? 45 : 0, { damping: 18, stiffness: 500 });
-                      return !v;
-                    });
-                  }}
-                  style={[styles.iconButton, { backgroundColor: fabOpen ? colors.danger : colors.primary }]}
-                >
-                  <Animated.View style={fabIconStyle}>
-                    <Ionicons color="#FFFFFF" name="add" size={20} />
-                  </Animated.View>
                 </PressableScale>
               </View>
             </Animated.View>
@@ -993,7 +963,7 @@ export default function HomeScreen() {
                 }
                 action={
                   hasActiveControls ? undefined : (
-                    <Button onPress={() => router.push('/boletins/create')} title="Criar boletim" />
+                    <Button onPress={() => router.push('/boletins/novo')} title="Criar boletim" />
                   )
                 }
               />
@@ -1043,7 +1013,7 @@ export default function HomeScreen() {
             </View>
           ) : boletinsQuery.isLoading || boletins.length === 0 ? null : (
             <View style={styles.footerBar}>
-              <Button onPress={() => router.push('/boletins/create')} title="Novo boletim" />
+              <Button onPress={() => router.push('/boletins/novo')} title="Novo boletim" />
             </View>
           )
         }
