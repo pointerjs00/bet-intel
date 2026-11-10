@@ -40,6 +40,15 @@ export const tokens = {
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
   radius: { sm: 6, md: 12, lg: 16, xl: 20, full: 9999 },
   font: {
+    /** Loaded in app/_layout.tsx. Use `numeric` for money, odds and percentages (tabular figures). */
+    family: {
+      regular: 'Inter_400Regular',
+      medium: 'Inter_500Medium',
+      semibold: 'Inter_600SemiBold',
+      bold: 'Inter_700Bold',
+      numeric: 'SpaceGrotesk_600SemiBold',
+      numericBold: 'SpaceGrotesk_700Bold',
+    },
     sizes: { xs: 11, sm: 13, md: 15, lg: 17, xl: 20, xxl: 24, display: 32 },
     weights: { regular: '400', medium: '500', semibold: '600', bold: '700', black: '900' },
   },

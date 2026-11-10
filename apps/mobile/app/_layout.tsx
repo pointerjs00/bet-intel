@@ -29,7 +29,17 @@ import {
 } from '../services/notificationService';
 import { boletinQueryKeys, listBoletinsRequest } from '../services/boletinService';
 import { useSharedImage } from '../hooks/useSharedImage';
+import { useFonts } from 'expo-font';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import * as Sentry from '@sentry/react-native';
 import '../global.css';
+
+// Error tracking: off until EXPO_PUBLIC_SENTRY_DSN is set (create the Sentry project, then add the DSN to .env / EAS).
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({ dsn: SENTRY_DSN, tracesSampleRate: 0.1, environment: __DEV__ ? 'development' : 'production' });
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -146,6 +156,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
  * Expo Router error boundary: any render error in a screen shows this instead of a blank/crashed app.
  */
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    if (SENTRY_DSN) Sentry.captureException(error);
+  }, [error]);
   return (
     <View style={[styles.flex, styles.errorScreen]}>
       <Text style={styles.errorTitle}>Algo correu mal</Text>
@@ -164,6 +177,9 @@ export default function RootLayout() {
   const { colors, isDark } = useTheme();
   const accessToken = useAuthStore((state) => state.accessToken);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  // Design v2 fonts (tokens.font.family). Rendering does not wait for them: text falls back to the
+  // system font for the first frames instead of delaying the app start.
+  useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold });
 
   useEffect(() => {
     startSocketForegroundSync(() => useAuthStore.getState().accessToken);

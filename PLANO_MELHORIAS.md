@@ -30,20 +30,20 @@ Alterações feitas no working tree em 10/11/2026, ainda **sem commit nem deploy
 | #10 | Feito | Sem limiter duplicado nas rotas. O limite global mantém-se em 2000 / 15 min (para uso pessoal não vale a pena baixar). |
 | #11, #12 | Feito | O socket volta às salas em cada reconexão; `boletim:result` atualiza boletins e estatísticas. |
 | #13 | Parcial | Golo anulado já não notifica. "Fim do jogo" continua dependente da fase 2. |
-| #14 | **Bloqueado** | Instalar `expo-haptics` exige uma nova build nativa da app. |
+| #14 | Feito (falta build) | `expo-haptics` instalado; a vibração funciona na próxima build nativa (EAS). |
 | #15, #37 | Feito | Campo "Cashout" na edição do boletim; a API grava e preserva o valor. |
 | #16 | Parcial | Quem não é dono já não vê as outras partilhas. O arredondamento ficou: o import usa de propósito a odd total do talão. |
-| #17, #52 | Parcial | `.gitignore` atualizado. Falta decidires se `api_logs.txt`, o PDF e os JPGs saem do Git (`git rm --cached`). |
+| #17, #52 | Feito | Ficheiros sensíveis fora do Git (continuam no disco) e `.gitignore` atualizado. |
 | #20 | Feito | `staleTime` de 30 s e 2 tentativas por omissão. |
 | #24 | Parcial | `redis.keys` substituído por `SCAN`. O índice `Boletin(userId, createdAt)` precisa de uma migração. |
 | #46 | Feito | O scan marca para revisão boletins cujo produto das odds difere mais de 3% da odd total, ou cujo retorno não bate (1 em 88 boletins reais é um falso alarme: odd aumentada). |
 | #47 | Feito | A importação em massa cria os boletins dentro da transação, com timeout de 120 s. |
-| #51 | Por fazer | Remover o caminho OpenAI implica tirar a dependência e atualizar o lockfile; fica para uma limpeza com `pnpm install`. |
+| #51 | Feito | Caminho OpenAI e scripts de fine-tuning removidos; `openai` e `@google/generative-ai` desinstalados. A análise IA das estatísticas passou também para o SDK novo. |
 | #28 | Parcial | `npm test` na API (13 testes). Faltam testes de estatísticas. |
-| #30 | Parcial | Ecrã de erro com "Tentar novamente". O Sentry precisa de uma conta tua. |
+| #30 | Feito (falta DSN) | Ecrã de erro e Sentry configurados; o Sentry só arranca quando definires `EXPO_PUBLIC_SENTRY_DSN` (e precisa de build nativa). |
 | #36 | Parcial | Seleções marcadas aparecem como "A rever" no detalhe; resolver à mão limpa a marca. Falta a fila dedicada. |
 | #42, #43, #44 | Feito | Regra das linhas vermelhas corrigida; prompt corrigido; anulados importados devolvem a stake. |
-| #48 | Parcial | O modelo já mudou (configurável em `GEMINI_SCAN_MODEL`). Falta migrar para o SDK `@google/genai`. |
+| #48 | Feito | SDK `@google/genai` com schema JSON obrigatório e 3 tentativas em 429/503. Validado com 2 screenshots reais (iguais à correção). Nota: com o schema a leitura demora 6–7 s em vez de 1,3 s. |
 | #49 | Feito | Ver "Resultado do benchmark" na secção 5. |
 | #53 | Parcial | Modelo normalizado (`services/sportsData/types.ts`) e adaptador ESPN de futebol, testado com uma resposta real gravada e contra a API real. Faltam os adaptadores FotMob, LiveScore e WTA. |
 | #54 | Feito | Cada seleção pendente é ligada ao jogo da ESPN por liga, data e nomes das equipas (inclui nomes portugueses); a ligação fica no Redis 7 dias, sem migração. |
@@ -54,8 +54,8 @@ Alterações feitas no working tree em 10/11/2026, ainda **sem commit nem deploy
 | #58 | Parcial | A API-Football continua a alimentar classificações, onzes e o ecrã de Jogos; a migração fica para o D8/#60. |
 | — | Validado | Teste de ponta a ponta com a base de dados local e a ESPN real (jogos de 08/11/2026): 5 de 5 seleções liquidadas como esperado (resultado, cantos, ambas marcam, marcador para revisão, empate) e notificações certas. |
 | #59 | Parcial | Motor de mercados de ténis (vencedor, resultado em sets, vencedor de set, total de jogos e de sets; desistência e walkover vão para revisão) e adaptador ESPN ATP/WTA. O tracker acompanha as apostas de ténis: início, fim de cada set, fim com o estado da aposta, e liquidação. Teste de ponta a ponta 4 de 4 (Estocolmo, 09/11). Faltam os pontos ao vivo (LiveScore/WTA). |
-| D2 | Parcial | Paleta v2 nos tokens (verifica no emulador). Faltam as fontes (precisam de instalar pacotes) e tirar as 268 cores fixas. |
-| #64 | Feito | **Bug novo:** a app terminava a sessão perante qualquer erro de rede durante o refresh. Agora só o faz quando o servidor recusa o token. |
+| D2 | Parcial | Paleta v2 e fontes (Inter, Space Grotesk) carregadas e expostas em `tokens.font.family`. Falta aplicá-las nos componentes e tirar as 268 cores fixas (D3). |
+| #64 | Feito | **Bug novo:** a app terminava a sessão perante qualquer erro de rede durante o refresh; agora só o faz quando o servidor recusa o token. (Nota: as quedas de sessão no emulador eram outra coisa — sem login biométrico ativo, a app apaga os tokens em cada arranque a frio, de propósito, em `authStore.hydrate`.) |
 
 ---
 

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
+import { GoogleGenAI, HarmBlockThreshold, HarmCategory, ThinkingLevel } from '@google/genai';
 import { logger } from '../utils/logger';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -41,18 +41,64 @@ export interface AIParsedResult {
 
 // ─── Gemini client ───────────────────────────────────────────────────────────
 
-let genAI: GoogleGenerativeAI | null = null;
+let genAI: GoogleGenAI | null = null;
 
-function getGenAI(): GoogleGenerativeAI {
+function getGenAI(): GoogleGenAI {
   if (!genAI) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw Object.assign(new Error('GEMINI_API_KEY não configurada no servidor'), { statusCode: 500 });
     }
-    genAI = new GoogleGenerativeAI(apiKey);
+    genAI = new GoogleGenAI({ apiKey });
   }
   return genAI;
 }
+
+/** JSON schema the model must follow (enforced by the API, so no more half-formed JSON). */
+const RESULT_ENUM = ['WON', 'LOST', 'VOID', 'PENDING'];
+const SPORT_ENUM = ['FOOTBALL', 'BASKETBALL', 'TENNIS', 'HANDBALL', 'VOLLEYBALL', 'HOCKEY', 'RUGBY', 'AMERICAN_FOOTBALL', 'BASEBALL', 'OTHER'];
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    boletins: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          betDate: { type: 'string' },
+          stake: { type: 'number' },
+          totalOdds: { type: 'number' },
+          potentialReturn: { type: 'number' },
+          status: { type: 'string', enum: ['WON', 'LOST', 'PENDING'] },
+          losingSelections: { type: 'array', items: { type: 'string' } },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                homeTeam: { type: 'string' },
+                awayTeam: { type: 'string' },
+                competition: { type: 'string' },
+                sport: { type: 'string', enum: SPORT_ENUM },
+                market: { type: 'string' },
+                selection: { type: 'string' },
+                oddValue: { type: 'number' },
+                eventDate: { type: 'string' },
+                result: { type: 'string', enum: RESULT_ENUM },
+              },
+              required: ['homeTeam', 'awayTeam', 'competition', 'sport', 'market', 'selection', 'oddValue', 'result'],
+            },
+          },
+        },
+        required: ['stake', 'totalOdds', 'status', 'items'],
+      },
+    },
+    error: { type: 'string' },
+  },
+  required: ['boletins'],
+};
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 
@@ -207,44 +253,51 @@ export async function parseImageWithGemini(imageBase64: string, mimeType: string
   const modelName = process.env.GEMINI_SCAN_MODEL ?? 'gemini-3.5-flash-lite';
   const thinkingConfig = modelName.startsWith('gemini-2.')
     ? { thinkingBudget: 0 }
-    : { thinkingLevel: 'low' };
-  const model = ai.getGenerativeModel({
-    model: modelName,
-    safetySettings: [
-      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      thinkingConfig,
-    } as any,
-  });
+    : { thinkingLevel: ThinkingLevel.LOW };
 
   logger.info('Sending image to Gemini Vision for parsing', {
+    model: modelName,
     mimeType,
     imageSizeKB: Math.round(imageBase64.length * 0.75 / 1024),
   });
 
-  const result = await model.generateContent([
-    { text: getSystemPrompt() },
-    {
-      inlineData: {
-        mimeType: mimeType as 'image/jpeg' | 'image/png' | 'image/webp',
-        data: imageBase64,
-      },
-    },
-  ]);
+  // Free tier: 429 (rate limit) and 503 (overloaded) are common and short-lived — retry with backoff.
+  let response: Awaited<ReturnType<typeof ai.models.generateContent>> | null = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      response = await ai.models.generateContent({
+        model: modelName,
+        contents: [{
+          role: 'user',
+          parts: [{ text: getSystemPrompt() }, { inlineData: { mimeType, data: imageBase64 } }],
+        }],
+        config: {
+          responseMimeType: 'application/json',
+          responseJsonSchema: RESPONSE_SCHEMA,
+          temperature: 0,
+          thinkingConfig,
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          ],
+        },
+      });
+      break;
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (attempt === 3 || (status !== 429 && status !== 503 && status !== 500)) throw err;
+      logger.warn('Gemini Vision retry', { attempt, status });
+      await sleep(2000 * attempt);
+    }
+  }
 
-  const response = result.response;
-  const text = response.text().trim();
+  const text = (response?.text ?? '').trim();
 
   logger.info('Gemini Vision response received', {
     responseLength: text.length,
-    finishReason: response.candidates?.[0]?.finishReason,
+    finishReason: response?.candidates?.[0]?.finishReason,
   });
 
   // Strip markdown code block wrappers if present

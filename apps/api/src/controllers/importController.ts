@@ -5,7 +5,6 @@ import { createBoletinSchema } from '@betintel/shared';
 import { parseBetclicPdf, type ParsedBetclicBoletin } from '../services/betclicPdfParser';
 import { fetchBetclicBets } from '../services/betclicApiService';
 import { parseImageWithGemini } from '../services/geminiVisionParser';
-import { parseImageWithOpenAI } from '../services/openaiVisionParser';
 import { createBoletin, listUserBoletins } from '../services/boletins/boletinService';
 import { prisma } from '../prisma';
 import { logger } from '../utils/logger';
@@ -209,11 +208,8 @@ export async function scanAiHandler(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // AI_PARSER env var selects the backend: 'openai' | 'gemini' (default)
-    const parser = process.env.AI_PARSER ?? 'gemini';
-    const result = parser === 'openai'
-      ? await parseImageWithOpenAI(imageBase64, mimeType)
-      : await parseImageWithGemini(imageBase64, mimeType);
+    const parser = 'gemini';
+    const result = await parseImageWithGemini(imageBase64, mimeType);
 
     logger.info('AI vision scan completed', {
       parser,

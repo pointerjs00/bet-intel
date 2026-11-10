@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import type { AiReview, PersonalStats } from '@betintel/shared';
 import { redis } from '../../utils/redis';
 import { getPersonalStats } from './statsService';
@@ -10,7 +10,7 @@ const AI_REVIEW_CACHE_PREFIX = 'ai-review:';
 function getGenAI() {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw Object.assign(new Error('GEMINI_API_KEY não configurada no servidor'), { statusCode: 500 });
-  return new GoogleGenerativeAI(key);
+  return new GoogleGenAI({ apiKey: key });
 }
 
 function buildPrompt(stats: PersonalStats): string {
@@ -247,9 +247,11 @@ export async function getAiReview(userId: string): Promise<AiReview> {
 
   let rawText: string;
   try {
-    const model = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const result = await model.generateContent(prompt);
-    rawText = result.response.text().trim();
+    const result = await getGenAI().models.generateContent({
+      model: process.env.GEMINI_REVIEW_MODEL ?? 'gemini-3.5-flash-lite',
+      contents: prompt,
+    });
+    rawText = (result.text ?? '').trim();
   } catch (err) {
     logger.error('AI review Gemini API error', { userId, error: err instanceof Error ? err.message : String(err) });
     throw Object.assign(new Error('Não foi possível gerar a análise. Tenta novamente mais tarde.'), { statusCode: 503 });
