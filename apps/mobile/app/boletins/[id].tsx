@@ -7,6 +7,9 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
+import { StatusPill } from '../../components/ui/StatusPill';
+import { AppText } from '../../components/ui/AppText';
+import { useCardElevation } from '../../components/ui/ListCard';
 import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
 import { ShareCard } from '../../components/boletins/ShareCard';
@@ -429,6 +432,7 @@ export default function BoletinDetailScreen() {
     showToast('Boletim duplicado — edita e guarda.', 'success');
   }, [boletin, router, showToast]);
 
+  const ticketElevation = useCardElevation();
   const bannerColor = useMemo(() => {
     // Darker shades to ensure WCAG AA contrast (≥4.5:1) with white text
     switch (boletin?.status) {
@@ -510,123 +514,63 @@ export default function BoletinDetailScreen() {
         ListHeaderComponent={
           <View style={styles.headerWrap}>
             <Animated.View entering={FadeInUp.duration(160).springify()}>
-              <View style={[styles.statusBanner, { backgroundColor: bannerColor }]}>
-                <View style={styles.bannerTopRow}>
-                  <StatusBadge status={boletin.status} variant="banner" />
+              {/* Redesign D6: "talão" hero instead of the coloured banner + 6-tile grid. */}
+              <View style={[styles.ticket, ticketElevation, { backgroundColor: colors.surface }]}>
+                <View style={styles.ticketTopRow}>
+                  <StatusPill status={boletin.status} />
+                  <AppText variant="label">{formatLongDate(boletin.betDate ?? boletin.createdAt)}</AppText>
                 </View>
                 {isEditing ? (
                   <TextInput
                     maxLength={100}
                     onChangeText={setEditName}
                     placeholder="Nome do boletim"
-                    placeholderTextColor="rgba(255,255,255,0.45)"
-                    style={styles.bannerTitleInput}
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.ticketNameInput, { color: colors.textPrimary, borderBottomColor: colors.primary }]}
                     value={editName}
                   />
                 ) : (
-                  <Text style={styles.bannerTitle}>{boletin.name ?? 'Boletim sem nome'}</Text>
+                  <AppText variant="heading">
+                    {boletin.name ?? (boletin.items.length === 1 && boletin.items[0] ? `${boletin.items[0].homeTeam} vs ${boletin.items[0].awayTeam}` : `Múltipla · ${boletin.items.length} seleções`)}
+                  </AppText>
                 )}
-                <Text style={styles.bannerSubtitle}>{formatLongDate(boletin.betDate ?? boletin.createdAt)}</Text>
+                <AppText style={styles.ticketReturnLabel} variant="label">{boletinStats?.isPending ? 'Retorno possível' : 'Retorno'}</AppText>
+                <AppText variant="numberLarge">{formatCurrency(boletinStats?.displayReturn ?? boletin.potentialReturn)}</AppText>
+                <AppText tone={(boletinStats?.displayProfit ?? 0) >= 0 ? 'positive' : 'negative'} variant="number">
+                  {(boletinStats?.displayProfit ?? 0) >= 0 ? '+' : ''}{formatCurrency(boletinStats?.displayProfit ?? 0)} · ROI {(boletinStats?.displayROI ?? 0) >= 0 ? '+' : ''}{(boletinStats?.displayROI ?? 0).toFixed(1).replace('.', ',')}%
+                </AppText>
+                <View style={[styles.ticketDivider, { borderColor: colors.border }]} />
+                <View style={styles.ticketMetrics}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Stake" onPress={() => pushInfo('boletim-stake', boletinStats?.stake)} style={styles.ticketMetric}>
+                    <AppText variant="label">Stake</AppText>
+                    {isEditing ? (
+                      <TextInput
+                        keyboardType="decimal-pad"
+                        maxLength={10}
+                        onChangeText={setEditStake}
+                        placeholder="0.00"
+                        placeholderTextColor={colors.textMuted}
+                        selectTextOnFocus
+                        style={[styles.statValueInput, { color: colors.textPrimary, borderBottomColor: colors.primary }]}
+                        value={editStake}
+                      />
+                    ) : (
+                      <AppText variant="number">{formatCurrency(boletin.stake)}</AppText>
+                    )}
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Odd total" onPress={() => pushInfo('boletim-odds', boletinStats?.totalOdds)} style={styles.ticketMetric}>
+                    <AppText variant="label">Odd total</AppText>
+                    <AppText variant="number">{(boletinStats?.totalOdds ?? 1).toFixed(2)}</AppText>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Seleções" onPress={() => pushInfo('boletim-selections', boletinStats?.selectionCount)} style={styles.ticketMetric}>
+                    <AppText variant="label">Seleções</AppText>
+                    <AppText variant="number">{boletinStats?.selectionCount ?? 0}</AppText>
+                  </Pressable>
+                </View>
               </View>
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(30).duration(280).springify()}>
-              {/* Stats grid */}
-              <Card style={styles.statsGrid}>
-                {/* Row 1: Stake | Odd Total */}
-                <View style={styles.statsRow}>
-                  <View style={styles.statCell}>
-                    <View style={styles.statLabelRow}>
-                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Stake</Text>
-                      <InfoButton accessibilityLabel="O que é a stake" onPress={() => pushInfo('boletim-stake', boletinStats?.stake)} showLabel={false} size="sm" />
-                    </View>
-                    {isEditing ? (
-                      <View style={styles.statEditRow}>
-                        <Text style={[styles.statValue, { color: colors.textPrimary }]}>{'€ '}</Text>
-                        <TextInput
-                          keyboardType="decimal-pad"
-                          maxLength={10}
-                          onChangeText={setEditStake}
-                          placeholder="0.00"
-                          placeholderTextColor={colors.textMuted}
-                          selectTextOnFocus
-                          style={[styles.statValueInput, { color: colors.textPrimary, borderBottomColor: colors.primary }]}
-                          value={editStake}
-                        />
-                      </View>
-                    ) : (
-                      <Text style={[styles.statValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
-                    )}
-                  </View>
-                  <View style={[styles.statDividerV, { backgroundColor: colors.border }]} />
-                  <View style={styles.statCell}>
-                    <View style={styles.statLabelRow}>
-                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Odd Total</Text>
-                      <InfoButton accessibilityLabel="O que é a odd total" onPress={() => pushInfo('boletim-odds', boletinStats?.totalOdds)} showLabel={false} size="sm" />
-                    </View>
-                    <Text style={[styles.statValue, { color: colors.textPrimary }]}>
-                      {(boletinStats?.totalOdds ?? 1).toFixed(2)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={[styles.statDividerH, { backgroundColor: colors.border }]} />
-
-                {/* Row 2: Retorno | Lucro/Prejuízo */}
-                <View style={styles.statsRow}>
-                  <View style={styles.statCell}>
-                    <View style={styles.statLabelRow}>
-                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                        {boletinStats?.isPending ? 'Retorno Potencial' : 'Retorno'}
-                      </Text>
-                      <InfoButton accessibilityLabel="O que é o retorno" onPress={() => pushInfo('boletim-potential-return', boletinStats?.displayReturn)} showLabel={false} size="sm" />
-                    </View>
-                    <Text style={[styles.statValue, { color: colors.primary }]}>
-                      {formatCurrency(boletinStats?.displayReturn ?? boletin.potentialReturn)}
-                    </Text>
-                  </View>
-                  <View style={[styles.statDividerV, { backgroundColor: colors.border }]} />
-                  <View style={styles.statCell}>
-                    <View style={styles.statLabelRow}>
-                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                        {boletinStats?.isPending ? 'Lucro Potencial' : 'Lucro / Prejuízo'}
-                      </Text>
-                      <InfoButton accessibilityLabel="O que é lucro ou prejuízo" onPress={() => pushInfo('boletim-profit', boletinStats?.displayProfit)} showLabel={false} size="sm" />
-                    </View>
-                    <Text style={[styles.statValue, { color: (boletinStats?.displayProfit ?? 0) >= 0 ? colors.primary : colors.danger }]}>
-                      {(boletinStats?.displayProfit ?? 0) >= 0 ? '+' : ''}{formatCurrency(boletinStats?.displayProfit ?? 0)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={[styles.statDividerH, { backgroundColor: colors.border }]} />
-
-                {/* Row 3: ROI | Seleções */}
-                <View style={styles.statsRow}>
-                  <View style={styles.statCell}>
-                    <View style={styles.statLabelRow}>
-                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
-                        {boletinStats?.isPending ? 'ROI Potencial' : 'ROI'}
-                      </Text>
-                      <InfoButton accessibilityLabel="O que é o ROI" onPress={() => pushInfo('boletim-roi', boletinStats?.displayROI)} showLabel={false} size="sm" />
-                    </View>
-                    <Text style={[styles.statValue, { color: (boletinStats?.displayROI ?? 0) >= 0 ? colors.primary : colors.danger }]}>
-                      {(boletinStats?.displayROI ?? 0) >= 0 ? '+' : ''}{(boletinStats?.displayROI ?? 0).toFixed(1)}%
-                    </Text>
-                  </View>
-                  <View style={[styles.statDividerV, { backgroundColor: colors.border }]} />
-                  <View style={styles.statCell}>
-                    <View style={styles.statLabelRow}>
-                      <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Seleções</Text>
-                      <InfoButton accessibilityLabel="Número de seleções" onPress={() => pushInfo('boletim-selections', boletinStats?.selectionCount)} showLabel={false} size="sm" />
-                    </View>
-                    <Text style={[styles.statValue, { color: colors.textPrimary }]}>
-                      {boletinStats?.selectionCount ?? 0}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-
               {/* Metadata row */}
               <View style={styles.metaRow}>
                 <View style={styles.metaItem}>
@@ -1429,6 +1373,13 @@ function getErrorMessage(error: unknown): string {
 }
 
 const styles = StyleSheet.create({
+  ticket: { borderRadius: 20, gap: 4, padding: 20 },
+  ticketTopRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  ticketNameInput: { borderBottomWidth: 1, fontSize: 17, fontWeight: '600', paddingVertical: 4 },
+  ticketReturnLabel: { marginTop: 12 },
+  ticketDivider: { borderStyle: 'dashed', borderTopWidth: 1, marginHorizontal: -20, marginVertical: 14 },
+  ticketMetrics: { flexDirection: 'row', gap: 12 },
+  ticketMetric: { flex: 1, gap: 2 },
   screen: { flex: 1 },
   loadingScreen: { alignItems: 'stretch', flex: 1, justifyContent: 'flex-start' },
   center: { alignItems: 'center', justifyContent: 'center' },

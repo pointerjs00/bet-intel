@@ -58,7 +58,7 @@ Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main`
 | D3 | Parcial | Componentes base criados: `AppText`, `ListCard`/`ListRow`, `StatusPill`, `SegmentedControl`, `SectionHeader`/`MetricTile`. Usados no Início e no Novo boletim; os ecrãs antigos ainda não os usam. |
 | D4 | Feito | Barra Início · Boletins · + · Jogos · Análise. Perfil pelo avatar do Início; Amigos pelo Perfil (com selo de pedidos). As ligações das estatísticas abrem Boletins. |
 | D5 | Feito | Início novo: lucro do ano, ROI, 8 semanas, métricas, "A decorrer" com estado ao vivo (precisa do deploy do endpoint `/boletins/live`), resolver pendentes e recentes. |
-| D6 | Parcial | Cabeçalho de Boletins simplificado; cartão sem faixa lateral nem fila de botões (tocar abre o detalhe; partilhar/apagar por deslize), estado com ícone e texto, título com o jogo. Falta o detalhe em "talão". |
+| D6 | Parcial | Cabeçalho de Boletins simplificado; cartão sem faixa lateral nem fila de botões (tocar abre o detalhe; partilhar/apagar por deslize), estado com ícone e texto, título com o jogo. Detalhe em "talão" (estado, jogo, retorno em destaque, lucro e ROI, stake/odd/seleções; nome e stake editáveis no próprio bloco). Falta passar os 6 botões de ação para um menu "…". |
 | D7 | Parcial | Análise abre em "Este Ano"; período vazio mostra "Sem apostas neste período" com atalho para "Sempre". Falta o redesenho completo. |
 | D8 | **Bloqueado** | O ecrã de Jogos (`boletins/fixtures.tsx`) tem alterações tuas por guardar; não lhe toco até as guardares. |
 | D9 | Feito | Ecrã "Novo boletim" com os 4 modos, aberto pelo + central. |
