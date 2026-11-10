@@ -17,6 +17,14 @@ import { toFixtureResult } from '../services/sportsData/settlementBridge';
 import type { NormalizedMatch } from '../services/sportsData/types';
 import { fetchEspnTennisDay, toTennisResult, type TennisMatch } from '../services/sportsData/espnTennis';
 import { resolveTennisMarket } from '../services/tennisMarketEngine';
+import { fetchLiveTennisPoints, findLivePoints, type LiveTennisPoints } from '../services/sportsData/livescoreTennis';
+
+// One LiveScore request per ~15 s, shared by every live tennis match in a tracker pass.
+let pointsCache: { at: number; list: Promise<LiveTennisPoints[]> } | null = null;
+function liveTennisPoints(): Promise<LiveTennisPoints[]> {
+  if (!pointsCache || Date.now() - pointsCache.at > 15_000) pointsCache = { at: Date.now(), list: fetchLiveTennisPoints() };
+  return pointsCache.list;
+}
 import { createNotifications } from '../services/social/notificationService';
 import { recomputeBoletinAfterItemChange } from '../services/boletins/boletinService';
 
@@ -185,8 +193,19 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
       (its) => `${m.playerA} ${score} ${m.playerB}${line(its as unknown as TennisItem[])}`);
   }
 
+  // Plan #59: points of the game in progress and the server come from LiveScore (ESPN has sets only).
+  let liveScore = score;
+  let liveDetail = m.statusDetail;
+  if (m.status === 'LIVE') {
+    const pts = findLivePoints(await liveTennisPoints(), m.playerA, m.playerB);
+    if (pts) {
+      if (pts.pointsA !== null && pts.pointsB !== null) liveScore = `${score} (${pts.pointsA}-${pts.pointsB})`.trim();
+      if (pts.server) liveDetail = `${m.statusDetail} · serve ${pts.server === 'A' ? m.playerA : m.playerB}`;
+    }
+  }
+
   await writeLiveItems(group.map((it) => ({ id: it.id, verdict: tennisVerdict(it, m) })), {
-    status: m.status, detail: m.statusDetail, home: m.playerA, away: m.playerB, score: score || null, sport: 'TENNIS',
+    status: m.status, detail: liveDetail, home: m.playerA, away: m.playerB, score: liveScore || null, sport: 'TENNIS',
   });
 
   const result = toTennisResult(m);
