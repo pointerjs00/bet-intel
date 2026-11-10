@@ -39,9 +39,14 @@ Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main`
 | #46 | Feito | O scan marca para revisão boletins cujo produto das odds difere mais de 3% da odd total, ou cujo retorno não bate (1 em 88 boletins reais é um falso alarme: odd aumentada). |
 | #47 | Feito | A importação em massa cria os boletins dentro da transação, com timeout de 120 s. |
 | #51 | Feito | Caminho OpenAI e scripts de fine-tuning removidos; `openai` e `@google/generative-ai` desinstalados. A análise IA das estatísticas passou também para o SDK novo. |
-| #28 | Parcial | `npm test` na API (13 testes). Faltam testes de estatísticas. |
+| #28 | Feito | `npm test` na API (30 testes, incluindo 7 de estatísticas: lucro/ROI, anulados, freebets, cashout, casa/fora, favorito/underdog, repartição por odds e mercado, forma recente). |
+| #19 | Feito | `windowSize` 11 e `updateCellsBatchingPeriod` 50 na lista de Boletins (FlashList não foi preciso). |
+| #33 | Feito | NativeWind e Tailwind removidos (partiam os estilos em função do `Pressable`); scripts mortos e Swagger fora da API; `AGENTS.md` com uma secção "Current state" no topo. |
+| #34 | Feito | Limites de perda semanal e de valor apostado por mês, e alerta de perseguição de perdas (pelo menos o dobro da stake habitual até 24 h depois de uma perda). Ecrã "Limites e alertas" no Perfil; aviso no Início a partir de 80%. Guardado só no telemóvel. 5 testes. |
+| #38 | Feito | Já existia: casa/fora, favorito/underdog, variância e desvio padrão, evolução do ROI, calibração. A API calcula e a Análise mostra. |
+| D11 | Feito | Modo claro validado no emulador: Início, Boletins, Análise e Limites. As cores e as sombras estão corretas. |
 | #30 | Feito (falta DSN) | Ecrã de erro e Sentry configurados; o Sentry só arranca quando definires `EXPO_PUBLIC_SENTRY_DSN` (e precisa de build nativa). |
-| #36 | Parcial | Seleções marcadas aparecem como "A rever" no detalhe; resolver à mão limpa a marca. Falta a fila dedicada. |
+| #36 | Feito | Fila "A rever" (`/boletins/rever`, com aviso no Início): Ganhou / Perdeu / Anulada com um toque. No detalhe, a seleção também mostra "A rever". Precisa do deploy da API (`/boletins/review`). |
 | #42, #43, #44 | Feito | Regra das linhas vermelhas corrigida; prompt corrigido; anulados importados devolvem a stake. |
 | #48 | Feito | SDK `@google/genai` com schema JSON obrigatório e 3 tentativas em 429/503. Validado com 2 screenshots reais (iguais à correção). Nota: com o schema a leitura demora 6–7 s em vez de 1,3 s. |
 | #49 | Feito | Ver "Resultado do benchmark" na secção 5. |

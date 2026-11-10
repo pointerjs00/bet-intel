@@ -3,6 +3,20 @@
 
 ---
 
+## 0. CURRENT STATE (read first — overrides the original spec below where they differ)
+
+The sections after this one are the original build prompt. The app has since diverged; when they conflict, this section and the code win. Improvement plan and status: `PLANO_MELHORIAS.md`; sports-data study: `ESTUDO_FONTES_DADOS.md`.
+
+- **Personal use only** (single user). Correctness and UX come before multi-user scale.
+- **No odds scrapers.** The Betclic/Placard/etc. scrapers, `scrape:all` and the odds feed no longer exist. Boletins are logged manually, imported from screenshots (Gemini `gemini-3.5-flash-lite` via `@google/genai`, `services/geminiVisionParser.ts`) or built from fixtures.
+- **Sports data:** free ESPN public API (`services/sportsData/`: football top leagues + UEFA, ATP/WTA tennis) for fixtures, live state and settlement; API-Football remains only for the old "Por jogo" picker, standings and insights (#58).
+- **Settlement:** `marketResolutionEngine.ts` (football leg parser) and `tennisMarketEngine.ts`; `liveBetTrackerJob` (every minute) tracks, notifies and settles pending items; uncertain cases set `needsReview` and appear in the "A rever" queue (`/boletins/rever`).
+- **Mobile:** tabs are Início · Boletins · + (Novo boletim) · Jogos · Análise; Perfil from the Início avatar, Amigos from Perfil. **NativeWind was removed** — style with `StyleSheet` and the v2 tokens in `theme/tokens.ts`; prefer the components in `components/ui/` (`AppText`, `ListCard`, `StatusPill`, `SegmentedControl`, `SectionHeader`). Route folder is `app/boletins/` (not `betintel/`).
+- **Tests:** `npm test` in `apps/api` (node:test via ts-node). Pure mobile logic tests run with `TS_NODE_COMPILER_OPTIONS='{"module":"commonjs","moduleResolution":"node"}' node -r ts-node/register/transpile-only --test <file>`.
+- **Schema changes:** the production DB has drift against the migration history; reconcile before generating a new migration (plan #24).
+
+---
+
 ## 1. PROJECT OVERVIEW
 
 Build a full-stack mobile application called **"BetIntel"** — a Portuguese sports betting companion app that scrapes odds from Portuguese betting sites, lets users create and manage betting slips ("boletins" — the Portuguese term used throughout the app), track their betting history and performance, and share activity with friends.
