@@ -21,7 +21,7 @@ export function MetricTile({ label, value, tone }: { label: string; value: strin
   return (
     <View style={styles.tile}>
       <AppText variant="label">{label}</AppText>
-      <AppText tone={tone} variant="number">{value}</AppText>
+      <AppText adjustsFontSizeToFit minimumFontScale={0.7} numberOfLines={1} tone={tone} variant="number">{value}</AppText>
     </View>
   );
 }

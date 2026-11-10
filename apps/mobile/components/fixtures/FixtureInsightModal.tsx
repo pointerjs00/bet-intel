@@ -242,7 +242,7 @@ function StatDrilldownScreen({
             <View
               style={[
                 drillStyles.barFill,
-                { width: `${rate}%` as any, backgroundColor: rateColor },
+                { width: `${rate}%` as `${number}%`, backgroundColor: rateColor },
               ]}
             />
           </View>
@@ -293,7 +293,7 @@ function StatDrilldownScreen({
               month: '2-digit',
               year: '2-digit',
             });
-            const timeStr = (m as any).time ?? null;
+            const timeStr = m.time ?? null;
 
             // Use the fixture's canonical team name (from DrilldownState) for the
             // subject team's badge — fdcouk names like 'Sp Lisbon' or 'Guimaraes'
@@ -1344,7 +1344,6 @@ const pillStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#94a3b8',
-    textTransform: 'uppercase',
     marginBottom: 6,
     letterSpacing: 0.5,
   },
@@ -1370,7 +1369,6 @@ const secStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
   },
   subtitle: { fontSize: 12, fontWeight: '400' },
 });
@@ -1385,7 +1383,7 @@ const gridItemStyles = StyleSheet.create({
     gap: 3,
     marginTop: 2,
   },
-  label: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  label: { fontSize: 10, fontWeight: '600' },
 });
 
 const teamCardStyles = StyleSheet.create({
@@ -1459,7 +1457,6 @@ const h2hStyles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     marginBottom: 4,
-    textTransform: 'uppercase',
   },
   recentRow: {
     alignItems: 'center',
@@ -1499,7 +1496,6 @@ const playerStyles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     marginBottom: 4,
-    textTransform: 'uppercase',
   },
   row: { alignItems: 'center', flexDirection: 'row', gap: 6, paddingVertical: 3 },
   name: { flex: 1, fontSize: 13, fontWeight: '500' },
@@ -1557,7 +1553,6 @@ const drillStyles = StyleSheet.create({
   heroPctLabel: {
     fontSize: 11,
     fontWeight: '600',
-    textTransform: 'uppercase',
     marginTop: 2,
   },
 

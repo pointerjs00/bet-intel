@@ -52,7 +52,7 @@ export const SiteROITable = React.memo(function SiteROITable({ rows, onInfoPress
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       {/* Title */}
       <View style={styles.titleRow}>
         {onInfoPress ? (
@@ -148,14 +148,12 @@ const styles = StyleSheet.create({
     flex: 1.7,
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   headerCellValue: {
     flex: 0.8,
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'right',
-    textTransform: 'uppercase',
   },
   dataRow: {
     alignItems: 'center',

@@ -17,7 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { StatusBadge } from '../../components/boletins/StatusBadge';
+import { StatusPill } from '../../components/ui/StatusPill';
 import { SocialAvatar } from '../../components/social/SocialAvatar';
 import { useToast } from '../../components/ui/Toast';
 import {
@@ -65,7 +65,7 @@ function BoletinPreviewCard({ item, onPress }: { item: PublicBoletinPreview; onP
         <Text numberOfLines={1} style={[previewStyles.name, { color: colors.textPrimary }]}>
           {item.name ?? 'Sem nome'}
         </Text>
-        <StatusBadge status={item.status} />
+        <StatusPill status={item.status} />
       </View>
       <View style={previewStyles.detailRow}>
         <Text style={[previewStyles.detail, { color: colors.textSecondary }]}>

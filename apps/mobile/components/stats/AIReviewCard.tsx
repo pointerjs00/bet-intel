@@ -50,7 +50,7 @@ const sectionStyles = StyleSheet.create({
   wrap: { gap: 6 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconWrap: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+  title: { fontSize: 12, fontWeight: '800' },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingLeft: 30 },
   dot: { width: 5, height: 5, borderRadius: 99, marginTop: 8, flexShrink: 0 },
   bulletText: { fontSize: 13, lineHeight: 20, flex: 1 },

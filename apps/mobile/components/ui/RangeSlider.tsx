@@ -183,7 +183,7 @@ export function RangeSlider({
 
 const styles = StyleSheet.create({
   wrap: { gap: 12 },
-  label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  label: { fontSize: 12, fontWeight: '700' },
   trackOuter: {
     height: THUMB,
     justifyContent: 'center',

@@ -38,7 +38,7 @@ export const HeatmapCalendar = React.memo(function HeatmapCalendar({ boletins, o
     const map = new Map<string, DayData>();
     for (const b of boletins) {
       if (b.status === 'PENDING') continue;
-      const date = new Date((b as any).betDate ?? b.createdAt);
+      const date = new Date(b.betDate ?? b.createdAt);
       const key = getDateKey(date);
       const existing = map.get(key) ?? { count: 0, profitLoss: 0 };
       existing.count += 1;
@@ -103,7 +103,7 @@ export const HeatmapCalendar = React.memo(function HeatmapCalendar({ boletins, o
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre frequência de apostas" onPress={onInfoPress} />

@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ONBOARDING_DONE_KEY } from './onboarding';
 import { useAuthStore } from '../stores/authStore';
+import { useSportAssetsStore } from '../stores/sportAssetsStore';
 import { ShareBoletinProvider } from '../components/social/ShareBoletinProvider';
 import { ConnectivityBanner } from '../components/ui/ConnectivityBanner';
 import { useTheme } from '../theme/useTheme';
@@ -63,6 +64,7 @@ function usePrefetchHomeData(isAuthenticated: boolean) {
     if (!isAuthenticated) return;
 
     const safeFetch = (fn: () => Promise<unknown>) => fn().catch(() => undefined);
+    void useSportAssetsStore.getState().load();
 
     void safeFetch(() =>
       qc.prefetchQuery({
@@ -219,6 +221,7 @@ export default function RootLayout() {
                     <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="settings" options={{ headerShown: true }} />
                     <Stack.Screen name="limites" options={{ headerShown: true }} />
+                    <Stack.Screen name="perfil-editar" options={{ headerShown: true }} />
                     <Stack.Screen name="notifications" />
                     <Stack.Screen name="user/[username]" />
                     <Stack.Screen name="boletins" />
@@ -278,8 +281,7 @@ function NotificationLifecycleManager() {
 
       // Live match notifications → open fixture detail on the fixtures screen
       if (data.fixtureId && typeof data.fixtureId === 'string' && LIVE_MATCH_NOTIF_TYPES.has(data.type as string)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (router as any).push({ pathname: '/(tabs)/fixtures', params: { openFixtureId: data.fixtureId } });
+        router.push({ pathname: '/(tabs)/fixtures', params: { openFixtureId: data.fixtureId } });
         return;
       }
 

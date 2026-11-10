@@ -17,7 +17,7 @@ export const HomeAwayCard = React.memo(function HomeAwayCard({ summary, onInfoPr
   const noData = summary.homeBets === 0 && summary.awayBets === 0;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre casa/fora" onPress={onInfoPress} />
@@ -107,7 +107,6 @@ const styles = StyleSheet.create({
   columnLabel: {
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   roiValue: {
     fontSize: 24,

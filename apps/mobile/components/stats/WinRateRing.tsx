@@ -29,7 +29,7 @@ export const WinRateRing = React.memo(function WinRateRing({ winRate, onInfoPres
   }, [colors.primary, colors.surfaceRaised, winRate]);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre a taxa de vitória" onPress={onInfoPress} />

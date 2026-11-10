@@ -177,7 +177,12 @@ function isResultMarket(market: string): boolean {
 
 /** Parses one leg of a selection, using the market text as context. */
 function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null {
-  let t = text.replace(/\btempo reg(ulamentar)?\.?/g, '').trim().replace(/\bgolos?$/, '').trim();
+  let t = text.replace(/\btempo reg(ulamentar)?\.?/g, '').trim();
+  // Bet-builder shorthand: "+1.5 Golos" / "-2.5 Golos" (Betclic "X vence & +1.5 Golos").
+  // Only with the "golos" suffix, so handicap lines like "+1" are never read as totals.
+  const shortTotal = t.match(/^([+-])\s*(\d+(?:\.\d+)?)\s*golos?$/);
+  if (shortTotal) t = `${shortTotal[1] === '+' ? 'mais de' : 'menos de'} ${shortTotal[2]}`;
+  t = t.replace(/\bgolos?$/, '').trim();
   if (!t) return null;
 
   // HT/FT: "SL Benfica vence intervalo/final", "Empate / Arsenal", "1/1"

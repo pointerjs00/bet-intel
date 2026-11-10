@@ -85,7 +85,7 @@ export function ConfirmModal({
       <Pressable style={styles.overlay} onPress={onCancel}>
         {/* Inner card — stop propagation so taps inside don't close */}
         <Pressable
-          style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}
           onPress={() => {}}
         >
           <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>

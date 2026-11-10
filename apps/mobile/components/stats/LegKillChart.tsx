@@ -18,7 +18,7 @@ export const LegKillChart = React.memo(function LegKillChart({ data, onInfoPress
   const maxKillRate = Math.max(...data.map((d) => d.killRate), 1);
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre leg kill" onPress={onInfoPress} />

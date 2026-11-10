@@ -350,7 +350,9 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
     const { width: screenWidth } = useWindowDimensions();
     const cardWidth = screenWidth - 40;
 
-    // Simple mode — single ViewShot ref
+    // Narrowable copy of the lazily-required module for use inside callbacks.
+  const Shot = ViewShot;
+  // Simple mode — single ViewShot ref
     const simpleRef = useRef<ViewShotRef>(null);
 
     // Detailed mode — one ViewShot ref per page (stable, never in array literal)
@@ -483,12 +485,12 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
     return (
       <>
         {/* Off-screen ViewShots for capture — no borderRadius, natural height */}
-        {ViewShot && (
+        {Shot && (
           <View style={{ position: 'absolute', left: -9999, top: 0 }} pointerEvents="none">
             {detailRefs.map((ref, i) => (
-              <ViewShot key={i} ref={ref} style={{ width: cardWidth }} collapsable={false}>
+              <Shot key={i} ref={ref} style={{ width: cardWidth }} collapsable={false}>
                 {capturePages[i]}
-              </ViewShot>
+              </Shot>
             ))}
           </View>
         )}

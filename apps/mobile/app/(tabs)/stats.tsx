@@ -15,7 +15,6 @@ import { HeatmapCalendar } from '../../components/stats/HeatmapCalendar';
 import { HomeAwayCard } from '../../components/stats/HomeAwayCard';
 import { AIReviewCard } from '../../components/stats/AIReviewCard';
 import { GoalProgressCard } from '../../components/stats/GoalProgressCard';
-import { InsightsCard } from '../../components/stats/InsightsCard';
 import { LegKillChart } from '../../components/stats/LegKillChart';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
 import { PnLChart, type TimelineGranularity } from '../../components/stats/PnLChart';
@@ -26,6 +25,12 @@ import { SportMarketMatrix } from '../../components/stats/SportMarketMatrix';
 import { StreakCard } from '../../components/stats/StreakCard';
 import { TableSortButton, type SortKey } from '../../components/stats/TableSortButton';
 import { WinRateRing } from '../../components/stats/WinRateRing';
+import { AppText } from '../../components/ui/AppText';
+import { useCardElevation } from '../../components/ui/ListCard';
+import { HeroCard, HeroTile } from '../../components/ui/HeroCard';
+import { ionicon } from '../../types/icons';
+import { MetricTile } from '../../components/ui/SectionHeader';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { DatePickerField } from '../../components/ui/DatePickerField';
@@ -61,12 +66,19 @@ const SPORT_EMOJIS: Record<string, string> = {
   OTHER: '🎯',
 };
 
-const PERIOD_OPTIONS: Array<{ key: StatsPeriod; label: string }> = [
-  { key: 'week', label: 'Esta Semana' },
-  { key: 'month', label: 'Este Mês' },
-  { key: 'year', label: 'Este Ano' },
-  { key: 'all', label: 'Sempre' },
+const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
+  { value: 'week', label: 'Semana' },
+  { value: 'month', label: 'Mês' },
+  { value: 'year', label: 'Ano' },
+  { value: 'all', label: 'Sempre' },
 ];
+
+const PERIOD_TITLE: Record<StatsPeriod, string> = {
+  week: 'esta semana',
+  month: 'este mês',
+  year: 'este ano',
+  all: 'desde sempre',
+};
 
 const SITE_DROPDOWN_ITEMS = BETTING_SITES.map((site) => ({
   label: site.name,
@@ -619,6 +631,9 @@ export default function StatsScreen() {
   const [showCustomize, setShowCustomize] = useState(false);
   // Stats share card
   const [showShareCard, setShowShareCard] = useState(false);
+  // Secondary filters (custom range, sites, comparison) live behind one button (D7)
+  const [showFilters, setShowFilters] = useState(false);
+  const elevation = useCardElevation();
 
   const isSectionVisible = useStatsDashboardStore((s) => s.isSectionVisible);
   const getEffectiveOrder = useStatsDashboardStore((s) => s.getEffectiveOrder);
@@ -688,7 +703,7 @@ export default function StatsScreen() {
     const list = boletinsQuery.data ?? [];
     if (list.length === 0) return { min: undefined, max: undefined };
     const timestamps = list.map((b) =>
-      new Date((b as any).betDate ?? b.createdAt).getTime(),
+      new Date(b.betDate ?? b.createdAt).getTime(),
     );
     return {
       min: new Date(Math.min(...timestamps)),
@@ -702,6 +717,19 @@ export default function StatsScreen() {
       : siteSlugs.length === 1
       ? (BETTING_SITES.find((s) => s.slug === siteSlugs[0])?.name ?? siteSlugs[0])
       : `${siteSlugs.length} casas`;
+
+  const activeFilterCount = (useCustomRange ? 1 : 0) + (siteSlugs.length > 0 ? 1 : 0) + (canCompare ? 1 : 0);
+  const activeFilterSummary = [
+    useCustomRange
+      ? `${dateFrom ? dateFrom.toLocaleDateString('pt-PT') : '…'} – ${dateTo ? dateTo.toLocaleDateString('pt-PT') : '…'}`
+      : null,
+    siteSlugs.length > 0 ? siteLabel : null,
+    canCompare ? 'vs período anterior' : null,
+  ].filter(Boolean).join(' · ');
+
+  // Hero: profit per timeline bucket (bars) for the selected period
+  const heroBars = useMemo(() => timelineData.slice(-12).map((p) => p.profitLoss), [timelineData]);
+  const heroMax = Math.max(1, ...heroBars.map((v) => Math.abs(v)));
 
   const nonPendingBoletinCount = useMemo(
     () => (boletinsQuery.data ?? []).filter((b) => b.status !== 'PENDING').length,
@@ -755,7 +783,7 @@ export default function StatsScreen() {
       {/* Fixed header — stays visible while scrolling */}
       <View style={[styles.fixedHeader, { paddingTop: insets.top, backgroundColor: colors.background }]}>
         <View style={styles.headerTopRow}>
-          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Análise</Text>
+          <AppText variant="title">Análise</AppText>
           <View style={{ flexDirection: 'row', gap: 4 }}>
             <TouchableOpacity onPress={() => setShowCustomize(true)} hitSlop={8} style={styles.headerIconBtn}>
               <Ionicons color={colors.textSecondary} name="options-outline" size={22} />
@@ -792,28 +820,37 @@ export default function StatsScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* Period grid (2×2) + secondary controls row */}
+        {/* Period (segmented) + one filters button (redesign D7) */}
         <Animated.View entering={FadeInDown.delay(30).duration(160).springify()} style={styles.filterZone}>
-          <View style={styles.periodGrid}>
-            {PERIOD_OPTIONS.map((option) => {
-              const active = !useCustomRange && option.key === period;
-              return (
-                <PressableScale
-                  key={option.key}
-                  onPress={() => { setPeriod(option.key); setUseCustomRange(false); }}
-                  style={[
-                    styles.periodGridBtn,
-                    { borderColor: active ? colors.primary : colors.border, backgroundColor: active ? colors.primary : colors.surfaceRaised },
-                  ]}
-                >
-                  <Text style={[styles.periodGridBtnText, { color: active ? '#fff' : colors.textSecondary }]}>
-                    {option.label}
-                  </Text>
-                </PressableScale>
-              );
-            })}
+          <View style={styles.periodRow}>
+            <View style={styles.flex1}>
+              <SegmentedControl
+                onChange={(v) => { setPeriod(v); setUseCustomRange(false); }}
+                options={PERIOD_OPTIONS}
+                value={useCustomRange ? ('' as StatsPeriod) : period}
+              />
+            </View>
+            <Pressable
+              accessibilityLabel={activeFilterCount > 0 ? `Filtros, ${activeFilterCount} ativos` : 'Filtros'}
+              accessibilityRole="button"
+              onPress={() => setShowFilters((v) => !v)}
+              style={[styles.filterBtn, { backgroundColor: activeFilterCount > 0 || showFilters ? `${colors.primary}22` : colors.surface }]}
+            >
+              <Ionicons color={activeFilterCount > 0 ? colors.primary : colors.textSecondary} name="funnel-outline" size={18} />
+              {activeFilterCount > 0 ? (
+                <View style={[styles.filterBadge, { backgroundColor: colors.primary }]}>
+                  <AppText style={styles.filterBadgeText} variant="label">{activeFilterCount}</AppText>
+                </View>
+              ) : null}
+            </Pressable>
           </View>
+          {activeFilterSummary && !showFilters ? (
+            <Pressable accessibilityRole="button" onPress={() => setShowFilters(true)}>
+              <AppText numberOfLines={1} variant="caption">{activeFilterSummary}</AppText>
+            </Pressable>
+          ) : null}
 
+          {showFilters ? (
           <View style={styles.secondaryControlRow}>
             {/* Personalizado toggle */}
             <PressableScale
@@ -866,6 +903,7 @@ export default function StatsScreen() {
               </PressableScale>
             )}
           </View>
+          ) : null}
         </Animated.View>
 
         {/* Custom date range pickers */}
@@ -935,6 +973,74 @@ export default function StatsScreen() {
           )
         ) : (
           <View style={styles.contentStack}>
+            {/* Hero (D7): one main number per screen — profit of the period */}
+            <Animated.View entering={FadeInDown.delay(35).duration(220)}>
+            <HeroCard>
+              <View style={styles.heroTop}>
+                <AppText variant="label">Lucro · {useCustomRange ? 'intervalo escolhido' : PERIOD_TITLE[period]}</AppText>
+                <Pressable
+                  accessibilityHint="Explica o ROI"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => pushInfo('roi', stats.summary.roi)}
+                  style={[styles.roiPill, { backgroundColor: stats.summary.roi >= 0 ? 'rgba(61,255,162,0.16)' : 'rgba(255,107,122,0.18)' }]}
+                >
+                  <AppText tone={stats.summary.roi >= 0 ? 'positive' : 'negative'} variant="label">
+                    ROI {stats.summary.roi >= 0 ? '+' : ''}{stats.summary.roi.toFixed(1).replace('.', ',')}%
+                  </AppText>
+                </Pressable>
+              </View>
+              <AppText tone={stats.summary.profitLoss >= 0 ? 'positive' : 'negative'} variant="numberLarge">
+                {stats.summary.profitLoss >= 0 ? '+' : '−'}{formatCurrency(Math.abs(stats.summary.profitLoss))}
+              </AppText>
+              {prevStats ? <DeltaBadge current={stats.summary.profitLoss} previous={prevStats.summary.profitLoss} format="currency" /> : null}
+              {heroBars.length > 1 ? (
+                <View accessibilityLabel="Lucro por período" style={styles.heroBars}>
+                  {heroBars.map((v, i) => (
+                    <View key={i} style={styles.heroBarSlot}>
+                      <View
+                        style={{
+                          backgroundColor: v >= 0 ? colors.heroPositive : colors.heroNegative,
+                          borderRadius: 4,
+                          height: `${Math.max(6, (Math.abs(v) / heroMax) * 100)}%`,
+                          opacity: v === 0 ? 0.25 : 1,
+                        }}
+                      />
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              <View style={styles.heroTiles}>
+                <HeroTile><MetricTile label="Apostado" value={formatCurrency(stats.summary.totalStaked)} /></HeroTile>
+                <HeroTile><MetricTile label="Vitórias" value={`${Math.round(stats.summary.winRate)}%`} /></HeroTile>
+                <HeroTile><MetricTile label="Odd média" value={formatOdds(stats.summary.averageOdds)} /></HeroTile>
+              </View>
+            </HeroCard>
+            </Animated.View>
+
+            {/* Highlights: the automatic conclusions first, so the screen opens with "what this means" */}
+            {stats.insights.length > 0 ? (
+              <ScrollView
+                contentContainerStyle={styles.highlightRow}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.highlightScroll}
+              >
+                {stats.insights.map((ins, i) => {
+                  const tint = ins.sentiment === 'positive' ? colors.positive : ins.sentiment === 'negative' ? colors.negative : colors.accent;
+                  return (
+                    <Animated.View entering={FadeInDown.delay(80 + i * 40).duration(220)} key={ins.id} style={[styles.highlightCard, elevation, { backgroundColor: colors.surface }]}>
+                      <View style={[styles.highlightIcon, { backgroundColor: `${tint}22` }]}>
+                        <Ionicons color={tint} name={ionicon(ins.icon)} size={18} />
+                      </View>
+                      <AppText numberOfLines={2} variant="bodyStrong">{ins.title}</AppText>
+                      <AppText numberOfLines={3} variant="caption">{ins.body}</AppText>
+                    </Animated.View>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
+
             {getEffectiveOrder().map((sectionId) => {
               if (!isSectionVisible(sectionId)) return null;
 
@@ -943,28 +1049,10 @@ export default function StatsScreen() {
                 <GoalProgressCard key="goals" />
               );
 
-              case 'roi': return (
-                <Animated.View key="roi" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <ROICard summary={stats.summary} title="ROI do período" onInfoPress={() => pushInfo('roi', stats.summary.roi)} />
-                </Animated.View>
-              );
+              // ROI, total staked and profit now live in the hero card above (D7).
+              case 'roi': return null;
 
-              case 'hero-metrics': return (
-                <Animated.View key="hero-metrics" entering={FadeInDown.delay(45).duration(160).springify()} style={styles.heroMetricsRow}>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total Apostado</Text>
-                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.totalStaked)}</Text>
-                    {prevStats && <DeltaBadge current={stats.summary.totalStaked} previous={prevStats.summary.totalStaked} format="currency" />}
-                  </Card>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Lucro / Prejuízo</Text>
-                    <Text style={[styles.metricValue, { color: stats.summary.profitLoss >= 0 ? colors.primary : colors.danger }]}>
-                      {formatCurrency(stats.summary.profitLoss)}
-                    </Text>
-                    {prevStats && <DeltaBadge current={stats.summary.profitLoss} previous={prevStats.summary.profitLoss} format="currency" />}
-                  </Card>
-                </Animated.View>
-              );
+              case 'hero-metrics': return null;
 
               case 'avg-odds': return (
                 <Animated.View key="avg-odds" entering={FadeInDown.delay(80).duration(160).springify()} style={styles.heroMetricsRow}>
@@ -1169,11 +1257,8 @@ export default function StatsScreen() {
                 </Animated.View>
               );
 
-              case 'insights': return stats.insights.length > 0 ? (
-                <Animated.View key="insights" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <InsightsCard insights={stats.insights} onInfoPress={() => pushInfo('insights', stats.insights.length)} />
-                </Animated.View>
-              ) : (
+              // Insights are shown as the highlight strip under the hero.
+              case 'insights': return stats.insights.length > 0 ? null : (
                 <Animated.View key="insights" entering={FadeInDown.delay(45).duration(160).springify()}>
                   <Card style={{ gap: 6 }}>
                     <View style={styles.placeholderRow}>
@@ -1404,12 +1489,28 @@ const styles = StyleSheet.create({
   headerWrap: { gap: 8, marginBottom: 18 },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   exportBtn: { padding: 4 },
-  eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
+  eyebrow: { fontSize: 13, fontWeight: '700' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   periodTabs: { gap: 8, marginBottom: 12 },
   dateRangeRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   datePickerCol: { flex: 1 },
-  filterZone: { gap: 7, marginBottom: 12 },
+  filterZone: { gap: 10, marginBottom: 14 },
+  periodRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  flex1: { flex: 1 },
+  filterBtn: { alignItems: 'center', borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
+  filterBadge: { alignItems: 'center', borderRadius: 8, height: 16, justifyContent: 'center', minWidth: 16, paddingHorizontal: 3, position: 'absolute', right: 4, top: 4 },
+  filterBadgeText: { color: '#0B0D0C', fontSize: 10 },
+  hero: { borderRadius: 20, gap: 8, padding: 20 },
+  heroTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  roiPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  heroTiles: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  highlightScroll: { marginHorizontal: -16 },
+  highlightRow: { gap: 10, paddingHorizontal: 16, paddingVertical: 6 },
+  highlightCard: { borderRadius: 20, gap: 6, padding: 14, width: 220 },
+  highlightIcon: { alignItems: 'center', borderRadius: 12, height: 34, justifyContent: 'center', width: 34 },
+  heroBars: { alignItems: 'flex-end', flexDirection: 'row', gap: 6, height: 56, marginTop: 6 },
+  heroBarSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' },
+  heroMetrics: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 12, marginTop: 8, paddingTop: 14 },
   periodGrid: { flexDirection: 'row', gap: 6 },
   periodGridBtn: {
     flex: 1,
@@ -1451,7 +1552,7 @@ const styles = StyleSheet.create({
   horizontalCards: { gap: 12, paddingRight: 32 },
   miniCard: { gap: 8, width: 250 },
   miniCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  miniLabel: { fontSize: 12, fontWeight: '800', textTransform: 'uppercase' },
+  miniLabel: { fontSize: 12, fontWeight: '800' },
   miniTitle: { fontSize: 18, fontWeight: '900', lineHeight: 24 },
   miniMeta: { fontSize: 12, fontWeight: '600', lineHeight: 18 },
   miniProfit: { fontSize: 20, fontWeight: '900' },

@@ -206,7 +206,7 @@ function AgendaRow({
   const count = item.boletinIds.length;
 
   return (
-    <PressableScale onPress={onPress} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <PressableScale onPress={onPress} style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       {/* Coloured left accent bar */}
       <View style={[styles.accentBar, { backgroundColor: accent }]} />
 
@@ -345,7 +345,7 @@ export default function AgendaScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
-          title: 'Os Meus Jogos',
+          title: 'Agenda',
           headerShown: true,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,

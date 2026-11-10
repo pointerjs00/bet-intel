@@ -9,60 +9,26 @@ interface InfoButtonProps {
   onPress: () => void;
   accessibilityLabel?: string;
   size?: InfoButtonSize;
+  /** Kept for API compatibility; the redesign shows the icon only. */
   showLabel?: boolean;
 }
 
-const SIZE_MAP: Record<InfoButtonSize, { icon: number; padding: number; fontSize: number; paddingHorizontal: number; gap: number }> = {
-  sm: { icon: 16, padding: 4, fontSize: 10, paddingHorizontal: 7, gap: 4 },
-  md: { icon: 18, padding: 5, fontSize: 11, paddingHorizontal: 9, gap: 5 },
-};
-
-export function InfoButton({
-  onPress,
-  accessibilityLabel = 'Mais informação',
-  size = 'md',
-  showLabel = true,
-}: InfoButtonProps) {
+/** Quiet "i" affordance next to a metric title (no chip, border or shadow — redesign §6.1). */
+export function InfoButton({ onPress, accessibilityLabel = 'Mais informação', size = 'md' }: InfoButtonProps) {
   const { colors } = useTheme();
-  const metrics = SIZE_MAP[size];
-
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
-      hitSlop={8}
+      hitSlop={10}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.button,
-        {
-          backgroundColor: colors.surfaceRaised,
-          borderColor: colors.border,
-          gap: metrics.gap,
-          opacity: pressed ? 0.92 : 1,
-          padding: metrics.padding,
-          paddingHorizontal: showLabel ? metrics.paddingHorizontal : metrics.padding,
-          shadowColor: colors.textPrimary,
-          transform: [{ scale: pressed ? 0.96 : 1 }],
-        },
-      ]}
+      style={({ pressed }) => [styles.button, { opacity: pressed ? 0.6 : 1 }]}
     >
-      <Ionicons color={colors.textPrimary} name="information-circle-outline" size={metrics.icon} />
+      <Ionicons color={colors.textMuted} name="information-circle-outline" size={size === 'sm' ? 16 : 18} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  button: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    elevation: 2,
-    flexShrink: 0,
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
+  button: { alignItems: 'center', flexShrink: 0, justifyContent: 'center' },
 });

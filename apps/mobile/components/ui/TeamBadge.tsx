@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import type { ImageSourcePropType } from 'react-native';
 import { getPlayerPhotoUrl, getTeamLogoSource, getTeamLogoUrl } from '../../utils/sportAssets';
+import { lookupSportAsset, useSportAssetsStore } from '../../stores/sportAssetsStore';
 
 const teamLogoFallbackCache = new Map<string, string | null>();
 const teamLogoFallbackInFlight = new Map<string, Promise<string | null>>();
@@ -104,8 +105,9 @@ export function TeamBadge({
 }: TeamBadgeProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const [fallbackUri, setFallbackUri] = useState<string | null>(null);
-  const localSource = !imageUrl && variant !== 'player' ? getTeamLogoSource(name) : null;
-  const directUri = imageUrl ?? (variant === 'player' ? getPlayerPhotoUrl(name) : getTeamLogoUrl(name));
+  const espnUri = useSportAssetsStore((s) => lookupSportAsset(s, name, variant));
+  const localSource = !imageUrl && !espnUri && variant !== 'player' ? getTeamLogoSource(name) : null;
+  const directUri = imageUrl ?? espnUri ?? (variant === 'player' ? getPlayerPhotoUrl(name) : getTeamLogoUrl(name));
   const activeUri = imgFailed ? fallbackUri : (directUri ?? fallbackUri);
   const imageSource: ImageSourcePropType | undefined = localSource && !imgFailed
     ? localSource
@@ -113,8 +115,9 @@ export function TeamBadge({
       ? { uri: activeUri }
       : undefined;
   const showImage = Boolean(imageSource);
-  const isPlayer = variant === 'player' || (variant === 'auto' && Boolean(imageUrl));
-  const borderRadius = isPlayer ? size / 2 : size / 4;
+  const isPlayer = variant === 'player' || (variant === 'auto' && Boolean(imageUrl || (espnUri && espnUri.includes('/headshots/'))));
+  // Crests and faces are both round discs (design v3), faces fill the disc.
+  const borderRadius = size / 2;
 
   useEffect(() => {
     setImgFailed(false);
@@ -147,15 +150,16 @@ export function TeamBadge({
         styles.container,
         { width: size, height: size, borderRadius },
         showImage
-          ? { backgroundColor: 'rgba(255, 255, 255, 0.92)' }
+          ? { backgroundColor: isPlayer ? '#D9DEE7' : 'rgba(255, 255, 255, 0.96)' }
           : { backgroundColor: nameToColor(name) },
+        size >= 24 ? styles.lifted : null,
         style,
       ]}
     >
       {showImage ? (
         <Image
           source={imageSource}
-          style={{ width: size * 0.88, height: size * 0.88, borderRadius }}
+          style={isPlayer ? { width: size, height: size, borderRadius } : { width: size * 0.74, height: size * 0.74 }}
           onError={() => {
             setImgFailed(true);
             if (!disableRemoteFallback && !imageUrl && !fallbackUri) {
@@ -189,6 +193,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  lifted: {
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   initials: {
     color: '#FFFFFF',

@@ -20,7 +20,7 @@ export const ActivityFeedItem = React.memo(function ActivityFeedItem({ item, onP
     <PressableScale
       disabled={!onPress}
       onPress={onPress}
-      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}
     >
       <SocialAvatar avatarUrl={item.user.avatarUrl} name={displayName} size={48} />
 
@@ -73,7 +73,6 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   metricValue: {
     fontSize: 16,

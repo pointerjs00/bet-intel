@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Platform,
@@ -16,6 +16,7 @@ import GorhomBottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
+import { ionicon } from '../../types/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sport } from '@betintel/shared';
 import { RangeSlider } from '../ui/RangeSlider';
@@ -268,12 +269,12 @@ const teamItems = useMemo(
                   onPress={() => setDraftSort((prev) => ({ ...prev, by: opt.key }))}
                   scaleDown={0.95}
                   style={[styles.filterBtn, {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
                   }]}
                 >
-                  <Ionicons name={opt.icon as any} size={14} color={active ? '#fff' : colors.textSecondary} />
-                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Ionicons name={ionicon(opt.icon)} size={14} color={active ? colors.primary : colors.textSecondary} />
+                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </PressableScale>
@@ -495,11 +496,11 @@ const teamItems = useMemo(
                   }))}
                   scaleDown={0.95}
                   style={[styles.filterBtn, {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
                   }]}
                 >
-                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </PressableScale>
@@ -521,11 +522,11 @@ const teamItems = useMemo(
                   }))}
                   scaleDown={0.95}
                   style={[styles.filterBtn, {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
                   }]}
                 >
-                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </PressableScale>
@@ -608,7 +609,7 @@ const styles = StyleSheet.create({
   sheetHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '800' },
   resetText: { fontSize: 14, fontWeight: '700' },
-  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginTop: 4, textTransform: 'uppercase' },
+  sectionTitle: { fontSize: 11, fontWeight: '700', marginTop: 4 },
   sectionTitleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   sortChips: { gap: 8 },
   dirButton: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 30, justifyContent: 'center', width: 30 },

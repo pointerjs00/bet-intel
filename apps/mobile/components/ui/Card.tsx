@@ -1,17 +1,8 @@
 import React from 'react';
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/useTheme';
+import { useCardElevation } from './ListCard';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -23,100 +14,41 @@ interface CardProps {
   noPadding?: boolean;
 }
 
-export const Card = React.memo(function Card({
-  children,
-  onPress,
-  style,
-  variant = 'surface',
-  noPadding = false,
-}: CardProps) {
-  const { colors, tokens, isDark } = useTheme();
+/**
+ * Base card (redesign §6.1): elevation and a slightly lighter surface instead of a 1px outline,
+ * in both themes. `raised` is for tiles nested inside another card (flat, no shadow).
+ */
+export const Card = React.memo(function Card({ children, onPress, style, variant = 'surface', noPadding = false }: CardProps) {
+  const { colors, tokens } = useTheme();
+  const elevation = useCardElevation();
   const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const bg = variant === 'raised' ? colors.surfaceRaised : colors.surface;
-
-  const content = (
-    <Animated.View
-      style={[
-        styles.base,
-        isDark ? styles.shadowDark : styles.shadowLight,
-        {
-          backgroundColor: bg,
-          borderColor: isDark ? 'transparent' : colors.border,
-          borderWidth: isDark ? 0 : 1,
-          padding: noPadding ? 0 : tokens.spacing.lg,
-        },
-        animatedStyle,
-        style,
-      ]}
-    >
-      {children}
-    </Animated.View>
-  );
+  const raised = variant === 'raised';
+  const cardStyle = [
+    styles.base,
+    raised ? null : elevation,
+    { backgroundColor: raised ? colors.surfaceRaised : colors.surface, padding: noPadding ? 0 : tokens.spacing.lg },
+    animatedStyle,
+    style,
+  ];
 
   if (onPress) {
     return (
       <AnimatedPressable
         accessibilityRole="button"
         onPress={onPress}
-        onPressIn={() => {
-          scale.value = withSpring(0.98, { damping: 18, stiffness: 600 });
-        }}
-        onPressOut={() => {
-          scale.value = withSpring(1, { damping: 18, stiffness: 600 });
-        }}
-        style={[
-          styles.base,
-          isDark ? styles.shadowDark : styles.shadowLight,
-          {
-            backgroundColor: bg,
-            borderColor: isDark ? 'transparent' : colors.border,
-            borderWidth: isDark ? 0 : 1,
-            padding: noPadding ? 0 : tokens.spacing.lg,
-          },
-          animatedStyle,
-          style,
-        ]}
+        onPressIn={() => { scale.value = withSpring(0.98, { damping: 18, stiffness: 600 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 600 }); }}
+        style={cardStyle}
       >
         {children}
       </AnimatedPressable>
     );
   }
-
-  return content;
+  return <Animated.View style={cardStyle}>{children}</Animated.View>;
 });
 
 const styles = StyleSheet.create({
-  base: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  shadowLight: Platform.select({
-    ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-    },
-    android: {
-      elevation: 2,
-    },
-    default: {},
-  }) as ViewStyle,
-  shadowDark: Platform.select({
-    ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
-    },
-    android: {
-      elevation: 4,
-    },
-    default: {},
-  }) as ViewStyle,
+  base: { borderRadius: 18, overflow: 'hidden' },
 });

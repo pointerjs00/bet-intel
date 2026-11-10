@@ -2015,7 +2015,7 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
                   <Text style={[overviewStyles.faceoffVenue, { color: colors.textMuted }]} numberOfLines={1}>{fixture.awayTeam}</Text>
                 </View>
                 <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted, marginTop: 10 }]}>ÚLTIMOS RESULTADOS</Text>
-                {insight.h2h.recentMatches.slice(0, 3).map((m: any, i: number) => (
+                {insight.h2h.recentMatches.slice(0, 3).map((m, i) => (
                   <View key={i} style={[newInsightStyles.h2hRow, { borderTopColor: colors.border }]}>
                     <Text style={[newInsightStyles.h2hDate, { color: colors.textMuted }]}>
                       {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
@@ -2232,7 +2232,7 @@ function InsightTab({ fixture }: { fixture: Fixture }) {
                     ))}
                   </View>
                   <Text style={[newInsightStyles.sectionLabel, { color: colors.textMuted, marginTop: 12 }]}>ÚLTIMOS RESULTADOS</Text>
-                  {insight.h2h.recentMatches.slice(0, 10).map((m: any, i: number) => (
+                  {insight.h2h.recentMatches.slice(0, 10).map((m, i) => (
                     <View key={i} style={[newInsightStyles.h2hRow, { borderTopColor: colors.border }]}>
                       <Text style={[newInsightStyles.h2hDate, { color: colors.textMuted }]}>
                         {new Date(m.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' })}
@@ -2678,7 +2678,7 @@ function EventsTab({ fixture }: { fixture: Fixture }) {
                 <View style={{ flex: 1, marginHorizontal: 8 }}>
                   <Text style={[evtStyles.statBarLabel, { color: colors.textMuted }]}>{row.label}</Text>
                   <View style={[evtStyles.statBarTrack, { backgroundColor: colors.border }]}>
-                    <View style={[evtStyles.statBarFill, { width: `${homePct}%` as any, backgroundColor: colors.primary }]} />
+                    <View style={[evtStyles.statBarFill, { width: `${homePct}%` as `${number}%`, backgroundColor: colors.primary }]} />
                   </View>
                 </View>
                 <Text style={[evtStyles.statBarVal, { color: colors.textPrimary, textAlign: 'right' }]}>{row.fmt(row.away as number)}</Text>
@@ -3831,7 +3831,7 @@ export default function FixturesScreen() {
     const favs = (favouritesQuery.data ?? [])
       .filter((f) => f.type === FavouriteType.COMPETITION && f.sport === Sport.FOOTBALL);
     // Sort by sortOrder if present, otherwise by createdAt
-    favs.sort((a, b) => ((a as any).sortOrder ?? 0) - ((b as any).sortOrder ?? 0));
+    favs.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     return favs.map((f) => f.targetKey);
   }, [favouritesQuery.data]);
 
@@ -4104,7 +4104,7 @@ export default function FixturesScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Jogos',
+          title: 'Escolher jogo',
           headerLargeTitle: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 4 }}>
@@ -4317,7 +4317,7 @@ const bsStyles = StyleSheet.create({
 
   scrollContent: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
 
-  sectionDivider: { fontSize: 13, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4 },
+  sectionDivider: { fontSize: 13, fontWeight: '700', marginTop: 4 },
   sectionTitle: { fontSize: 18, fontWeight: '900', marginTop: 4 },
 
   card: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },

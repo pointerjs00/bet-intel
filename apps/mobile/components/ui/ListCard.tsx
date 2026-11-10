@@ -5,11 +5,24 @@ import { useTheme } from '../../theme/useTheme';
 /** Elevation used by every v2 card: soft shadow, no border (PLANO_MELHORIAS.md §6.2). */
 export function useCardElevation(): ViewStyle {
   const { isDark } = useTheme();
+  // v3: stronger, deeper shadows. Android tints the elevation shadow with shadowColor (API 28+).
   return Platform.select<ViewStyle>({
     ios: isDark
-      ? { shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } }
-      : { shadowColor: '#17181A', shadowOpacity: 0.07, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
-    default: { elevation: isDark ? 6 : 3 },
+      ? { shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 22, shadowOffset: { width: 0, height: 12 } }
+      : { shadowColor: '#0F172A', shadowOpacity: 0.1, shadowRadius: 20, shadowOffset: { width: 0, height: 8 } },
+    default: isDark
+      ? { elevation: 10, shadowColor: '#000' }
+      : { elevation: 5, shadowColor: '#0F172A' },
+  })!;
+}
+
+/** Coloured glow for primary/hero elements (buttons, selected pills, hero card). */
+export function useGlow(color?: string): ViewStyle {
+  const { colors, isDark } = useTheme();
+  const c = color ?? colors.glow;
+  return Platform.select<ViewStyle>({
+    ios: { shadowColor: c, shadowOpacity: isDark ? 0.35 : 0.25, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } },
+    default: { elevation: 8, shadowColor: c },
   })!;
 }
 

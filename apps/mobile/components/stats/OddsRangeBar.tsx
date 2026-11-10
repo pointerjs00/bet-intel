@@ -43,7 +43,7 @@ export const OddsRangeBar = React.memo(function OddsRangeBar({ rows, onInfoPress
   const barWidth = Math.min(32, Math.max(20, chartWidth / Math.max(visibleRows.length * 3.4, 1)));
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>ROI por Range de Odds</Text>
         {onInfoPress ? (

@@ -29,6 +29,9 @@ import Animated, {
 
 import { Button } from '../../components/ui/Button';
 import { PressableScale } from '../../components/ui/PressableScale';
+import { AppText } from '../../components/ui/AppText';
+import { Chip } from '../../components/ui/Chip';
+import { ListCard, ListRow } from '../../components/ui/ListCard';
 import { useToast } from '../../components/ui/Toast';
 import { useTheme } from '../../theme/useTheme';
 import type { BetclicPdfResult } from '../../services/importService';
@@ -254,7 +257,7 @@ export default function ScanScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
-          title: 'Importar Screenshot',
+          title: 'Importar screenshot',
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,
           headerShadowVisible: false,
@@ -275,80 +278,45 @@ export default function ScanScreen() {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero banner */}
+        {/* Intro (redesign: one sentence instead of a hero + steps) */}
         {!hasImages && (
-          <Animated.View entering={FadeInUp.duration(300).springify()} style={[styles.hero, { backgroundColor: `${colors.primary}12` }]}>
-            <View style={[styles.heroIconWrap, { backgroundColor: `${colors.primary}20` }]}>
-              <MaterialCommunityIcons name="barcode-scan" size={44} color={colors.primary} />
-            </View>
-            <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>Importar Screenshot</Text>
-            <Text style={[styles.heroSub, { color: colors.textSecondary }]}>
-              Seleciona um ou mais screenshots de apostas Betclic e o BetIntel extrai os dados automaticamente.
-            </Text>
-            <View style={styles.steps}>
-              {STEPS.map((step, i) => (
-                <View key={i} style={styles.stepItem}>
-                  <View style={[styles.stepNum, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.stepNumText}>{i + 1}</Text>
-                  </View>
-                  <MaterialCommunityIcons name={step.icon} size={18} color={colors.textSecondary} />
-                  <Text style={[styles.stepLabel, { color: colors.textSecondary }]}>{step.label}</Text>
-                </View>
-              ))}
-            </View>
-          </Animated.View>
+          <AppText variant="caption">
+            Escolhe um ou mais screenshots de boletins. A IA lê as seleções, as odds e o resultado; revês tudo antes de importar.
+          </AppText>
         )}
 
         {/* Site picker */}
         {!hasImages && (
-          <View>
-            <Text style={[styles.sitePickerLabel, { color: colors.textSecondary }]}>Site de apostas</Text>
+          <View style={styles.siteBlock}>
+            <AppText variant="label">Casa de apostas</AppText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sitePickerRow}>
-              {BETTING_SITES.map((site) => {
-                const isSelected = selectedSite === site.slug;
-                return (
-                  <Pressable
-                    key={site.slug}
-                    onPress={() => setSelectedSite(site.slug)}
-                    style={[
-                      styles.siteChip,
-                      { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? `${colors.primary}18` : colors.surface },
-                    ]}
-                  >
-                    <Text style={[styles.siteChipText, { color: isSelected ? colors.primary : colors.textSecondary }]}>
-                      {site.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {BETTING_SITES.map((site) => (
+                <Chip key={site.slug} label={site.name} onPress={() => setSelectedSite(site.slug)} selected={selectedSite === site.slug} />
+              ))}
             </ScrollView>
           </View>
         )}
 
         {/* Source picker or image previews */}
         {!hasImages ? (
-          <View style={styles.pickRow}>
-            <Animated.View entering={FadeInDown.delay(130).duration(380).springify()} style={styles.pickTileWrapper}>
-              <PickTile
-                icon="images-outline"
-                label="Galeria"
-                sub="Abrir fotos"
-                onPress={pickImage}
-                accent={colors.primary}
-                colors={colors}
-              />
-            </Animated.View>
-            <Animated.View entering={FadeInDown.delay(240).duration(380).springify()} style={styles.pickTileWrapper}>
-              <PickTile
-                icon="camera-outline"
-                label="Câmara"
-                sub="Tirar foto"
-                onPress={takePhoto}
-                accent={colors.info}
-                colors={colors}
-              />
-            </Animated.View>
-          </View>
+          <ListCard>
+            <ListRow accessibilityLabel="Escolher screenshots da galeria" onPress={pickImage}>
+              <Ionicons color={colors.primary} name="images-outline" size={22} />
+              <View style={styles.flex1}>
+                <AppText variant="bodyStrong">Escolher da galeria</AppText>
+                <AppText variant="caption">Um ou vários screenshots</AppText>
+              </View>
+              <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+            </ListRow>
+            <ListRow accessibilityLabel="Tirar foto ao talão" onPress={takePhoto}>
+              <Ionicons color={colors.primary} name="camera-outline" size={22} />
+              <View style={styles.flex1}>
+                <AppText variant="bodyStrong">Tirar foto</AppText>
+                <AppText variant="caption">Ao talão ou ao ecrã de outro dispositivo</AppText>
+              </View>
+              <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+            </ListRow>
+          </ListCard>
         ) : (
           <Animated.View entering={FadeInDown.delay(60).duration(220).springify()} style={styles.previewSection}>
             {/* Thumbnail strip */}
@@ -508,11 +476,11 @@ export default function ScanScreen() {
             </View>
             <Text style={[styles.disclaimerTitle, { color: colors.textPrimary }]}>Leitura automática</Text>
             <Text style={[styles.disclaimerBody, { color: colors.textSecondary }]}>
-              {'A leitura automática de screenshots '}
-              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'pode não ser 100% precisa'}</Text>
+              {'A leitura por IA '}
+              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'pode ter erros'}</Text>
               {'.'}
-              {'\n\n'}
-              {'Verifica sempre os dados antes de importar — cotas, seleções e datas devem ser confirmadas manualmente. O BetIntel não se responsabiliza por erros de leitura automática.'}
+              {'\n'}
+              {'Confirma as odds, as seleções e as datas no ecrã de revisão antes de importar.'}
             </Text>
             <Pressable
               onPress={() => setDisclaimerDontShow((v) => !v)}
@@ -785,6 +753,8 @@ const scanLoadingStyles = StyleSheet.create({
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  siteBlock: { gap: 8 },
+  flex1: { flex: 1 },
   container: { flex: 1 },
   scroll: { padding: 16, gap: 16 },
 
@@ -858,7 +828,7 @@ const styles = StyleSheet.create({
   disclaimerCheckLabel: { fontSize: 14 },
   disclaimerBtn: { width: '100%', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   disclaimerBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  sitePickerLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
+  sitePickerLabel: { fontSize: 12, fontWeight: '700', marginBottom: 8 },
   sitePickerRow: { flexDirection: 'row', gap: 8, paddingBottom: 2 },
   siteChip: { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 7 },
   siteChipText: { fontSize: 13, fontWeight: '700' },
@@ -870,7 +840,7 @@ const styles = StyleSheet.create({
   resultHeaderText: { fontSize: 15, fontWeight: '800' },
   metrics: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center' },
   metric: { flex: 1, alignItems: 'center', gap: 3 },
-  metricLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  metricLabel: { fontSize: 10, fontWeight: '700' },
   metricValue: { fontSize: 14, fontWeight: '900' },
   metricDivider: { width: 1, height: 28, marginHorizontal: 2 },
   itemsSection: { borderTopWidth: 1, paddingHorizontal: 16 },

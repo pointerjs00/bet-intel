@@ -475,7 +475,7 @@ const styles = StyleSheet.create({
   },
   doneBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   sectionHeader: { paddingHorizontal: 4, paddingVertical: 8 },
-  sectionHeaderText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  sectionHeaderText: { fontSize: 12, fontWeight: '700' },
   sectionHeaderSubtitle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
   customValueRow: {
     alignItems: 'center',

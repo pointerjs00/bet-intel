@@ -34,7 +34,7 @@ export const CalibrationChart = React.memo(function CalibrationChart({ data, onI
   if (chartData.length < 2) return null;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre calibração" onPress={onInfoPress} />
@@ -83,8 +83,8 @@ export const CalibrationChart = React.memo(function CalibrationChart({ data, onI
                 pt ? (
                   <Circle
                     key={i}
-                    cx={pt.x}
-                    cy={pt.y}
+                    cx={pt.x ?? 0}
+                    cy={pt.y ?? 0}
                     r={4}
                     color={colors.primary}
                   />

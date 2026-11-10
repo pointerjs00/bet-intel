@@ -143,7 +143,7 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
   const negativeAreaColor = 'rgba(255, 59, 48, 0.18)';
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>
@@ -158,12 +158,12 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
               style={[
                 styles.cumulativeBtn,
                 {
-                  backgroundColor: cumulative ? colors.primary : colors.surfaceRaised,
-                  borderColor: cumulative ? colors.primary : colors.border,
+                  backgroundColor: cumulative ? `${colors.primary}24` : colors.surfaceRaised,
+                  borderColor: 'transparent',
                 },
               ]}
             >
-              <Text style={[styles.cumulativeBtnText, { color: cumulative ? '#fff' : colors.textSecondary }]}>
+              <Text style={[styles.cumulativeBtnText, { color: cumulative ? colors.primary : colors.textSecondary }]}>
                 Acumulado
               </Text>
             </Pressable>
@@ -183,15 +183,15 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
               style={[
                 styles.granularityBtn,
                 {
-                  backgroundColor: granularity === opt.key ? colors.primary : colors.surfaceRaised,
-                  borderColor: granularity === opt.key ? colors.primary : colors.border,
+                  backgroundColor: granularity === opt.key ? `${colors.primary}24` : colors.surfaceRaised,
+                  borderColor: 'transparent',
                 },
               ]}
             >
               <Text
                 style={[
                   styles.granularityLabel,
-                  { color: granularity === opt.key ? '#fff' : colors.textSecondary },
+                  { color: granularity === opt.key ? colors.primary : colors.textSecondary },
                 ]}
               >
                 {opt.label}

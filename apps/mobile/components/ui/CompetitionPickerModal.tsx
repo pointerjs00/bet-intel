@@ -961,7 +961,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.4,
-    textTransform: 'uppercase',
   },
   sectionCount: { fontSize: 11, fontWeight: '600' },
   sectionSubtitle: { fontSize: 11, fontWeight: '600', marginLeft: 4 },

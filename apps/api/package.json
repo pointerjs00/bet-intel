@@ -8,7 +8,7 @@
     "build": "node ../../node_modules/prisma/build/index.js generate --schema src/prisma/schema.prisma && tsc --project tsconfig.json",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "test": "node -r ../../node_modules/ts-node/register/transpile-only --test src/services/marketResolutionEngine.test.ts src/services/sportsData/espnFootball.test.ts src/jobs/liveBetTrackerJob.test.ts src/services/tennisMarketEngine.test.ts src/services/social/notificationService.test.ts src/services/stats/statsService.test.ts",
+    "test": "node -r ../../node_modules/ts-node/register/transpile-only --test src/services/marketResolutionEngine.test.ts src/services/sportsData/espnFootball.test.ts src/jobs/liveBetTrackerJob.test.ts src/services/tennisMarketEngine.test.ts src/services/social/notificationService.test.ts src/services/stats/statsService.test.ts src/services/sportsData/livescoreTennis.test.ts",
     "audit:settlement": "node -r ../../node_modules/ts-node/register/transpile-only src/scripts/auditAutoSettlement.ts",
     "prisma:generate": "node ../../node_modules/prisma/build/index.js generate --schema src/prisma/schema.prisma",
     "prisma:db:push": "node ../../node_modules/prisma/build/index.js db push --schema src/prisma/schema.prisma",

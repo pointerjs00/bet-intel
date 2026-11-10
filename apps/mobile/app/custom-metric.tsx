@@ -256,13 +256,13 @@ export default function CustomMetricScreen() {
                   style={[
                     styles.tab,
                     {
-                      backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                      backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                       borderColor: active ? colors.primary : colors.border,
                     },
                   ]}
                 >
-                  <Ionicons color={active ? '#fff' : colors.textSecondary} name={tab.icon} size={16} />
-                  <Text style={[styles.tabText, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Ionicons color={active ? colors.primary : colors.textSecondary} name={tab.icon} size={16} />
+                  <Text style={[styles.tabText, { color: active ? colors.primary : colors.textSecondary }]}>
                     {tab.label}
                   </Text>
                 </Pressable>
@@ -359,7 +359,7 @@ export default function CustomMetricScreen() {
                         },
                       ]}
                     >
-                      <Text style={[styles.tabText, { color: active ? '#fff' : colors.textSecondary }]}>
+                      <Text style={[styles.tabText, { color: active ? colors.primary : colors.textSecondary }]}>
                         {opt.label}
                       </Text>
                     </Pressable>
@@ -383,7 +383,7 @@ export default function CustomMetricScreen() {
                         },
                       ]}
                     >
-                      <Text style={[styles.tabText, { color: active ? '#fff' : colors.textSecondary }]}>
+                      <Text style={[styles.tabText, { color: active ? colors.primary : colors.textSecondary }]}>
                         Top {n}
                       </Text>
                     </Pressable>
@@ -464,8 +464,8 @@ export default function CustomMetricScreen() {
                     },
                   ]}
                 >
-                  <Ionicons color={active ? '#fff' : colors.textSecondary} name={opt.icon} size={16} />
-                  <Text style={[styles.tabText, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Ionicons color={active ? colors.primary : colors.textSecondary} name={opt.icon} size={16} />
+                  <Text style={[styles.tabText, { color: active ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </Pressable>
@@ -486,7 +486,7 @@ export default function CustomMetricScreen() {
                   onPress={() => { hapticLight(); setColor(c); }}
                   style={[
                     styles.colorSwatch,
-                    { backgroundColor: c, borderColor: active ? '#fff' : 'transparent' },
+                    { backgroundColor: c, borderColor: active ? colors.primary : 'transparent' },
                   ]}
                 >
                   {active && <Ionicons color="#fff" name="checkmark" size={16} />}

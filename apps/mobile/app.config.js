@@ -78,6 +78,10 @@ module.exports = ({ config }) => ({
   },
   android: {
     package: 'com.betintel.app',
+    // Local release builds (./gradlew assembleRelease after `expo prebuild`) must always be an
+    // upgrade over what is installed, including old EAS builds whose versionCode was
+    // auto-incremented remotely: use minutes since 2020-01-01 (monotonic, < 2^31).
+    versionCode: Math.floor((Date.now() - Date.UTC(2020, 0, 1)) / 60000),
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#07110D',
@@ -122,6 +126,7 @@ module.exports = ({ config }) => ({
         },
       },
     ],
+    './plugins/withAbiFilters',
   ],
   extra: {
     eas: {

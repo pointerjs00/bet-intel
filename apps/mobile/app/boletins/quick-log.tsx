@@ -13,9 +13,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ionicon } from '../../types/icons';
 import { useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown, FadeInUp, FadeOutUp } from 'react-native-reanimated';
-import type { ItemResult, Sport } from '@betintel/shared';
+import { ItemResult, Sport } from '@betintel/shared';
 
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -29,12 +30,12 @@ import { hapticLight, hapticSuccess } from '../../utils/haptics';
 /* ─── Quick-select options ─── */
 
 const SPORT_OPTIONS: Array<{ value: Sport; label: string; icon: string }> = [
-  { value: 'FOOTBALL', label: 'Futebol', icon: '⚽' },
-  { value: 'BASKETBALL', label: 'Basquete', icon: '🏀' },
-  { value: 'TENNIS', label: 'Ténis', icon: '🎾' },
-  { value: 'HANDBALL', label: 'Andebol', icon: '🤾' },
-  { value: 'VOLLEYBALL', label: 'Voleibol', icon: '🏐' },
-  { value: 'HOCKEY', label: 'Hóquei', icon: '🏒' },
+  { value: Sport.FOOTBALL, label: 'Futebol', icon: '⚽' },
+  { value: Sport.BASKETBALL, label: 'Basquete', icon: '🏀' },
+  { value: Sport.TENNIS, label: 'Ténis', icon: '🎾' },
+  { value: Sport.HANDBALL, label: 'Andebol', icon: '🤾' },
+  { value: Sport.VOLLEYBALL, label: 'Voleibol', icon: '🏐' },
+  { value: Sport.HOCKEY, label: 'Hóquei', icon: '🏒' },
 ];
 
 interface MarketOption {
@@ -53,9 +54,9 @@ const MARKET_OPTIONS: MarketOption[] = [
 
 const RESULT_OPTIONS: Array<{ value: ItemResult | 'PENDING'; label: string; icon: string; color: string }> = [
   { value: 'PENDING', label: 'Pendente', icon: 'time-outline', color: 'warning' },
-  { value: 'WON', label: 'Ganhou', icon: 'checkmark-circle', color: 'primary' },
-  { value: 'LOST', label: 'Perdeu', icon: 'close-circle', color: 'danger' },
-  { value: 'VOID', label: 'Cancelado', icon: 'ban', color: 'textMuted' },
+  { value: ItemResult.WON, label: 'Ganhou', icon: 'checkmark-circle', color: 'primary' },
+  { value: ItemResult.LOST, label: 'Perdeu', icon: 'close-circle', color: 'danger' },
+  { value: ItemResult.VOID, label: 'Cancelado', icon: 'ban', color: 'textMuted' },
 ];
 
 export default function QuickLogScreen() {
@@ -70,7 +71,7 @@ export default function QuickLogScreen() {
   const selectionRef = useRef<TextInput>(null);
 
   /* ─── Form state ─── */
-  const [sport, setSport] = useState<Sport>('FOOTBALL');
+  const [sport, setSport] = useState<Sport>(Sport.FOOTBALL);
   const [homeTeam, setHomeTeam] = useState('');
   const [awayTeam, setAwayTeam] = useState('');
   const [selectedMarket, setSelectedMarket] = useState<MarketOption>(MARKET_OPTIONS[0]!);
@@ -110,6 +111,8 @@ export default function QuickLogScreen() {
         items: [{
           homeTeam: homeTeam.trim(),
           awayTeam: awayTeam.trim(),
+          // The API requires a competition; quick log does not ask for one.
+          competition: 'Outra',
           sport,
           market: resolvedMarket,
           selection: selection.trim(),
@@ -290,12 +293,12 @@ export default function QuickLogScreen() {
                       style={[
                         styles.selectionPill,
                         {
-                          backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                          backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                           borderColor: active ? colors.primary : colors.border,
                         },
                       ]}
                     >
-                      <Text style={[styles.selectionPillText, { color: active ? '#FFFFFF' : colors.textPrimary }]}>{s}</Text>
+                      <Text style={[styles.selectionPillText, { color: active ? colors.primary : colors.textPrimary }]}>{s}</Text>
                     </Pressable>
                   );
                 })}
@@ -369,7 +372,7 @@ export default function QuickLogScreen() {
                       },
                     ]}
                   >
-                    <Ionicons name={r.icon as any} size={16} color={active ? c : colors.textMuted} />
+                    <Ionicons name={ionicon(r.icon)} size={16} color={active ? c : colors.textMuted} />
                     <Text style={[styles.resultPillText, { color: active ? c : colors.textSecondary }]}>{r.label}</Text>
                   </Pressable>
                 );
@@ -419,7 +422,7 @@ const styles = StyleSheet.create({
   counterText: { fontSize: 12, fontWeight: '700' },
   content: { gap: 14, paddingHorizontal: 16, paddingTop: 8 },
   section: { gap: 8 },
-  sectionLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionLabel: { fontSize: 12, fontWeight: '700' },
   pillRow: { gap: 8 },
   pill: {
     alignItems: 'center',

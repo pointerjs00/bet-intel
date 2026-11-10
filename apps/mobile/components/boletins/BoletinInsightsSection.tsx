@@ -6,6 +6,7 @@ import { BoletinStatus, ItemResult } from '@betintel/shared';
 import { usePersonalStats } from '../../services/statsService';
 import { useTheme } from '../../theme/useTheme';
 import { Skeleton } from '../ui/Skeleton';
+import { useCardElevation } from '../ui/ListCard';
 import { formatOdds } from '../../utils/formatters';
 
 interface Props {
@@ -17,16 +18,16 @@ interface Props {
 function Chip({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   const { colors } = useTheme();
   return (
-    <View style={[chipStyles.chip, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+    <View style={[chipStyles.chip, { backgroundColor: colors.surfaceRaised }]}>
       <Text style={[chipStyles.value, { color: valueColor ?? colors.textPrimary }]}>{value}</Text>
       <Text style={[chipStyles.label, { color: colors.textMuted }]}>{label}</Text>
     </View>
   );
 }
 const chipStyles = StyleSheet.create({
-  chip: { borderRadius: 10, borderWidth: 1, padding: 10, alignItems: 'center', flex: 1, gap: 2 },
-  value: { fontSize: 16, fontWeight: '800' },
-  label: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' },
+  chip: { borderRadius: 12, padding: 12, flex: 1, gap: 2 },
+  value: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 18 },
+  label: { fontFamily: 'Inter_500Medium', fontSize: 12 },
 });
 
 // ─── Insight row ──────────────────────────────────────────────────────────────
@@ -52,6 +53,7 @@ const insightRowStyles = StyleSheet.create({
 
 export function BoletinInsightsSection({ boletin }: Props) {
   const { colors } = useTheme();
+  const elevation = useCardElevation();
   const statsQuery = usePersonalStats('all', [], undefined, undefined, true);
   const stats = statsQuery.data;
 
@@ -94,13 +96,13 @@ export function BoletinInsightsSection({ boletin }: Props) {
     }
 
     // Summary insight
-    if (stats?.summary && stats.summary.totalBets >= 5) {
+    if (stats?.summary && stats.summary.settledBoletins >= 5) {
       const { winRate, roi } = stats.summary;
       const roiStr = roi >= 0 ? `+${roi.toFixed(1)}%` : `${roi.toFixed(1)}%`;
       insights.push({
         icon: 'person-outline',
         color: roi >= 0 ? colors.primary : colors.danger,
-        text: `O teu histórico geral: ${Math.round(winRate)}% de taxa e ${roiStr} ROI em ${stats.summary.totalBets} apostas.`,
+        text: `O teu histórico geral: ${Math.round(winRate)}% de taxa e ${roiStr} ROI em ${stats.summary.settledBoletins} apostas.`,
       });
     }
 
@@ -141,7 +143,7 @@ export function BoletinInsightsSection({ boletin }: Props) {
 
   if (statsQuery.isLoading) {
     return (
-      <View style={[styles.section, { borderColor: colors.border }]}>
+      <View style={[styles.section, elevation, { backgroundColor: colors.surface }]}>
         <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Insights do boletim</Text>
         <Skeleton height={60} width="100%" borderRadius={10} />
         <Skeleton height={40} width="80%" borderRadius={10} />
@@ -155,9 +157,9 @@ export function BoletinInsightsSection({ boletin }: Props) {
   const items = boletin.items;
 
   return (
-    <View style={[styles.section, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+    <View style={[styles.section, elevation, { backgroundColor: colors.surface }]}>
       <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-        <Ionicons name="analytics-outline" size={13} /> Insights do boletim
+        Análise do boletim
       </Text>
 
       {/* Metric chips */}
@@ -167,10 +169,6 @@ export function BoletinInsightsSection({ boletin }: Props) {
           value={`${slipImpliedProb.toFixed(1)}%`}
           valueColor={slipImpliedProb > 50 ? colors.primary : slipImpliedProb > 20 ? colors.warning : colors.danger}
         />
-        <Chip
-          label="Seleções"
-          value={String(items.length)}
-        />
         {legCountRow && legCountRow.totalBets >= 3 ? (
           <Chip
             label="Tua taxa"
@@ -178,11 +176,6 @@ export function BoletinInsightsSection({ boletin }: Props) {
             valueColor={legCountRow.winRate > slipImpliedProb ? colors.primary : colors.warning}
           />
         ) : null}
-        <Chip
-          label="Total odds"
-          value={formatOdds(String(boletin.totalOdds))}
-          valueColor={colors.gold}
-        />
       </View>
 
       {/* Outcome verdict (resolved) */}
@@ -191,7 +184,6 @@ export function BoletinInsightsSection({ boletin }: Props) {
           styles.verdictBanner,
           {
             backgroundColor: outcomeVerdict.aligned ? colors.primary + '15' : colors.warning + '15',
-            borderColor: outcomeVerdict.aligned ? colors.primary : colors.warning,
           },
         ]}>
           <Ionicons
@@ -246,14 +238,14 @@ export function BoletinInsightsSection({ boletin }: Props) {
 }
 
 const styles = StyleSheet.create({
-  section: { borderRadius: 16, borderWidth: 1, gap: 12, padding: 14 },
-  sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  section: { borderRadius: 18, gap: 14, padding: 16 },
+  sectionTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
   chipsRow: { flexDirection: 'row', gap: 8 },
-  verdictBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 10, borderWidth: 1, padding: 10 },
+  verdictBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 12, padding: 12 },
   verdictText: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
   insightsBlock: { gap: 8 },
   legsBlock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, gap: 6 },
-  legsTitle: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
+  legsTitle: { fontSize: 10, fontWeight: '700', marginBottom: 2 },
   legRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legDot: { width: 7, height: 7, borderRadius: 999, flexShrink: 0 },
   legName: { flex: 1, fontSize: 12, fontWeight: '600' },

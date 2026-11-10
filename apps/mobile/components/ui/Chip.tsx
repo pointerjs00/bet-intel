@@ -34,8 +34,8 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
       style={[
         styles.base,
         {
-          backgroundColor: selected ? colors.primary : colors.surfaceRaised,
-          borderColor: selected ? colors.primary : colors.border,
+          backgroundColor: selected ? `${colors.primary}24` : colors.surfaceRaised,
+          borderColor: 'transparent',
         },
         style,
       ]}
@@ -45,7 +45,7 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
         style={[
           styles.label,
           {
-            color: selected ? '#FFFFFF' : colors.textSecondary,
+            color: selected ? colors.primary : colors.textSecondary,
             fontSize: tokens.font.sizes.sm,
           },
         ]}

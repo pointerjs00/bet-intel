@@ -5,7 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
+import { useGlow } from '../../components/ui/ListCard';
 import { hapticLight } from '../../utils/haptics';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -75,8 +77,10 @@ function TabItemButton({
 /** Tabs shown in the bar, in order; other routes (amigos, perfil) stay navigable but hidden. */
 const VISIBLE_TABS = ['index', 'boletins', 'fixtures', 'stats'];
 
-function CenterNewButton({ color }: { color: string }) {
+function CenterNewButton() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const glow = useGlow();
   const scale = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
@@ -87,9 +91,15 @@ function CenterNewButton({ color }: { color: string }) {
         onPress={() => { hapticLight(); router.push('/boletins/novo'); }}
         onPressIn={() => { scale.value = withTiming(0.9, { duration: 90 }); }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
-        style={[styles.centerButton, { backgroundColor: color }, style]}
+        style={[styles.centerButton, { backgroundColor: colors.primary }, glow, style]}
       >
-        <Ionicons color="#06140C" name="add" size={28} />
+        <LinearGradient
+          colors={[colors.primary, colors.primaryGradientEnd]}
+          end={{ x: 1, y: 1 }}
+          start={{ x: 0, y: 0 }}
+          style={[StyleSheet.absoluteFill, { borderRadius: 18 }]}
+        />
+        <Ionicons color={colors.onPrimary} name="add" size={28} />
       </AnimatedPressable>
     </View>
   );
@@ -114,8 +124,8 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
         style={[
           styles.pill,
           {
-            backgroundColor: isDark ? 'rgba(26,26,26,0.92)' : 'rgba(255,255,255,0.95)',
-            borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+            backgroundColor: isDark ? 'rgba(17,21,34,0.96)' : 'rgba(255,255,255,0.97)',
+            borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.06)',
           },
         ]}
       >
@@ -153,7 +163,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               dangerColor={colors.danger}
             />
           );
-          return slot === 1 ? [button, <CenterNewButton color={colors.primary} key="new" />] : [button];
+          return slot === 1 ? [button, <CenterNewButton key="new" />] : [button];
         })}
       </View>
     </View>
@@ -228,7 +238,6 @@ const styles = StyleSheet.create({
     height: TAB_BAR_HEIGHT,
     borderRadius: TAB_BAR_HEIGHT / 2,
     borderWidth: 1,
-    overflow: 'hidden',
     paddingHorizontal: 6,
     ...Platform.select({
       ios: {
@@ -270,7 +279,7 @@ const styles = StyleSheet.create({
   centerSlot: { alignItems: 'center', justifyContent: 'center', width: 64 },
   centerButton: {
     alignItems: 'center',
-    borderRadius: 20,
+    borderRadius: 18,
     height: 48,
     justifyContent: 'center',
     width: 48,

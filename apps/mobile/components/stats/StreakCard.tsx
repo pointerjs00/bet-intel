@@ -1,5 +1,6 @@
 import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { ionicon } from '../../types/icons';
 import { StyleSheet, Text, View } from 'react-native';
 import type { StatsStreaks } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';
@@ -35,7 +36,7 @@ export const StreakCard = React.memo(function StreakCard({ streaks, onInfoPress 
       : 'remove-outline';
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre sequências" onPress={onInfoPress} />
@@ -45,7 +46,7 @@ export const StreakCard = React.memo(function StreakCard({ streaks, onInfoPress 
 
       {/* Current streak — hero */}
       <View style={styles.currentRow}>
-        <Ionicons color={currentColor} name={currentIcon as any} size={28} />
+        <Ionicons color={currentColor} name={ionicon(currentIcon)} size={28} />
         <View style={styles.currentText}>
           <Text style={[styles.currentLabel, { color: colors.textSecondary }]}>Sequência atual</Text>
           <Text style={[styles.currentValue, { color: currentColor }]}>{currentLabel}</Text>

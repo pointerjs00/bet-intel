@@ -18,6 +18,15 @@ test('match result: codes, words and team names (Betclic "Resultado (Tempo Regul
   assert.equal(r('Resultado ao Intervalo', 'X'), 'LOST');
 });
 
+test('bet-builder shorthand "X vence & +1.5 Golos" (2-1, 3 goals)', () => {
+  assert.equal(r('SL Benfica vence & +1.5 Golos', 'SL Benfica vence & +1.5 Golos'), 'WON');
+  assert.equal(r('SL Benfica vence & +3.5 Golos', 'SL Benfica vence & +3.5 Golos'), 'LOST');
+  assert.equal(r('FC Porto vence & +1.5 Golos', 'FC Porto vence & +1.5 Golos'), 'LOST');
+  assert.equal(r('Golos', '-3.5 Golos'), 'WON');
+  // A handicap line without "golos" must not become a total
+  assert.equal(r('Handicap Europeu', '+4'), null);
+});
+
 test('unknown team name in selection is never guessed', () => {
   assert.equal(r('Resultado (Tempo Regulamentar)', 'Estugarda'), null);
   assert.equal(resolveMarket('Resultado (Tempo Regulamentar)', 'SL Benfica', FT), null);

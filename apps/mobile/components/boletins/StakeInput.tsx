@@ -57,9 +57,9 @@ export function StakeInput({ value, onChange }: StakeInputProps) {
             <Pressable
               key={stake}
               onPress={() => onChange(stake)}
-              style={[styles.quickChip, { backgroundColor: isActive ? colors.primary : colors.surfaceRaised, borderColor: isActive ? colors.primary : colors.border }]}
+              style={[styles.quickChip, { backgroundColor: isActive ? `${colors.primary}24` : colors.surfaceRaised, borderColor: isActive ? colors.primary : colors.border }]}
             >
-              <Text style={[styles.quickChipText, { color: isActive ? '#FFFFFF' : colors.textPrimary }]}>{formatCurrency(stake)}</Text>
+              <Text style={[styles.quickChipText, { color: isActive ? colors.primary : colors.textPrimary }]}>{formatCurrency(stake)}</Text>
             </Pressable>
           );
         })}

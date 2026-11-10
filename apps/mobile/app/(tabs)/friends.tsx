@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,8 @@ import {
   useUserSearch,
 } from '../../services/socialService';
 import { useTheme } from '../../theme/useTheme';
+import { AppText } from '../../components/ui/AppText';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 
 type FriendsTab = 'feed' | 'friends' | 'requests';
 
@@ -77,27 +79,18 @@ export default function FriendsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.headerWrap}>
-          <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Social</Text>
-          {/* <Text style={[styles.title, { color: colors.textPrimary }]}>Segue atividade pública, gere amizades e responde a pedidos</Text> */}
+          <AppText accessibilityRole="header" variant="title">Amigos</AppText>
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(30).duration(160).springify()}>
-          <Card noPadding style={styles.tabBar}>
-            {TAB_LABELS.map((tab) => {
-              const active = tab.key === activeTab;
-              const badgeValue = tab.key === 'requests' ? requestCount : 0;
-
-              return (
-                <Chip
-                  key={tab.key}
-                  label={badgeValue > 0 ? `${tab.label} (${badgeValue})` : tab.label}
-                  selected={active}
-                  onPress={() => setActiveTab(tab.key)}
-                  style={styles.tabChip}
-                />
-              );
-            })}
-          </Card>
+        <Animated.View entering={FadeInDown.delay(30).duration(160).springify()} style={styles.segmentWrap}>
+          <SegmentedControl
+            onChange={setActiveTab}
+            options={TAB_LABELS.map((tab) => ({
+              value: tab.key,
+              label: tab.key === 'requests' && requestCount > 0 ? `${tab.label} (${requestCount})` : tab.label,
+            }))}
+            value={activeTab}
+          />
         </Animated.View>
 
         {activeTab === 'feed' ? (
@@ -253,7 +246,8 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerWrap: { gap: 8, marginBottom: 18 },
-  eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
+  eyebrow: { fontSize: 13, fontWeight: '700' },
+  segmentWrap: { marginBottom: 16 },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   tabBar: { borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 8, marginBottom: 20, padding: 8 },
   tabChip: { flex: 1 },

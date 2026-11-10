@@ -30,7 +30,7 @@ export function EmptyState({
       >
         <MaterialCommunityIcons
           name={icon}
-          size={48}
+          size={32}
           color={colors.textMuted}
         />
       </View>
@@ -62,15 +62,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingVertical: 36,
   },
   iconCircle: {
     alignItems: 'center',
-    borderRadius: 40,
-    height: 80,
+    borderRadius: 32,
+    height: 64,
     justifyContent: 'center',
-    marginBottom: 20,
-    width: 80,
+    marginBottom: 16,
+    width: 64,
   },
   title: {
     fontWeight: '700',

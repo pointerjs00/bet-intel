@@ -46,7 +46,7 @@ import {
   submitScanFeedbackRequest,
 } from '../../services/importService';
 import { scheduleSelectionReminders } from '../../services/notificationService';
-import { StatusBadge } from '../../components/boletins/StatusBadge';
+import { StatusPill } from '../../components/ui/StatusPill';
 import { NumericKeyboard } from '../../components/ui/NumericKeyboard';
 import { useMarkets } from '../../services/referenceService';
 import { humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
@@ -914,7 +914,7 @@ export default function ImportReviewScreen() {
                     });
                   }}
                 >
-                  <StatusBadge status={(boletinStatusEdits.get(index) ?? item.status) as BoletinStatus} />
+                  <StatusPill status={(boletinStatusEdits.get(index) ?? item.status) as BoletinStatus} />
                 </PressableScale>
               </View>
             </View>
@@ -1150,7 +1150,7 @@ export default function ImportReviewScreen() {
                             cycleItemResult(index, selectionIndex, current);
                           }}
                         >
-                          <StatusBadge
+                          <StatusPill
                             status={
                               getItemResult(
                                 index,
@@ -2205,7 +2205,7 @@ const styles = StyleSheet.create({
   vsText: { fontSize: 12, fontWeight: '500' },
   betCardMetrics: { flexDirection: 'row', gap: 12, marginTop: 4 },
   betCardMetricItem: { gap: 2, flex: 1, minWidth: 0 },
-  metricLabel: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  metricLabel: { fontSize: 10, fontWeight: '600' },
   metricValue: { fontSize: 14, fontWeight: '800' },
   betCardError: { fontSize: 12, fontStyle: 'italic' },
   detailsButton: {
@@ -2261,7 +2261,6 @@ const styles = StyleSheet.create({
   matchNumberText: {
     fontSize: 10,
     fontWeight: '800',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   matchDatePill: {
@@ -2315,7 +2314,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 5,
   },
-  editFieldLabel: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  editFieldLabel: { fontSize: 10, fontWeight: '600' },
   editFieldValue: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   editFieldValueText: { fontSize: 13, fontWeight: '500', flex: 1 },
   editFieldInput: {
@@ -2347,7 +2346,6 @@ const styles = StyleSheet.create({
   numericKeyboardLabel: {
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   numericValueDisplay: {
@@ -2419,7 +2417,7 @@ const styles = StyleSheet.create({
   },
   dateFieldGroup: { alignItems: 'center', gap: 4 },
   dateFieldWide: { minWidth: 68 },
-  dateFieldLabel: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase' },
+  dateFieldLabel: { fontSize: 10, fontWeight: '600' },
   dateFieldInput: {
     borderWidth: 1,
     borderRadius: 8,
