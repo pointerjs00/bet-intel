@@ -1,5 +1,5 @@
-// Jogos — redesign D8 / plan #60: free ESPN data for the 8 leagues + UEFA competitions.
-// (The old API-Football fixtures screen still powers "Novo boletim → Por jogo".)
+// Jogos — free ESPN data: football (8 leagues, UEFA competitions and national teams),
+// NBA and ATP/WTA tennis, switched with the control at the top.
 import React, { useMemo, useState } from 'react';
 import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,7 +12,8 @@ import { Appear, LiveDot } from '../../components/ui/Appear';
 import { useGlow } from '../../components/ui/ListCard';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { getLeagueLogoUrl } from '../../utils/sportAssets';
-import { useFootballDay, type FootballMatch } from '../../services/sportsService';
+import { SPORT_OPTIONS, useBasketballDay, useFootballDay, useTennisDay, type FootballMatch, type SimpleMatch, type SportKey } from '../../services/sportsService';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { useTheme } from '../../theme/useTheme';
 import { hapticLight } from '../../utils/haptics';
 
@@ -29,32 +30,37 @@ function dayLabel(d: Date, offset: number): { top: string; day: string } {
   return { top: WEEKDAYS[d.getDay()]!, day: String(d.getDate()) };
 }
 
-const isLive = (m: FootballMatch) => m.status === 'LIVE' || m.status === 'HALFTIME';
+const isLive = (m: { status: string }) => m.status === 'LIVE' || m.status === 'HALFTIME';
+
+type AnyGroup = { league: string; slug: string; matches: Array<FootballMatch | SimpleMatch> };
 
 export default function JogosScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const accentGlow = useGlow(colors.accent);
+  const [sport, setSport] = useState<SportKey>('football');
   const [offset, setOffset] = useState(0);
   const [filter, setFilter] = useState<Filter>('all');
 
   const date = useMemo(() => new Date(Date.now() + offset * DAY_MS), [offset]);
-  const dayQuery = useFootballDay(toIsoDate(date));
+  const iso = toIsoDate(date);
+  const footballQuery = useFootballDay(iso, sport === 'football');
+  const basketballQuery = useBasketballDay(iso, sport === 'basketball');
+  const tennisQuery = useTennisDay(iso, sport === 'tennis');
+  const dayQuery = sport === 'football' ? footballQuery : sport === 'basketball' ? basketballQuery : tennisQuery;
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => i - 2), []);
+  const allGroups = (dayQuery.data?.groups ?? []) as AnyGroup[];
 
-  const groups = useMemo(() => {
-    const all = dayQuery.data?.groups ?? [];
-    return all
-      .map((g) => ({
-        ...g,
-        matches: g.matches.filter((m) => (filter === 'live' ? isLive(m) : filter === 'bets' ? m.hasBet : true)),
-      }))
-      .filter((g) => g.matches.length > 0);
-  }, [dayQuery.data, filter]);
+  const groups = useMemo(() => allGroups
+    .map((g) => ({
+      ...g,
+      matches: g.matches.filter((m) => (filter === 'live' ? isLive(m) : filter === 'bets' ? m.hasBet : true)),
+    }))
+    .filter((g) => g.matches.length > 0), [allGroups, filter]);
 
-  const liveCount = (dayQuery.data?.groups ?? []).reduce((n, g) => n + g.matches.filter(isLive).length, 0);
-  const betCount = (dayQuery.data?.groups ?? []).reduce((n, g) => n + g.matches.filter((m) => m.hasBet).length, 0);
+  const liveCount = allGroups.reduce((n, g) => n + g.matches.filter(isLive).length, 0);
+  const betCount = allGroups.reduce((n, g) => n + g.matches.filter((m) => m.hasBet).length, 0);
 
   return (
     <ScrollView
@@ -63,6 +69,8 @@ export default function JogosScreen() {
       style={{ backgroundColor: colors.background }}
     >
       <AppText accessibilityRole="header" variant="title">Jogos</AppText>
+
+      <SegmentedControl onChange={(v) => { setSport(v); setFilter('all'); }} options={SPORT_OPTIONS} value={sport} />
 
       {/* Day strip */}
       <ScrollView contentContainerStyle={styles.days} horizontal showsHorizontalScrollIndicator={false}>
@@ -122,7 +130,11 @@ export default function JogosScreen() {
           <AppText variant="heading">
             {filter === 'live' ? 'Nenhum jogo a decorrer' : filter === 'bets' ? 'Sem jogos com aposta neste dia' : 'Sem jogos neste dia'}
           </AppText>
-          <AppText style={styles.center} variant="caption">Ligas seguidas: Portugal, Inglaterra, Espanha, Alemanha, Itália, França, Países Baixos, Turquia e provas UEFA.</AppText>
+          <AppText style={styles.center} variant="caption">
+            {sport === 'football'
+              ? 'Ligas seguidas: Portugal, Inglaterra, Espanha, Alemanha, Itália, França, Países Baixos, Turquia, provas UEFA e seleções (Liga das Nações, Mundial, Europeu, Copa América, amigáveis).'
+              : sport === 'basketball' ? 'Jogos da NBA (horas de Portugal).' : 'Torneios ATP e WTA, singulares.'}
+          </AppText>
           {filter === 'all' ? (
             <Pressable accessibilityRole="button" onPress={() => setOffset((o) => o + 1)} style={[styles.emptyBtn, { backgroundColor: colors.surface }]}>
               <AppText tone="accent" variant="bodyStrong">Ver o dia seguinte</AppText>
@@ -140,7 +152,13 @@ export default function JogosScreen() {
             </View>
             <ListCard>
               {g.matches.map((m) => (
-                <MatchRow key={m.providerMatchId} match={m} onPress={() => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: g.slug } })} />
+                <MatchRow
+                  key={m.providerMatchId}
+                  match={m}
+                  // Match detail (stats, incidents, preview) exists for football only.
+                  onPress={sport === 'football' ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: g.slug } }) : undefined}
+                  variant={sport === 'tennis' ? 'player' : 'team'}
+                />
               ))}
             </ListCard>
           </Appear>
@@ -150,12 +168,18 @@ export default function JogosScreen() {
   );
 }
 
-function MatchRow({ match: m, onPress }: { match: FootballMatch; onPress: () => void }) {
+function MatchRow({ match: m, onPress, variant }: { match: FootballMatch | SimpleMatch; onPress?: () => void; variant: 'team' | 'player' }) {
   const { colors } = useTheme();
   const live = isLive(m);
   const time = new Date(m.kickoffAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-  const left = live ? (m.status === 'HALFTIME' ? 'Int.' : m.statusDetail) : m.status === 'FINISHED' ? 'Fim' : m.status === 'POSTPONED' ? 'Adiado' : m.status === 'CANCELLED' ? 'Cancel.' : time;
-  const showScore = m.score && (live || m.status === 'FINISHED');
+  const done = m.status === 'FINISHED' || m.status === 'RETIRED' || m.status === 'WALKOVER';
+  const left = live
+    ? (m.status === 'HALFTIME' ? 'Int.' : variant === 'player' ? 'Ao vivo' : m.statusDetail)
+    : done ? (m.status === 'RETIRED' ? 'Desist.' : 'Fim') : m.status === 'POSTPONED' ? 'Adiado' : m.status === 'CANCELLED' ? 'Cancel.' : time;
+  const showScore = m.score && (live || done);
+  // NBA quarters / tennis sets, and the round for tennis.
+  const line = 'line' in m ? m.line : null;
+  const sub = variant === 'player' ? [m.statusDetail, line].filter(Boolean).join(' · ') : live && line ? line : null;
   return (
     <ListRow accessibilityLabel={`${m.home.name} ${showScore ? `${m.score!.home} - ${m.score!.away}` : 'contra'} ${m.away.name}, ${left}`} onPress={onPress}>
       <View style={styles.time}>
@@ -164,13 +188,14 @@ function MatchRow({ match: m, onPress }: { match: FootballMatch; onPress: () => 
       </View>
       <View style={[styles.flex, styles.teams]}>
         <View style={styles.team}>
-          <TeamBadge name={m.home.name} size={22} />
+          <TeamBadge name={m.home.name} size={22} variant={variant} />
           <AppText numberOfLines={1} style={styles.flex} variant="body">{m.home.name}</AppText>
         </View>
         <View style={styles.team}>
-          <TeamBadge name={m.away.name} size={22} />
+          <TeamBadge name={m.away.name} size={22} variant={variant} />
           <AppText numberOfLines={1} style={styles.flex} variant="body">{m.away.name}</AppText>
         </View>
+        {sub ? <AppText numberOfLines={1} variant="caption">{sub}</AppText> : null}
       </View>
       {showScore ? (
         <View style={styles.score}>

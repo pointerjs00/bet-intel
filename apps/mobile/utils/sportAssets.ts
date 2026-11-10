@@ -37,6 +37,7 @@ export const COUNTRY_FLAGS: Record<string, string> = {
   Portugal:       FLAG_CDN('pt'),
   Inglaterra:     FLAG_CDN('gb-eng'),
   Escócia:        FLAG_CDN('gb-sct'),
+  'País de Gales': FLAG_CDN('gb-wls'),
   Espanha:        FLAG_CDN('es'),
   Itália:         FLAG_CDN('it'),
   Alemanha:       FLAG_CDN('de'),
@@ -486,7 +487,6 @@ export const LEAGUE_LOGOS: Record<string, string> = {
   'EHF Champions League':     HANDBALL_LEAGUE_CDN(27),
   'Andebol 1 (Portugal)':     HANDBALL_LEAGUE_CDN(113),
   // ── Volleyball ───────────────────────────────────────────────────────────────
-  'CEV Champions League':     VOLLEYBALL_LEAGUE_CDN(1),
   // ── Ice Hockey ───────────────────────────────────────────────────────────────
   'NHL':    ESPN_LEAGUE('nhl'),
   // ── American Football ────────────────────────────────────────────────────────
@@ -727,74 +727,14 @@ export const LEAGUE_LOGOS: Record<string, string> = {
   'Luxembourg WTA':           SOFA(2647),
   'Portoroz WTA':             SOFA(2599),
   'Hong Kong WTA':            SOFA(2575),
-  'Bastad WTA':               SOFA(2552),
   'Shenzhen WTA':             SOFA(2700),
 };
 
-// ─── ATP player headshots ────────────────────────────────────────────────────
-// Source: ATP Tour official CDN  https://www.atptour.com/-/media/alias/player-gladiator-headshot/{ATP_ID}
-// ATP IDs are 4-character codes (e.g. "S0AG" for Sinner, "A0AG" for Alcaraz).
-// This map is the seed layer; the weekly rankings job adds/updates entries at runtime.
+// ─── Tennis player photos ─────────────────────────────────────────────────────
+// The old atptour.com headshots are refused to apps (HTTP 403, audit 2026-11) and were removed.
+// Photos now come from the API's asset registry (ESPN, official WTA, Wikipedia; sportAssetsJob).
 
-const ATP_PHOTO = (id: string) =>
-  `https://www.atptour.com/-/media/alias/player-headshot/${id}`;
-
-export const PLAYER_PHOTOS: Record<string, string> = {
-  'Jannik Sinner':                    ATP_PHOTO('S0AG'),
-  'Carlos Alcaraz':                   ATP_PHOTO('A0AG'),
-  'Alexander Zverev':                 ATP_PHOTO('Z355'),
-  'Novak Djokovic':                   ATP_PHOTO('D643'),
-  'Taylor Fritz':                     ATP_PHOTO('F456'),
-  'Casper Ruud':                      ATP_PHOTO('R0AR'),
-  'Daniil Medvedev':                  ATP_PHOTO('M0DP'),
-  'Andrey Rublev':                    ATP_PHOTO('R0DO'),
-  'Holger Rune':                      ATP_PHOTO('R0HO'),
-  'Grigor Dimitrov':                  ATP_PHOTO('D875'),
-  'Tommy Paul':                       ATP_PHOTO('P905'),
-  'Ugo Humbert':                      ATP_PHOTO('H919'),
-  'Alex de Minaur':                   ATP_PHOTO('M0IL'),
-  'Stefanos Tsitsipas':               ATP_PHOTO('T1778'),
-  'Sebastian Korda':                  ATP_PHOTO('K0EA'),
-  'Cameron Norrie':                   ATP_PHOTO('N552'),
-  'Nicolas Jarry':                    ATP_PHOTO('J918'),
-  'Arthur Fils':                      ATP_PHOTO('F0CR'),
-  'Francisco Cerundolo':              ATP_PHOTO('C0CE'),
-  'Giovanni Mpetshi Perricard':       ATP_PHOTO('M0GP'),
-  'Ben Shelton':                      ATP_PHOTO('S0BW'),
-  'Lorenzo Musetti':                  ATP_PHOTO('M0LM'),
-  'Hubert Hurkacz':                   ATP_PHOTO('H921'),
-  'Karen Khachanov':                  ATP_PHOTO('K749'),
-  'Matteo Berrettini':                ATP_PHOTO('B988'),
-  'Frances Tiafoe':                   ATP_PHOTO('T935'),
-  'Alejandro Davidovich Fokina':      ATP_PHOTO('D875'),
-  'Roberto Bautista Agut':            ATP_PHOTO('B669'),
-  'Tomas Machac':                     ATP_PHOTO('M0TC'),
-  'Alejandro Tabilo':                 ATP_PHOTO('T0AT'),
-  'Adrian Mannarino':                 ATP_PHOTO('M585'),
-  'Jiri Lehecka':                     ATP_PHOTO('L0JL'),
-  'Jordan Thompson':                  ATP_PHOTO('T935'),
-  'Nuno Borges':                      ATP_PHOTO('B0NB'),
-  'Felix Auger-Aliassime':            ATP_PHOTO('A0FA'),
-  'Jan-Lennard Struff':               ATP_PHOTO('S741'),
-  'Gael Monfils':                     ATP_PHOTO('M610'),
-  'Christopher Eubanks':              ATP_PHOTO('E0CE'),
-  'Flavio Cobolli':                   ATP_PHOTO('C0FC'),
-  'Denis Shapovalov':                 ATP_PHOTO('S1042'),
-  'Sebastian Baez':                   ATP_PHOTO('B0SB'),
-  'Tallon Griekspoor':                ATP_PHOTO('G0TG'),
-  'Pablo Carreno Busta':              ATP_PHOTO('C977'),
-  'Luciano Darderi':                  ATP_PHOTO('D0LD'),
-  'Brandon Nakashima':                ATP_PHOTO('N0BN'),
-  'Jack Draper':                      ATP_PHOTO('D0JD'),
-  'Lorenzo Sonego':                   ATP_PHOTO('S0LS'),
-  'Alexander Bublik':                 ATP_PHOTO('B0AB'),
-  'Joao Fonseca':                     ATP_PHOTO('F0JF'),
-  'Luca Nardi':                       ATP_PHOTO('N0LN'),
-  'Gabriel Diallo':                   ATP_PHOTO('D0GD'),
-  'Mattia Bellucci':                  ATP_PHOTO('B0MB'),
-  'Hamad Medjedovic':                 ATP_PHOTO('M0HM'),
-  'Corentin Moutet':                  ATP_PHOTO('M0CM'),
-};
+export const PLAYER_PHOTOS: Record<string, string> = {};
 
 // ─── Team badge URLs ──────────────────────────────────────────────────────────
 // api-football.com team IDs (well-known, high-confidence)
@@ -1411,7 +1351,6 @@ export const TEAM_LOGOS: Record<string, string> = {
   // J1 League (Japan)
   'Kashima Antlers':        TEAM_CDN(2609),
   'Urawa Red Diamonds':     TEAM_CDN(2610),
-  'Yokohama F. Marinos':    TEAM_CDN(2611),
   'Kashiwa Reysol':         TEAM_CDN(2612),
   'Vissel Kobe':            TEAM_CDN(2613),
   'Kawasaki Frontale':      TEAM_CDN(2614),
@@ -1503,7 +1442,6 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Millonarios FC':         TEAM_CDN(1941),
   'Atletico Nacional':      TEAM_CDN(1942),
   'America de Cali':        TEAM_CDN(1943),
-  'Junior FC':              TEAM_CDN(1944),
   'Independiente Medellin': TEAM_CDN(1945),
   'Deportivo Cali':         TEAM_CDN(1946),
   'Santa Fe':               TEAM_CDN(1947),
@@ -1775,24 +1713,14 @@ export const TEAM_LOGOS: Record<string, string> = {
   'Zulte Waregem': TEAM_CDN(600),
 
   // Sofascore — Basketball (EuroLeague, ACB)
-  'ALBA Berlin': SOFA_TEAM(3458),
   'Anadolu Efes': SOFA_TEAM(3433),
   'Baskonia': SOFA_TEAM(3438),
-  'Bayern München Basketball': SOFA_TEAM(3459),
   'Crvena Zvezda': SOFA_TEAM(3448),
   'CSKA Moscow': SOFA_TEAM(3440),
-  'Gran Canaria': SOFA_TEAM(3455),
   'Joventut Badalona': SOFA_TEAM(3453),
   'Maccabi Tel Aviv': SOFA_TEAM(3439),
   'Monaco Basket': SOFA_TEAM(117832),
-  'MoraBanc Andorra': SOFA_TEAM(36388),
-  'Murcia': SOFA_TEAM(3457),
-  'Panathinaikos BC': SOFA_TEAM(3442),
-  'Partizan Belgrade': SOFA_TEAM(3441),
-  'Unicaja': SOFA_TEAM(3451),
-  'Valencia Basket': SOFA_TEAM(3449),
   'Virtus Bologna': SOFA_TEAM(3436),
-  'Žalgiris Kaunas': SOFA_TEAM(3443),
 
   // Sofascore team images — broad coverage
   'ABC Braga': SOFA_TEAM(405406),

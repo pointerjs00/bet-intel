@@ -7,6 +7,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppText } from '../../components/ui/AppText';
 import { ListCard, ListRow, useCardElevation } from '../../components/ui/ListCard';
 import { StatusPill } from '../../components/ui/StatusPill';
+import { HeroCard } from '../../components/ui/HeroCard';
+import { MatchPreviewSection } from '../../components/fixtures/MatchPreviewSection';
+import { TeamBadge } from '../../components/ui/TeamBadge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useFootballMatch, type MatchIncident, type TeamStats } from '../../services/sportsService';
 import { useTheme } from '../../theme/useTheme';
@@ -80,13 +83,16 @@ export default function MatchDetailScreen() {
           )
         ) : (
           <>
-            <View style={[styles.hero, elevation, { backgroundColor: colors.surface }]}>
+            <HeroCard style={styles.hero}>
               <View style={styles.heroTop}>
                 <AppText numberOfLines={1} style={styles.flex} variant="label">{m.competition.name}</AppText>
                 {live ? <StatusPill compact status="LIVE" /> : null}
               </View>
               <View style={styles.teams}>
-                <AppText numberOfLines={2} style={[styles.team, styles.left]} variant="heading">{m.home.name}</AppText>
+                <View style={styles.teamCol}>
+                  <TeamBadge name={m.home.name} size={56} />
+                  <AppText numberOfLines={2} style={styles.centerText} variant="bodyStrong">{m.home.name}</AppText>
+                </View>
                 <View style={styles.scoreBox}>
                   {m.score && (live || m.status === 'FINISHED') ? (
                     <AppText variant="numberLarge">{m.score.home} – {m.score.away}</AppText>
@@ -98,10 +104,13 @@ export default function MatchDetailScreen() {
                   </AppText>
                   {m.halfTime && (live || m.status === 'FINISHED') ? <AppText variant="caption">Intervalo {m.halfTime.home}–{m.halfTime.away}</AppText> : null}
                 </View>
-                <AppText numberOfLines={2} style={[styles.team, styles.right]} variant="heading">{m.away.name}</AppText>
+                <View style={styles.teamCol}>
+                  <TeamBadge name={m.away.name} size={56} />
+                  <AppText numberOfLines={2} style={styles.centerText} variant="bodyStrong">{m.away.name}</AppText>
+                </View>
               </View>
               {m.venue ? <AppText style={styles.centerText} variant="caption">{m.venue}</AppText> : null}
-            </View>
+            </HeroCard>
 
             {keyIncidents.length > 0 ? (
               <>
@@ -153,6 +162,9 @@ export default function MatchDetailScreen() {
             ) : m.status === 'SCHEDULED' ? (
               <AppText style={styles.centerText} variant="caption">As estatísticas aparecem quando o jogo começar.</AppText>
             ) : null}
+
+            {/* Pre-match context (#58): shown for every match, most useful before kick-off */}
+            <MatchPreviewSection away={m.away.name} home={m.home.name} id={id ?? ''} league={league ?? ''} />
           </>
         )}
       </ScrollView>
@@ -164,7 +176,8 @@ const styles = StyleSheet.create({
   content: { gap: 14, paddingHorizontal: 20 },
   flex: { flex: 1 },
   back: { alignItems: 'center', borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
-  hero: { borderRadius: 20, gap: 12, padding: 20 },
+  hero: { gap: 12, padding: 20 },
+  teamCol: { alignItems: 'center', flex: 1, gap: 8 },
   heroTop: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   teams: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   team: { flex: 1 },

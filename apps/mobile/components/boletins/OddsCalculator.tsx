@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { useTheme } from '../../theme/useTheme';
+import { StyleSheet, View } from 'react-native';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
+import { HeroCard, HeroTile } from '../ui/HeroCard';
+import { MetricTile } from '../ui/SectionHeader';
 
 interface OddsCalculatorProps {
   stake: number;
@@ -9,51 +10,23 @@ interface OddsCalculatorProps {
   potentialReturn: number;
 }
 
-/** Summary card with total odds, projected return, and estimated ROI. */
+/** Summary of the boletim being built (v3 hero): total odds, potential return and profit. */
 export function OddsCalculator({ stake, totalOdds, potentialReturn }: OddsCalculatorProps) {
-  const { colors } = useTheme();
-  const estimatedRoi = stake > 0 ? ((potentialReturn - stake) / stake) * 100 : 0;
-
+  const profit = potentialReturn - stake;
   return (
-    <View style={[styles.card, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-      <View style={styles.metric}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Odds totais</Text>
-        <Text style={[styles.value, { color: colors.textPrimary }]}>{formatOdds(totalOdds)}</Text>
+    <HeroCard style={styles.card}>
+      <View style={styles.row}>
+        <HeroTile><MetricTile label="Odd total" value={formatOdds(totalOdds)} /></HeroTile>
+        <HeroTile><MetricTile label="Retorno" tone="positive" value={formatCurrency(potentialReturn)} /></HeroTile>
+        <HeroTile>
+          <MetricTile label="Lucro" tone={profit >= 0 ? 'positive' : 'negative'} value={`${profit >= 0 ? '+' : '−'}${formatCurrency(Math.abs(profit))}`} />
+        </HeroTile>
       </View>
-
-      <View style={styles.metric}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>Retorno potencial</Text>
-        <Text style={[styles.value, { color: colors.primary }]}>{formatCurrency(potentialReturn)}</Text>
-      </View>
-
-      <View style={styles.metric}>
-        <Text style={[styles.label, { color: colors.textSecondary }]}>ROI estimado</Text>
-        <Text style={[styles.value, { color: estimatedRoi >= 0 ? colors.primary : colors.danger }]}>
-          {estimatedRoi.toFixed(1)}%
-        </Text>
-      </View>
-    </View>
+    </HeroCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  metric: {
-    flex: 1,
-    gap: 6,
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  value: {
-    fontSize: 18,
-    fontWeight: '900',
-  },
+  card: { padding: 12 },
+  row: { flexDirection: 'row', gap: 8 },
 });

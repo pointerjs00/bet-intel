@@ -1095,7 +1095,7 @@ export default function HomeScreen() {
           >
             {([
               { label: 'Criar manualmente',   icon: 'create-outline',       lib: 'ion' as const, route: '/boletins/create',    color: colors.primary },
-              { label: 'Escolher por jogo',     icon: 'football-outline',     lib: 'ion' as const, route: '/boletins/fixtures',  color: '#FF9500'      },
+              { label: 'Escolher por jogo',     icon: 'football-outline',     lib: 'ion' as const, route: '/boletins/por-jogo',  color: '#FF9500'      },
               { label: 'Registo rápido',        icon: 'flash',                lib: 'ion' as const, route: '/boletins/quick-log',  color: colors.warning },
               { label: 'Importar screenshot',   icon: 'cellphone-screenshot', lib: 'mci' as const, route: '/boletins/scan',        color: colors.info    },
             ] as const).map((opt, i) => (

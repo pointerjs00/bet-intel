@@ -1,4 +1,5 @@
 import { PrismaClient, Sport } from '@prisma/client';
+import { COUNTRY_EN_TO_PT } from '../utils/countryNames';
 
 const prisma = new PrismaClient();
 
@@ -1860,6 +1861,12 @@ const NATIONAL_TEAMS: string[] = [
   'Egito', 'Tunísia', 'Argélia', 'África do Sul',
 ];
 
+/** Competitions played by national teams (linked to every national team). */
+const NATIONAL_TEAM_COMPETITIONS = [
+  'UEFA Nations League', 'UEFA Euro', 'FIFA World Cup', 'Copa América', 'Seleções - Amigáveis',
+  'Qualificação Mundial', 'Qualificação Euro', 'International Friendly Games',
+];
+
 // ─── Seed function ────────────────────────────────────────────────────────────
 
 export async function seed(): Promise<void> {
@@ -1931,13 +1938,25 @@ export async function seed(): Promise<void> {
     }
   }
 
-  // 2. Seed national teams as generic football teams
-  for (const name of NATIONAL_TEAMS) {
-    await prisma.team.upsert({
+  // 2. Seed national teams and link them to the national-team competitions, so the manual
+  //    form lists them when one of those competitions is picked.
+  const nationalComps = await prisma.competition.findMany({
+    where: { sport: Sport.FOOTBALL, name: { in: NATIONAL_TEAM_COMPETITIONS } },
+    select: { id: true },
+  });
+  const allNational = [...new Set([...NATIONAL_TEAMS, ...Object.values(COUNTRY_EN_TO_PT)])];
+  for (const name of allNational) {
+    const team = await prisma.team.upsert({
       where: { name_sport: { name, sport: Sport.FOOTBALL } },
       update: {},
       create: { name, sport: Sport.FOOTBALL, country: name },
     });
+    if (nationalComps.length) {
+      await prisma.teamCompetition.createMany({
+        data: nationalComps.map((c) => ({ teamId: team.id, competitionId: c.id })),
+        skipDuplicates: true,
+      });
+    }
     teamsCreated++;
   }
 

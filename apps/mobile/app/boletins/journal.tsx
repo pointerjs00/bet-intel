@@ -9,6 +9,8 @@ import { AppText } from '../../components/ui/AppText';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ListCard, ListRow } from '../../components/ui/ListCard';
 import { StatusPill } from '../../components/ui/StatusPill';
+import { Appear } from '../../components/ui/Appear';
+import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useBoletins } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
@@ -36,15 +38,17 @@ export default function JournalScreen() {
     [boletinsQuery.data],
   );
 
-  const renderItem = ({ item }: { item: BoletinDetail }) => {
+  const renderItem = ({ item, index }: { item: BoletinDetail; index: number }) => {
     const stake = Number(item.stake);
     const profit = Number(item.actualReturn ?? 0) - (item.isFreebet ? 0 : stake);
     const pending = item.status === BoletinStatus.PENDING;
     const date = new Date(item.betDate ?? item.createdAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
     return (
+      <Appear index={index}>
       <ListCard>
         <ListRow accessibilityLabel={titleOf(item)} onPress={() => router.push(`/boletins/${item.id}`)} style={styles.row}>
           <View style={styles.top}>
+            {item.items[0] ? <TeamBadge name={item.items[0].homeTeam} size={32} variant={item.items[0].sport === 'TENNIS' ? 'player' : 'auto'} /> : null}
             <View style={styles.flex}>
               <AppText numberOfLines={1} variant="bodyStrong">{titleOf(item)}</AppText>
               <AppText variant="caption">{date} · {formatCurrency(stake)} · @{formatOdds(item.totalOdds)}</AppText>
@@ -58,11 +62,12 @@ export default function JournalScreen() {
               <StatusPill compact status={item.status} />
             </View>
           </View>
-          <AppText numberOfLines={4} style={[styles.note, { borderLeftColor: colors.border }]} variant="body">
+          <AppText numberOfLines={4} style={[styles.note, { backgroundColor: colors.surfaceRaised, borderLeftWidth: 0 }]} variant="body">
             {item.notes}
           </AppText>
         </ListRow>
       </ListCard>
+      </Appear>
     );
   };
 
@@ -102,5 +107,5 @@ const styles = StyleSheet.create({
   top: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 },
   flex: { flex: 1, gap: 2 },
   right: { alignItems: 'flex-end', gap: 4 },
-  note: { borderLeftWidth: 2, paddingLeft: 10 },
+  note: { borderRadius: 12, overflow: 'hidden', paddingHorizontal: 12, paddingVertical: 10 },
 });

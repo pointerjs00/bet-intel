@@ -43,12 +43,66 @@ export interface FootballMatch {
 export interface LeagueGroup { league: string; slug: string; matches: FootballMatch[] }
 
 /** Matches of the followed competitions on one day (YYYY-MM-DD). Live days refresh every 30 s. */
-export function useFootballDay(date: string) {
+export function useFootballDay(date: string, enabled = true) {
   return useQuery({
     queryKey: ['sports', 'football', 'day', date],
     queryFn: async () => (await apiClient.get<ApiEnvelope<{ date: string; groups: LeagueGroup[] }>>('/sports/football/day', { params: { date } })).data.data,
+    enabled,
     staleTime: 30_000,
     refetchInterval: (q) => (q.state.data?.groups.some((g) => g.matches.some((m) => m.status === 'LIVE' || m.status === 'HALFTIME')) ? 30_000 : false),
+  });
+}
+
+/** Sports with live data (ESPN), used by the Jogos and Por jogo switches. */
+export type SportKey = 'football' | 'basketball' | 'tennis';
+export const SPORT_OPTIONS: Array<{ value: SportKey; label: string }> = [
+  { value: 'football', label: 'Futebol' },
+  { value: 'basketball', label: 'Basquetebol' },
+  { value: 'tennis', label: 'Ténis' },
+];
+
+/** NBA game or tennis match on the Jogos screen. `line` = quarters or sets ("6-4 3-6"). */
+export interface SimpleMatch {
+  providerMatchId: string;
+  kickoffAt: string;
+  status: MatchStatus | 'RETIRED' | 'WALKOVER';
+  statusDetail: string;
+  home: { name: string };
+  away: { name: string };
+  score: { home: number; away: number } | null;
+  line: string | null;
+  hasBet: boolean;
+}
+export interface SimpleGroup { league: string; slug: string; matches: SimpleMatch[] }
+
+function useSimpleDay(sport: 'basketball' | 'tennis', date: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['sports', sport, 'day', date],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<{ date: string; groups: SimpleGroup[] }>>(`/sports/${sport}/day`, { params: { date } })).data.data,
+    enabled,
+    staleTime: 30_000,
+    refetchInterval: (q) => (q.state.data?.groups.some((g) => g.matches.some((m) => m.status === 'LIVE' || m.status === 'HALFTIME')) ? 30_000 : false),
+  });
+}
+
+/** NBA games of one day (ESPN). */
+export const useBasketballDay = (date: string, enabled = true) => useSimpleDay('basketball', date, enabled);
+/** ATP/WTA singles of one day (ESPN), grouped by tournament. */
+export const useTennisDay = (date: string, enabled = true) => useSimpleDay('tennis', date, enabled);
+
+export interface MatchPreview {
+  standings: { title: string; rows: Array<{ rank: number; team: string; logo: string | null; played: number; won: number; drawn: number; lost: number; goalDiff: string; points: number }> } | null;
+  form: { home: string[]; away: string[] };
+  h2h: Array<{ date: string; home: string; away: string; homeScore: number; awayScore: number; competition: string }>;
+}
+
+/** Standings, last-5 form and head-to-head from ESPN (replaces the API-Football insights, #58). */
+export function useMatchPreview(league: string, id: string) {
+  return useQuery({
+    queryKey: ['sports', 'football', 'preview', league, id],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<MatchPreview>>(`/sports/football/preview/${league}/${id}`)).data.data,
+    enabled: Boolean(league && id),
+    staleTime: 30 * 60_000,
   });
 }
 

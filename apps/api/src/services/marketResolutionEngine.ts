@@ -12,6 +12,7 @@
 
 import { normaliseTeamName } from '../utils/nameNormalisation';
 import { resolveAlias } from '../utils/teamAliases';
+import { COUNTRY_PT_TO_EN } from '../utils/countryNames';
 
 export type Resolution = 'WON' | 'LOST' | 'VOID';
 
@@ -76,9 +77,14 @@ const PT_TEAM_NAMES: Record<string, string> = {
   'estrela vermelha': 'crvena zvezda', 'dinamo zagreb': 'dinamo zagreb', atenas: 'aek athens',
 };
 
+// National teams: Portuguese country names → the English names ESPN uses (normalised).
+const PT_COUNTRY_KEYS: Record<string, string> = Object.fromEntries(
+  Object.entries(COUNTRY_PT_TO_EN).map(([pt, en]) => [normaliseTeamName(pt), normaliseTeamName(en)]),
+);
+
 function teamKey(name: string): string {
   const n = normaliseTeamName(name);
-  return resolveAlias(PT_TEAM_NAMES[n] ?? n);
+  return resolveAlias(PT_TEAM_NAMES[n] ?? PT_COUNTRY_KEYS[n] ?? n);
 }
 
 function significantTokens(s: string): string[] {
