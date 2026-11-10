@@ -57,7 +57,8 @@ const MARKETS: Array<{ category: string; items: MarketDef[] }> = [
 function dayLabel(d: Date, offset: number) {
   if (offset === 0) return { top: 'Hoje', day: String(d.getDate()) };
   if (offset === 1) return { top: 'Amanhã', day: String(d.getDate()) };
-  return { top: d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', ''), day: String(d.getDate()) };
+  // Hermes returns the full name ("Segunda"); 3 letters fit the day pill.
+  return { top: d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '').slice(0, 3), day: String(d.getDate()) };
 }
 
 export default function PorJogoScreen() {
