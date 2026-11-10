@@ -373,7 +373,6 @@ const styles = StyleSheet.create({
   metricLabel: {
     fontSize: 10,
     fontWeight: '600',
-    textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
   metricValue: {

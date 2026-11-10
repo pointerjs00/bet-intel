@@ -4317,7 +4317,7 @@ const bsStyles = StyleSheet.create({
 
   scrollContent: { paddingHorizontal: 16, paddingTop: 4, gap: 12 },
 
-  sectionDivider: { fontSize: 13, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', marginTop: 4 },
+  sectionDivider: { fontSize: 13, fontWeight: '700', marginTop: 4 },
   sectionTitle: { fontSize: 18, fontWeight: '900', marginTop: 4 },
 
   card: { borderRadius: 14, borderWidth: 1, padding: 14, gap: 10 },

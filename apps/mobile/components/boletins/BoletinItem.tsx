@@ -486,7 +486,6 @@ const styles = StyleSheet.create({
   metaLabel: {
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   metaValue: {
     fontSize: 13,

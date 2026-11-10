@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
   counterText: { fontSize: 12, fontWeight: '700' },
   content: { gap: 14, paddingHorizontal: 16, paddingTop: 8 },
   section: { gap: 8 },
-  sectionLabel: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionLabel: { fontSize: 12, fontWeight: '700' },
   pillRow: { gap: 8 },
   pill: {
     alignItems: 'center',

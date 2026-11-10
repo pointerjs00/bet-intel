@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   situationSection: { borderWidth: 1.5 },
   formulaSection: { borderStyle: 'dashed' },
   sectionHeader: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  sectionLabel: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+  sectionLabel: { fontSize: 11, fontWeight: '800' },
   bodyText: { fontSize: 14, fontWeight: '400', lineHeight: 22 },
   formulaText: { fontFamily: 'monospace', fontSize: 13, fontWeight: '600', lineHeight: 22 },
   tipRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 10 },

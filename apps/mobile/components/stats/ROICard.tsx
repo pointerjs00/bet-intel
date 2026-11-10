@@ -59,7 +59,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 13,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   roiValue: {
     fontSize: 34,

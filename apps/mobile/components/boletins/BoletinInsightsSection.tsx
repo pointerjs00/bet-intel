@@ -26,7 +26,7 @@ function Chip({ label, value, valueColor }: { label: string; value: string; valu
 const chipStyles = StyleSheet.create({
   chip: { borderRadius: 10, borderWidth: 1, padding: 10, alignItems: 'center', flex: 1, gap: 2 },
   value: { fontSize: 16, fontWeight: '800' },
-  label: { fontSize: 10, fontWeight: '600', textTransform: 'uppercase', textAlign: 'center' },
+  label: { fontSize: 10, fontWeight: '600', textAlign: 'center' },
 });
 
 // ─── Insight row ──────────────────────────────────────────────────────────────
@@ -247,13 +247,13 @@ export function BoletinInsightsSection({ boletin }: Props) {
 
 const styles = StyleSheet.create({
   section: { borderRadius: 16, borderWidth: 1, gap: 12, padding: 14 },
-  sectionTitle: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: { fontSize: 11, fontWeight: '700' },
   chipsRow: { flexDirection: 'row', gap: 8 },
   verdictBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderRadius: 10, borderWidth: 1, padding: 10 },
   verdictText: { fontSize: 13, fontWeight: '600', flex: 1, lineHeight: 18 },
   insightsBlock: { gap: 8 },
   legsBlock: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, gap: 6 },
-  legsTitle: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 },
+  legsTitle: { fontSize: 10, fontWeight: '700', marginBottom: 2 },
   legRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legDot: { width: 7, height: 7, borderRadius: 999, flexShrink: 0 },
   legName: { flex: 1, fontSize: 12, fontWeight: '600' },

@@ -818,7 +818,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
                     { label: 'Ano', key: 'year' as const, placeholder: 'AAAA', maxLength: 4, wide: true },
                   ].map(({ label, key, placeholder, maxLength, wide }) => (
                     <View key={key} style={[{ alignItems: 'center', gap: 4 }, wide && { minWidth: 72 }]}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: colors.textMuted }}>{label}</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: colors.textMuted }}>{label}</Text>
                       <TextInput
                         style={{ borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 10, fontSize: 16, fontWeight: '700', minWidth: 46, textAlign: 'center', color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }}
                         value={kickoffDraft[key]}
@@ -840,7 +840,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
                     { label: 'Min', key: 'minute' as const, placeholder: 'MM', maxLength: 2 },
                   ].map(({ label, key, placeholder, maxLength }) => (
                     <View key={key} style={{ alignItems: 'center', gap: 4 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', textTransform: 'uppercase', color: colors.textMuted }}>{label}</Text>
+                      <Text style={{ fontSize: 10, fontWeight: '700', color: colors.textMuted }}>{label}</Text>
                       <TextInput
                         style={{ borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 10, fontSize: 16, fontWeight: '700', minWidth: 46, textAlign: 'center', color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.surfaceRaised }}
                         value={kickoffDraft[key]}
@@ -1057,7 +1057,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     marginTop: 6,
     marginBottom: 2,
-    textTransform: 'uppercase',
   },
   fieldBtn: {
     alignItems: 'center',

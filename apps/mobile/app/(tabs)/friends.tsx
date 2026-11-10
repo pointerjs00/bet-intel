@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -253,7 +253,7 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerWrap: { gap: 8, marginBottom: 18 },
-  eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
+  eyebrow: { fontSize: 13, fontWeight: '700' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   tabBar: { borderRadius: 20, borderWidth: 1, flexDirection: 'row', gap: 8, marginBottom: 20, padding: 8 },
   tabChip: { flex: 1 },

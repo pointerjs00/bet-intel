@@ -609,7 +609,7 @@ const styles = StyleSheet.create({
   sheetHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   sheetTitle: { fontSize: 18, fontWeight: '800' },
   resetText: { fontSize: 14, fontWeight: '700' },
-  sectionTitle: { fontSize: 11, fontWeight: '700', letterSpacing: 0.6, marginTop: 4, textTransform: 'uppercase' },
+  sectionTitle: { fontSize: 11, fontWeight: '700', marginTop: 4 },
   sectionTitleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   sortChips: { gap: 8 },
   dirButton: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 30, justifyContent: 'center', width: 30 },

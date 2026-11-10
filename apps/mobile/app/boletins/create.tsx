@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -1904,7 +1904,6 @@ const ctxStyles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
   body: {
@@ -1956,7 +1955,6 @@ const ctxStyles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
     marginBottom: 2,
   },
   h2hRow: {
@@ -2052,14 +2050,14 @@ const styles = StyleSheet.create({
   headerWrap: { gap: 18, marginBottom: 18 },
   topRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
   titleBlock: { flex: 1, gap: 6, paddingRight: 12 },
-  eyebrow: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase' },
+  eyebrow: { fontSize: 13, fontWeight: '700' },
   title: { fontSize: 28, fontWeight: '900', lineHeight: 34 },
   publicRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
   publicTextWrap: { flex: 1, gap: 4 },
   publicTitle: { fontSize: 15, fontWeight: '800' },
   publicSubtitle: { fontSize: 13, lineHeight: 20 },
   sectionTitle: { fontSize: 18, fontWeight: '900' },
-  sectionDivider: { fontSize: 13, fontWeight: '700', letterSpacing: 0.4, marginBottom: 10, textTransform: 'uppercase' },
+  sectionDivider: { fontSize: 13, fontWeight: '700', marginBottom: 10 },
   footerBar: { paddingTop: 12 },
   // Add selection form
   addForm: { gap: 14 },
@@ -2101,7 +2099,7 @@ const styles = StyleSheet.create({
   dropdownRow: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, paddingHorizontal: 4, paddingVertical: 14 },
   dropdownRowText: { flex: 1, fontSize: 15, fontWeight: '500' },
   sectionHeader: { paddingHorizontal: 4, paddingVertical: 8 },
-  sectionHeaderText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase' },
+  sectionHeaderText: { fontSize: 12, fontWeight: '700' },
   customMarketToggle: { alignItems: 'center', flexDirection: 'row', gap: 4, paddingVertical: 4 },
   customMarketToggleText: { fontSize: 12, fontWeight: '600' },
   doublesRow: { flexDirection: 'row', gap: 8 },
@@ -2155,7 +2153,7 @@ const eventDateModalStyles = StyleSheet.create({
   },
   fieldGroup: { alignItems: 'center', gap: 4 },
   fieldGroupWide: { minWidth: 72 },
-  fieldLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  fieldLabel: { fontSize: 10, fontWeight: '700' },
   fieldInput: {
     borderWidth: 1,
     borderRadius: 8,

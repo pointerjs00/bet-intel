@@ -148,14 +148,12 @@ const styles = StyleSheet.create({
     flex: 1.7,
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   headerCellValue: {
     flex: 0.8,
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'right',
-    textTransform: 'uppercase',
   },
   dataRow: {
     alignItems: 'center',

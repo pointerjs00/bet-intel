@@ -107,7 +107,6 @@ const styles = StyleSheet.create({
   columnLabel: {
     fontSize: 12,
     fontWeight: '700',
-    textTransform: 'uppercase',
   },
   roiValue: {
     fontSize: 24,
