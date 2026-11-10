@@ -4104,7 +4104,7 @@ export default function FixturesScreen() {
     <>
       <Stack.Screen
         options={{
-          title: 'Jogos',
+          title: 'Escolher jogo',
           headerLargeTitle: false,
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingRight: 4 }}>

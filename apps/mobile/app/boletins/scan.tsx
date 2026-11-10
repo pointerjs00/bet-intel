@@ -476,11 +476,11 @@ export default function ScanScreen() {
             </View>
             <Text style={[styles.disclaimerTitle, { color: colors.textPrimary }]}>Leitura automática</Text>
             <Text style={[styles.disclaimerBody, { color: colors.textSecondary }]}>
-              {'A leitura automática de screenshots '}
-              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'pode não ser 100% precisa'}</Text>
+              {'A leitura por IA '}
+              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'pode ter erros'}</Text>
               {'.'}
-              {'\n\n'}
-              {'Verifica sempre os dados antes de importar — cotas, seleções e datas devem ser confirmadas manualmente. O BetIntel não se responsabiliza por erros de leitura automática.'}
+              {'\n'}
+              {'Confirma as odds, as seleções e as datas no ecrã de revisão antes de importar.'}
             </Text>
             <Pressable
               onPress={() => setDisclaimerDontShow((v) => !v)}

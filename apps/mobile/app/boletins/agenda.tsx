@@ -345,7 +345,7 @@ export default function AgendaScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen
         options={{
-          title: 'Os Meus Jogos',
+          title: 'Agenda',
           headerShown: true,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,
