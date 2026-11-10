@@ -52,6 +52,22 @@ export function useFootballDay(date: string) {
   });
 }
 
+export interface MatchPreview {
+  standings: { title: string; rows: Array<{ rank: number; team: string; logo: string | null; played: number; won: number; drawn: number; lost: number; goalDiff: string; points: number }> } | null;
+  form: { home: string[]; away: string[] };
+  h2h: Array<{ date: string; home: string; away: string; homeScore: number; awayScore: number; competition: string }>;
+}
+
+/** Standings, last-5 form and head-to-head from ESPN (replaces the API-Football insights, #58). */
+export function useMatchPreview(league: string, id: string) {
+  return useQuery({
+    queryKey: ['sports', 'football', 'preview', league, id],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<MatchPreview>>(`/sports/football/preview/${league}/${id}`)).data.data,
+    enabled: Boolean(league && id),
+    staleTime: 30 * 60_000,
+  });
+}
+
 /** One match with stats and incidents; refreshes every 30 s while live. */
 export function useFootballMatch(league: string, id: string) {
   return useQuery({

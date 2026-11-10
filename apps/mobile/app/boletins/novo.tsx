@@ -21,7 +21,7 @@ const MODES: Mode[] = [
   {
     title: 'Por jogo',
     description: 'Escolhe o jogo e os mercados; a liquidação fica automática.',
-    route: '/boletins/fixtures',
+    route: '/boletins/por-jogo',
     icon: (c) => <Ionicons color={c} name="football-outline" size={22} />,
   },
   {

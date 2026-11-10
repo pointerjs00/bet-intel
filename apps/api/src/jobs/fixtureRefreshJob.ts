@@ -61,6 +61,13 @@ export async function scheduleFixtureRefreshJob(): Promise<void> {
   logger.info('[FixtureRefresh] Bi-hourly job scheduled (every 2h)');
 }
 
+/** Removes the bi-hourly refresh from Redis (API-Football retired, plan #58). */
+export async function unscheduleFixtureRefreshJob(): Promise<void> {
+  for (const job of await fixtureRefreshQueue.getRepeatableJobs()) {
+    await fixtureRefreshQueue.removeRepeatableByKey(job.key);
+  }
+}
+
 /**
  * Manually enqueues an immediate fixture refresh (used by admin endpoint).
  */

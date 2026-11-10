@@ -8,6 +8,7 @@ import { AppText } from '../../components/ui/AppText';
 import { ListCard, ListRow, useCardElevation } from '../../components/ui/ListCard';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { HeroCard } from '../../components/ui/HeroCard';
+import { MatchPreviewSection } from '../../components/fixtures/MatchPreviewSection';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useFootballMatch, type MatchIncident, type TeamStats } from '../../services/sportsService';
@@ -161,6 +162,9 @@ export default function MatchDetailScreen() {
             ) : m.status === 'SCHEDULED' ? (
               <AppText style={styles.centerText} variant="caption">As estatísticas aparecem quando o jogo começar.</AppText>
             ) : null}
+
+            {/* Pre-match context (#58): shown for every match, most useful before kick-off */}
+            <MatchPreviewSection away={m.away.name} home={m.home.name} id={id ?? ''} league={league ?? ''} />
           </>
         )}
       </ScrollView>

@@ -22,7 +22,7 @@ import { defaultLimiter } from './middleware/rateLimiter';
 import { initializeSocketServer } from './sockets';
 import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
 import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankingsJob';
-import { scheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
+import { scheduleFixtureRefreshJob, unscheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
 import { ensureFixturesFresh } from './services/apifootball/fixturesSync';
 import { fixtureRouter } from './routes/fixtureRoutes';
 import { fixtureAlertRouter } from './routes/fixtureAlertRoutes';
@@ -30,7 +30,7 @@ import { footballDataRouter } from './routes/footballDataRoutes';
 import { adminRouter } from './routes/adminRoutes';
 import { sportsRouter } from './routes/sportsRoutes';
 import { seed as seedReferenceData } from './prisma/seed';
-import { initFootballDataScheduler } from './scheduler';
+import { API_FOOTBALL_ENABLED, initFootballDataScheduler } from './scheduler';
 import { fixtureStatsSyncJob } from './jobs/fixtureStatsSyncJob';
 import { fixtureEventsSyncJob } from './jobs/fixtureEventsSyncJob';
 import { fixtureLineupsSyncJob } from './jobs/fixtureLineupsSyncJob';
@@ -230,20 +230,24 @@ async function warmUp(): Promise<void> {
     });
   }
 
-  try {
-    await ensureFixturesFresh();
-  } catch (err) {
-    logger.warn('Fixture ingestion skipped during startup', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
+  if (API_FOOTBALL_ENABLED) {
+    try {
+      await ensureFixturesFresh();
+    } catch (err) {
+      logger.warn('Fixture ingestion skipped during startup', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
-  try {
-    await scheduleFixtureRefreshJob();
-  } catch (err) {
-    logger.warn('Fixture refresh job scheduling skipped — Redis unavailable', {
-      error: err instanceof Error ? err.message : String(err),
-    });
+    try {
+      await scheduleFixtureRefreshJob();
+    } catch (err) {
+      logger.warn('Fixture refresh job scheduling skipped — Redis unavailable', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  } else {
+    await unscheduleFixtureRefreshJob().catch(() => {});
   }
 
   try {
@@ -271,7 +275,8 @@ async function warmUp(): Promise<void> {
     setInterval(() => coachSyncJob().catch(e => logger.warn('[scheduler] coaches', { error: e.message })), 7 * 24 * 60 * 60 * 1000);
   };
 
-  scheduleInsightJobs();
+  // API-Football insight jobs (plan #58: off unless API_FOOTBALL_ENABLED=true).
+  if (API_FOOTBALL_ENABLED) scheduleInsightJobs();
 }
 
 start().catch((err: unknown) => {

@@ -12,6 +12,7 @@ import { teamNamesMatch } from '../services/marketResolutionEngine';
 import { ESPN_FOOTBALL_LEAGUES, fetchEspnFootballDay, fetchEspnFootballMatch } from '../services/sportsData/espnFootball';
 import type { NormalizedMatch } from '../services/sportsData/types';
 import { getAssets } from '../services/sportsData/assetRegistry';
+import { fetchEspnPreview } from '../services/sportsData/espnPreview';
 
 export const sportsRouter: Router = Router();
 sportsRouter.use(authenticate);
@@ -77,6 +78,22 @@ sportsRouter.get('/football/day', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error('[sports] day failed', { error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter os jogos agora.' });
+  }
+});
+
+/** Standings, last-5 form and head-to-head for one match (replaces the API-Football insights). */
+sportsRouter.get('/football/preview/:league/:id', async (req: Request, res: Response) => {
+  const { league, id } = req.params;
+  if (!Object.values(ESPN_FOOTBALL_LEAGUES).includes(league!) || !/^\d+$/.test(id!)) {
+    res.status(400).json({ success: false, error: 'Jogo inválido' });
+    return;
+  }
+  try {
+    const data = await cached(`sports:fb:preview:${league}:${id}`, 3 * 3600, () => fetchEspnPreview(league!, id!));
+    res.json({ success: true, data });
+  } catch (err) {
+    logger.error('[sports] preview failed', { league, id, error: err instanceof Error ? err.message : String(err) });
+    res.status(502).json({ success: false, error: 'Não foi possível obter a antevisão agora.' });
   }
 });
 
