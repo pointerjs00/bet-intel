@@ -1587,6 +1587,10 @@ function round(value: number, digits = 2): number {
   return Number(value.toFixed(digits));
 }
 
+/** Pure builders exposed for unit tests only (no DB or Redis access). */
+export const __statsTesting = { buildSummary, buildStatsBundle, computeRollingWindow };
+export type { StatsBoletinRecord };
+
 function formatSportLabel(sport: Sport): string {
   switch (sport) {
     case Sport.FOOTBALL:
