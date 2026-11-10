@@ -15,6 +15,8 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useBoletins, useLiveItems, useReviewItems, type LiveItem } from '../../services/boletinService';
 import { useUnreadNotificationsCount } from '../../services/socialService';
 import { useAuthStore } from '../../stores/authStore';
+import { useLimitsStore } from '../../stores/limitsStore';
+import { computeLimitStatus } from '../../utils/bettingLimits';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
@@ -86,6 +88,22 @@ export default function HomeDashboard() {
       settledCount: settled.length,
     };
   }, [boletins, year]);
+
+  // Personal limits (plan #34): warn from 80% of a limit, or when a recent bet looks like chasing losses.
+  const { weeklyLossLimit, monthlyStakeLimit, chaseAlert } = useLimitsStore();
+  const limitWarning = useMemo(() => {
+    const s = computeLimitStatus(boletins, { weeklyLossLimit, monthlyStakeLimit });
+    if (s.weekLossRatio !== null && s.weekLossRatio >= 0.8) {
+      return { severe: s.weekLossRatio >= 1, text: s.weekLossRatio >= 1 ? `Limite semanal de perdas atingido (−${formatCurrency(s.weekLoss)})` : `Perto do limite semanal: −${formatCurrency(s.weekLoss)} de ${formatCurrency(weeklyLossLimit ?? 0)}` };
+    }
+    if (s.monthStakeRatio !== null && s.monthStakeRatio >= 0.8) {
+      return { severe: s.monthStakeRatio >= 1, text: s.monthStakeRatio >= 1 ? `Limite mensal apostado atingido (${formatCurrency(s.monthStaked)})` : `Já apostaste ${formatCurrency(s.monthStaked)} de ${formatCurrency(monthlyStakeLimit ?? 0)} este mês` };
+    }
+    if (chaseAlert && s.chaseCount > 0) {
+      return { severe: false, text: `${s.chaseCount === 1 ? 'Uma aposta' : `${s.chaseCount} apostas`} acima do habitual logo a seguir a uma perda` };
+    }
+    return null;
+  }, [boletins, weeklyLossLimit, monthlyStakeLimit, chaseAlert]);
 
   const recent = useMemo(
     () => [...boletins].sort((a, b) => boletinDate(b).getTime() - boletinDate(a).getTime()).slice(0, 5),
@@ -171,6 +189,19 @@ export default function HomeDashboard() {
           <MetricTile label="Pendentes" tone={summary.pending > 0 ? 'pending' : undefined} value={String(summary.pending)} />
         </View>
       </Pressable>
+
+      {limitWarning ? (
+        <Pressable
+          accessibilityHint="Abre os limites e alertas"
+          accessibilityRole="button"
+          onPress={() => router.push('/limites')}
+          style={[styles.banner, elevation, { backgroundColor: colors.surface }]}
+        >
+          <Ionicons color={limitWarning.severe ? colors.danger : colors.warning} name="shield-outline" size={20} />
+          <AppText style={styles.flex} variant="bodyStrong">{limitWarning.text}</AppText>
+          <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+        </Pressable>
+      ) : null}
 
       {/* In play */}
       {live.length > 0 ? (

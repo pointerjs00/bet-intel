@@ -304,6 +304,17 @@ export default function ProfileScreen() {
                   borderColor={colors.border}
                 />
                 <QuickLink
+                  icon="shield-check-outline"
+                  label="Limites e alertas"
+                  description="Perda semanal, total mensal, perseguição de perdas"
+                  onPress={() => router.push('/limites')}
+                  color={colors.warning}
+                  labelColor={colors.textPrimary}
+                  descColor={colors.textSecondary}
+                  chevronColor={colors.textMuted}
+                  borderColor={colors.border}
+                />
+                <QuickLink
                   icon="chart-bar"
                   label="Estatísticas"
                   description="Desempenho detalhado"
