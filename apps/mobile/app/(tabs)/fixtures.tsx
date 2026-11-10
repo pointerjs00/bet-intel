@@ -187,6 +187,7 @@ export default function JogosScreen() {
                       key={m.providerMatchId}
                       match={m}
                       onPress={sport === 'football' ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: g.slug } }) : undefined}
+                      showBetCol={g.matches.some((x) => x.hasBet)}
                       sport={sport}
                     />
                   ))}
@@ -249,7 +250,7 @@ function LeagueHeader({ league, sport }: { league: string; sport: SportKey }) {
   );
 }
 
-function MatchRow({ match: m, onPress, sport }: { match: AnyMatch; onPress?: () => void; sport: SportKey }) {
+function MatchRow({ match: m, onPress, sport, showBetCol }: { match: AnyMatch; onPress?: () => void; sport: SportKey; showBetCol: boolean }) {
   const { colors } = useTheme();
   const live = isLive(m);
   const done = isDone(m);
@@ -304,13 +305,14 @@ function MatchRow({ match: m, onPress, sport }: { match: AnyMatch; onPress?: () 
         {side(bottom)}
         {sport === 'tennis' && line ? <AppText numberOfLines={1} variant="caption">{line}</AppText> : null}
       </View>
-      <View style={styles.betCol}>
+      {/* The bet column only takes space in leagues where some match has a bet, so scores sit at the right edge. */}
+      {showBetCol ? <View style={styles.betCol}>
         {m.hasBet ? (
           <View accessibilityLabel="Tens aposta neste jogo" style={[styles.betIcon, { borderColor: colors.primary }]}>
             <Ionicons color={colors.primary} name="receipt" size={15} />
           </View>
         ) : null}
-      </View>
+      </View> : null}
     </Pressable>
   );
 }
@@ -339,14 +341,14 @@ const styles = StyleSheet.create({
   leagueLogoFallback: { alignItems: 'center', borderRadius: 10, justifyContent: 'center' },
   flag: { borderRadius: 3, height: 13, width: 18 },
   matchRow: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  statusCol: { gap: 6, width: 62 },
+  statusCol: { alignItems: 'center', gap: 6, width: 62 },
   dateText: { fontSize: 11 },
   statusText: { fontSize: 12, fontWeight: '600' },
   teams: { flex: 1, gap: 8 },
   side: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   teamName: { flexShrink: 1, fontSize: 15 },
   redCard: { borderRadius: 2, height: 14, width: 10 },
-  score: { fontSize: 16, marginLeft: 'auto', minWidth: 22, textAlign: 'right' },
+  score: { fontSize: 16, marginLeft: 'auto', marginRight: 14, minWidth: 22, textAlign: 'right' },
   betCol: { alignItems: 'center', width: 34 },
   betIcon: { alignItems: 'center', borderRadius: 17, borderWidth: 1.5, height: 32, justifyContent: 'center', width: 32 },
   empty: { alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingVertical: 40 },
