@@ -83,8 +83,8 @@ export const CalibrationChart = React.memo(function CalibrationChart({ data, onI
                 pt ? (
                   <Circle
                     key={i}
-                    cx={pt.x}
-                    cy={pt.y}
+                    cx={pt.x ?? 0}
+                    cy={pt.y ?? 0}
                     r={4}
                     color={colors.primary}
                   />

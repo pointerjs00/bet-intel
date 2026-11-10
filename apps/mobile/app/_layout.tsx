@@ -279,8 +279,7 @@ function NotificationLifecycleManager() {
 
       // Live match notifications → open fixture detail on the fixtures screen
       if (data.fixtureId && typeof data.fixtureId === 'string' && LIVE_MATCH_NOTIF_TYPES.has(data.type as string)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (router as any).push({ pathname: '/(tabs)/fixtures', params: { openFixtureId: data.fixtureId } });
+        router.push({ pathname: '/(tabs)/fixtures', params: { openFixtureId: data.fixtureId } });
         return;
       }
 

@@ -242,7 +242,7 @@ function StatDrilldownScreen({
             <View
               style={[
                 drillStyles.barFill,
-                { width: `${rate}%` as any, backgroundColor: rateColor },
+                { width: `${rate}%` as `${number}%`, backgroundColor: rateColor },
               ]}
             />
           </View>
@@ -293,7 +293,7 @@ function StatDrilldownScreen({
               month: '2-digit',
               year: '2-digit',
             });
-            const timeStr = (m as any).time ?? null;
+            const timeStr = m.time ?? null;
 
             // Use the fixture's canonical team name (from DrilldownState) for the
             // subject team's badge — fdcouk names like 'Sp Lisbon' or 'Guimaraes'

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { ionicon } from '../types/icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTheme } from '../theme/useTheme';
 import { METRIC_INFO } from '../constants/metricInfo';
@@ -139,7 +140,7 @@ export default function MetricInfoScreen() {
           </Text>
         </View>
         <View style={[styles.iconBubble, { backgroundColor: colors.surfaceRaised }]}>
-          <Ionicons color={colors.primary} name={info.icon as any} size={22} />
+          <Ionicons color={colors.primary} name={ionicon(info.icon)} size={22} />
         </View>
       </View>
 

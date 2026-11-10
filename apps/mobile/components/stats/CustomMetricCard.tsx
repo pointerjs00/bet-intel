@@ -98,7 +98,7 @@ function renderSummary(
   colors: Record<string, string>,
 ) {
   if (metric.dataSource.type !== 'summary') return null;
-  const raw = (stats.summary as Record<string, unknown>)[metric.dataSource.field];
+  const raw = (stats.summary as unknown as Record<string, unknown>)[metric.dataSource.field];
   const value = typeof raw === 'number' ? raw : 0;
   const formatted = formatValue(value, metric.format);
 
@@ -159,7 +159,7 @@ function renderBreakdown(
 ) {
   if (metric.dataSource.type !== 'breakdown') return null;
   const { source, topN } = metric.dataSource;
-  const rawRows = (stats as Record<string, unknown>)[source];
+  const rawRows = (stats as unknown as Record<string, unknown>)[source];
   if (!Array.isArray(rawRows) || rawRows.length === 0) {
     return <Text style={[styles.emptyText, { color: colors.textMuted }]}>Sem dados</Text>;
   }
@@ -254,7 +254,7 @@ function renderTimeline(
 
   let runningTotal = 0;
   const chartData: TimelineBarDatum[] = data.map((point, i) => {
-    const raw = (point as Record<string, unknown>)[metricKey];
+    const raw = (point as unknown as Record<string, unknown>)[metricKey];
     const val = typeof raw === 'number' ? raw : 0;
     if (cumulative) {
       runningTotal += val;

@@ -1,13 +1,11 @@
 import React, { useCallback } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
 import { hapticLight } from '../../utils/haptics';
 
-const AnimatedPressable = Animated.createAnimatedComponent(
-  require('react-native').Pressable,
-);
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type KeyValue = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | 'clear' | 'delete' | ',';
 

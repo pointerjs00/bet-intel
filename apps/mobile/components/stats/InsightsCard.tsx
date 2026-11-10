@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { ionicon } from '../../types/icons';
 import type { StatsInsight } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
@@ -35,7 +36,7 @@ export const InsightsCard = React.memo(function InsightsCard({ insights, onInfoP
         return (
           <View key={insight.id} style={[styles.insightRow, { borderColor: colors.border }]}>
             <View style={[styles.iconWrap, { backgroundColor: `${accentColor}18` }]}>
-              <Ionicons color={accentColor} name={insight.icon as any} size={18} />
+              <Ionicons color={accentColor} name={ionicon(insight.icon)} size={18} />
             </View>
             <View style={styles.insightText}>
               <Text style={[styles.insightTitle, { color: colors.textPrimary }]}>{insight.title}</Text>

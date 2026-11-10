@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   Platform,
@@ -16,6 +16,7 @@ import GorhomBottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
+import { ionicon } from '../../types/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sport } from '@betintel/shared';
 import { RangeSlider } from '../ui/RangeSlider';
@@ -272,7 +273,7 @@ const teamItems = useMemo(
                     borderColor: active ? colors.primary : colors.border,
                   }]}
                 >
-                  <Ionicons name={opt.icon as any} size={14} color={active ? '#fff' : colors.textSecondary} />
+                  <Ionicons name={ionicon(opt.icon)} size={14} color={active ? '#fff' : colors.textSecondary} />
                   <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
                     {opt.label}
                   </Text>

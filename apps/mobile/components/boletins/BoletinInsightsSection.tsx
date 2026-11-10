@@ -94,13 +94,13 @@ export function BoletinInsightsSection({ boletin }: Props) {
     }
 
     // Summary insight
-    if (stats?.summary && stats.summary.totalBets >= 5) {
+    if (stats?.summary && stats.summary.settledBoletins >= 5) {
       const { winRate, roi } = stats.summary;
       const roiStr = roi >= 0 ? `+${roi.toFixed(1)}%` : `${roi.toFixed(1)}%`;
       insights.push({
         icon: 'person-outline',
         color: roi >= 0 ? colors.primary : colors.danger,
-        text: `O teu histórico geral: ${Math.round(winRate)}% de taxa e ${roiStr} ROI em ${stats.summary.totalBets} apostas.`,
+        text: `O teu histórico geral: ${Math.round(winRate)}% de taxa e ${roiStr} ROI em ${stats.summary.settledBoletins} apostas.`,
       });
     }
 

@@ -95,6 +95,8 @@ export interface H2HInsight {
     awayTeam: string;
     homeScore: number | null;
     awayScore: number | null;
+    /** Kick-off time (HH:mm) when the API provides it. */
+    time?: string | null;
   }[];
 }
 

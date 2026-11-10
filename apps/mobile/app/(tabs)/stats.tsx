@@ -702,7 +702,7 @@ export default function StatsScreen() {
     const list = boletinsQuery.data ?? [];
     if (list.length === 0) return { min: undefined, max: undefined };
     const timestamps = list.map((b) =>
-      new Date((b as any).betDate ?? b.createdAt).getTime(),
+      new Date(b.betDate ?? b.createdAt).getTime(),
     );
     return {
       min: new Date(Math.min(...timestamps)),
