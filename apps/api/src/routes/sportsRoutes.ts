@@ -17,6 +17,7 @@ import type { NormalizedMatch } from '../services/sportsData/types';
 import { getAssets } from '../services/sportsData/assetRegistry';
 import { fetchEspnPreview } from '../services/sportsData/espnPreview';
 import { getProviderHealth } from '../services/sportsData/providerHealth';
+import { searchTeams, teamHistory } from '../services/sportsData/teamHistory';
 
 export const sportsRouter: Router = Router();
 sportsRouter.use(authenticate);
@@ -33,6 +34,20 @@ async function cached<T>(key: string, ttlSeconds: number, load: () => Promise<T>
   redis.set(key, JSON.stringify(value), 'EX', ttlSeconds).catch(() => {});
   return value;
 }
+
+/** Teams (and names from the user's bets) matching ?q=. */
+sportsRouter.get('/teams/search', async (req: Request, res: Response) => {
+  const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 60) : '';
+  res.json({ success: true, data: await searchTeams(req.user!.sub, q) });
+});
+
+/** A team's matches since 2020 with the user's bets on them: ?sport=&id= or ?name=. */
+sportsRouter.get('/teams/history', async (req: Request, res: Response) => {
+  const str = (v: unknown) => (typeof v === 'string' && v ? v.slice(0, 80) : undefined);
+  const data = await teamHistory(req.user!.sub, { sport: str(req.query.sport), id: str(req.query.id), name: str(req.query.name) });
+  if (!data) { res.status(404).json({ success: false, error: 'Equipa não encontrada' }); return; }
+  res.json({ success: true, data });
+});
 
 /** Last result per data provider (plan #61). */
 sportsRouter.get('/health', async (_req: Request, res: Response) => {

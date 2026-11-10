@@ -58,6 +58,8 @@ interface EspnCompetition {
   status?: { type?: EspnStatusType; displayClock?: string };
   competitors?: EspnCompetitor[];
   venue?: { fullName?: string };
+  /** Scoreboard key events (goals, cards). */
+  details?: Array<{ redCard?: boolean; team?: { id?: string } }>;
 }
 interface EspnEvent { id?: string; date?: string; competitions?: EspnCompetition[] }
 interface EspnScoreboard { leagues?: Array<{ id?: string; name?: string; slug?: string }>; events?: EspnEvent[] }
@@ -286,6 +288,12 @@ function mapCompetition(
     stats: null,
     incidents: [],
     venue,
+    redCards: comp.details
+      ? {
+        home: comp.details.filter((d) => d.redCard && d.team?.id === home?.team?.id).length,
+        away: comp.details.filter((d) => d.redCard && d.team?.id === away?.team?.id).length,
+      }
+      : null,
   };
 }
 

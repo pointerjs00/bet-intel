@@ -79,6 +79,8 @@ export interface NormalizedMatch {
   regularTime: ScorePair | null;
   wentToExtraTime: boolean;
   stats: { home: MatchTeamStats; away: MatchTeamStats } | null;
+  /** Red cards per side (scoreboard), for the red square next to the team. */
+  redCards?: { home: number; away: number } | null;
   /** Corners per half (from the play-by-play), when available. */
   cornersByHalf?: { first: HalfSplit; second: HalfSplit } | null;
   /** Players who took part, with their stats; null when the provider has no line-ups. */
