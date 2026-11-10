@@ -14,7 +14,8 @@ import { ListCard, ListRow, useGlow } from '../../components/ui/ListCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useToast } from '../../components/ui/Toast';
-import { useFootballDay, type FootballMatch } from '../../services/sportsService';
+import { SPORT_OPTIONS, useBasketballDay, useFootballDay, useTennisDay, type FootballMatch, type SimpleMatch, type SportKey } from '../../services/sportsService';
+import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
 import { useTheme } from '../../theme/useTheme';
 import { hapticLight, hapticSuccess } from '../../utils/haptics';
@@ -22,10 +23,47 @@ import { hapticLight, hapticSuccess } from '../../utils/haptics';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const toIsoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-interface MarketDef { chip: string; market: string; selections: Array<{ label: string; value: string }> }
+/**
+ * A market the sheet offers. `{home}`/`{away}` in labels and values are replaced by the names.
+ * `line`: the market needs a number typed by the user — 'total' builds "Mais de 220.5",
+ * 'handicap' builds "Boston Celtics -5.5" (strings the settlement engines parse).
+ */
+interface MarketDef { chip: string; market: string; selections: Array<{ label: string; value: string }>; line?: 'total' | 'handicap' }
+type MarketGroups = Array<{ category: string; items: MarketDef[] }>;
 
-/** Markets offered, grouped. `{home}`/`{away}` in labels are replaced by the team names. */
-const MARKETS: Array<{ category: string; items: MarketDef[] }> = [
+const OVER_UNDER = [{ label: 'Mais de', value: 'Mais de' }, { label: 'Menos de', value: 'Menos de' }];
+const SIDES = [{ label: '{home}', value: '{home}' }, { label: '{away}', value: '{away}' }];
+
+const BASKETBALL_MARKETS: MarketGroups = [
+  {
+    category: 'Resultado',
+    items: [
+      { chip: 'Vencedor', market: 'Vencedor do jogo', selections: SIDES },
+      { chip: 'Handicap', market: 'Handicap', selections: SIDES, line: 'handicap' },
+      { chip: '1X2 (tempo reg.)', market: '1X2 (Tempo Regulamentar)', selections: [SIDES[0]!, { label: 'Empate', value: 'Empate' }, SIDES[1]!] },
+    ],
+  },
+  { category: 'Pontos', items: [{ chip: 'Total de pontos', market: 'Total de pontos', selections: OVER_UNDER, line: 'total' }] },
+];
+
+const TENNIS_MARKETS: MarketGroups = [
+  {
+    category: 'Resultado',
+    items: [
+      { chip: 'Vencedor', market: 'Vencedor do encontro', selections: SIDES },
+      { chip: '1.º set', market: '1.º Set - Vencedor', selections: SIDES },
+      {
+        chip: 'Resultado em sets',
+        market: 'Resultado em sets',
+        selections: ['2-0', '2-1'].flatMap((r) => [{ label: `{home} ${r}`, value: `{home} vence ${r}` }, { label: `{away} ${r}`, value: `{away} vence ${r}` }]),
+      },
+    ],
+  },
+  { category: 'Jogos', items: [{ chip: 'Total de jogos', market: 'Total de jogos', selections: OVER_UNDER, line: 'total' }] },
+];
+
+/** Football markets, grouped. */
+const MARKETS: MarketGroups = [
   {
     category: 'Resultado',
     items: [
@@ -67,14 +105,20 @@ export default function PorJogoScreen() {
   const { colors } = useTheme();
   const accentGlow = useGlow(colors.accent);
   const items = useBoletinBuilderStore((s) => s.items);
+  const [sport, setSport] = useState<SportKey>('football');
   const [offset, setOffset] = useState(0);
-  const [picked, setPicked] = useState<{ match: FootballMatch; league: string; slug: string } | null>(null);
+  const [picked, setPicked] = useState<{ match: FootballMatch | SimpleMatch; league: string; slug: string } | null>(null);
 
   const date = useMemo(() => new Date(Date.now() + offset * DAY_MS), [offset]);
-  const dayQuery = useFootballDay(toIsoDate(date));
+  const iso = toIsoDate(date);
+  const footballQuery = useFootballDay(iso, sport === 'football');
+  const basketballQuery = useBasketballDay(iso, sport === 'basketball');
+  const tennisQuery = useTennisDay(iso, sport === 'tennis');
+  const dayQuery = sport === 'football' ? footballQuery : sport === 'basketball' ? basketballQuery : tennisQuery;
+  const variant = sport === 'tennis' ? 'player' : 'team';
   // Only matches that can still be bet on (not finished/cancelled).
   const groups = useMemo(
-    () => (dayQuery.data?.groups ?? [])
+    () => ((dayQuery.data?.groups ?? []) as Array<{ league: string; slug: string; matches: Array<FootballMatch | SimpleMatch> }>)
       .map((g) => ({ ...g, matches: g.matches.filter((m) => m.status === 'SCHEDULED' || m.status === 'LIVE' || m.status === 'HALFTIME') }))
       .filter((g) => g.matches.length > 0),
     [dayQuery.data],
@@ -84,6 +128,7 @@ export default function PorJogoScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: 'Por jogo', headerShown: true }} />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}>
+        <SegmentedControl onChange={setSport} options={SPORT_OPTIONS} value={sport} />
         <ScrollView contentContainerStyle={styles.days} horizontal showsHorizontalScrollIndicator={false}>
           {Array.from({ length: 8 }, (_, i) => i).map((o) => {
             const d = new Date(Date.now() + o * DAY_MS);
@@ -110,7 +155,7 @@ export default function PorJogoScreen() {
           <View style={styles.empty}>
             <Ionicons color={colors.textMuted} name="calendar-outline" size={40} />
             <AppText variant="heading">Sem jogos por começar neste dia</AppText>
-            <AppText style={styles.center} variant="caption">Para jogos de outras ligas ou ténis, usa o registo manual.</AppText>
+            <AppText style={styles.center} variant="caption">Para jogos de outras ligas ou desportos, usa o registo manual.</AppText>
             <Button onPress={() => router.replace('/boletins/create')} title="Registo manual" variant="secondary" />
           </View>
         ) : (
@@ -129,11 +174,11 @@ export default function PorJogoScreen() {
                     >
                       <View style={styles.time}>
                         {live ? <LiveDot color={colors.live} size={7} /> : null}
-                        <AppText style={live ? { color: colors.live } : undefined} variant="label">{live ? m.statusDetail : time}</AppText>
+                        <AppText style={live ? { color: colors.live } : undefined} variant="label">{live ? (sport === 'tennis' ? 'Ao vivo' : m.statusDetail) : time}</AppText>
                       </View>
                       <View style={[styles.flex, styles.teams]}>
-                        <View style={styles.team}><TeamBadge name={m.home.name} size={22} /><AppText numberOfLines={1} style={styles.flex}>{m.home.name}</AppText></View>
-                        <View style={styles.team}><TeamBadge name={m.away.name} size={22} /><AppText numberOfLines={1} style={styles.flex}>{m.away.name}</AppText></View>
+                        <View style={styles.team}><TeamBadge name={m.home.name} size={22} variant={variant} /><AppText numberOfLines={1} style={styles.flex}>{m.home.name}</AppText></View>
+                        <View style={styles.team}><TeamBadge name={m.away.name} size={22} variant={variant} /><AppText numberOfLines={1} style={styles.flex}>{m.away.name}</AppText></View>
                       </View>
                       <Ionicons color={colors.primary} name="add-circle" size={26} />
                     </ListRow>
@@ -160,39 +205,58 @@ export default function PorJogoScreen() {
           league={picked.league}
           match={picked.match}
           onClose={() => setPicked(null)}
-          onPreview={() => {
+          // The preview (form, head-to-head, table) exists for football only.
+          onPreview={sport === 'football' ? () => {
             const target = picked;
             setPicked(null);
             router.push({ pathname: '/jogo/[id]', params: { id: target.match.providerMatchId, league: target.slug } });
-          }}
+          } : undefined}
+          sport={sport}
         />
       ) : null}
     </View>
   );
 }
 
-function MarketSheet({ match, league, onClose, onPreview }: { match: FootballMatch; league: string; onClose: () => void; onPreview: () => void }) {
+function MarketSheet({ match, league, onClose, onPreview, sport }: {
+  match: FootballMatch | SimpleMatch; league: string; onClose: () => void; onPreview?: () => void; sport: SportKey;
+}) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const addItem = useBoletinBuilderStore((s) => s.addItem);
-  const [market, setMarket] = useState<MarketDef>(MARKETS[0]!.items[0]!);
+  const markets = sport === 'basketball' ? BASKETBALL_MARKETS : sport === 'tennis' ? TENNIS_MARKETS : MARKETS;
+  const variant = sport === 'tennis' ? 'player' : 'team';
+  const [market, setMarket] = useState<MarketDef>(markets[0]!.items[0]!);
   const [selection, setSelection] = useState<string | null>(null);
+  const [line, setLine] = useState('');
   const [odd, setOdd] = useState('');
   const parsedOdd = parseFloat(odd.replace(',', '.'));
-  const canAdd = selection !== null && parsedOdd >= 1.01;
+  const parsedLine = parseFloat(line.replace(',', '.'));
+  const lineOk = !market.line || Number.isFinite(parsedLine);
+  const canAdd = selection !== null && parsedOdd >= 1.01 && lineOk;
   const fill = (s: string) => s.replace('{home}', match.home.name).replace('{away}', match.away.name);
 
+  /** Selection text as stored on the boletim (and read by the settlement engines). */
+  const finalSelection = (): string | null => {
+    if (!selection) return null;
+    const base = fill(selection);
+    if (market.line === 'total') return `${base} ${parsedLine}`;
+    if (market.line === 'handicap') return `${base} ${parsedLine > 0 ? '+' : ''}${parsedLine}`;
+    return base;
+  };
+
   const add = () => {
-    if (!canAdd || !selection) return;
+    const sel = finalSelection();
+    if (!canAdd || !sel) return;
     addItem({
-      id: `${match.providerMatchId}-${market.market}-${selection}-${Date.now()}`,
+      id: `${match.providerMatchId}-${market.market}-${sel}-${Date.now()}`,
       homeTeam: match.home.name,
       awayTeam: match.away.name,
       competition: league,
-      sport: Sport.FOOTBALL,
+      sport: sport === 'basketball' ? Sport.BASKETBALL : sport === 'tennis' ? Sport.TENNIS : Sport.FOOTBALL,
       market: market.market,
-      selection,
+      selection: sel,
       oddValue: parsedOdd,
       eventDate: match.kickoffAt,
     });
@@ -208,20 +272,22 @@ function MarketSheet({ match, league, onClose, onPreview }: { match: FootballMat
         <View style={[styles.sheet, { backgroundColor: colors.background, paddingBottom: insets.bottom + 16 }]}>
           <View style={[styles.handle, { backgroundColor: colors.border }]} />
           <View style={styles.matchHead}>
-            <TeamBadge name={match.home.name} size={40} />
+            <TeamBadge name={match.home.name} size={40} variant={variant} />
             <View style={styles.flex}>
               <AppText numberOfLines={1} style={styles.center} variant="heading">{match.home.name} vs {match.away.name}</AppText>
               <AppText style={styles.center} variant="caption">{league}</AppText>
             </View>
-            <TeamBadge name={match.away.name} size={40} />
+            <TeamBadge name={match.away.name} size={40} variant={variant} />
           </View>
-          <Pressable accessibilityRole="button" hitSlop={8} onPress={onPreview} style={styles.previewLink}>
-            <Ionicons color={colors.primary} name="analytics-outline" size={16} />
-            <AppText tone="accent" variant="bodyStrong">Ver antevisão (forma, confrontos, classificação)</AppText>
-          </Pressable>
+          {onPreview ? (
+            <Pressable accessibilityRole="button" hitSlop={8} onPress={onPreview} style={styles.previewLink}>
+              <Ionicons color={colors.primary} name="analytics-outline" size={16} />
+              <AppText tone="accent" variant="bodyStrong">Ver antevisão (forma, confrontos, classificação)</AppText>
+            </Pressable>
+          ) : null}
 
           <ScrollView style={styles.sheetScroll}>
-            {MARKETS.map((cat) => (
+            {markets.map((cat) => (
               <View key={cat.category} style={styles.cat}>
                 <AppText variant="label">{cat.category}</AppText>
                 <View style={styles.chips}>
@@ -232,7 +298,7 @@ function MarketSheet({ match, league, onClose, onPreview }: { match: FootballMat
                         accessibilityRole="button"
                         accessibilityState={{ selected: on }}
                         key={m.market}
-                        onPress={() => { hapticLight(); setMarket(m); setSelection(null); }}
+                        onPress={() => { hapticLight(); setMarket(m); setSelection(null); setLine(''); }}
                         style={[styles.chip, { backgroundColor: on ? `${colors.primary}26` : colors.surface }]}
                       >
                         <AppText style={{ color: on ? colors.primary : colors.textSecondary, fontWeight: on ? '700' : '500' }} variant="label">{m.chip}</AppText>
@@ -244,7 +310,7 @@ function MarketSheet({ match, league, onClose, onPreview }: { match: FootballMat
             ))}
 
             <AppText style={styles.cat} variant="label">Seleção</AppText>
-            <View style={styles.selRow}>
+            <View style={[styles.selRow, market.selections.length > 3 && styles.selWrap]}>
               {market.selections.map((s) => {
                 const on = s.value === selection;
                 return (
@@ -253,13 +319,28 @@ function MarketSheet({ match, league, onClose, onPreview }: { match: FootballMat
                     accessibilityState={{ selected: on }}
                     key={s.value}
                     onPress={() => { hapticLight(); setSelection(s.value); }}
-                    style={[styles.sel, { backgroundColor: on ? colors.accent : colors.surface }]}
+                    style={[styles.sel, market.selections.length > 3 && styles.selHalf, { backgroundColor: on ? colors.accent : colors.surface }]}
                   >
                     <AppText numberOfLines={2} style={[styles.center, on && styles.white]} variant="bodyStrong">{fill(s.label)}</AppText>
                   </Pressable>
                 );
               })}
             </View>
+
+            {market.line ? (
+              <>
+                <AppText style={styles.cat} variant="label">{market.line === 'handicap' ? 'Linha do handicap (ex.: -5,5 ou +3)' : 'Linha (ex.: 220,5)'}</AppText>
+                <TextInput
+                  accessibilityLabel="Linha"
+                  keyboardType="numbers-and-punctuation"
+                  onChangeText={setLine}
+                  placeholder={market.line === 'handicap' ? '-5,5' : '220,5'}
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.oddInput, { backgroundColor: colors.surface, color: colors.textPrimary }]}
+                  value={line}
+                />
+              </>
+            ) : null}
 
             <AppText style={styles.cat} variant="label">Odd</AppText>
             <TextInput
@@ -306,5 +387,7 @@ const styles = StyleSheet.create({
   chip: { borderRadius: 999, justifyContent: 'center', minHeight: 36, paddingHorizontal: 14 },
   selRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   sel: { alignItems: 'center', borderRadius: 14, flex: 1, justifyContent: 'center', minHeight: 56, padding: 8 },
+  selWrap: { flexWrap: 'wrap' },
+  selHalf: { flexBasis: '47%', flexGrow: 1 },
   oddInput: { borderRadius: 14, fontSize: 20, fontWeight: '700', marginTop: 8, minHeight: 52, paddingHorizontal: 16 },
 });

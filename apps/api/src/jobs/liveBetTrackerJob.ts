@@ -70,7 +70,7 @@ export function espnLeagueFor(competition: string): string | null {
   if (/conference league|liga conferencia/.test(c)) return 'uefa.europa.conf';
   // National teams
   if (/nations league|liga das nacoes/.test(c)) return 'uefa.nations';
-  if (/amigav|friendl/.test(c)) return 'fifa.friendly';
+  if (/amigav|friendl/.test(c) && !/club|clube/.test(c)) return 'fifa.friendly';
   if (/(mundial|world cup|campeonato do mundo)/.test(c)) {
     if (/qualif|apuramento/.test(c)) return /conmebol|sul.?americ/.test(c) ? 'fifa.worldq.conmebol' : 'fifa.worldq.uefa';
     return 'fifa.world';

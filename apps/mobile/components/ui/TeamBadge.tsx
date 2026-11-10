@@ -105,10 +105,14 @@ export function TeamBadge({
 }: TeamBadgeProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const [fallbackUri, setFallbackUri] = useState<string | null>(null);
+  // Order (asset audit, 2026-11): the registry (ESPN crests, ESPN/WTA/Wikipedia photos) is the
+  // consistent source, so it wins over per-row URLs and the hand-kept static maps. atptour.com
+  // headshots are refused to apps (HTTP 403) and are ignored.
   const espnUri = useSportAssetsStore((s) => lookupSportAsset(s, name, variant));
-  const localSource = !imageUrl && !espnUri && variant !== 'player' ? getTeamLogoSource(name) : null;
-  // National teams ("Portugal", "Dinamarca") have no club crest: fall back to the country flag.
-  const directUri = imageUrl ?? espnUri ?? (variant === 'player' ? getPlayerPhotoUrl(name) : (getTeamLogoUrl(name) ?? getCountryFlagUrl(name)));
+  const givenUri = imageUrl && !imageUrl.includes('atptour.com') ? imageUrl : null;
+  const localSource = !givenUri && !espnUri && variant !== 'player' ? getTeamLogoSource(name) : null;
+  // National teams ("Portugal", "Dinamarca") fall back to the country flag.
+  const directUri = espnUri ?? givenUri ?? (variant === 'player' ? getPlayerPhotoUrl(name) : (getTeamLogoUrl(name) ?? getCountryFlagUrl(name)));
   const activeUri = imgFailed ? fallbackUri : (directUri ?? fallbackUri);
   const imageSource: ImageSourcePropType | undefined = localSource && !imgFailed
     ? localSource
@@ -116,7 +120,8 @@ export function TeamBadge({
       ? { uri: activeUri }
       : undefined;
   const showImage = Boolean(imageSource);
-  const isPlayer = variant === 'player' || (variant === 'auto' && Boolean(imageUrl || (espnUri && espnUri.includes('/headshots/'))));
+  // Registry crests all live under ESPN's /teamlogos/; anything else from it is a player photo.
+  const isPlayer = variant === 'player' || (variant === 'auto' && Boolean(givenUri || (espnUri && !espnUri.includes('/teamlogos/'))));
   // Crests and faces are both round discs (design v3), faces fill the disc.
   const borderRadius = size / 2;
 

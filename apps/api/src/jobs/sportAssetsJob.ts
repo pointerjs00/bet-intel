@@ -19,7 +19,7 @@ const EXTRA_FOOTBALL = [
 ];
 const NATIONAL_LISTS = ['fifa.world', 'uefa.nations'];
 
-interface EspnTeam { displayName?: string; shortDisplayName?: string; name?: string; location?: string; logos?: Array<{ href?: string }> }
+interface EspnTeam { displayName?: string; shortDisplayName?: string; name?: string; logos?: Array<{ href?: string }> }
 
 async function getJson<T>(url: string): Promise<T | null> {
   try {
@@ -39,7 +39,8 @@ async function espnTeams(sport: 'soccer' | 'basketball', league: string): Promis
 
 /** Every name a team goes by, so "Benfica", "SL Benfica" and "Sport Lisboa e Benfica" all resolve. */
 function namesOf(t: EspnTeam, national: boolean): string[] {
-  const names = [t.displayName, t.shortDisplayName, t.name, t.location].filter((n): n is string => Boolean(n && n.length > 2));
+  // `location` is left out on purpose: "Manchester" or "Los Angeles" would name two teams.
+  const names = [t.displayName, t.shortDisplayName, t.name].filter((n): n is string => Boolean(n && n.length > 2));
   return national ? [...names, ...names.map(countryToPt)] : names;
 }
 
