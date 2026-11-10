@@ -185,6 +185,10 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
       (its) => `${m.playerA} ${score} ${m.playerB}${line(its as unknown as TennisItem[])}`);
   }
 
+  await writeLiveItems(group.map((it) => ({ id: it.id, verdict: tennisVerdict(it, m) })), {
+    status: m.status, detail: m.statusDetail, home: m.playerA, away: m.playerB, score: score || null, sport: 'TENNIS',
+  });
+
   const result = toTennisResult(m);
   if (!result) return;
   if (m.status === 'FINISHED' && await once(`notif:espn:t:${id}:ft`)) {
@@ -283,6 +287,17 @@ async function resolveEspnRef(key: string, league: string, sample: PendingItem, 
   return null;
 }
 
+/** Live state per selection, read by GET /api/boletins/live (app "A decorrer" section). */
+export const LIVE_ITEM_KEY = (itemId: string) => `live:item:${itemId}`;
+
+async function writeLiveItems(
+  items: Array<{ id: string; verdict: string | null }>,
+  match: { status: string; detail: string; home: string; away: string; score: string | null; sport: string },
+): Promise<void> {
+  const at = new Date().toISOString();
+  await Promise.all(items.map((it) => redis.set(LIVE_ITEM_KEY(it.id), JSON.stringify({ ...match, verdict: it.verdict, updatedAt: at }), 'EX', 4 * 60 * 60).catch(() => {})));
+}
+
 async function once(key: string): Promise<boolean> {
   const ok = await redis.set(key, '1', 'EX', 3 * 24 * 60 * 60, 'NX').catch(() => null);
   return ok === 'OK';
@@ -357,6 +372,14 @@ async function handleMatchUpdate(m: NormalizedMatch, group: PendingItem[]): Prom
   if (m.status === 'HALFTIME' && prev?.status !== 'HALFTIME' && await once(`notif:espn:${id}:ht`)) {
     await notify(group, m, NotificationType.HALF_TIME, 'HALF_TIME', '🕐 Intervalo', (its) => `${title}${verdictLine(its, m)}`);
   }
+
+  await writeLiveItems(group.map((it) => {
+    const v = liveVerdict(it, m);
+    return { id: it.id, verdict: v && m.status === 'FINISHED' ? (v === 'a ganhar' ? 'ganha' : 'perdida') : v };
+  }), {
+    status: m.status, detail: m.statusDetail, home: m.home.name, away: m.away.name,
+    score: m.score ? `${m.score.home}-${m.score.away}` : null, sport: 'FOOTBALL',
+  });
 
   const fixture = toFixtureResult(m);
   if (!fixture) return; // still playing or scheduled

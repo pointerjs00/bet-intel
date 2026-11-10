@@ -14,11 +14,11 @@ Documentos relacionados:
 
 ## Estado da implementação
 
-Alterações feitas no working tree em 10/11/2026, ainda **sem commit nem deploy**.
+Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main` e **deploy feito a 10/11/2026** (tracker ativo em produção).
 
 | Item | Estado | Notas |
 |---|---|---|
-| #1 | Feito | Motor reescrito como analisador de "pernas" (resultado, dupla hipótese, totais, ambas marcam, intervalo/final, resultado exato, empate anula). Reconhece 140 de 151 seleções reais; as restantes (marcadores, handicap, eliminatória) vão para revisão. 11 testes em `marketResolutionEngine.test.ts`. **Falta:** correr a auditoria no servidor (`docker compose exec api node dist/scripts/auditAutoSettlement.js`) e corrigir à mão o que ela listar. |
+| #1 | Feito | Motor reescrito como analisador de "pernas" (resultado, dupla hipótese, totais, ambas marcam, intervalo/final, resultado exato, empate anula). Reconhece 140 de 151 seleções reais; as restantes (marcadores, handicap, eliminatória) vão para revisão. 11 testes em `marketResolutionEngine.test.ts`. Auditoria em produção (10/11/2026): 0 itens tinham sido liquidados pelo motor antigo, nada a corrigir. |
 | #2 | Feito | `/sync/fixtures/recent` exige login; o resto de `/sync/*` e o refresh de rankings exigem `x-internal-key`. |
 | #3 | **Bloqueado** | A tabela `Fixture` não guarda o resultado aos 90'. Precisa de uma migração (sem base de dados local para a gerar) ou das novas fontes (fase 2). O motor já recusa liquidar jogos com prolongamento sem esse resultado. |
 | #4 | Feito | Novos estados `CANCELLED`, `ABANDONED` e `POSTPONED`. Cancelado anula a seleção; abandonado e adiado vão para revisão. |

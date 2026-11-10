@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, LogBox, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Stack, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -34,6 +34,9 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } f
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import * as Sentry from '@sentry/react-native';
 import '../global.css';
+
+// Dev only: /boletins/live returns 404 against an API that predates the live tracker endpoint.
+LogBox.ignoreLogs(['[API] 404 Not Found: GET /boletins/live']);
 
 // Error tracking: off until EXPO_PUBLIC_SENTRY_DSN is set (create the Sentry project, then add the DSN to .env / EAS).
 const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;

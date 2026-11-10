@@ -17,7 +17,7 @@ import type {
 } from '@betintel/shared';
 import { NotificationType as SharedNotificationType } from '@betintel/shared';
 import { prisma } from '../../prisma';
-import { deleteKeysByPattern } from '../../utils/redis';
+import { deleteKeysByPattern, redis } from '../../utils/redis';
 import { logger } from '../../utils/logger';
 import { emitBoletinResult, emitFriendActivity } from '../../sockets';
 import { createNotification, dispatchStoredNotifications } from '../social/notificationService';
@@ -857,6 +857,60 @@ function serializeBoletinDetail(boletin: Prisma.BoletinGetPayload<{ include: typ
     items: boletin.items.map(serializeItem),
     shares: boletin.sharedWith.map(serializeShare),
   };
+}
+
+/** Live state of one selection, as written by liveBetTrackerJob (Redis `live:item:<id>`). */
+export interface LiveItemState {
+  itemId: string;
+  boletinId: string;
+  boletinName: string | null;
+  sport: string;
+  market: string;
+  selection: string;
+  kickoffAt: string;
+  status: string;
+  detail: string;
+  home: string;
+  away: string;
+  score: string | null;
+  verdict: string | null;
+  updatedAt: string;
+}
+
+/** Pending selections of the user that are in play or ended in the last hours, with live state when tracked. */
+export async function getLiveItems(userId: string): Promise<LiveItemState[]> {
+  const now = Date.now();
+  const items = await prisma.boletinItem.findMany({
+    where: {
+      boletin: { userId },
+      kickoffAt: { gte: new Date(now - 4 * 60 * 60 * 1000), lte: new Date(now + 5 * 60 * 1000) },
+      OR: [{ result: ItemResult.PENDING }, { boletin: { status: BoletinStatus.PENDING } }],
+    },
+    select: { id: true, boletinId: true, sport: true, market: true, selection: true, kickoffAt: true, boletin: { select: { name: true } } },
+    orderBy: { kickoffAt: 'asc' },
+  });
+  if (!items.length) return [];
+  let raw: Array<string | null> = [];
+  try {
+    raw = await redis.mget(...items.map((i) => `live:item:${i.id}`));
+  } catch {
+    raw = items.map(() => null);
+  }
+  return items.flatMap((item, i) => {
+    const r = raw[i];
+    if (!r) return [];
+    const live = JSON.parse(r) as Omit<LiveItemState, 'itemId' | 'boletinId' | 'boletinName' | 'market' | 'selection' | 'kickoffAt'>;
+    return [{
+      ...live,
+      itemId: item.id,
+      boletinId: item.boletinId,
+      boletinName: item.boletin.name,
+      sport: item.sport,
+      market: item.market,
+      selection: item.selection,
+      kickoffAt: item.kickoffAt!.toISOString(),
+    }];
+  });
 }
 
 /** Returns pending boletin items with a kick-off date, deduplicated by match, ordered chronologically. */

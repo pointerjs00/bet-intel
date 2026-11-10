@@ -14,6 +14,7 @@ import {
   deleteBoletinItem,
   getAgenda,
   getBoletinDetail,
+  getLiveItems,
   listSharedBoletins,
   listUserBoletins,
   shareBoletin,
@@ -325,6 +326,15 @@ function csvEscape(value: string): string {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
+}
+
+/** GET /api/boletins/live — the user's selections in play (or just finished) with live score and bet state. */
+export async function getLiveItemsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    ok(res, await getLiveItems(requireUserId(req)));
+  } catch (err) {
+    fail(res, err);
+  }
 }
 
 export async function getAgendaHandler(req: Request, res: Response): Promise<void> {

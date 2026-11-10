@@ -82,6 +82,35 @@ export interface SharedBoletinFeedItem {
   boletin: BoletinDetail;
 }
 
+/** Live state of one pending selection (GET /boletins/live, written by the server's live tracker). */
+export interface LiveItem {
+  itemId: string;
+  boletinId: string;
+  boletinName: string | null;
+  sport: string;
+  market: string;
+  selection: string;
+  kickoffAt: string;
+  status: 'SCHEDULED' | 'LIVE' | 'HALFTIME' | 'FINISHED' | 'POSTPONED' | 'CANCELLED' | 'ABANDONED' | 'SUSPENDED' | 'RETIRED' | 'WALKOVER';
+  detail: string;
+  home: string;
+  away: string;
+  score: string | null;
+  verdict: 'a ganhar' | 'a perder' | 'ganha' | 'perdida' | null;
+  updatedAt: string;
+}
+
+/** Selections in play right now, refreshed every 30 s while the screen is open. */
+export function useLiveItems() {
+  return useQuery({
+    queryKey: ['boletins', 'live'],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<LiveItem[]>>('/boletins/live')).data.data,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+    retry: false,
+  });
+}
+
 export const boletinQueryKeys = {
   all: ['boletins'] as const,
   mine: () => ['boletins', 'mine'] as const,

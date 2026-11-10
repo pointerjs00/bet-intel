@@ -1081,7 +1081,7 @@ export default function StatsScreen() {
 
               case 'by-sport': return (
                 <Animated.View key="by-sport" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.bySport} title="Por desporto" filterTitle="Por desporto" onInfoPress={() => pushInfo('by-sport', stats.bySport.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterSport: row.key } })} renderLabel={(row) => (
+                  <FilteredBreakdownTable rows={stats.bySport} title="Por desporto" filterTitle="Por desporto" onInfoPress={() => pushInfo('by-sport', stats.bySport.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterSport: row.key } })} renderLabel={(row) => (
                     <Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>
                       {SPORT_EMOJIS[row.sport] ?? '🎯'}{'  '}{row.label}
                     </Text>
@@ -1091,7 +1091,7 @@ export default function StatsScreen() {
 
               case 'by-team': return (
                 <Animated.View key="by-team" entering={FadeInDown.delay(130).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byTeam} title="Por equipa" filterTitle="Por equipa" onInfoPress={() => pushInfo('by-team', stats.byTeam.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterTeam: row.label } })} renderLabel={(row) => (
+                  <FilteredBreakdownTable rows={stats.byTeam} title="Por equipa" filterTitle="Por equipa" onInfoPress={() => pushInfo('by-team', stats.byTeam.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterTeam: row.label } })} renderLabel={(row) => (
                     <TeamBreakdownLabel teamName={row.label} />
                   )} />
                 </Animated.View>
@@ -1099,7 +1099,7 @@ export default function StatsScreen() {
 
               case 'by-competition': return (
                 <Animated.View key="by-competition" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byCompetition} title="Por competição" filterTitle="Por competição" onInfoPress={() => pushInfo('by-competition', stats.byCompetition.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterCompetition: row.label } })} renderLabel={(row) => (
+                  <FilteredBreakdownTable rows={stats.byCompetition} title="Por competição" filterTitle="Por competição" onInfoPress={() => pushInfo('by-competition', stats.byCompetition.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterCompetition: row.label } })} renderLabel={(row) => (
                     <CompetitionBreakdownLabel competitionName={row.label} />
                   )} />
                 </Animated.View>
@@ -1107,7 +1107,7 @@ export default function StatsScreen() {
 
               case 'by-market': return (
                 <Animated.View key="by-market" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <FilteredBreakdownTable expandLabels rows={stats.byMarket} title="Por mercado" filterTitle="Por mercado" onInfoPress={() => pushInfo('by-market', stats.byMarket.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterMarket: row.label } })} />
+                  <FilteredBreakdownTable expandLabels rows={stats.byMarket} title="Por mercado" filterTitle="Por mercado" onInfoPress={() => pushInfo('by-market', stats.byMarket.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterMarket: row.label } })} />
                 </Animated.View>
               );
 
@@ -1119,19 +1119,19 @@ export default function StatsScreen() {
 
               case 'by-site': return (
                 <Animated.View key="by-site" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <SiteROITable rows={stats.bySite} onInfoPress={() => pushInfo('by-site', stats.bySite.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterSite: row.siteSlug } })} />
+                  <SiteROITable rows={stats.bySite} onInfoPress={() => pushInfo('by-site', stats.bySite.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterSite: row.siteSlug } })} />
                 </Animated.View>
               );
 
               case 'by-weekday': return (
                 <Animated.View key="by-weekday" entering={FadeInDown.delay(170).duration(160).springify()}>
-                  <FilteredBreakdownTable maxRows={7} rows={stats.byWeekday} title="Por dia da semana" filterTitle="Por dia da semana" onInfoPress={() => pushInfo('by-weekday', stats.byWeekday.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterWeekday: String(row.weekday) } })} />
+                  <FilteredBreakdownTable maxRows={7} rows={stats.byWeekday} title="Por dia da semana" filterTitle="Por dia da semana" onInfoPress={() => pushInfo('by-weekday', stats.byWeekday.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterWeekday: String(row.weekday) } })} />
                 </Animated.View>
               );
 
               case 'by-leg-count': return (
                 <Animated.View key="by-leg-count" entering={FadeInDown.delay(50).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byLegCount} title="Por nº de seleções" filterTitle="Por nº de seleções" onInfoPress={() => pushInfo('by-leg-count', stats.byLegCount.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterLegCount: String(row.legCount) } })} />
+                  <FilteredBreakdownTable rows={stats.byLegCount} title="Por nº de seleções" filterTitle="Por nº de seleções" onInfoPress={() => pushInfo('by-leg-count', stats.byLegCount.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterLegCount: String(row.legCount) } })} />
                 </Animated.View>
               );
 
@@ -1149,7 +1149,7 @@ export default function StatsScreen() {
 
               case 'by-stake': return (
                 <Animated.View key="by-stake" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byStakeBracket} title="Por faixa de stake" filterTitle="Por faixa de stake" onInfoPress={() => pushInfo('by-stake', stats.byStakeBracket.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/', params: { filterStakeMin: String(row.minStake), filterStakeMax: row.maxStake === null ? 'open' : String(row.maxStake) } })} />
+                  <FilteredBreakdownTable rows={stats.byStakeBracket} title="Por faixa de stake" filterTitle="Por faixa de stake" onInfoPress={() => pushInfo('by-stake', stats.byStakeBracket.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterStakeMin: String(row.minStake), filterStakeMax: row.maxStake === null ? 'open' : String(row.maxStake) } })} />
                 </Animated.View>
               );
 

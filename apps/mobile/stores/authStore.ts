@@ -57,11 +57,6 @@ interface AuthStore {
   enableBiometric: () => Promise<boolean>;
   /** Disables biometric login and removes the flag from SecureStore. */
   disableBiometric: () => Promise<void>;
-  /**
-   * Logs out the user. Biometric preference is always preserved so the user
-   * doesn't have to re-enable it after signing back in.
-   */
-  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -194,6 +189,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ biometricEnabled: true });
         await AsyncStorage.setItem(BIOMETRIC_ENABLED_ASYNC_KEY, 'true').catch(() => {});
         await SecureStore.deleteItemAsync(BIOMETRIC_ENABLED_KEY).catch(() => {});
+      }
+
+      // Development builds keep the session across JS reloads (Fast Refresh full reloads,
+      // Metro restarts). Release builds keep the original behaviour below.
+      if (__DEV__ && !biometricEnabled && refreshTokenValue) {
+        const user: PublicUser | null = userJson ? (JSON.parse(userJson) as PublicUser) : null;
+        set({ user, accessToken, refreshTokenValue, isAuthenticated: true });
+        return;
       }
 
       if (biometricEnabled && refreshTokenValue) {

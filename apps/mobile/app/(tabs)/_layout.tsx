@@ -1,12 +1,12 @@
 import React, { useCallback } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../theme/useTheme';
-import { useUnreadNotificationsCount } from '../../services/socialService';
+import { hapticLight } from '../../utils/haptics';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -72,6 +72,29 @@ function TabItemButton({
   );
 }
 
+/** Tabs shown in the bar, in order; other routes (amigos, perfil) stay navigable but hidden. */
+const VISIBLE_TABS = ['index', 'boletins', 'fixtures', 'stats'];
+
+function CenterNewButton({ color }: { color: string }) {
+  const router = useRouter();
+  const scale = useSharedValue(1);
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <View style={styles.centerSlot}>
+      <AnimatedPressable
+        accessibilityLabel="Novo boletim"
+        accessibilityRole="button"
+        onPress={() => { hapticLight(); router.push('/boletins/novo'); }}
+        onPressIn={() => { scale.value = withTiming(0.9, { duration: 90 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+        style={[styles.centerButton, { backgroundColor: color }, style]}
+      >
+        <Ionicons color="#06140C" name="add" size={28} />
+      </AnimatedPressable>
+    </View>
+  );
+}
+
 function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -96,7 +119,10 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           },
         ]}
       >
-        {state.routes.map((route, index) => {
+        {VISIBLE_TABS.flatMap((name, slot) => {
+          const index = state.routes.findIndex((r) => r.name === name);
+          const route = state.routes[index];
+          if (!route) return [];
           const descriptor = descriptors[route.key];
           const focused = state.index === index;
           const tintColor = focused ? colors.primary : colors.textSecondary;
@@ -115,7 +141,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           const icon = descriptor.options.tabBarIcon?.({ color: tintColor, size: 22, focused });
           const badge = descriptor.options.tabBarBadge;
 
-          return (
+          const button = (
             <TabItemButton
               key={route.key}
               onPress={onPress}
@@ -127,6 +153,7 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
               dangerColor={colors.danger}
             />
           );
+          return slot === 1 ? [button, <CenterNewButton color={colors.primary} key="new" />] : [button];
         })}
       </View>
     </View>
@@ -135,7 +162,6 @@ function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   const { colors } = useTheme();
-  const unreadCount = useUnreadNotificationsCount().data ?? 0;
   const renderTabBar = useCallback((props: BottomTabBarProps) => <FloatingTabBar {...props} />, []);
 
   return (
@@ -150,7 +176,16 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Apostas',
+          title: 'Início',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons color={color} name={focused ? 'home' : 'home-outline'} size={22} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="boletins"
+        options={{
+          title: 'Boletins',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons color={color} name={focused ? 'receipt' : 'receipt-outline'} size={22} />
           ),
@@ -168,31 +203,15 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="stats"
         options={{
-          title: 'Estatísticas',
+          title: 'Análise',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons color={color} name={focused ? 'stats-chart' : 'stats-chart-outline'} size={22} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="friends"
-        options={{
-          title: 'Amigos',
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons color={color} name={focused ? 'people' : 'people-outline'} size={22} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons color={color} name={focused ? 'person' : 'person-outline'} size={22} />
-          ),
-        }}
-      />
+      {/* Reachable from Início (avatar) and Perfil; not in the bar. */}
+      <Tabs.Screen name="friends" options={{ title: 'Amigos', href: null }} />
+      <Tabs.Screen name="profile" options={{ title: 'Perfil', href: null }} />
     </Tabs>
   );
 }
@@ -247,6 +266,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
+  },
+  centerSlot: { alignItems: 'center', justifyContent: 'center', width: 64 },
+  centerButton: {
+    alignItems: 'center',
+    borderRadius: 20,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
   },
   badgeText: {
     color: '#FFFFFF',
