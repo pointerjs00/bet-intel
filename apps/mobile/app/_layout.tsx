@@ -219,6 +219,7 @@ export default function RootLayout() {
                     <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="settings" options={{ headerShown: true }} />
                     <Stack.Screen name="limites" options={{ headerShown: true }} />
+                    <Stack.Screen name="perfil-editar" options={{ headerShown: true }} />
                     <Stack.Screen name="notifications" />
                     <Stack.Screen name="user/[username]" />
                     <Stack.Screen name="boletins" />

@@ -122,6 +122,7 @@ module.exports = ({ config }) => ({
         },
       },
     ],
+    './plugins/withAbiFilters',
   ],
   extra: {
     eas: {
