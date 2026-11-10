@@ -2,13 +2,13 @@ import React, { startTransition, useCallback, useEffect, useMemo, useRef, useSta
 import {
   FlatList,
   Modal,
-  Pressable,
   SectionList,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   runOnJS,

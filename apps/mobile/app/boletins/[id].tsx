@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Image, Keyboard, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { FlatList, Image, Keyboard, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useItemMatches } from '../../services/sportsService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -657,7 +658,7 @@ export default function BoletinDetailScreen() {
                         transparent
                         visible={showMoreActions}
                       >
-                        <Pressable accessibilityLabel="Fechar" onPress={() => setShowMoreActions(false)} style={styles.sheetBackdrop} />
+                        <Pressable feedback="none" accessibilityLabel="Fechar" onPress={() => setShowMoreActions(false)} style={styles.sheetBackdrop} />
                         <View style={[styles.sheet, { backgroundColor: colors.background, paddingBottom: insets.bottom + 16 }]}>
                           <ListCard>
                             {[
@@ -1350,7 +1351,7 @@ export default function BoletinDetailScreen() {
         visible={showShareCard}
         onRequestClose={() => setShowShareCard(false)}
       >
-        <Pressable onPress={() => setShowShareCard(false)} style={styles.shareCardOverlay}>
+        <Pressable feedback="none" onPress={() => setShowShareCard(false)} style={styles.shareCardOverlay}>
           <Pressable>
             <ShareCard boletin={boletin} onClose={() => setShowShareCard(false)} />
           </Pressable>

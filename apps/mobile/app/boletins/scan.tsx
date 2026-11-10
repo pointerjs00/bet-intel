@@ -5,12 +5,12 @@ import {
   BackHandler,
   Image,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';

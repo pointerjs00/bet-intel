@@ -6,12 +6,12 @@ import {
   FlatList,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Pressable } from '../components/ui/Pressable';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useTheme } from '../theme/useTheme';

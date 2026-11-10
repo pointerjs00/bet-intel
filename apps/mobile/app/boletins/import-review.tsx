@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   FlatList,
   Modal,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -11,6 +10,7 @@ import {
   Platform,
   Animated as RNAnimated,
 } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -806,7 +806,7 @@ export default function ImportReviewScreen() {
         // Some bets were skipped (e.g. an unreadable odd); say which instead of a plain success.
         showToast(
           `${result.imported} importados, ${result.errors} com erro: ${result.errorDetails?.[0] ?? 'dados inválidos'}`,
-          'error',
+          'warning',
         );
       } else {
         showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
@@ -1985,7 +1985,7 @@ export default function ImportReviewScreen() {
         animationType="fade"
         onRequestClose={() => setSportPickerTarget(null)}
       >
-        <Pressable
+        <Pressable feedback="none"
           style={styles.sportModalBackdrop}
           onPress={() => setSportPickerTarget(null)}
         >
@@ -2051,11 +2051,11 @@ export default function ImportReviewScreen() {
         animationType="fade"
         onRequestClose={() => setDatePickerTarget(null)}
       >
-        <Pressable
+        <Pressable feedback="none"
           style={styles.sportModalBackdrop}
           onPress={() => setDatePickerTarget(null)}
         >
-          <Pressable
+          <Pressable feedback="none"
             style={[styles.dateModalContent, { backgroundColor: colors.surface }]}
             onPress={() => {}}
           >

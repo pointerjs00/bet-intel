@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Platform, Pressable, Share, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Platform, Share, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import type { AiReview } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';

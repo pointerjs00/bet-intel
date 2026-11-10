@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Animated, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, UIManager, View } from 'react-native';
+import { Animated, LayoutAnimation, Modal, Platform, ScrollView, StyleSheet, Text, UIManager, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { useSwipeToDismiss } from '../../hooks/useSwipeToDismiss';
 import { Ionicons } from '@expo/vector-icons';
 import { Sport } from '@betintel/shared';
@@ -352,7 +353,7 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.root}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
+        <Pressable feedback="none" style={styles.backdrop} onPress={onClose} />
         <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 16 }, animatedStyle, insightsExpanded && styles.sheetExpanded]}>
           {/* Handle */}
           <View {...panHandlers} style={styles.handleArea}>

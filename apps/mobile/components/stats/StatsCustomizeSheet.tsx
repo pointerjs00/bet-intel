@@ -1,7 +1,8 @@
 import { BottomSheetModal, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PanResponder, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 
 import { getSectionDef } from '../../constants/statsSections';
 import { useStatsDashboardStore } from '../../stores/statsDashboardStore';

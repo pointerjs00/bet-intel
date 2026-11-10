@@ -2,7 +2,8 @@
 // and the selection goes into the boletim builder. Replaces the old API-Football picker.
 // Market names are the ones the settlement engine (marketResolutionEngine) already parses.
 import React, { useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -267,7 +268,7 @@ function MarketSheet({ match, league, onClose, onPreview, sport }: {
 
   return (
     <Modal animationType="slide" onRequestClose={onClose} transparent visible>
-      <Pressable accessibilityLabel="Fechar" onPress={onClose} style={styles.backdrop} />
+      <Pressable feedback="none" accessibilityLabel="Fechar" onPress={onClose} style={styles.backdrop} />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.sheet, { backgroundColor: colors.background, paddingBottom: insets.bottom + 16 }]}>
           <View style={[styles.handle, { backgroundColor: colors.border }]} />

@@ -2,12 +2,12 @@ import React, { useMemo, useState } from 'react';
 import {
   Animated,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { useSwipeToDismiss } from '../../hooks/useSwipeToDismiss';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -199,7 +199,7 @@ export function ExplainBoletinSheet({ visible, boletin, onClose }: Props) {
       statusBarTranslucent
     >
       {/* Tap-outside to close */}
-      <Pressable style={styles.backdrop} onPress={onClose} />
+      <Pressable feedback="none" style={styles.backdrop} onPress={onClose} />
 
       <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 16 }, animatedStyle]}>
         {/* Drag handle */}

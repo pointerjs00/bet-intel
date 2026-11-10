@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type {
   AiReview,
   PersonalStats,
@@ -35,6 +35,24 @@ export const statsQueryKeys = {
     ['stats', 'timeline', period, siteSlugs.join(','), dateFrom ?? '', dateTo ?? '', granularity ?? ''] as const,
 };
 
+async function fetchPersonalStats(period: StatsPeriod, siteSlugs: string[], dateFrom?: string, dateTo?: string): Promise<PersonalStats> {
+  const params: Record<string, string> = { period };
+  if (siteSlugs.length > 0) params.siteSlugs = siteSlugs.join(',');
+  if (dateFrom) params.dateFrom = dateFrom;
+  if (dateTo) params.dateTo = dateTo;
+  const response = await apiClient.get<ApiEnvelope<PersonalStats>>('/stats/me', { params });
+  return response.data.data;
+}
+
+/** Warms the Análise screen's default view (this year, all sites) in the background. */
+export function prefetchPersonalStats(client: QueryClient, period: StatsPeriod = 'year'): Promise<void> {
+  return client.prefetchQuery({
+    queryKey: statsQueryKeys.me(period, []),
+    queryFn: () => fetchPersonalStats(period, []),
+    staleTime: 30_000,
+  });
+}
+
 /** Returns the full authenticated-user statistics payload for a given period. */
 export function usePersonalStats(
   period: StatsPeriod,
@@ -47,14 +65,7 @@ export function usePersonalStats(
     queryKey: statsQueryKeys.me(period, siteSlugs, dateFrom, dateTo),
     staleTime: 30_000,    // 30s — avoids redundant refetches on tab switches
     enabled,
-    queryFn: async () => {
-      const params: Record<string, string> = { period };
-      if (siteSlugs.length > 0) params.siteSlugs = siteSlugs.join(',');
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      const response = await apiClient.get<ApiEnvelope<PersonalStats>>('/stats/me', { params });
-      return response.data.data;
-    },
+    queryFn: () => fetchPersonalStats(period, siteSlugs, dateFrom, dateTo),
   });
 }
 

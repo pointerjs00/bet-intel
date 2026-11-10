@@ -1,5 +1,6 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable } from './Pressable';
 import { useTheme } from '../../theme/useTheme';
 
 /** Elevation used by every v2 card: soft shadow, no border (PLANO_MELHORIAS.md §6.2). */

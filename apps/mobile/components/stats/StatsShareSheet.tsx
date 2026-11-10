@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Animated as RNAnimated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated as RNAnimated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
@@ -118,7 +119,7 @@ export function StatsShareSheet({ visible, onClose }: StatsShareSheetProps) {
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={[styles.backdrop, { flex: 1 }]}>
-        <Pressable style={StyleSheet.absoluteFillObject} onPress={onClose} />
+        <Pressable feedback="none" style={StyleSheet.absoluteFillObject} onPress={onClose} />
 
         {/* Sheet uses flex column so header + footer are pinned and only the
             card area scrolls — no matter how tall the card is */}

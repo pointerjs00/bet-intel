@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Image, ImageSourcePropType, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, ImageSourcePropType, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import type { StatsBreakdownRow } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';

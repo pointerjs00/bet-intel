@@ -1,7 +1,8 @@
 // Início — dashboard (redesign D5, PLANO_MELHORIAS.md §6): year profit, key metrics,
 // bets in play with their live state (#56) and the most recent boletins.
 import React, { useMemo } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';

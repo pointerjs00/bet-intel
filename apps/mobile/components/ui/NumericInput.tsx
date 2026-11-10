@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Modal, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { Pressable } from './Pressable';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useTheme } from '../../theme/useTheme';
 import { NumericKeyboard } from './NumericKeyboard';
@@ -83,7 +84,7 @@ export function NumericInput({
 
       <Modal animationType="none" onRequestClose={hideKeyboard} transparent visible={open}>
         <View style={styles.backdrop}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={hideKeyboard} />
+          <Pressable feedback="none" style={StyleSheet.absoluteFillObject} onPress={hideKeyboard} />
           {open && (
             <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, borderTopColor: colors.border }, kbStyle]}>
               <View style={styles.sheetBar}>

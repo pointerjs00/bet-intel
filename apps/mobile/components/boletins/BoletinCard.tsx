@@ -1,40 +1,18 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  Image,
-  LayoutAnimation,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  UIManager,
-  View,
-} from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
+import { Image, Modal, Platform, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import type { BoletinDetail, ItemResult } from '@betintel/shared';
-import { BoletinStatus, Sport } from '@betintel/shared';
+import { BoletinStatus } from '@betintel/shared';
 import { TeamBadge } from '../ui/TeamBadge';
 import { MarketSelection } from './MarketSelection';
-import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { PressableScale } from '../ui/PressableScale';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatLongDate, formatOdds } from '../../utils/formatters';
 import { hapticMedium } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
-import { useTeams } from '../../services/referenceService';
 import { StatusPill } from '../ui/StatusPill';
 import { useCardElevation } from '../ui/ListCard';
-
-if (Platform.OS === 'android') {
-  UIManager.setLayoutAnimationEnabledExperimental?.(true);
-}
 
 interface BoletinCardProps {
   boletin: BoletinDetail;
@@ -90,54 +68,10 @@ function boletinTitle(b: BoletinDetail): string {
 }
 
 /** Summary card used on the user's boletin list. */
-export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare, onImageShare, onItemPress }: BoletinCardProps) {
+export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress }: BoletinCardProps) {
   const { colors } = useTheme();
   const cardElevation = useCardElevation();
-  const [expanded, setExpanded] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const chevronRotation = useSharedValue(0);
-  const shareScale = useSharedValue(1);
-  const imageShareScale = useSharedValue(1);
-  const deleteScale = useSharedValue(1);
-
-  const hasTennis = useMemo(() => boletin.items.some((i) => i.sport === Sport.TENNIS), [boletin.items]);
-  const { data: atpTeams } = useTeams({ sport: 'TENNIS', competition: 'ATP Tour' }, { enabled: hasTennis });
-  const { data: wtaTeams } = useTeams({ sport: 'TENNIS', competition: 'WTA Tour' }, { enabled: hasTennis });
-
-  const tennisPhotoMap = useMemo(() => {
-    const map = new Map<string, string | null>();
-    for (const team of [...(atpTeams ?? []), ...(wtaTeams ?? [])]) {
-      const url = team.imageUrl ?? null;
-      if (team.displayName) map.set(team.displayName, url);
-      map.set(team.name, url);
-    }
-    return map;
-  }, [atpTeams, wtaTeams]);
-
-  const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${chevronRotation.value}deg` }],
-  }));
-
-  const shareButtonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: shareScale.value }],
-  }));
-
-  const imageShareButtonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: imageShareScale.value }],
-  }));
-
-  const deleteButtonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: deleteScale.value }],
-  }));
-
-  const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    chevronRotation.value = withTiming(expanded ? 0 : 180, {
-      duration: 100,
-      easing: Easing.out(Easing.ease),
-    });
-    setExpanded((prev) => !prev);
-  };
 
   return (
     <>
@@ -247,15 +181,16 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
     </PressableScale>
 
     {/* Long-press quick preview modal */}
+    {showPreview ? (
     <Modal
-      visible={showPreview}
+      visible
       transparent
       animationType="fade"
       onRequestClose={() => setShowPreview(false)}
       statusBarTranslucent
     >
-      <Pressable style={previewStyles.backdrop} onPress={() => setShowPreview(false)}>
-        <Pressable onPress={(e) => e.stopPropagation()} style={[previewStyles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <Pressable feedback="none" style={previewStyles.backdrop} onPress={() => setShowPreview(false)}>
+        <Pressable feedback="none" onPress={(e) => e.stopPropagation()} style={[previewStyles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {/* Status header */}
           <View style={[previewStyles.header, { backgroundColor: statusAccentColor(boletin.status, colors) + '18', borderBottomColor: statusAccentColor(boletin.status, colors) + '35' }]}>
             <StatusPill status={boletin.status} />
@@ -324,6 +259,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
         </Pressable>
       </Pressable>
     </Modal>
+    ) : null}
     </>
   );
 });

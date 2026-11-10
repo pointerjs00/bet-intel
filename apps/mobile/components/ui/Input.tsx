@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
+import { Pressable } from './Pressable';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,

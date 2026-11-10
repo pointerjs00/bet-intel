@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -179,6 +180,8 @@ export default function TabsLayout() {
       tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
+        // Hidden tabs keep their state but stop re-rendering until shown again.
+        freezeOnBlur: true,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
       }}

@@ -2,8 +2,10 @@
 // any day since 2020. Sofascore-like layout: sport tabs, date navigator with a calendar, swipe
 // left/right to change day, league cards with crest, status column, winner in bold.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { PanResponder, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -288,7 +290,7 @@ function LeagueHeader({ league, sport }: { league: string; sport: SportKey }) {
   const flag = sub ? getCountryFlagUrl(sub) : null;
   return (
     <View style={styles.leagueHead}>
-      {logo ? <Image resizeMode="contain" source={{ uri: logo }} style={styles.leagueLogo} /> : (
+      {logo ? <Image cachePolicy="memory-disk" contentFit="contain" source={{ uri: logo }} style={styles.leagueLogo} /> : (
         <View style={[styles.leagueLogo, styles.leagueLogoFallback, { backgroundColor: colors.surfaceRaised }]}>
           <Ionicons color={colors.textSecondary} name="trophy-outline" size={18} />
         </View>
@@ -297,7 +299,7 @@ function LeagueHeader({ league, sport }: { league: string; sport: SportKey }) {
         <AppText numberOfLines={1} variant="bodyStrong">{title}</AppText>
         {sub ? (
           <View style={styles.row}>
-            {flag ? <Image resizeMode="contain" source={{ uri: flag }} style={styles.flag} /> : null}
+            {flag ? <Image cachePolicy="memory-disk" contentFit="contain" source={{ uri: flag }} style={styles.flag} /> : null}
             <AppText variant="caption">{sub}</AppText>
           </View>
         ) : null}

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from './Pressable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
@@ -82,9 +83,9 @@ export function ConfirmModal({
   return (
     <Modal visible animationType="fade" transparent onRequestClose={onCancel}>
       {/* Tapping the scrim cancels */}
-      <Pressable style={styles.overlay} onPress={onCancel}>
+      <Pressable feedback="none" style={styles.overlay} onPress={onCancel}>
         {/* Inner card — stop propagation so taps inside don't close */}
-        <Pressable
+        <Pressable feedback="none"
           style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}
           onPress={() => {}}
         >

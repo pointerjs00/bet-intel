@@ -1,7 +1,8 @@
 // Team history: every match since 2020 in the followed competitions, with the user's bets on each
 // (market, selection, odd, result, stake) and a summary of how betting on this team has gone.
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from '../../components/ui/AppText';

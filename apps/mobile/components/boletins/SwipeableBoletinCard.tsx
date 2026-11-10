@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -165,7 +166,10 @@ export const SwipeableBoletinCard = React.memo(function SwipeableBoletinCard({
       </GestureDetector>
     </View>
   );
-});
+},
+// Lists pass fresh inline handlers on every render; they only use the boletim itself and stable
+// setters, so the card re-renders only when its data (or quick-resolve availability) changes.
+(prev, next) => prev.boletin === next.boletin && Boolean(prev.onQuickResolve) === Boolean(next.onQuickResolve));
 
 const styles = StyleSheet.create({
   container: { position: 'relative' },

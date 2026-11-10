@@ -3,13 +3,13 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '../ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import {
   compareTennisCompetitions,
@@ -804,7 +804,7 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
               style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 }}
               onPress={() => setShowKickoffPicker(false)}
             >
-              <Pressable
+              <Pressable feedback="none"
                 style={{ width: '100%', maxWidth: 360, borderRadius: 20, padding: 20, gap: 14, backgroundColor: colors.surface }}
                 onPress={() => {}}
               >
