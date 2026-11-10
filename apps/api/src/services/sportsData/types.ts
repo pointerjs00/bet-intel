@@ -23,8 +23,11 @@ export interface MatchIncident {
   minute: string;
   /** Elapsed seconds when the provider gives it (for ordering). */
   clockSeconds: number | null;
+  /** 1 = first half, 2 = second half, 3/4 = extra time. */
+  period?: number | null;
   side: 'home' | 'away' | null;
   player: string | null;
+  /** Goals: the assisting player. Substitutions: the player who came off. */
   assist: string | null;
 }
 
@@ -36,6 +39,26 @@ export interface MatchTeamStats {
   shotsOnTarget: number | null;
   possession: number | null;
   fouls: number | null;
+  offsides?: number | null;
+}
+
+/** Corners and cards split by half (first-half markets). */
+export interface HalfSplit { home: number; away: number }
+
+/** One player's line in the match (for scorer, card and player-stat markets). */
+export interface MatchPlayer {
+  name: string;
+  side: 'home' | 'away';
+  started: boolean;
+  subbedIn: boolean;
+  subbedOut: boolean;
+  goals: number;
+  assists: number;
+  shots: number;
+  shotsOnTarget: number;
+  fouls: number;
+  yellowCards: number;
+  redCards: number;
 }
 
 export interface NormalizedMatch {
@@ -56,6 +79,10 @@ export interface NormalizedMatch {
   regularTime: ScorePair | null;
   wentToExtraTime: boolean;
   stats: { home: MatchTeamStats; away: MatchTeamStats } | null;
+  /** Corners per half (from the play-by-play), when available. */
+  cornersByHalf?: { first: HalfSplit; second: HalfSplit } | null;
+  /** Players who took part, with their stats; null when the provider has no line-ups. */
+  players?: MatchPlayer[] | null;
   incidents: MatchIncident[];
   venue: string | null;
 }
