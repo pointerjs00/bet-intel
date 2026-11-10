@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   listWatchedFixtures,
   watchFixture,
@@ -9,7 +8,7 @@ import {
 
 const fixtureAlertRouter: Router = Router();
 
-fixtureAlertRouter.use(authenticate, defaultLimiter);
+fixtureAlertRouter.use(authenticate);
 
 fixtureAlertRouter.get('/',             listWatchedFixtures);
 fixtureAlertRouter.post('/:fixtureId',  watchFixture);

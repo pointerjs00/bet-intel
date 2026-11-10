@@ -75,7 +75,7 @@ Rules:
 - IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot — do NOT translate them to English. Examples: keep "Resultado (Tempo Regulamentar)" not "Match Result (Regular Time)", keep "SC Braga / Empate & Acima de 1,5" not "SC Braga / Draw & Over 1.5 Goals", keep "Resultado duplo/Golos - acima/abaixo" not "Double Chance/Goals - over/under".
 - IMPORTANT: Each item has its own "result" field. In Betclic screenshots, the status indicators are small circular icons shown horizontally near the top of the bet slip next to the "Múltipla" or "Simples" label — one icon per selection, ordered left-to-right matching the selections top-to-bottom. Interpret each icon: GREEN filled circle = "WON"; RED filled circle = "LOST"; GREY circle = "VOID"; CLOCK icon or outline circle = "PENDING". Match icon position to selection by order. Use selection text colour as a secondary confirmation: green = WON, red = LOST, grey = VOID, white/default = PENDING.
 - IMPORTANT: At the boletin level, add a "losingSelections" array: list the EXACT team name text strings (as written in the screenshot) for every team name that appears in RED. For example, if "SC Braga" and "FC Arouca" appear in red, output ["SC Braga", "FC Arouca"]. If no team names are red (pending bet), output []. This field is the most reliable way to identify losing legs.
-- In a lost accumulator exactly ONE selection row is red; all others are green (WON). Do NOT mark a selection LOST just because the overall bet label says "Perdida".
+- In a lost accumulator at least one selection row is red (LOST); the others can be green (WON), grey (VOID) or still pending. Do NOT mark a selection LOST just because the overall bet label says "Perdida".
 - IMPORTANT: Return official international team names, not Portuguese translations (e.g. "VfB Stuttgart" not "Estugarda", "Inter Milan" not "Inter Milão", "Olympique Lyon" not "Lião", "Bayern Munich" not "Baviera")
 - IMPORTANT: Always set competition to the correct league name (e.g. "Ligue 1", "Premier League", "La Liga", "Serie A", "Bundesliga", "Liga Portugal Betclic"). The Portuguese top-flight shown on Betclic screenshots is always "Liga Portugal Betclic" — never output "Primeira Liga" or "Liga Portugal". Infer from teams if not shown. Known league memberships (use these to override what the screenshot says if it contradicts known facts): Bundesliga (1st division) clubs include VfB Stuttgart, Bayern Munich, Borussia Dortmund, Bayer Leverkusen, RB Leipzig, Borussia Mönchengladbach, Eintracht Frankfurt, Wolfsburg, Hoffenheim, Freiburg, Union Berlin, Werder Bremen, Mainz, Augsburg, Köln — NEVER assign these teams to "2. Bundesliga" or "Bundesliga 2".
 
@@ -137,24 +137,45 @@ export function normalizeParsedResult(parsed: {
       .map((s) => s.toLowerCase().trim())
       .filter(Boolean);
 
-    if (losingSelections.length > 0 && (b.status === 'WON' || b.status === 'LOST')) {
+    // A won slip has no losing legs: anything the model read as LOST/PENDING is WON (VOID stays VOID).
+    if (b.status === 'WON') {
       for (const item of items) {
-        const haystack = [item.homeTeam, item.awayTeam, item.market, item.selection]
-          .join(' ')
-          .toLowerCase();
-        const isLosing = losingSelections.some((ls) =>
-          haystack.includes(ls) ||
-          item.homeTeam.toLowerCase().includes(ls) ||
-          item.awayTeam.toLowerCase().includes(ls) ||
-          ls.includes(item.homeTeam.toLowerCase()) ||
-          ls.includes(item.awayTeam.toLowerCase()),
-        );
-        item.result = isLosing ? 'LOST' : 'WON';
+        if (item.result === 'LOST' || item.result === 'PENDING') item.result = 'WON';
+      }
+    }
+    // A lost slip: legs whose team names appear in red are LOST. Other legs keep the model's own
+    // reading — they may be won, void or still pending, so they are never forced to WON.
+    if (losingSelections.length > 0 && b.status === 'LOST') {
+      const sameName = (a: string, c: string) => {
+        const x = a.toLowerCase().trim();
+        const y = c.toLowerCase().trim();
+        return x.length >= 3 && y.length >= 3 && (x === y || x.includes(y) || y.includes(x));
+      };
+      for (const item of items) {
+        const isLosing = losingSelections.some((ls) => sameName(ls, item.homeTeam) || sameName(ls, item.awayTeam));
+        if (isLosing) item.result = 'LOST';
       }
     }
     // ──────────────────────────────────────────────────────────────────────
 
-    const hasError = items.length === 0 || b.stake <= 0;
+    // Arithmetic check (#46): a misread odd or stake shows up as numbers that don't add up.
+    // Measured on 88 corrected slips: only 1 legit mismatch above 3% (odds boost).
+    const stake = typeof b.stake === 'number' ? b.stake : 0;
+    const total = typeof b.totalOdds === 'number' ? b.totalOdds : 0;
+    const product = items.reduce((acc, it) => acc * (it.oddValue > 1 ? it.oddValue : NaN), 1);
+    const oddsMismatch = total > 1 && Number.isFinite(product) && Math.abs(product - total) / total > 0.03;
+    const potential = typeof b.potentialReturn === 'number' ? b.potentialReturn : 0;
+    const returnMismatch = potential > 0 && stake > 0 && total > 1
+      && Math.abs(stake * total - potential) > 0.05 + 0.01 * potential;
+
+    const hasError = items.length === 0 || b.stake <= 0 || oddsMismatch || returnMismatch;
+    const errorReason = items.length === 0 || b.stake <= 0
+      ? 'A IA encontrou a aposta mas alguns dados estão em falta.'
+      : oddsMismatch
+        ? 'Confirma as odds: o produto das seleções não bate com a odd total.'
+        : returnMismatch
+          ? 'Confirma a stake e a odd total: não batem com o retorno possível.'
+          : undefined;
 
     return {
       reference: `ai-${Date.now()}-${idx}`,
@@ -165,7 +186,7 @@ export function normalizeParsedResult(parsed: {
       status: ['WON', 'LOST', 'PENDING'].includes(b.status) ? b.status : 'PENDING',
       items,
       parseError: hasError,
-      parseErrorReason: hasError ? 'A IA encontrou a aposta mas alguns dados estão em falta.' : undefined,
+      parseErrorReason: errorReason,
     };
   });
 
@@ -181,8 +202,14 @@ export function normalizeParsedResult(parsed: {
 export async function parseImageWithGemini(imageBase64: string, mimeType: string): Promise<AIParsedResult> {
   const ai = getGenAI();
 
+  // Benchmark (#49, 10/11/2026, 59 corrected screenshots): gemini-3.5-flash-lite with low thinking
+  // matched or beat gemini-2.5-flash on every field and was faster. Override with GEMINI_SCAN_MODEL.
+  const modelName = process.env.GEMINI_SCAN_MODEL ?? 'gemini-3.5-flash-lite';
+  const thinkingConfig = modelName.startsWith('gemini-2.')
+    ? { thinkingBudget: 0 }
+    : { thinkingLevel: 'low' };
   const model = ai.getGenerativeModel({
-    model: 'gemini-2.5-flash',
+    model: modelName,
     safetySettings: [
       { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
       { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
@@ -191,9 +218,9 @@ export async function parseImageWithGemini(imageBase64: string, mimeType: string
     ],
     generationConfig: {
       responseMimeType: 'application/json',
-      // Disable thinking for speed — simple extraction doesn't need reasoning
+      temperature: 0,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      thinkingConfig: { thinkingBudget: 0 },
+      thinkingConfig,
     } as any,
   });
 

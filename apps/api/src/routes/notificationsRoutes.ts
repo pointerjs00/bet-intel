@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   listNotificationsHandler,
   markAllNotificationsReadHandler,
@@ -12,7 +11,7 @@ import {
 
 const notificationsRouter: Router = Router();
 
-notificationsRouter.use(authenticate, defaultLimiter);
+notificationsRouter.use(authenticate);
 
 notificationsRouter.get('/', listNotificationsHandler);
 notificationsRouter.post('/test-push', testPushHandler);

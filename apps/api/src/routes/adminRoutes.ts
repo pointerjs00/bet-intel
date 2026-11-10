@@ -4,7 +4,7 @@ import { runHistoricalBackfill } from '../services/apifootball/historicalBackfil
 import { recomputeTeamStats } from '../services/fixtureService';
 import { prisma } from '../prisma';
 import { LEAGUE_MANIFEST } from '../config/leagueManifest';
-import { redis } from '../utils/redis';
+import { deleteKeysByPattern } from '../utils/redis';
 import { logger } from '../utils/logger';
 import { fixtureStatsSyncJob } from '../jobs/fixtureStatsSyncJob';
 import { fixtureEventsSyncJob } from '../jobs/fixtureEventsSyncJob';
@@ -69,8 +69,7 @@ adminRouter.post('/cleanup-csv-fixtures', async (_req: Request, res: Response) =
     logger.info(`[admin] Rebuilt TeamStat: ${teams} teams across ${competitions} competitions`);
 
     // Flush fixture cache so upcoming/recent also reflect clean data
-    const cacheKeys = await redis.keys('fixtures:*');
-    if (cacheKeys.length > 0) await redis.del(...cacheKeys);
+    await deleteKeysByPattern('fixtures:*');
 
     res.json({
       success: true,
@@ -137,10 +136,9 @@ adminRouter.post('/jobs/run/:jobName', (req: Request, res: Response) => {
 // Flushes all Redis fixture cache keys so the next request re-runs dedup logic.
 adminRouter.delete('/fixtures-cache', async (_req: Request, res: Response) => {
   try {
-    const keys = await redis.keys('fixtures:*');
-    if (keys.length > 0) await redis.del(...keys);
-    logger.info(`[admin] Flushed ${keys.length} fixture cache keys`);
-    res.json({ success: true, flushed: keys.length });
+    const flushed = await deleteKeysByPattern('fixtures:*');
+    logger.info(`[admin] Flushed ${flushed} fixture cache keys`);
+    res.json({ success: true, flushed });
   } catch (err: any) {
     logger.error('[admin] Cache flush failed', { error: err.message });
     res.status(500).json({ success: false, error: err.message });

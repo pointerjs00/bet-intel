@@ -1,54 +1,92 @@
 // apps/api/src/jobs/autoSettlementJob.ts
 //
-// Polls for finished fixtures (status=FINISHED in our DB) in the last 24h,
-// finds matching PENDING BoletinItems, resolves each market, then updates
-// the parent Boletin status. Emits a socket event + creates a notification
-// for each settled boletin.
+// Settles PENDING football BoletinItems against fixtures that ended (or were cancelled,
+// abandoned or postponed) in the last 48h:
+//  - exact fixture-ID match, or a fuzzy team-name match with full confidence → resolve the market;
+//  - uncertain matches, unknown markets and abandoned/postponed games → needsReview, no result written;
+//  - cancelled games → VOID.
+// Boletim status, notifications and socket events go through boletinService so the
+// rules (freebets, VOID, PARTIAL) live in one place.
 
-import { ItemResult } from '@prisma/client';
-import { BoletinStatus } from '@betintel/shared';
+import { ItemResult, type BoletinItem } from '@prisma/client';
 import { prisma } from '../prisma';
 import { normaliseTeamName } from '../utils/nameNormalisation';
-import { resolveMarket } from '../services/marketResolutionEngine';
-import { emitBoletinResult } from '../sockets';
-import { createNotification } from '../services/social/notificationService';
+import { resolveMarket, type Resolution } from '../services/marketResolutionEngine';
+import { recomputeBoletinAfterItemChange } from '../services/boletins/boletinService';
 import { logger } from '../utils/logger';
 
-export async function autoSettlementJob(): Promise<void> {
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+const SETTLEABLE_STATUSES = ['FINISHED', 'CANCELLED', 'ABANDONED', 'POSTPONED'];
+/** Postponed games are only flagged for review once they are clearly not being played. */
+const POSTPONED_REVIEW_AFTER_MS = 6 * 60 * 60 * 1000;
 
-  const finishedFixtures = await prisma.fixture.findMany({
-    where: {
-      status: 'FINISHED',
-      kickoffAt: { gte: since },
-      homeScore: { not: null },
-      awayScore: { not: null },
+type FixtureRow = {
+  id: string;
+  apiFootballId: number | null;
+  homeTeam: string;
+  awayTeam: string;
+  kickoffAt: Date;
+  status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  htHomeScore: number | null;
+  htAwayScore: number | null;
+};
+
+export async function autoSettlementJob(): Promise<void> {
+  const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
+
+  const fixtures: FixtureRow[] = await prisma.fixture.findMany({
+    where: { status: { in: SETTLEABLE_STATUSES }, kickoffAt: { gte: since } },
+    select: {
+      id: true, apiFootballId: true, homeTeam: true, awayTeam: true, kickoffAt: true, status: true,
+      homeScore: true, awayScore: true, htHomeScore: true, htAwayScore: true,
     },
   });
+  if (!fixtures.length) return;
 
-  if (!finishedFixtures.length) return;
+  const stats = await prisma.fixtureStats.findMany({
+    where: { fixtureId: { in: fixtures.map((f) => f.id) } },
+    select: { fixtureId: true, homeCorners: true, awayCorners: true },
+  });
+  const cornersByFixture = new Map(stats.map((s) => [s.fixtureId, s]));
 
   let settled = 0;
   let flagged = 0;
+  const touchedBoletins = new Set<string>();
 
-  for (const fixture of finishedFixtures) {
-    const matchingItems = await findMatchingItems(fixture);
-    if (!matchingItems.length) continue;
+  for (const fixture of fixtures) {
+    if (fixture.status === 'FINISHED' && (fixture.homeScore === null || fixture.awayScore === null)) continue;
+    if (fixture.status === 'POSTPONED' && Date.now() - fixture.kickoffAt.getTime() < POSTPONED_REVIEW_AFTER_MS) continue;
 
-    for (const { item, confidence } of matchingItems) {
-      const resolution = resolveMarket(item.market, item.selection, {
-        homeScore: fixture.homeScore!,
-        awayScore: fixture.awayScore!,
-        htHomeScore: fixture.htHomeScore,
-        htAwayScore: fixture.htAwayScore,
-        statusShort: 'FT',
-      });
+    const matches = await findMatchingItems(fixture);
+    for (const { item, confidence } of matches) {
+      if (item.needsReview && item.eventExternalId) continue; // already flagged for this fixture
 
-      if (resolution === null) {
-        // Unknown market — flag for manual review
+      let resolution: Resolution | null = null;
+      if (fixture.status === 'CANCELLED') {
+        resolution = 'VOID';
+      } else if (fixture.status === 'FINISHED') {
+        const corners = cornersByFixture.get(fixture.id);
+        resolution = resolveMarket(item.market, item.selection, {
+          homeScore: fixture.homeScore!,
+          awayScore: fixture.awayScore!,
+          htHomeScore: fixture.htHomeScore,
+          htAwayScore: fixture.htAwayScore,
+          statusShort: 'FT',
+          homeCorners: corners?.homeCorners ?? null,
+          awayCorners: corners?.awayCorners ?? null,
+        }, {
+          homeNames: [item.homeTeam, fixture.homeTeam],
+          awayNames: [item.awayTeam, fixture.awayTeam],
+        });
+      }
+
+      const externalId = fixture.apiFootballId ? String(fixture.apiFootballId) : undefined;
+      if (resolution === null || confidence < 1) {
+        // Unknown market, missing data, uncertain team match, abandoned/postponed game: a human decides.
         await prisma.boletinItem.update({
           where: { id: item.id },
-          data: { needsReview: true },
+          data: { needsReview: true, eventExternalId: externalId },
         });
         flagged++;
         continue;
@@ -56,20 +94,21 @@ export async function autoSettlementJob(): Promise<void> {
 
       await prisma.boletinItem.update({
         where: { id: item.id },
-        data: {
-          result: resolution as ItemResult,
-          needsReview: confidence < 1.0,
-          // store the apiFootballId so future re-runs skip exact lookup
-          eventExternalId: fixture.apiFootballId ? String(fixture.apiFootballId) : undefined,
-        },
+        data: { result: resolution as ItemResult, needsReview: false, eventExternalId: externalId },
       });
+      touchedBoletins.add(item.boletinId);
       settled++;
     }
+  }
 
-    // Recompute boletin status for all boletins touched
-    const boletinIds = [...new Set(matchingItems.map(({ item }) => item.boletinId))];
-    for (const boletinId of boletinIds) {
-      await recomputeBoletinStatus(boletinId);
+  for (const boletinId of touchedBoletins) {
+    try {
+      await recomputeBoletinAfterItemChange(boletinId);
+    } catch (err) {
+      logger.warn('[autoSettlement] Failed to recompute boletim', {
+        boletinId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -80,9 +119,7 @@ export async function autoSettlementJob(): Promise<void> {
 
 // ─── Match fixture to pending BoletinItems ────────────────────────────────────
 
-async function findMatchingItems(
-  fixture: { id: string; apiFootballId: number | null; homeTeam: string; awayTeam: string; kickoffAt: Date },
-): Promise<Array<{ item: any; confidence: number }>> {
+async function findMatchingItems(fixture: FixtureRow): Promise<Array<{ item: BoletinItem; confidence: number }>> {
   // 1. Exact API-Football ID match (most reliable)
   if (fixture.apiFootballId) {
     const byId = await prisma.boletinItem.findMany({
@@ -92,113 +129,37 @@ async function findMatchingItems(
         boletin: { status: 'PENDING' },
       },
     });
-    if (byId.length) return byId.map(item => ({ item, confidence: 1.0 }));
+    if (byId.length) return byId.map((item) => ({ item, confidence: 1 }));
   }
 
-  // 2. Fuzzy match by team names + kickoff date ±2h
+  // 2. Fuzzy match by team names + kickoff ±2h (football items only)
   const from = new Date(fixture.kickoffAt.getTime() - 2 * 60 * 60 * 1000);
-  const to   = new Date(fixture.kickoffAt.getTime() + 2 * 60 * 60 * 1000);
-
+  const to = new Date(fixture.kickoffAt.getTime() + 2 * 60 * 60 * 1000);
   const candidates = await prisma.boletinItem.findMany({
     where: {
       result: 'PENDING',
+      sport: 'FOOTBALL',
       boletin: { status: 'PENDING' },
       kickoffAt: { gte: from, lte: to },
     },
   });
 
-  const homeNorm = normaliseTeamName(fixture.homeTeam);
-  const awayNorm = normaliseTeamName(fixture.awayTeam);
-
   return candidates
-    .map(item => ({
+    .map((item) => ({
       item,
-      confidence: computeMatchConfidence(item.homeTeam, item.awayTeam, homeNorm, awayNorm),
+      confidence: computeMatchConfidence(item.homeTeam, item.awayTeam, fixture.homeTeam, fixture.awayTeam),
     }))
     .filter(({ confidence }) => confidence >= 0.8);
 }
 
 function tokenOverlap(a: string, b: string): number {
-  const ta = new Set(normaliseTeamName(a).split(' ').filter(w => w.length >= 3));
-  const tb = new Set(normaliseTeamName(b).split(' ').filter(w => w.length >= 3));
+  const ta = new Set(normaliseTeamName(a).split(' ').filter((w) => w.length >= 3));
+  const tb = new Set(normaliseTeamName(b).split(' ').filter((w) => w.length >= 3));
   if (ta.size === 0) return 0;
-  const shared = [...ta].filter(t => tb.has(t)).length;
+  const shared = [...ta].filter((t) => tb.has(t)).length;
   return shared / ta.size;
 }
 
-function computeMatchConfidence(
-  iHome: string, iAway: string,
-  fHome: string, fAway: string,
-): number {
+function computeMatchConfidence(iHome: string, iAway: string, fHome: string, fAway: string): number {
   return (tokenOverlap(iHome, fHome) + tokenOverlap(iAway, fAway)) / 2;
-}
-
-// ─── Recompute Boletin status from item results ────────────────────────────────
-
-async function recomputeBoletinStatus(boletinId: string): Promise<void> {
-  const boletin = await prisma.boletin.findUnique({
-    where: { id: boletinId },
-    include: { items: true, user: { select: { id: true, expoPushToken: true } } },
-  });
-  if (!boletin || boletin.status !== 'PENDING') return;
-
-  const items = boletin.items;
-  const results = items.map(i => i.result);
-
-  // Any PENDING item → not yet fully settled
-  if (results.includes('PENDING')) return;
-
-  let newStatus: BoletinStatus;
-  let actualReturn: number | null = null;
-
-  if (results.every(r => r === 'VOID')) {
-    newStatus = BoletinStatus.VOID;
-    actualReturn = Number(boletin.stake);
-  } else if (results.includes('LOST')) {
-    newStatus = BoletinStatus.LOST;
-    actualReturn = 0;
-  } else if (results.every(r => r === 'WON')) {
-    newStatus = BoletinStatus.WON;
-    actualReturn = Number(boletin.potentialReturn);
-  } else {
-    // Mix of WON + VOID (some selections voided — recalculate odds)
-    newStatus = BoletinStatus.PARTIAL;
-    const wonItems = items.filter(i => i.result === 'WON');
-    const reducedOdds = wonItems.reduce((acc, i) => acc * Number(i.oddValue), 1);
-    actualReturn = Number(boletin.stake) * reducedOdds;
-  }
-
-  await prisma.boletin.update({
-    where: { id: boletinId },
-    data: {
-      status: newStatus,
-      actualReturn: actualReturn !== null ? actualReturn.toFixed(2) : null,
-    },
-  });
-
-  // Socket + notification
-  emitBoletinResult(boletin.userId, {
-    boletinId,
-    status: newStatus,
-    actualReturn: actualReturn !== null ? actualReturn.toFixed(2) : null,
-  });
-
-  const statusLabel: Record<BoletinStatus, string> = {
-    WON: 'Ganhou',
-    LOST: 'Perdeu',
-    VOID: 'Anulado',
-    PARTIAL: 'Parcialmente ganho',
-    PENDING: 'Pendente',
-    CASHOUT: 'Cashout',
-  };
-
-  await createNotification({
-    userId: boletin.userId,
-    type: 'BOLETIN_RESULT',
-    title: `Boletim ${statusLabel[newStatus]}`,
-    body: boletin.name
-      ? `O teu boletim "${boletin.name}" foi ${statusLabel[newStatus].toLowerCase()}.`
-      : `O teu boletim foi ${statusLabel[newStatus].toLowerCase()}.`,
-    data: { boletinId, status: newStatus },
-  });
 }

@@ -17,7 +17,7 @@ import type {
 } from '@betintel/shared';
 import { NotificationType as SharedNotificationType } from '@betintel/shared';
 import { prisma } from '../../prisma';
-import { redis } from '../../utils/redis';
+import { deleteKeysByPattern } from '../../utils/redis';
 import { logger } from '../../utils/logger';
 import { emitBoletinResult, emitFriendActivity } from '../../sockets';
 import { createNotification, dispatchStoredNotifications } from '../social/notificationService';
@@ -25,8 +25,7 @@ import { createNotification, dispatchStoredNotifications } from '../social/notif
 /** Invalidates all cached stats entries for a user after boletin changes. */
 async function invalidateStatsCache(userId: string): Promise<void> {
   try {
-    const keys = await redis.keys(`stats:${userId}:*`);
-    if (keys.length > 0) await redis.del(...keys);
+    await deleteKeysByPattern(`stats:${userId}:*`);
   } catch {
     // Non-critical — stats will recompute on next request
   }
@@ -71,7 +70,12 @@ export async function listUserBoletins(userId: string): Promise<BoletinDetail[]>
 }
 
 /** Creates a new boletin with user-supplied match info and odds. */
-export async function createBoletin(userId: string, input: CreateBoletinInput): Promise<BoletinDetail> {
+export async function createBoletin(
+  userId: string,
+  input: CreateBoletinInput,
+  /** Pass a transaction client to create the boletim inside a caller's transaction (bulk import). */
+  db: Prisma.TransactionClient = prisma,
+): Promise<BoletinDetail> {
   assertUniqueSelections(input.items);
 
   const totalOdds = input.items.reduce(
@@ -84,7 +88,7 @@ export async function createBoletin(userId: string, input: CreateBoletinInput): 
     .mul(totalOddsValue)
     .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 
-  const boletin = await prisma.boletin.create({
+  const boletin = await db.boletin.create({
     data: {
       userId,
       name: normalizeNullableText(input.name),
@@ -132,7 +136,13 @@ export async function getBoletinDetail(userId: string, boletinId: string): Promi
     include: BOLETIN_DETAIL_INCLUDE,
   });
 
-  return boletin ? serializeBoletinDetail(boletin) : null;
+  if (!boletin) return null;
+  const detail = serializeBoletinDetail(boletin);
+  // Only the owner sees who else the boletim was shared with (and the messages sent).
+  if (boletin.userId !== userId) {
+    detail.shares = detail.shares.filter((share) => share.sharedWithId === userId);
+  }
+  return detail;
 }
 
 /** Updates boletin metadata and keeps status derived from selection results. */
@@ -167,6 +177,12 @@ export async function updateBoletin(
   }
   if (input.betDate !== undefined) {
     metadataData.betDate = input.betDate ? new Date(input.betDate) : null;
+  }
+  if (input.cashoutAmount !== undefined) {
+    // Stored here; syncBoletinDerivedState turns it into status CASHOUT + actualReturn (or undoes it when null).
+    metadataData.cashoutAmount = input.cashoutAmount === null
+      ? null
+      : new Prisma.Decimal(input.cashoutAmount).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
   }
 
   if (Object.keys(metadataData).length > 0) {
@@ -217,7 +233,8 @@ export async function updateBoletinItems(
     input.items.map((item) =>
       prisma.boletinItem.update({
         where: { id: item.id },
-        data: { result: item.result as ItemResult },
+        // A manual result settles any pending review flag from auto-settlement.
+        data: { result: item.result as ItemResult, needsReview: false },
       }),
     ),
   );
@@ -511,6 +528,7 @@ export async function updateBoletinItem(
         ? new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
         : undefined,
       result: input.result !== undefined ? (input.result as ItemResult) : undefined,
+      needsReview: input.result !== undefined ? false : undefined,
       kickoffAt: input.kickoffAt !== undefined
         ? (input.kickoffAt ? new Date(input.kickoffAt) : null)
         : undefined,
@@ -526,6 +544,22 @@ export async function updateBoletinItem(
   void invalidateStatsCache(userId);
 
   return serializeBoletinDetail(updated);
+}
+
+/**
+ * Recomputes a boletim's status/return after its item results changed outside this service
+ * (e.g. auto-settlement), then emits the socket event + notification when the outcome changed.
+ * Keeps one source of truth for status rules (freebets, VOID, PARTIAL).
+ */
+export async function recomputeBoletinAfterItemChange(boletinId: string): Promise<void> {
+  const existing = await prisma.boletin.findUnique({
+    where: { id: boletinId },
+    select: { userId: true, status: true, actualReturn: true },
+  });
+  if (!existing) return;
+  const updated = await syncBoletinDerivedState(boletinId);
+  emitResolvedBoletinResult(existing.userId, existing, updated);
+  void invalidateStatsCache(existing.userId);
 }
 
 function deriveBoletinState(input: {
@@ -581,6 +615,7 @@ async function syncBoletinDerivedState(
       stake: true,
       totalOdds: true,
       isFreebet: true,
+      cashoutAmount: true,
       items: {
         select: {
           result: true,
@@ -597,12 +632,15 @@ async function syncBoletinDerivedState(
   const nextStake = overrides?.stake ?? boletin.stake;
   const nextTotalOdds = overrides?.totalOdds ?? boletin.totalOdds;
   const nextPotentialReturn = nextStake.mul(nextTotalOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-  const derivedState = deriveBoletinState({
-    stake: nextStake,
-    potentialReturn: nextPotentialReturn,
-    isFreebet: boletin.isFreebet,
-    items: boletin.items,
-  });
+  // A cashed-out boletim is final: its return is the cashout amount, whatever the selections do afterwards.
+  const derivedState = boletin.cashoutAmount !== null
+    ? { status: BoletinStatus.CASHOUT, actualReturn: boletin.cashoutAmount }
+    : deriveBoletinState({
+      stake: nextStake,
+      potentialReturn: nextPotentialReturn,
+      isFreebet: boletin.isFreebet,
+      items: boletin.items,
+    });
 
   return prisma.boletin.update({
     where: { id: boletinId },
@@ -613,7 +651,6 @@ async function syncBoletinDerivedState(
         overrides?.stake !== undefined || overrides?.totalOdds !== undefined ? nextPotentialReturn : undefined,
       status: derivedState.status,
       actualReturn: derivedState.actualReturn,
-      cashoutAmount: null,
     },
     include: BOLETIN_DETAIL_INCLUDE,
   });
@@ -748,6 +785,7 @@ function serializeItem(item: {
   oddValue: Prisma.Decimal;
   result: ItemResult;
   kickoffAt?: Date | null;
+  needsReview?: boolean;
 }): BoletinItemDetail {
   return {
     id: item.id,
@@ -761,6 +799,7 @@ function serializeItem(item: {
     oddValue: item.oddValue.toString(),
     result: item.result as unknown as SharedItemResult,
     kickoffAt: item.kickoffAt ? item.kickoffAt.toISOString() : null,
+    needsReview: item.needsReview ?? false,
   };
 }
 

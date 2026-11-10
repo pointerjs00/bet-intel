@@ -324,7 +324,7 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
             continue;
           }
 
-          const createdBoletin = await createBoletin(userId, validated.data);
+          const createdBoletin = await createBoletin(userId, validated.data, tx);
           imported++;
 
           // createBoletin recalculates totalOdds by multiplying individual item odds, but the
@@ -406,7 +406,12 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
                 where: { id: createdBoletin.id },
                 data: {
                   status: bet.status as 'WON' | 'LOST' | 'VOID',
-                  actualReturn: bet.status === 'WON' ? slipReturn : new Prisma.Decimal('0.00'),
+                  // VOID returns the stake; LOST returns nothing.
+                  actualReturn: bet.status === 'WON'
+                    ? slipReturn
+                    : bet.status === 'VOID'
+                      ? new Prisma.Decimal(bet.stake).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+                      : new Prisma.Decimal('0.00'),
                 },
               });
             }
@@ -416,7 +421,7 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
           errors.push(`Ref ${bet.reference ?? '?'}: ${msg}`);
         }
       }
-    });
+    }, { timeout: 120_000, maxWait: 10_000 });
 
     logger.info('Bulk import completed', { userId, imported, duplicates, errors: errors.length });
 

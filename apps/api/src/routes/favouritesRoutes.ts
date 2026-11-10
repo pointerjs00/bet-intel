@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   bulkSetFavouritesHandler,
   listFavouritesHandler,
@@ -9,7 +8,7 @@ import {
 
 const favouritesRouter: Router = Router();
 
-favouritesRouter.use(authenticate, defaultLimiter);
+favouritesRouter.use(authenticate);
 
 favouritesRouter.get('/', listFavouritesHandler);
 favouritesRouter.post('/toggle', toggleFavouriteHandler);

@@ -1,0 +1,793 @@
+{
+ "header": {
+  "id": "401885402",
+  "league": {
+   "id": "715",
+   "name": "Portuguese Primeira Liga",
+   "slug": "por.1"
+  },
+  "competitions": [
+   {
+    "id": "401885402",
+    "date": "2026-11-07T18:00Z",
+    "status": {
+     "type": {
+      "id": "28",
+      "name": "STATUS_FULL_TIME",
+      "state": "post",
+      "completed": true,
+      "description": "Full Time",
+      "detail": "FT",
+      "shortDetail": "FT"
+     }
+    },
+    "competitors": [
+     {
+      "homeAway": "home",
+      "score": "1",
+      "team": {
+       "id": "21613",
+       "displayName": "Alverca"
+      },
+      "linescores": [
+       {
+        "displayValue": "0"
+       },
+       {
+        "displayValue": "1"
+       }
+      ]
+     },
+     {
+      "homeAway": "away",
+      "score": "1",
+      "team": {
+       "id": "21581",
+       "displayName": "Casa Pia"
+      },
+      "linescores": [
+       {
+        "displayValue": "1"
+       },
+       {
+        "displayValue": "0"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "boxscore": {
+  "teams": [
+   {
+    "team": {
+     "id": "21613"
+    },
+    "statistics": [
+     {
+      "name": "foulsCommitted",
+      "displayValue": "16"
+     },
+     {
+      "name": "yellowCards",
+      "displayValue": "3"
+     },
+     {
+      "name": "redCards",
+      "displayValue": "0"
+     },
+     {
+      "name": "offsides",
+      "displayValue": "1"
+     },
+     {
+      "name": "wonCorners",
+      "displayValue": "9"
+     },
+     {
+      "name": "saves",
+      "displayValue": "3"
+     },
+     {
+      "name": "possessionPct",
+      "displayValue": "55.9"
+     },
+     {
+      "name": "totalShots",
+      "displayValue": "15"
+     },
+     {
+      "name": "shotsOnTarget",
+      "displayValue": "5"
+     },
+     {
+      "name": "shotPct",
+      "displayValue": "0.3"
+     },
+     {
+      "name": "penaltyKickGoals",
+      "displayValue": "0"
+     },
+     {
+      "name": "penaltyKickShots",
+      "displayValue": "0"
+     },
+     {
+      "name": "accuratePasses",
+      "displayValue": "331"
+     },
+     {
+      "name": "totalPasses",
+      "displayValue": "424"
+     },
+     {
+      "name": "passPct",
+      "displayValue": "0.8"
+     },
+     {
+      "name": "accurateCrosses",
+      "displayValue": "5"
+     },
+     {
+      "name": "totalCrosses",
+      "displayValue": "32"
+     },
+     {
+      "name": "crossPct",
+      "displayValue": "0.2"
+     },
+     {
+      "name": "totalLongBalls",
+      "displayValue": "69"
+     },
+     {
+      "name": "accurateLongBalls",
+      "displayValue": "36"
+     },
+     {
+      "name": "longballPct",
+      "displayValue": "0.5"
+     },
+     {
+      "name": "blockedShots",
+      "displayValue": "4"
+     },
+     {
+      "name": "effectiveTackles",
+      "displayValue": "12"
+     },
+     {
+      "name": "totalTackles",
+      "displayValue": "16"
+     },
+     {
+      "name": "tacklePct",
+      "displayValue": "0.8"
+     },
+     {
+      "name": "interceptions",
+      "displayValue": "10"
+     },
+     {
+      "name": "effectiveClearance",
+      "displayValue": "16"
+     },
+     {
+      "name": "totalClearance",
+      "displayValue": "16"
+     }
+    ]
+   },
+   {
+    "team": {
+     "id": "21581"
+    },
+    "statistics": [
+     {
+      "name": "foulsCommitted",
+      "displayValue": "13"
+     },
+     {
+      "name": "yellowCards",
+      "displayValue": "1"
+     },
+     {
+      "name": "redCards",
+      "displayValue": "0"
+     },
+     {
+      "name": "offsides",
+      "displayValue": "0"
+     },
+     {
+      "name": "wonCorners",
+      "displayValue": "2"
+     },
+     {
+      "name": "saves",
+      "displayValue": "4"
+     },
+     {
+      "name": "possessionPct",
+      "displayValue": "44.1"
+     },
+     {
+      "name": "totalShots",
+      "displayValue": "11"
+     },
+     {
+      "name": "shotsOnTarget",
+      "displayValue": "4"
+     },
+     {
+      "name": "shotPct",
+      "displayValue": "0.4"
+     },
+     {
+      "name": "penaltyKickGoals",
+      "displayValue": "0"
+     },
+     {
+      "name": "penaltyKickShots",
+      "displayValue": "0"
+     },
+     {
+      "name": "accuratePasses",
+      "displayValue": "256"
+     },
+     {
+      "name": "totalPasses",
+      "displayValue": "349"
+     },
+     {
+      "name": "passPct",
+      "displayValue": "0.7"
+     },
+     {
+      "name": "accurateCrosses",
+      "displayValue": "6"
+     },
+     {
+      "name": "totalCrosses",
+      "displayValue": "13"
+     },
+     {
+      "name": "crossPct",
+      "displayValue": "0.5"
+     },
+     {
+      "name": "totalLongBalls",
+      "displayValue": "55"
+     },
+     {
+      "name": "accurateLongBalls",
+      "displayValue": "16"
+     },
+     {
+      "name": "longballPct",
+      "displayValue": "0.3"
+     },
+     {
+      "name": "blockedShots",
+      "displayValue": "3"
+     },
+     {
+      "name": "effectiveTackles",
+      "displayValue": "18"
+     },
+     {
+      "name": "totalTackles",
+      "displayValue": "24"
+     },
+     {
+      "name": "tacklePct",
+      "displayValue": "0.8"
+     },
+     {
+      "name": "interceptions",
+      "displayValue": "3"
+     },
+     {
+      "name": "effectiveClearance",
+      "displayValue": "44"
+     },
+     {
+      "name": "totalClearance",
+      "displayValue": "44"
+     }
+    ]
+   }
+  ]
+ },
+ "keyEvents": [
+  {
+   "type": {
+    "text": "Kickoff",
+    "type": "kickoff"
+   },
+   "clock": {
+    "value": 0,
+    "displayValue": ""
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "clock": {
+    "value": 1294,
+    "displayValue": "22'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Ian Luccas"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "clock": {
+    "value": 1445,
+    "displayValue": "25'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Pedro Rosas"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Goal",
+    "type": "goal"
+   },
+   "clock": {
+    "value": 2139,
+    "displayValue": "36'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Silvi Clua"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Henrique Araújo"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "clock": {
+    "value": 2141,
+    "displayValue": "36'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "clock": {
+    "value": 2160,
+    "displayValue": "36'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "clock": {
+    "value": 2360,
+    "displayValue": "40'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Davy Gui"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "clock": {
+    "value": 2397,
+    "displayValue": "40'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "Start Delay",
+    "type": "start-delay"
+   },
+   "clock": {
+    "value": 2397,
+    "displayValue": "40'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "clock": {
+    "value": 2450,
+    "displayValue": "41'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "End Delay",
+    "type": "end-delay"
+   },
+   "clock": {
+    "value": 2450,
+    "displayValue": "41'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "Halftime",
+    "type": "halftime"
+   },
+   "clock": {
+    "value": 2700,
+    "displayValue": "45'+3'"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "Start 2nd Half",
+    "type": "start-2nd-half"
+   },
+   "clock": {
+    "value": 2700,
+    "displayValue": "45'"
+   },
+   "participants": []
+  },
+  {
+   "type": {
+    "text": "Yellow Card",
+    "type": "yellow-card"
+   },
+   "clock": {
+    "value": 2846,
+    "displayValue": "48'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Chiquinho"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 3284,
+    "displayValue": "55'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Mohamed Salah El Boukammiri"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Jeremy Livolant"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 3416,
+    "displayValue": "57'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "André Vidigal"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Chissumba"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 3421,
+    "displayValue": "58'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Rayan Lucas"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Davy Gui"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Goal - Header",
+    "type": "goal---header"
+   },
+   "clock": {
+    "value": 3910,
+    "displayValue": "66'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Ian Luccas"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Chiquinho"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 3962,
+    "displayValue": "67'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Vivaldo Semedo"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Dawda Camara"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 3968,
+    "displayValue": "67'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Matheus França"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Lucas Figueiredo"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 4254,
+    "displayValue": "71'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Rochinha"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Benjamin Pauwels"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 4263,
+    "displayValue": "72'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Lawrence Ofori"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Silvi Clua"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 4874,
+    "displayValue": "82'"
+   },
+   "team": {
+    "id": "21581"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Cassiano"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Henrique Araújo"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "Substitution",
+    "type": "substitution"
+   },
+   "clock": {
+    "value": 4880,
+    "displayValue": "82'"
+   },
+   "team": {
+    "id": "21613"
+   },
+   "participants": [
+    {
+     "athlete": {
+      "displayName": "Cédric Nuozzi"
+     }
+    },
+    {
+     "athlete": {
+      "displayName": "Chiquinho"
+     }
+    }
+   ]
+  },
+  {
+   "type": {
+    "text": "End Regular Time",
+    "type": "end-regular-time"
+   },
+   "clock": {
+    "value": 5400,
+    "displayValue": "90'+5'"
+   },
+   "participants": []
+  }
+ ],
+ "gameInfo": {
+  "venue": {
+   "fullName": "Complexo Desportivo FC Alverca"
+  }
+ }
+}

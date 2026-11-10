@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   getPersonalStatsHandler,
   getRecentFormHandler,
@@ -17,7 +16,7 @@ import {
 
 const statsRouter: Router = Router();
 
-statsRouter.use(authenticate, defaultLimiter);
+statsRouter.use(authenticate);
 
 statsRouter.get('/me', getPersonalStatsHandler);
 statsRouter.get('/me/summary', getStatsSummaryHandler);

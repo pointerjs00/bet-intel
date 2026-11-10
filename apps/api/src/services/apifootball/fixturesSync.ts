@@ -16,11 +16,15 @@ import { runJob } from '../../utils/runJob';
 import { recomputeTeamStats } from '../fixtureService';
 
 const LIVE_STATUSES     = new Set(['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP']);
-const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'ABD', 'AWD', 'WO', 'CANC']);
+const FINISHED_STATUSES = new Set(['FT', 'AET', 'PEN', 'AWD', 'WO']);
 
-function mapStatus(short: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' {
+/** Cancelled/abandoned/postponed games are kept apart from FINISHED so they are never settled from a partial score. */
+function mapStatus(short: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'CANCELLED' | 'ABANDONED' | 'POSTPONED' {
   if (LIVE_STATUSES.has(short))     return 'LIVE';
   if (FINISHED_STATUSES.has(short)) return 'FINISHED';
+  if (short === 'CANC')             return 'CANCELLED';
+  if (short === 'ABD')              return 'ABANDONED';
+  if (short === 'PST')              return 'POSTPONED';
   return 'SCHEDULED';
 }
 

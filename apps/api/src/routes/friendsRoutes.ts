@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   acceptFriendRequestHandler,
   declineFriendRequestHandler,
@@ -13,7 +12,7 @@ import {
 
 const friendsRouter: Router = Router();
 
-friendsRouter.use(authenticate, defaultLimiter);
+friendsRouter.use(authenticate);
 
 friendsRouter.get('/', listFriendsHandler);
 friendsRouter.get('/requests', listFriendRequestsHandler);

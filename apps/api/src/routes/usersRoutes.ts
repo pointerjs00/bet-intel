@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   checkUsernameAvailabilityHandler,
   deleteAvatarHandler,
@@ -12,8 +11,6 @@ import {
 } from '../controllers/usersController';
 
 const usersRouter: Router = Router();
-
-usersRouter.use(defaultLimiter);
 
 usersRouter.get('/check-username', checkUsernameAvailabilityHandler);
 usersRouter.get('/search', authenticate, searchUsersHandler);

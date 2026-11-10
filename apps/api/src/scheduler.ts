@@ -8,6 +8,7 @@ import { injuriesSyncJob }  from './jobs/injuriesSyncJob';
 import { topScorersSyncJob } from './jobs/topScorersSyncJob';
 import { autoSettlementJob } from './jobs/autoSettlementJob';
 import { liveScoreJob } from './jobs/liveScoreJob';
+import { liveBetTrackerJob } from './jobs/liveBetTrackerJob';
 import { syncRecentFixtures } from './services/apifootball/fixturesSync';
 
 const REDIS_URL = process.env.REDIS_URL!;
@@ -20,6 +21,9 @@ const FOOTBALL_DATA_JOBS = [
   { name: 'auto-settlement',    cron: '*/5 * * * *', handler: autoSettlementJob },
   // Live scores: every minute — broadcasts scores to socket clients
   { name: 'live-score',         cron: '* * * * *',   handler: liveScoreJob },
+  // Live bet tracker (ESPN, free): follows matches with pending selections, notifies and settles.
+  // Runs every minute and polls 3× per run (~20 s cadence).
+  { name: 'live-bet-tracker',   cron: '* * * * *',   handler: liveBetTrackerJob },
   // Recent fixture sync: every 3 minutes — corrects SCHEDULED→FINISHED for today's matches
   // Uses per-league API calls only for leagues with active/recent matches (no-op off-peak)
   { name: 'recent-fixtures-sync', cron: '*/3 * * * *', handler: syncRecentFixtures },

@@ -156,9 +156,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       set({ accessToken, refreshTokenValue: refreshToken, isAuthenticated: true });
       return accessToken;
-    } catch {
-      await get().logout();
-      return null;
+    } catch (error) {
+      // Only a rejected refresh token ends the session. Network errors, timeouts and
+      // server errors are transient: keep the session and let the caller fail this request.
+      const status = (error as { response?: { status?: number } }).response?.status;
+      if (status === 401 || status === 403) {
+        await get().logout();
+        return null;
+      }
+      throw error;
     }
   },
 

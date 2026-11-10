@@ -180,6 +180,8 @@ export const updateBoletinSchema = z.object({
   isPublic: z.boolean().optional(),
   isFreebet: z.boolean().optional(),
   betDate: z.string().datetime({ offset: true }).nullable().optional(),
+  /** Amount received when cashing out. A number settles the boletim as CASHOUT; null undoes it. */
+  cashoutAmount: z.number().nonnegative('O cashout não pode ser negativo').nullable().optional(),
 });
 
 export type UpdateBoletinInput = z.infer<typeof updateBoletinSchema>;

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Stack, useRouter, useSegments, type ErrorBoundaryProps } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -31,7 +31,16 @@ import { boletinQueryKeys, listBoletinsRequest } from '../services/boletinServic
 import { useSharedImage } from '../hooks/useSharedImage';
 import '../global.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Avoid refetching the same data on every mount/focus; screens that need fresher
+      // data set their own staleTime or invalidate via sockets.
+      staleTime: 30_000,
+      retry: 2,
+    },
+  },
+});
 
 /** Prefetches the home screen key queries so the boletins list appears instantly. */
 function usePrefetchHomeData(isAuthenticated: boolean) {
@@ -133,6 +142,24 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Expo Router error boundary: any render error in a screen shows this instead of a blank/crashed app.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return (
+    <View style={[styles.flex, styles.errorScreen]}>
+      <Text style={styles.errorTitle}>Algo correu mal</Text>
+      <Text style={styles.errorBody}>
+        Este ecrã encontrou um erro inesperado. Os teus dados estão seguros.
+      </Text>
+      {__DEV__ ? <Text style={styles.errorDetail}>{error.message}</Text> : null}
+      <Pressable accessibilityRole="button" onPress={() => void retry()} style={styles.errorButton}>
+        <Text style={styles.errorButtonText}>Tentar novamente</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const { colors, isDark } = useTheme();
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -208,6 +235,12 @@ function NotificationLifecycleManager() {
       void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     });
 
+    // A boletim was settled (auto-settlement or another device): refresh lists, detail and stats.
+    const unsubscribeResult = addSocketListener('boletim:result', () => {
+      void queryClient.invalidateQueries({ queryKey: boletinQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ['stats'] });
+    });
+
     const LIVE_MATCH_NOTIF_TYPES = new Set([
       'GOAL_SCORED', 'HALF_TIME', 'SECOND_HALF_START', 'MATCH_FINISHED', 'RED_CARD', 'MATCH_STARTING',
     ]);
@@ -261,6 +294,7 @@ function NotificationLifecycleManager() {
 
     return () => {
       unsubscribeSocket();
+      unsubscribeResult();
       unsubscribeResponse();
       unsubscribeForeground();
     };
@@ -275,6 +309,24 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+  errorScreen: {
+    alignItems: 'center',
+    backgroundColor: '#0D0D0D',
+    gap: 12,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  errorTitle: { color: '#FFFFFF', fontSize: 22, fontWeight: '700' },
+  errorBody: { color: '#A0A0A0', fontSize: 15, lineHeight: 21, textAlign: 'center' },
+  errorDetail: { color: '#FF8A7F', fontSize: 12, textAlign: 'center' },
+  errorButton: {
+    backgroundColor: '#00C851',
+    borderRadius: 14,
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  errorButtonText: { color: '#06140C', fontSize: 16, fontWeight: '700' },
   loadingScreen: {
     backgroundColor: '#07110D',
     flex: 1,

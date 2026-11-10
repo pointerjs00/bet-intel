@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { defaultLimiter } from '../middleware/rateLimiter';
+import { requireInternalKey } from '../middleware/requireInternalKey';
 import {
   listCompetitionsHandler,
   listMarketsHandler,
@@ -10,12 +10,11 @@ import {
 
 const referenceRouter: Router = Router();
 
-referenceRouter.use(defaultLimiter);
-
 referenceRouter.get('/competitions', listCompetitionsHandler);
 referenceRouter.get('/teams', listTeamsHandler);
 referenceRouter.get('/markets', listMarketsHandler);
-referenceRouter.post('/atp-rankings/refresh', refreshATPRankingsHandler);
-referenceRouter.post('/wta-rankings/refresh', refreshWTARankingsHandler);
+// Admin-only: these start Puppeteer / external scraping jobs.
+referenceRouter.post('/atp-rankings/refresh', requireInternalKey, refreshATPRankingsHandler);
+referenceRouter.post('/wta-rankings/refresh', requireInternalKey, refreshWTARankingsHandler);
 
 export { referenceRouter };

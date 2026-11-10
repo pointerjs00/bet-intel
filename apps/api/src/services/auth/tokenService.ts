@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../../prisma';
 import { generateSecureToken, hashToken } from '../../utils/crypto';
 import { logger } from '../../utils/logger';
+import { redis } from '../../utils/redis';
 
 const ACCESS_SECRET = process.env.JWT_SECRET!;
 const REFRESH_EXPIRY_DAYS = 30;
@@ -77,18 +78,19 @@ export async function rotateRefreshToken(
   const stored = await prisma.refreshToken.findUnique({ where: { token: hash } });
 
   if (!stored) {
-    // Possible token reuse of an already-rotated token — potential session hijack
-    logger.warn('Refresh token reuse or forgery detected');
+    await handleUnknownRefreshToken(hash);
     return null;
   }
 
   if (stored.expiresAt < new Date()) {
-    await prisma.refreshToken.delete({ where: { id: stored.id } });
+    await prisma.refreshToken.deleteMany({ where: { id: stored.id } });
     return null;
   }
 
-  // Invalidate old token before issuing new pair (rotation)
-  await prisma.refreshToken.delete({ where: { id: stored.id } });
+  // Atomic claim: only one concurrent request can consume this token.
+  const claimed = await prisma.refreshToken.deleteMany({ where: { id: stored.id } });
+  if (claimed.count === 0) return null;
+  await rememberRotatedToken(hash, stored.userId);
 
   const user = await prisma.user.findUnique({
     where: { id: stored.userId },
@@ -102,6 +104,41 @@ export async function rotateRefreshToken(
   const refreshToken = await issueRefreshToken(user.id);
 
   return { accessToken, refreshToken };
+}
+
+const ROTATED_KEY = (hash: string) => `rt:rotated:${hash}`;
+const ROTATED_TTL_SECONDS = REFRESH_EXPIRY_DAYS * 24 * 60 * 60;
+/** Reuse within this window is treated as a client race (two requests refreshing at once), not theft. */
+const REUSE_GRACE_MS = 30_000;
+
+/** Remembers that a refresh token was rotated, so a later reuse can be recognised. */
+async function rememberRotatedToken(hash: string, userId: string): Promise<void> {
+  try {
+    await redis.set(ROTATED_KEY(hash), JSON.stringify({ userId, at: Date.now() }), 'EX', ROTATED_TTL_SECONDS);
+  } catch {
+    // Redis unavailable: rotation still works, only reuse detection is lost.
+  }
+}
+
+/**
+ * A refresh token that is not in the DB is either forged or already rotated. If it was rotated
+ * more than REUSE_GRACE_MS ago, someone is replaying an old token: revoke every session of that user.
+ */
+async function handleUnknownRefreshToken(hash: string): Promise<void> {
+  let rotated: { userId: string; at: number } | null = null;
+  try {
+    const raw = await redis.get(ROTATED_KEY(hash));
+    rotated = raw ? (JSON.parse(raw) as { userId: string; at: number }) : null;
+  } catch {
+    rotated = null;
+  }
+  if (!rotated) {
+    logger.warn('Unknown refresh token presented');
+    return;
+  }
+  if (Date.now() - rotated.at < REUSE_GRACE_MS) return;
+  await invalidateAllUserRefreshTokens(rotated.userId);
+  logger.warn('Refresh token reuse detected — all sessions revoked', { userId: rotated.userId });
 }
 
 /** Invalidates a single refresh token (single-device logout). */

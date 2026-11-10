@@ -28,6 +28,7 @@ interface BoletinItemProps {
     competition: string;
     sport?: Sport;
     kickoffAt?: string | null;
+    needsReview?: boolean;
   };
   onRemove?: () => void;
   onEdit?: () => void;
@@ -207,6 +208,15 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
               ? item.market
               : `${item.market} • ${item.selection}`}
           </Text>
+          {item.needsReview && item.result === ItemResult.PENDING ? (
+            <View
+              accessibilityLabel="A liquidação automática não teve certeza: marca o resultado à mão"
+              style={[styles.reviewPill, { backgroundColor: `${colors.warning}22`, borderColor: colors.warning }]}
+            >
+              <Ionicons color={colors.warning} name="alert-circle-outline" size={13} />
+              <Text style={[styles.reviewPillText, { color: colors.warning }]}>A rever</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.metaBlockRight}>
@@ -354,6 +364,18 @@ const probStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  reviewPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  reviewPillText: { fontSize: 11, fontWeight: '700' },
   card: {
     borderRadius: 18,
     borderWidth: 1,

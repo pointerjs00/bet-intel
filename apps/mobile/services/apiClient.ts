@@ -68,7 +68,13 @@ apiClient.interceptors.response.use(
       });
     }
 
-    const nextAccessToken = await refreshPromise;
+    let nextAccessToken: string | null;
+    try {
+      nextAccessToken = await refreshPromise;
+    } catch {
+      // Transient refresh failure (offline, timeout, 5xx): fail this request, keep the session.
+      return Promise.reject(error);
+    }
     if (!nextAccessToken) {
       await authStoreBridge.clearSession();
       return Promise.reject(error);

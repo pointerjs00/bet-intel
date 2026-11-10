@@ -1,6 +1,5 @@
 import { Router, json } from 'express';
 import { authenticate } from '../middleware/authenticate';
-import { defaultLimiter } from '../middleware/rateLimiter';
 import {
   addBoletinItemHandler,
   createBoletinHandler,
@@ -21,8 +20,8 @@ import { betclicApiHandler, bulkImportHandler, parsePdfHandler, scanAiHandler, s
 const boletinCollectionRouter: Router = Router();
 const betintelRouter: Router = Router();
 
-boletinCollectionRouter.use(authenticate, defaultLimiter);
-betintelRouter.use(authenticate, defaultLimiter);
+boletinCollectionRouter.use(authenticate);
+betintelRouter.use(authenticate);
 
 boletinCollectionRouter.get('/', listBoletinsHandler);
 boletinCollectionRouter.get('/agenda', getAgendaHandler);

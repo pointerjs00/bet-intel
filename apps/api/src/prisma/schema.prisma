@@ -326,7 +326,7 @@ model Fixture {
   awayScore        Int?
   htHomeScore      Int?
   htAwayScore      Int?
-  status           String   @default("SCHEDULED") // SCHEDULED | LIVE | FINISHED
+  status           String   @default("SCHEDULED") // SCHEDULED | LIVE | FINISHED | CANCELLED | ABANDONED | POSTPONED
   externalId       String?  @unique
   apiFootballId    Int?     @unique
   venueId          Int?

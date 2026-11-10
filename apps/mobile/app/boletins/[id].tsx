@@ -75,6 +75,7 @@ export default function BoletinDetailScreen() {
   const [editNotes, setEditNotes] = useState('');
   const [editSiteSlug, setEditSiteSlug] = useState('');
   const [editIsFreebet, setEditIsFreebet] = useState(false);
+  const [editCashout, setEditCashout] = useState('');
   const [showEditSites, setShowEditSites] = useState(false);
   const [editBetDate, setEditBetDate] = useState(''); // DD/MM/YYYY display string
   // Target item to remove (confirmation modal)
@@ -293,6 +294,7 @@ export default function BoletinDetailScreen() {
     setEditSiteSlug(b.siteSlug ?? '');
     setEditIsFreebet(b.isFreebet);
     setEditBetDate(formatDateToDDMMYYYY(b.betDate));
+    setEditCashout(b.cashoutAmount != null ? String(Number(b.cashoutAmount)) : '');
   };
 
   useEffect(() => { seedEditFields(boletin); }, [boletin]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -376,6 +378,17 @@ export default function BoletinDetailScreen() {
       isFreebet: editIsFreebet,
       betDate: editBetDate.length === 10 ? (parseDDMMYYYYToISO(editBetDate) ?? null) : null,
     };
+    const cashoutText = editCashout.trim().replace(',', '.');
+    if (cashoutText) {
+      const cashoutNum = parseFloat(cashoutText);
+      if (!Number.isFinite(cashoutNum) || cashoutNum < 0) {
+        showToast('Valor de cashout inválido.', 'error');
+        return;
+      }
+      payload.cashoutAmount = cashoutNum;
+    } else if (boletin.cashoutAmount != null) {
+      payload.cashoutAmount = null; // field cleared: undo the cashout
+    }
     try {
       await updateMutation.mutateAsync({ id: boletin.id, payload: payload as Parameters<typeof updateMutation.mutateAsync>[0]['payload'] });
       setIsEditing(false);
@@ -795,6 +808,22 @@ export default function BoletinDetailScreen() {
                       onValueChange={setEditIsFreebet}
                       trackColor={{ false: undefined, true: '#FFB300' }}
                       value={editIsFreebet}
+                    />
+                  </View>
+                  <View style={[styles.toggleRow, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                    <View style={styles.toggleTextWrap}>
+                      <Text nativeID="cashout-label" style={[styles.toggleTitle, { color: colors.textPrimary }]}>Cashout</Text>
+                      <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>Valor recebido se encerraste a aposta antes do fim. Deixa vazio se não houve cashout.</Text>
+                    </View>
+                    <TextInput
+                      accessibilityLabelledBy="cashout-label"
+                      keyboardType="decimal-pad"
+                      maxLength={10}
+                      onChangeText={setEditCashout}
+                      placeholder="0,00 €"
+                      placeholderTextColor={colors.textMuted}
+                      style={[styles.statValueInput, { color: colors.textPrimary, borderBottomColor: colors.primary, minWidth: 80 }]}
+                      value={editCashout}
                     />
                   </View>
                   <SearchableDropdown

@@ -119,8 +119,11 @@ app.use((err: AppError, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.statusCode ?? err.status ?? 500;
   if (status >= 500) {
     logger.error('Unhandled express error', { error: err.message, stack: err.stack });
+    // Never leak internal details (SQL, stack, file paths) to the client.
+    res.status(status).json({ success: false, error: 'Erro interno do servidor' });
+    return;
   }
-  res.status(status).json({ success: false, error: err.message ?? 'Erro interno do servidor' });
+  res.status(status).json({ success: false, error: err.message ?? 'Pedido inválido' });
 });
 
 // ─── Start ─────────────────────────────────────────────────────────────────────

@@ -76,7 +76,8 @@ export async function liveScoreJob(): Promise<void> {
     if (!prev) continue;
 
     // Goal detection
-    if (payload.homeGoals !== prev.homeGoals || payload.awayGoals !== prev.awayGoals) {
+    // Only a goal when a team's tally goes up — a score that drops is a VAR-disallowed goal, not a new one.
+    if (payload.homeGoals > prev.homeGoals || payload.awayGoals > prev.awayGoals) {
       const scoringTeam = payload.homeGoals > prev.homeGoals ? payload.homeTeam : payload.awayTeam;
       const goalMinute = payload.elapsed != null ? ` (${payload.elapsed}')` : '';
       await sendMatchNotification(payload, 'GOAL_SCORED' as NotificationType, 'GOALS',
@@ -188,27 +189,13 @@ async function sendMatchNotification(
   });
   if (!fixture) return;
 
-  const [watches, betItems] = await Promise.all([
-    prisma.fixtureWatch.findMany({
-      where: { fixtureId: fixture.id },
-      select: { userId: true },
-    }),
-    prisma.boletinItem.findMany({
-      where: {
-        eventExternalId: String(payload.fixtureId),
-        result: 'PENDING',
-        boletin: { status: 'PENDING' },
-      },
-      select: { boletin: { select: { userId: true } } },
-    }),
-  ]);
-
-  const allUserIds = [
-    ...new Set([
-      ...watches.map(w => w.userId),
-      ...betItems.map(b => b.boletin.userId),
-    ]),
-  ];
+  // Users with bets on this match are notified by liveBetTrackerJob (with the bet's live state);
+  // this job only covers users who follow the fixture without a bet, to avoid duplicates.
+  const watches = await prisma.fixtureWatch.findMany({
+    where: { fixtureId: fixture.id },
+    select: { userId: true },
+  });
+  const allUserIds = [...new Set(watches.map(w => w.userId))];
 
   if (!allUserIds.length) {
     await redis.set(dedupeKey, '1', 'EX', 7200).catch(() => {});

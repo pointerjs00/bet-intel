@@ -19,4 +19,19 @@ redis.on('connect', () => {
   logger.info('Redis connected');
 });
 
-export { redis };
+/**
+ * Deletes every key matching `pattern` using incremental SCAN (non-blocking, unlike KEYS).
+ * Returns how many keys were deleted.
+ */
+async function deleteKeysByPattern(pattern: string): Promise<number> {
+  let cursor = '0';
+  let deleted = 0;
+  do {
+    const [next, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 200);
+    cursor = next;
+    if (keys.length > 0) deleted += await redis.del(...keys);
+  } while (cursor !== '0');
+  return deleted;
+}
+
+export { redis, deleteKeysByPattern };

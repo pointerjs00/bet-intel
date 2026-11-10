@@ -209,6 +209,8 @@ export interface BoletinItem {
   result: ItemResult;
   /** ISO-8601 datetime of the match kick-off (null if unknown) */
   kickoffAt: string | null;
+  /** Auto-settlement could not decide this selection with certainty: the user should resolve it. */
+  needsReview?: boolean;
 }
 
 export interface AgendaItem {

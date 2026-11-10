@@ -670,20 +670,24 @@ export default function HomeScreen() {
   const summary = useMemo(() => {
     return filtered.reduce(
       (acc, boletin) => {
-        if (!boletin.isFreebet) {
-          acc.totalStaked += Number(boletin.stake);
-        }
+        const stake = boletin.isFreebet ? 0 : Number(boletin.stake);
+        acc.totalStaked += stake;
         // Freebet returns count as pure gain (stake was free)
         acc.totalReturned += Number(boletin.actualReturn ?? 0);
+        // ROI only uses settled boletins: a pending stake has no return yet.
+        if (boletin.status !== BoletinStatus.PENDING) {
+          acc.settledStaked += stake;
+          acc.settledReturned += Number(boletin.actualReturn ?? 0);
+        }
         return acc;
       },
-      { totalStaked: 0, totalReturned: 0 },
+      { totalStaked: 0, totalReturned: 0, settledStaked: 0, settledReturned: 0 },
     );
   }, [filtered]);
 
   const roi =
-    summary.totalStaked > 0
-      ? ((summary.totalReturned - summary.totalStaked) / summary.totalStaked) * 100
+    summary.settledStaked > 0
+      ? ((summary.settledReturned - summary.settledStaked) / summary.settledStaked) * 100
       : 0;
 
   const pendingCount = useMemo(

@@ -52,14 +52,17 @@ export function connectSocket(token: string): void {
     });
 
     attachPersistentListeners();
+    // Fires on the first connection and on every automatic reconnection, so rooms are
+    // re-joined after network drops (the server forgets rooms when a socket disconnects).
+    socket.on('connect', joinRooms);
   }
 
   socket.auth = { token };
   if (!socket.connected) {
     socket.connect();
+  } else {
+    joinRooms();
   }
-
-  resubscribeRooms();
 }
 
 /** Disconnects the socket client and clears room subscription state. */
@@ -169,21 +172,9 @@ function attachPersistentListeners(): void {
   });
 }
 
-function resubscribeRooms(): void {
-  if (!socket?.connected) {
-    socket?.once('connect', () => {
-      // Always join the live feed room so the client receives odds:updated
-      // and event:statusChange events without needing an explicit subscription call
-      socket?.emit('subscribe:live');
-      eventSubscriptionCounts.forEach((_count, eventId) => {
-        socket?.emit('subscribe:event', { eventId });
-      });
-    });
-    return;
-  }
-
-  // Already connected — re-join rooms immediately
-  socket.emit('subscribe:live');
+/** Joins the live feed room and every event room this client tracks. */
+function joinRooms(): void {
+  socket?.emit('subscribe:live');
   eventSubscriptionCounts.forEach((_count, eventId) => {
     socket?.emit('subscribe:event', { eventId });
   });
