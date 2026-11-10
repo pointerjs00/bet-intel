@@ -802,7 +802,15 @@ export default function ImportReviewScreen() {
         return;
       }
 
-      showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
+      if (result.errors > 0) {
+        // Some bets were skipped (e.g. an unreadable odd); say which instead of a plain success.
+        showToast(
+          `${result.imported} importados, ${result.errors} com erro: ${result.errorDetails?.[0] ?? 'dados inválidos'}`,
+          'error',
+        );
+      } else {
+        showToast(`${result.imported} boletins importados com sucesso 🎉`, 'success');
+      }
 
       // Schedule kickoff reminders for newly imported PENDING boletins
       if (result.createdBoletins) {

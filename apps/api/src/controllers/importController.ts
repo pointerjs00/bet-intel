@@ -27,11 +27,12 @@ const parsePdfSchema = z.object({
 const bulkImportItemSchema = z.object({
   homeTeam: z.string().min(1),
   awayTeam: z.string().min(1),
-  competition: z.string().min(1),
-  sport: z.string().min(1),
+  // The AI scan sometimes can't read the competition; it is optional for settlement.
+  competition: z.string().trim().default('').transform((v) => v || 'Outra'),
+  sport: z.string().trim().default('').transform((v) => v || 'FOOTBALL'),
   market: z.string().min(1),
   selection: z.string().min(1),
-  oddValue: z.number().min(1.01).max(1000),
+  oddValue: z.coerce.number().min(1.01).max(1000),
   /** Per-item result from the AI parse — used to set individual selection outcomes. */
   result: z.enum(['WON', 'LOST', 'VOID', 'PENDING']).optional(),
   /**
@@ -40,22 +41,28 @@ const bulkImportItemSchema = z.object({
    * on the BoletinItem so it appears in agenda, BoletinItem cards, and
    * the SelectionInsightsSheet.
    */
-  eventDate: z.string().datetime({ offset: true }).optional().nullable(),
+  // Any parseable date ("2026-11-10T20:00" without offset included); unparseable → dropped.
+  eventDate: z.string().optional().nullable().transform((v) => {
+    if (!v) return null;
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }),
 });
 
 const bulkImportBoletinSchema = z.object({
   reference: z.string().optional(),
   betDate: z.string().optional(),
-  stake: z.number().positive(),
-  totalOdds: z.number().positive(),
-  status: z.string(),
+  stake: z.coerce.number().positive(),
+  totalOdds: z.coerce.number().positive(),
+  status: z.string().default('PENDING'),
   items: z.array(bulkImportItemSchema).min(1),
 });
 
 const KNOWN_SITE_SLUGS = ['betclic', 'placard', 'bet365', 'esconline', 'moosh', 'solverde', 'betway', '888sport', 'betano', 'bwin', 'lebull', 'outros'] as const;
 
+// Each boletim is validated on its own (below), so one badly scanned bet doesn't reject the batch.
 const bulkImportSchema = z.object({
-  boletins: z.array(bulkImportBoletinSchema).min(1, 'Nenhuma aposta selecionada'),
+  boletins: z.array(z.unknown()).min(1, 'Nenhuma aposta selecionada'),
   source: z.enum(KNOWN_SITE_SLUGS).default('betclic'),
 });
 
@@ -63,6 +70,23 @@ const bulkImportSchema = z.object({
 const MAX_BASE64_LENGTH = 14 * 1024 * 1024;
 
 // ─── Handlers ────────────────────────────────────────────────────────────────
+
+const FIELD_PT: Record<string, string> = {
+  homeTeam: 'equipa da casa', awayTeam: 'equipa visitante', competition: 'competição', sport: 'desporto',
+  market: 'mercado', selection: 'seleção', oddValue: 'odd', eventDate: 'data do jogo',
+  stake: 'montante', totalOdds: 'odd total', status: 'estado', items: 'seleções',
+};
+
+/** "items.2.oddValue" → "seleção 3, odd" for error messages shown in the app. */
+function describeImportField(path: Array<string | number>): string {
+  const parts: string[] = [];
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i];
+    if (p === 'items' && typeof path[i + 1] === 'number') { parts.push(`seleção ${(path[i + 1] as number) + 1}`); i++; continue; }
+    parts.push(FIELD_PT[String(p)] ?? String(p));
+  }
+  return parts.join(', ') || 'dados';
+}
 
 /** POST /api/boletins/import/pdf — parses a Betclic PDF and returns structured bet data. */
 export async function parsePdfHandler(req: Request, res: Response): Promise<void> {
@@ -247,15 +271,26 @@ export async function bulkImportHandler(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const { boletins: incoming, source } = parsed.data;
+    const { boletins: raw, source } = parsed.data;
     const siteSlug = source !== 'outros' ? source : undefined;
+
+    const errors: string[] = [];
+    const incoming: Array<z.infer<typeof bulkImportBoletinSchema>> = [];
+    raw.forEach((b, i) => {
+      const r = bulkImportBoletinSchema.safeParse(b);
+      if (r.success) { incoming.push(r.data); return; }
+      const first = (b as { items?: Array<{ homeTeam?: string; awayTeam?: string }> } | null)?.items?.[0];
+      const label = first?.homeTeam ? `${first.homeTeam} vs ${first.awayTeam ?? '?'}` : `aposta ${i + 1}`;
+      const issues = r.error.issues.map((iss) => `${describeImportField(iss.path)}: ${iss.message}`);
+      logger.warn('Bulk import: invalid boletim skipped', { index: i, issues });
+      errors.push(`${label} — ${issues[0]}`);
+    });
 
     // Fetch existing boletins for duplicate detection
     const existing = await listUserBoletins(userId);
 
     let imported = 0;
     let duplicates = 0;
-    const errors: string[] = [];
     const createdBoletins: Array<{
       id: string;
       name: string | null;
