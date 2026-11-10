@@ -262,8 +262,15 @@ export async function listTeamsHandler(req: Request, res: Response): Promise<voi
       ? await redis.mget(...allEnrichmentKeys)
       : [];
 
+    // Photos from the asset registry (ESPN / official WTA / Wikipedia, see sportAssetsJob) win;
+    // atptour.com headshots are refused to apps (HTTP 403), so they are never sent.
+    const registryPhotos = mergedTeams.length
+      ? await redis.hmget('sports:assets:players', ...mergedTeams.map((t) => t.name)).catch(() => [] as Array<string | null>)
+      : [];
+
     const enriched = mergedTeams.map((team, index) => {
-      let imageUrl = allValues[index * 3] ?? null;
+      let imageUrl = registryPhotos[index] ?? allValues[index * 3] ?? null;
+      if (imageUrl?.includes('atptour.com')) imageUrl = null;
       // Ensure photo URL is absolute — relative paths from WTA scraper are unusable on mobile
       if (imageUrl && imageUrl.startsWith('/')) {
         imageUrl = `https://www.wtatennis.com${imageUrl}`;

@@ -31,6 +31,7 @@ import { adminRouter } from './routes/adminRoutes';
 import { sportsRouter } from './routes/sportsRoutes';
 import { seed as seedReferenceData } from './prisma/seed';
 import { API_FOOTBALL_ENABLED, initFootballDataScheduler } from './scheduler';
+import { sportAssetsJob } from './jobs/sportAssetsJob';
 import { fixtureStatsSyncJob } from './jobs/fixtureStatsSyncJob';
 import { fixtureEventsSyncJob } from './jobs/fixtureEventsSyncJob';
 import { fixtureLineupsSyncJob } from './jobs/fixtureLineupsSyncJob';
@@ -274,6 +275,10 @@ async function warmUp(): Promise<void> {
     setInterval(() => venueSyncJob().catch(e => logger.warn('[scheduler] venues', { error: e.message })), 7 * 24 * 60 * 60 * 1000);
     setInterval(() => coachSyncJob().catch(e => logger.warn('[scheduler] coaches', { error: e.message })), 7 * 24 * 60 * 60 * 1000);
   };
+
+  // Crests and player photos from consistent sources (ESPN, WTA, Wikipedia): now and daily.
+  void sportAssetsJob();
+  setInterval(() => void sportAssetsJob(), 24 * 60 * 60 * 1000);
 
   // API-Football insight jobs (plan #58: off unless API_FOOTBALL_ENABLED=true).
   if (API_FOOTBALL_ENABLED) scheduleInsightJobs();

@@ -9,6 +9,7 @@
 import type { MatchIncident, MatchStatus, MatchTeamStats, NormalizedMatch, ScorePair } from './types';
 import { recordAssets } from './assetRegistry';
 import { ProviderFormatError, tracked } from './providerHealth';
+import { countryToPt } from '../../utils/countryNames';
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 const USER_AGENT = 'BetIntel/1.0 (personal use)';
@@ -26,7 +27,21 @@ export const ESPN_FOOTBALL_LEAGUES: Record<string, string> = {
   'UEFA Champions League': 'uefa.champions',
   'UEFA Europa League': 'uefa.europa',
   'UEFA Conference League': 'uefa.europa.conf',
+  // National teams
+  'Liga das Nações': 'uefa.nations',
+  'Mundial': 'fifa.world',
+  'Qualificação Mundial (UEFA)': 'fifa.worldq.uefa',
+  'Qualificação Mundial (CONMEBOL)': 'fifa.worldq.conmebol',
+  'Europeu': 'uefa.euro',
+  'Qualificação Europeu': 'uefa.euroq',
+  'Copa América': 'conmebol.america',
+  'Amigáveis Internacionais': 'fifa.friendly',
 };
+
+/** Leagues whose teams are national teams (names translated to Portuguese for display). */
+export const NATIONAL_TEAM_LEAGUES = new Set([
+  'uefa.nations', 'fifa.world', 'fifa.worldq.uefa', 'fifa.worldq.conmebol', 'uefa.euro', 'uefa.euroq', 'conmebol.america', 'fifa.friendly',
+]);
 
 // ─── Raw shapes (only the fields we read) ────────────────────────────────────
 
@@ -223,7 +238,11 @@ export async function fetchEspnFootballDay(leagueSlug: string, date: string): Pr
     for (const c of ev.competitions?.[0]?.competitors ?? []) {
       const name = c.team?.displayName;
       const logo = c.team?.logo ?? (c.team?.id ? `https://a.espncdn.com/i/teamlogos/soccer/500/${c.team.id}.png` : undefined);
-      if (name && logo) logos[name] = logo;
+      if (name && logo) {
+        logos[name] = logo;
+        // National teams are shown with their Portuguese name.
+        if (NATIONAL_TEAM_LEAGUES.has(leagueSlug)) logos[countryToPt(name)] = logo;
+      }
     }
   }
   recordAssets(logos, {});

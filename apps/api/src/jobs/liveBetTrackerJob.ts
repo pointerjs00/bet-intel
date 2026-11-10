@@ -17,6 +17,8 @@ import { toFixtureResult } from '../services/sportsData/settlementBridge';
 import type { NormalizedMatch } from '../services/sportsData/types';
 import { fetchEspnTennisDay, toTennisResult, type TennisMatch } from '../services/sportsData/espnTennis';
 import { resolveTennisMarket } from '../services/tennisMarketEngine';
+import { fetchEspnNbaDay, type BasketballMatch } from '../services/sportsData/espnBasketball';
+import { resolveBasketballMarket } from '../services/basketballMarketEngine';
 import { fetchLiveTennisPoints, findLivePoints, type LiveTennisPoints } from '../services/sportsData/livescoreTennis';
 
 // One LiveScore request per ~15 s, shared by every live tennis match in a tracker pass.
@@ -66,6 +68,15 @@ export function espnLeagueFor(competition: string): string | null {
   if (/champions league|liga dos campeoes/.test(c)) return 'uefa.champions';
   if (/europa league|liga europa/.test(c)) return 'uefa.europa';
   if (/conference league|liga conferencia/.test(c)) return 'uefa.europa.conf';
+  // National teams
+  if (/nations league|liga das nacoes/.test(c)) return 'uefa.nations';
+  if (/amigav|friendl/.test(c)) return 'fifa.friendly';
+  if (/(mundial|world cup|campeonato do mundo)/.test(c)) {
+    if (/qualif|apuramento/.test(c)) return /conmebol|sul.?americ/.test(c) ? 'fifa.worldq.conmebol' : 'fifa.worldq.uefa';
+    return 'fifa.world';
+  }
+  if (/euro/.test(c) && !/europa/.test(c)) return /qualif|apuramento/.test(c) ? 'uefa.euroq' : 'uefa.euro';
+  if (/copa america/.test(c)) return 'conmebol.america';
   const exact = ESPN_FOOTBALL_LEAGUES[competition];
   return exact ?? null;
 }
@@ -84,6 +95,113 @@ export async function liveBetTrackerJob(): Promise<void> {
 async function trackOnce(): Promise<void> {
   await trackFootball();
   await trackTennis();
+  await trackBasketball();
+}
+
+// ─── Basketball (NBA) ────────────────────────────────────────────────────────
+
+type BasketballItem = Omit<PendingItem, 'competition'>;
+
+async function trackBasketball(): Promise<void> {
+  const now = Date.now();
+  const items: BasketballItem[] = await prisma.boletinItem.findMany({
+    where: {
+      result: 'PENDING',
+      sport: 'BASKETBALL',
+      boletin: { status: 'PENDING' },
+      kickoffAt: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) },
+    },
+    select: {
+      id: true, boletinId: true, homeTeam: true, awayTeam: true, market: true, selection: true, kickoffAt: true,
+      boletin: { select: { userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
+    },
+  });
+  if (!items.length) return;
+
+  const dayCache = new Map<string, BasketballMatch[]>();
+  const nbaDay = async (day: string) => {
+    if (!dayCache.has(day)) dayCache.set(day, await fetchEspnNbaDay(day).catch(() => []));
+    return dayCache.get(day)!;
+  };
+  const byMatch = new Map<string, { match: BasketballMatch; items: BasketballItem[] }>();
+  for (const item of items) {
+    // ESPN uses US game days: a 00:30 UTC tip-off belongs to the previous date.
+    const k = item.kickoffAt!;
+    const days = [new Date(k.getTime() - 24 * 3600e3), k].map((d) => d.toISOString().slice(0, 10));
+    let found: BasketballMatch | undefined;
+    for (const day of days) {
+      found = (await nbaDay(day)).find((m) =>
+        teamNamesMatch(m.home.name, item.homeTeam) && teamNamesMatch(m.away.name, item.awayTeam)
+        || teamNamesMatch(m.home.name, item.awayTeam) && teamNamesMatch(m.away.name, item.homeTeam));
+      if (found) break;
+    }
+    if (!found) continue;
+    const entry = byMatch.get(found.providerMatchId) ?? { match: found, items: [] };
+    entry.items.push(item);
+    byMatch.set(found.providerMatchId, entry);
+  }
+  for (const { match, items: group } of byMatch.values()) await handleBasketballUpdate(match, group);
+}
+
+function basketballVerdict(item: BasketballItem, m: BasketballMatch): string | null {
+  if (!m.score) return null;
+  const r = resolveBasketballMarket(item.market, item.selection, { ...m.score, periods: m.periods }, { home: m.home.name, away: m.away.name });
+  const done = m.status === 'FINISHED';
+  if (r === 'WON') return done ? 'ganha' : 'a ganhar';
+  if (r === 'LOST') return done ? 'perdida' : 'a perder';
+  return null;
+}
+
+async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[]): Promise<void> {
+  const id = m.providerMatchId;
+  const key = `espn:bstate:${id}`;
+  const prev = await redis.get(key).catch(() => null);
+  await redis.set(key, m.status, 'EX', 3 * 24 * 60 * 60).catch(() => {});
+  const score = m.score ? `${m.score.home}-${m.score.away}` : null;
+  const asGroup = group as unknown as PendingItem[];
+  const fakeMatch = { providerMatchId: id } as NormalizedMatch;
+  const line = (its: PendingItem[]) => {
+    const parts = (its as unknown as BasketballItem[]).map((it) => { const v = basketballVerdict(it, m); return v ? `${it.selection} (${v})` : null; }).filter(Boolean);
+    return parts.length ? ` · ${parts.join(', ')}` : '';
+  };
+
+  if ((m.status === 'LIVE') && (!prev || prev === 'SCHEDULED') && await once(`notif:espn:b:${id}:start`)) {
+    await notify(asGroup, fakeMatch, NotificationType.MATCH_STARTING, 'GOALS', `🏀 Começou: ${m.home.name} vs ${m.away.name}`, () => 'NBA');
+  }
+  if (m.status === 'HALFTIME' && prev !== 'HALFTIME' && await once(`notif:espn:b:${id}:ht`)) {
+    await notify(asGroup, fakeMatch, NotificationType.HALF_TIME, 'HALF_TIME', '🏀 Intervalo', (its) => `${m.home.name} ${score ?? ''} ${m.away.name}${line(its)}`);
+  }
+
+  await writeLiveItems(group.map((it) => ({ id: it.id, verdict: basketballVerdict(it, m) })), {
+    status: m.status, detail: m.statusDetail, home: m.home.name, away: m.away.name, score, sport: 'BASKETBALL',
+  });
+
+  const touched = new Set<string>();
+  if (m.status === 'CANCELLED') {
+    for (const item of group) {
+      const u = await prisma.boletinItem.updateMany({ where: { id: item.id, result: 'PENDING' }, data: { result: 'VOID', needsReview: false } });
+      if (u.count) touched.add(item.boletinId);
+    }
+  } else if (m.status === 'POSTPONED') {
+    await prisma.boletinItem.updateMany({ where: { id: { in: group.map((g) => g.id) } }, data: { needsReview: true } });
+  } else if (m.status === 'FINISHED' && m.score) {
+    if (await once(`notif:espn:b:${id}:ft`)) {
+      await notify(asGroup, fakeMatch, NotificationType.MATCH_FINISHED, 'MATCH_END', '🏁 Fim do jogo', (its) => `${m.home.name} ${score} ${m.away.name}${line(its)}`);
+    }
+    for (const item of group) {
+      const res = resolveBasketballMarket(item.market, item.selection, { ...m.score, periods: m.periods }, { home: m.home.name, away: m.away.name });
+      if (res === null) {
+        await prisma.boletinItem.update({ where: { id: item.id }, data: { needsReview: true } });
+        continue;
+      }
+      const u = await prisma.boletinItem.updateMany({ where: { id: item.id, result: 'PENDING' }, data: { result: res as ItemResult, needsReview: false } });
+      if (u.count) touched.add(item.boletinId);
+    }
+  }
+  for (const boletinId of touched) {
+    await recomputeBoletinAfterItemChange(boletinId).catch((err) =>
+      logger.warn('[liveBetTracker] recompute failed', { boletinId, error: err instanceof Error ? err.message : String(err) }));
+  }
 }
 
 // ─── Tennis ──────────────────────────────────────────────────────────────────

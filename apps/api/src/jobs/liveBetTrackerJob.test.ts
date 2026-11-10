@@ -27,3 +27,22 @@ test('team names from bets match ESPN names', () => {
   assert.ok(!teamNamesMatch('Club Brugge', 'Cercle Brugge'));
   assert.ok(!teamNamesMatch('Manchester United', 'Manchester City'));
 });
+
+test('national-team competitions map to ESPN leagues', () => {
+  assert.equal(espnLeagueFor('Liga das Nações'), 'uefa.nations');
+  assert.equal(espnLeagueFor('UEFA Nations League'), 'uefa.nations');
+  assert.equal(espnLeagueFor('Amigável Internacional'), 'fifa.friendly');
+  assert.equal(espnLeagueFor('Qualificação Mundial 2026'), 'fifa.worldq.uefa');
+  assert.equal(espnLeagueFor('Mundial 2026'), 'fifa.world');
+  assert.equal(espnLeagueFor('Europeu 2028'), 'uefa.euro');
+  assert.equal(espnLeagueFor('Liga Europa'), 'uefa.europa');
+});
+
+test('Portuguese country names match ESPN English names', () => {
+  assert.ok(teamNamesMatch('Dinamarca', 'Denmark'));
+  assert.ok(teamNamesMatch('País de Gales', 'Wales'));
+  assert.ok(teamNamesMatch('Holanda', 'Netherlands'));
+  assert.ok(teamNamesMatch('República Checa', 'Czechia'));
+  assert.ok(teamNamesMatch('Irlanda', 'Republic of Ireland'));
+  assert.ok(!teamNamesMatch('Portugal', 'Spain'));
+});
