@@ -51,7 +51,8 @@ Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main`
 | #56 | Parcial | Estado "a ganhar/a perder" por seleção, calculado pelo motor com o resultado e os cantos ao vivo. Falta mostrá-lo na app (D5/D8). |
 | #57 | Feito | Notificações de início, golo (com o estado de cada aposta), intervalo e fim, com deduplicação e respeitando as preferências. O job antigo deixou de notificar quem tem aposta, para não haver duplicados. |
 | #3 | Resolvido via #55 | Para as 11 competições cobertas, o tracker liquida com o resultado aos 90' da ESPN. O job antigo da API-Football continua sem esse dado. |
-| #58 | Parcial | A API-Football continua a alimentar classificações, onzes e o ecrã de Jogos; a migração fica para o D8/#60. |
+| #58 | Parcial | O ecrã Jogos já não usa a API-Football. Continuam a usá-la o "Por jogo" (criar boletim), as classificações e os insights. |
+| #60 | Feito | `GET /api/sports/football/day` e `/match/:league/:id` (ESPN, cache Redis, marca de "tens aposta"). Ver D8. |
 | — | Validado | Teste de ponta a ponta com a base de dados local e a ESPN real (jogos de 08/11/2026): 5 de 5 seleções liquidadas como esperado (resultado, cantos, ambas marcam, marcador para revisão, empate) e notificações certas. |
 | #59 | Parcial | Motor de mercados de ténis (vencedor, resultado em sets, vencedor de set, total de jogos e de sets; desistência e walkover vão para revisão) e adaptador ESPN ATP/WTA. O tracker acompanha as apostas de ténis: início, fim de cada set, fim com o estado da aposta, e liquidação. Teste de ponta a ponta 4 de 4 (Estocolmo, 09/11). Faltam os pontos ao vivo (LiveScore/WTA). |
 | D2 | Parcial | Paleta v2 e fontes (Inter, Space Grotesk) carregadas e expostas em `tokens.font.family`. Falta aplicá-las nos componentes e tirar as 268 cores fixas (D3). |
@@ -60,7 +61,7 @@ Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main`
 | D5 | Feito | Início novo: lucro do ano, ROI, 8 semanas, métricas, "A decorrer" com estado ao vivo (precisa do deploy do endpoint `/boletins/live`), resolver pendentes e recentes. |
 | D6 | Parcial | Cabeçalho de Boletins simplificado; cartão sem faixa lateral nem fila de botões (tocar abre o detalhe; partilhar/apagar por deslize), estado com ícone e texto, título com o jogo. Detalhe em "talão" (estado, jogo, retorno em destaque, lucro e ROI, stake/odd/seleções; nome e stake editáveis no próprio bloco). Falta passar os 6 botões de ação para um menu "…". |
 | D7 | Parcial | Análise abre em "Este Ano"; período vazio mostra "Sem apostas neste período" com atalho para "Sempre". Falta o redesenho completo. |
-| D8 | **Bloqueado** | O ecrã de Jogos (`boletins/fixtures.tsx`) tem alterações tuas por guardar; não lhe toco até as guardares. |
+| D8 | Feito | Novo ecrã Jogos com dados ESPN (tira de dias, filtros Todos / Ao vivo / Com aposta, ligas agrupadas, atualização de 30 s ao vivo) e detalhe do jogo (resultado, intervalo, estádio, eventos de cada lado, estatísticas em barras). O ecrã antigo (API-Football) continua só no "Novo boletim → Por jogo". |
 | D9 | Feito | Ecrã "Novo boletim" com os 4 modos, aberto pelo + central. |
 | #64 | Feito | **Bug novo:** a app terminava a sessão perante qualquer erro de rede durante o refresh; agora só o faz quando o servidor recusa o token. (Nota: as quedas de sessão no emulador eram outra coisa — sem login biométrico ativo, a app apaga os tokens em cada arranque a frio, de propósito, em `authStore.hydrate`.) |
 

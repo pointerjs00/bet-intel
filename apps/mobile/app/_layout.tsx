@@ -221,6 +221,7 @@ export default function RootLayout() {
                     <Stack.Screen name="notifications" />
                     <Stack.Screen name="user/[username]" />
                     <Stack.Screen name="boletins" />
+                    <Stack.Screen name="jogo/[id]" />
                   </Stack>
                 </View>
               </AuthGate>
