@@ -66,7 +66,7 @@ export default function JournalScreen() {
         onPress={() => router.push(`/boletins/${item.id}`)}
         style={({ pressed }) => [styles.pressable, { opacity: pressed ? 0.85 : 1 }]}
       >
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
           {/* Top row: date + status */}
           <View style={styles.topRow}>
             <Text style={[styles.entryDate, { color: colors.textMuted }]}>

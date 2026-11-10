@@ -20,7 +20,7 @@ export const ActivityFeedItem = React.memo(function ActivityFeedItem({ item, onP
     <PressableScale
       disabled={!onPress}
       onPress={onPress}
-      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}
     >
       <SocialAvatar avatarUrl={item.user.avatarUrl} name={displayName} size={48} />
 

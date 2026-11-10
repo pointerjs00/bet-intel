@@ -36,7 +36,7 @@ export const StreakCard = React.memo(function StreakCard({ streaks, onInfoPress 
       : 'remove-outline';
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre sequências" onPress={onInfoPress} />

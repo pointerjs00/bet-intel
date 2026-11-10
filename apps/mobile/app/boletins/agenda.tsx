@@ -206,7 +206,7 @@ function AgendaRow({
   const count = item.boletinIds.length;
 
   return (
-    <PressableScale onPress={onPress} style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <PressableScale onPress={onPress} style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       {/* Coloured left accent bar */}
       <View style={[styles.accentBar, { backgroundColor: accent }]} />
 

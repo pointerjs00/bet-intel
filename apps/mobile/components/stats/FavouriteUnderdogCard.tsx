@@ -17,7 +17,7 @@ export const FavouriteUnderdogCard = React.memo(function FavouriteUnderdogCard({
   const noData = summary.favouriteBets === 0 && summary.underdogBets === 0;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre favoritos/underdogs" onPress={onInfoPress} />

@@ -15,7 +15,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}> 
       <View style={[styles.dot, { backgroundColor: notification.isRead ? colors.textMuted : colors.primary }]} />
 
       <View style={styles.content}>

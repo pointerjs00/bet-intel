@@ -103,7 +103,7 @@ export const HeatmapCalendar = React.memo(function HeatmapCalendar({ boletins, o
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre frequência de apostas" onPress={onInfoPress} />

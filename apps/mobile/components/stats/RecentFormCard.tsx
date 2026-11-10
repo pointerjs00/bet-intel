@@ -23,7 +23,7 @@ export const RecentFormCard = React.memo(function RecentFormCard({ windows, onIn
   const plColor = data.profitLoss >= 0 ? colors.primary : colors.danger;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       {/* Header */}
       <View style={styles.titleRow}>
         {onInfoPress ? (

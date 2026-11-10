@@ -27,7 +27,7 @@ export function FriendRequestCard({
   const displayName = counterparty.displayName ?? counterparty.username;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <SocialAvatar avatarUrl={counterparty.avatarUrl} name={displayName} />
 
       <View style={styles.content}>

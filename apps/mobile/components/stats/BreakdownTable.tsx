@@ -40,7 +40,7 @@ export const BreakdownTable = React.memo(function BreakdownTable<TRow extends St
   const hasMore = rows.length > maxRows;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel={`Mais informação sobre ${title}`} onPress={onInfoPress} />

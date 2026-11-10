@@ -50,7 +50,8 @@ export function formatRelativeTime(value: string | undefined | null): string {
   }
   if (absSeconds < 86400 * 365) {
     const mo = Math.round(absSeconds / (86400 * 30));
-    return past ? `há ${mo} mês` : `em ${mo} mês`;
+    const unit = mo === 1 ? 'mês' : 'meses';
+    return past ? `há ${mo} ${unit}` : `em ${mo} ${unit}`;
   }
   const y = Math.round(absSeconds / (86400 * 365));
   return past ? `há ${y} ano${y !== 1 ? 's' : ''}` : `em ${y} ano${y !== 1 ? 's' : ''}`;

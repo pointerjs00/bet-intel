@@ -17,7 +17,7 @@ export const ROICard = React.memo(function ROICard({ summary, title = 'ROI', onI
   const roiPositive = summary.roi >= 0;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         <Text style={[styles.title, { color: colors.textSecondary }]}>{title}</Text>
         {onInfoPress ? (

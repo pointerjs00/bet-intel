@@ -34,7 +34,7 @@ export const CalibrationChart = React.memo(function CalibrationChart({ data, onI
   if (chartData.length < 2) return null;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre calibração" onPress={onInfoPress} />

@@ -86,13 +86,14 @@ function BoletinItemInner({ item, onRemove, onEdit, onResultChange, onInsights }
       style={[
         styles.card,
         {
-          backgroundColor: `${resultMeta.color}0D`,
-          borderColor: colors.border,
+          backgroundColor: colors.surface,
+          borderColor: 'transparent',
         },
       ]}
     >
-      {/* Result accent stripe */}
+      {/* Result shown by the icon + label pills only (no side stripe, §6.1) */}
       <View
+        pointerEvents="none"
         style={[
           styles.resultStripe,
           { backgroundColor: resultMeta.color },
@@ -378,7 +379,7 @@ const styles = StyleSheet.create({
   reviewPillText: { fontSize: 11, fontWeight: '700' },
   card: {
     borderRadius: 18,
-    borderWidth: 1,
+    borderWidth: 0,
     gap: 14,
     overflow: 'hidden',
     padding: 14,
@@ -388,7 +389,7 @@ const styles = StyleSheet.create({
     left: 0,
     position: 'absolute',
     top: 0,
-    width: 4,
+    width: 0,
   },
   headerRow: {
     alignItems: 'flex-start',

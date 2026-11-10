@@ -1515,8 +1515,7 @@ export default function CreateBoletinScreen() {
           <View style={styles.headerWrap}>
             <Animated.View entering={FadeInUp.duration(160).springify()} style={styles.topRow}>
               <View style={styles.titleBlock}>
-                <Text style={[styles.eyebrow, { color: colors.textSecondary }]}>Construtor</Text>
-                <Text style={[styles.title, { color: colors.textPrimary }]}>Cria o teu boletim adicionando seleções.</Text>
+                <Text style={[styles.title, { color: colors.textSecondary }]}>Adiciona as seleções, a stake e guarda.</Text>
               </View>
 
               <Pressable
@@ -2051,7 +2050,7 @@ const styles = StyleSheet.create({
   topRow: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between' },
   titleBlock: { flex: 1, gap: 6, paddingRight: 12 },
   eyebrow: { fontSize: 13, fontWeight: '700' },
-  title: { fontSize: 28, fontWeight: '900', lineHeight: 34 },
+  title: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20 },
   publicRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
   publicTextWrap: { flex: 1, gap: 4 },
   publicTitle: { fontSize: 15, fontWeight: '800' },

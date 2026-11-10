@@ -23,7 +23,7 @@ export const InsightsCard = React.memo(function InsightsCard({ insights, onInfoP
   if (insights.length === 0) return null;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre insights" onPress={onInfoPress} />

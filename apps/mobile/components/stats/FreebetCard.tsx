@@ -16,7 +16,7 @@ export const FreebetCard = React.memo(function FreebetCard({ summary, onInfoPres
   if (summary.totalFreebets === 0) return null;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre freebets" onPress={onInfoPress} />

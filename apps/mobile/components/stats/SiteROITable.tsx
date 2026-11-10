@@ -52,7 +52,7 @@ export const SiteROITable = React.memo(function SiteROITable({ rows, onInfoPress
   };
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       {/* Title */}
       <View style={styles.titleRow}>
         {onInfoPress ? (

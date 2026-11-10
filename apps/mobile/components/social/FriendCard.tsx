@@ -36,7 +36,7 @@ export function FriendCard({
     <PressableScale
       disabled={!onPress}
       onPress={onPress}
-      style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}
     >
       <SocialAvatar avatarUrl={user.avatarUrl} name={displayName} />
 

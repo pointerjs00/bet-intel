@@ -30,7 +30,7 @@ export const ROITrendChart = React.memo(function ROITrendChart({ data, onInfoPre
   const latestROI = chartData[chartData.length - 1]?.roi ?? 0;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.titleRow}>
         {onInfoPress ? (
           <InfoButton accessibilityLabel="Mais informação sobre tendência de ROI" onPress={onInfoPress} />

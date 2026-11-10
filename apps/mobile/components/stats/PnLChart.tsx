@@ -143,7 +143,7 @@ export const PnLChart = React.memo(function PnLChart({ data, granularity = 'week
   const negativeAreaColor = 'rgba(255, 59, 48, 0.18)';
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: 'transparent' }]}>
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
           <Text style={[styles.title, { color: colors.textPrimary }]}>
