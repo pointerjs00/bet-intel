@@ -29,6 +29,8 @@ import { hapticMedium } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 import { useTeams } from '../../services/referenceService';
 import { StatusBadge } from './StatusBadge';
+import { StatusPill } from '../ui/StatusPill';
+import { useCardElevation } from '../ui/ListCard';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -76,9 +78,18 @@ function SiteBadge({ slug, colors }: { slug: string; colors: ReturnType<typeof u
   );
 }
 
+/** Name, or the match for singles, or "Múltipla · N seleções". */
+function boletinTitle(b: BoletinDetail): string {
+  if (b.name) return b.name;
+  const first = b.items[0];
+  if (b.items.length === 1 && first) return `${first.homeTeam} vs ${first.awayTeam}`;
+  return `Múltipla · ${b.items.length} seleções`;
+}
+
 /** Summary card used on the user's boletin list. */
 export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, onDelete, onShare, onImageShare, onItemPress }: BoletinCardProps) {
   const { colors } = useTheme();
+  const cardElevation = useCardElevation();
   const [expanded, setExpanded] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const chevronRotation = useSharedValue(0);
@@ -134,23 +145,16 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
       scaleDown={0.98}
       style={[
         styles.card,
-        {
-          backgroundColor: colors.surface,
-          borderColor: colors.border,
-        },
+        cardElevation,
+        // v2 cards: elevation instead of a border, no coloured side stripe (§6.1).
+        { backgroundColor: colors.surface, borderWidth: 0 },
       ]}
+      accessibilityHint="Abre o boletim"
     >
-      {/* Status accent stripe */}
-      <View
-        style={[
-          styles.statusStripe,
-          { backgroundColor: statusAccentColor(boletin.status) },
-        ]}
-      />
       {/* Header row */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <StatusBadge status={boletin.status} />
+          <StatusPill status={boletin.status} />
           {boletin.isFreebet ? (
             <View style={[styles.freebetBadge, { backgroundColor: 'rgba(0,122,255,0.15)', borderColor: 'rgba(0,122,255,0.35)' }]}>
               <Text style={[styles.freebetText, { color: '#007AFF' }]}>Freebet</Text>
@@ -167,7 +171,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
 
       {/* Name */}
       <Text style={[styles.name, { color: colors.textPrimary }]}>
-        {boletin.name || `Boletim com ${boletin.items.length} seleç${boletin.items.length === 1 ? 'ão' : 'ões'}`}
+        {boletinTitle(boletin)}
       </Text>
 
       {/* Metrics — PATCHED: raised boxes, no emoji, uppercase labels, monospace values */}
@@ -332,63 +336,8 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
         </View>
       )}
 
-      {/* Action + expand row */}
-      <View style={styles.actionRow}>
-        {/* Icon-only action buttons */}
-        <View style={styles.iconActions}>
-          <Animated.View style={shareButtonStyle}>
-            <Pressable
-              hitSlop={10}
-              onPress={(e) => { e.stopPropagation(); onShare?.(); }}
-              onPressIn={() => { shareScale.value = withTiming(0.9, { duration: 90 }); }}
-              onPressOut={() => { shareScale.value = withSpring(1, { damping: 12, stiffness: 260 }); }}
-              style={[styles.iconBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            >
-              <Ionicons color={colors.textSecondary} name="share-social-outline" size={20} />
-            </Pressable>
-          </Animated.View>
-          <Animated.View style={imageShareButtonStyle}>
-            <Pressable
-              hitSlop={10}
-              onPress={(e) => { e.stopPropagation(); onImageShare?.(); }}
-              onPressIn={() => { imageShareScale.value = withTiming(0.9, { duration: 90 }); }}
-              onPressOut={() => { imageShareScale.value = withSpring(1, { damping: 12, stiffness: 260 }); }}
-              style={[styles.iconBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            >
-              <Ionicons color={colors.textSecondary} name="image-outline" size={20} />
-            </Pressable>
-          </Animated.View>
-          <Animated.View style={deleteButtonStyle}>
-            <Pressable
-              hitSlop={10}
-              onPress={(e) => { e.stopPropagation(); onDelete?.(); }}
-              onPressIn={() => {
-                deleteScale.value = withTiming(0.9, { duration: 90 });
-              }}
-              onPressOut={() => {
-                deleteScale.value = withSpring(1, { damping: 12, stiffness: 260 });
-              }}
-              style={[styles.iconBtn, { backgroundColor: 'rgba(255,59,48,0.10)', borderColor: 'rgba(255,59,48,0.25)' }]}
-            >
-              <Ionicons color="#FF3B30" name="trash-outline" size={20} />
-            </Pressable>
-          </Animated.View>
-        </View>
-
-        {/* Expand/collapse chevron */}
-        <Pressable
-          hitSlop={10}
-          onPress={(e) => { e.stopPropagation(); toggleExpand(); }}
-          style={[styles.expandBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-        >
-          <Text style={[styles.expandBtnLabel, { color: colors.textSecondary }]}>
-            {expanded ? 'Fechar' : `Ver Detalhes`}
-          </Text>
-          <Animated.View style={chevronStyle}>
-            <Ionicons color={colors.textSecondary} name="chevron-down" size={16} />
-          </Animated.View>
-        </Pressable>
-      </View>
+      {/* Redesign D6: no inline action row. Tap opens the detail; share and delete are on
+          swipe (SwipeableBoletinCard) and image/duplicate/edit in the detail screen. */}
     </PressableScale>
 
     {/* Long-press quick preview modal */}
@@ -412,7 +361,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
 
           {/* Name */}
           <Text numberOfLines={2} style={[previewStyles.name, { color: colors.textPrimary }]}>
-            {boletin.name || `Boletim com ${boletin.items.length} seleç${boletin.items.length === 1 ? 'ão' : 'ões'}`}
+            {boletinTitle(boletin)}
           </Text>
 
           {/* Metrics */}
