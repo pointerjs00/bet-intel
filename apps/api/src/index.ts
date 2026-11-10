@@ -166,6 +166,38 @@ async function start(): Promise<void> {
   // Keep reference data in sync with the code-defined catalogue on every startup.
   await seedReferenceData();
 
+  // Plan #23: accept requests right away; rankings, fixture sync and schedulers warm up in
+  // the background (each step already tolerates failure), instead of blocking the listen.
+  const server = app.listen(PORT, () => {
+    logger.info(`BetIntel API listening on port ${PORT}`, { env: process.env.NODE_ENV });
+  });
+  const io = initializeSocketServer(server);
+
+  let shuttingDown = false;
+  const shutdown = (signal: string): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info(`Received ${signal} — shutting down gracefully`);
+    // Hard stop if open connections keep the server alive.
+    setTimeout(() => process.exit(0), 10_000).unref();
+    io.close();
+    server.close(() => {
+      void Promise.allSettled([prisma.$disconnect(), redis.quit()]).then(() => {
+        logger.info('Shutdown complete');
+        process.exit(0);
+      });
+    });
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  void warmUp().catch((err: unknown) => {
+    logger.warn('Background warm-up failed', { error: err instanceof Error ? err.message : String(err) });
+  });
+}
+
+/** Startup work that does not need to block the HTTP listener (plan #23). */
+async function warmUp(): Promise<void> {
   try {
     await ensureFreshATPRankings();
   } catch (err) {
@@ -240,25 +272,6 @@ async function start(): Promise<void> {
   };
 
   scheduleInsightJobs();
-
-  const server = app.listen(PORT, () => {
-    logger.info(`BetIntel API listening on port ${PORT}`, { env: process.env.NODE_ENV });
-  });
-
-  initializeSocketServer(server);
-
-  const shutdown = async (signal: string): Promise<void> => {
-    logger.info(`Received ${signal} — shutting down gracefully`);
-    server.close(async () => {
-      await prisma.$disconnect();
-      await redis.quit();
-      logger.info('Shutdown complete');
-      process.exit(0);
-    });
-  };
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 start().catch((err: unknown) => {
