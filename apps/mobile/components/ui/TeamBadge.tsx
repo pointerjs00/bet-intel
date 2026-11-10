@@ -154,18 +154,16 @@ export function TeamBadge({
     <View
       style={[
         styles.container,
-        { width: size, height: size, borderRadius },
-        showImage
-          ? { backgroundColor: isPlayer ? '#D9DEE7' : 'rgba(255, 255, 255, 0.96)' }
-          : { backgroundColor: nameToColor(name) },
-        size >= 24 ? styles.lifted : null,
+        // Crests sit on the page with no disc behind them (Sofascore-style); photos are cropped round.
+        { width: size, height: size, borderRadius: showImage && !isPlayer ? 0 : borderRadius },
+        showImage ? null : { backgroundColor: nameToColor(name) },
         style,
       ]}
     >
       {showImage ? (
         <Image
           source={imageSource}
-          style={isPlayer ? { width: size, height: size, borderRadius } : { width: size * 0.74, height: size * 0.74 }}
+          style={isPlayer ? { width: size, height: size, borderRadius } : { width: size, height: size }}
           onError={() => {
             setImgFailed(true);
             if (!disableRemoteFallback && !imageUrl && !fallbackUri) {
@@ -199,13 +197,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  lifted: {
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
   },
   initials: {
     color: '#FFFFFF',

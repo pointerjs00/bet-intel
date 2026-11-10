@@ -21,6 +21,7 @@ import Animated, {
 import type { BoletinDetail, ItemResult } from '@betintel/shared';
 import { BoletinStatus, Sport } from '@betintel/shared';
 import { TeamBadge } from '../ui/TeamBadge';
+import { MarketSelection } from './MarketSelection';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { PressableScale } from '../ui/PressableScale';
 import { useTheme } from '../../theme/useTheme';
@@ -169,9 +170,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
             {boletinTitle(boletin)}
           </Text>
           {boletin.items.length === 1 ? (
-            <Text numberOfLines={1} style={[styles.cSub, { color: colors.textSecondary }]}>
-              {boletin.items[0]!.selection}
-            </Text>
+            <MarketSelection market={boletin.items[0]!.market} selection={boletin.items[0]!.selection} style={styles.cMs} />
           ) : null}
         </View>
         <View style={styles.cRight}>
@@ -207,9 +206,12 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
               <View key={item.id} style={styles.cLeg}>
                 <Ionicons color={icon.color} name={icon.name} size={14} />
                 <TeamBadge name={item.homeTeam} size={18} variant={item.sport === 'TENNIS' ? 'player' : 'auto'} />
-                <Text numberOfLines={1} style={[styles.cLegText, { color: colors.textSecondary }]}>
-                  {item.homeTeam} vs {item.awayTeam} · {item.selection}
-                </Text>
+                <View style={styles.cLegBody}>
+                  <Text numberOfLines={1} style={[styles.cLegText, { color: colors.textPrimary }]}>
+                    {item.homeTeam} vs {item.awayTeam}
+                  </Text>
+                  <MarketSelection inline market={item.market} selection={item.selection} />
+                </View>
               </View>
             );
           })}
@@ -334,7 +336,9 @@ const styles = StyleSheet.create({
   cAmountHint: { fontFamily: 'Inter_400Regular', fontSize: 12 },
   cLegs: { gap: 4 },
   cLeg: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  cLegText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 13 },
+  cLegBody: { flex: 1, gap: 2 },
+  cLegText: { fontFamily: 'Inter_500Medium', fontSize: 13 },
+  cMs: { marginTop: 4 },
   cMeta: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   cMetaText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'right' },
   statusStripe: {

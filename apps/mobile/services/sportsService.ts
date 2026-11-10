@@ -38,6 +38,7 @@ export interface FootballMatch {
   incidents: MatchIncident[];
   venue: string | null;
   hasBet?: boolean;
+  redCards?: { home: number; away: number } | null;
 }
 
 export interface LeagueGroup { league: string; slug: string; matches: FootballMatch[] }
@@ -50,6 +51,68 @@ export function useFootballDay(date: string, enabled = true) {
     enabled,
     staleTime: 30_000,
     refetchInterval: (q) => (q.state.data?.groups.some((g) => g.matches.some((m) => m.status === 'LIVE' || m.status === 'HALFTIME')) ? 30_000 : false),
+  });
+}
+
+/** The real match behind a boletim selection (GET /betintel/:id/results). */
+export interface ItemMatch {
+  sport: 'FOOTBALL' | 'BASKETBALL' | 'TENNIS';
+  providerMatchId: string;
+  league: string | null;
+  status: string;
+  statusDetail: string;
+  kickoffAt: string;
+  home: string;
+  away: string;
+  score: { home: number; away: number } | null;
+  halfTime: { home: number; away: number } | null;
+  line: string | null;
+}
+
+/** Real scores of a boletim's selections, keyed by item id; refreshes every minute while one is live. */
+export function useItemMatches(boletinId: string | undefined) {
+  return useQuery({
+    queryKey: ['boletins', boletinId, 'results'],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<Record<string, ItemMatch | null>>>(`/betintel/${boletinId}/results`)).data.data,
+    enabled: Boolean(boletinId),
+    staleTime: 60_000,
+    refetchInterval: (q) => (Object.values(q.state.data ?? {}).some((m) => m && (m.status === 'LIVE' || m.status === 'HALFTIME')) ? 60_000 : false),
+  });
+}
+
+export interface TeamSearchHit { kind: 'team' | 'name'; sport: string; id: string | null; name: string; logo: string | null; leagues: string[]; bets: number }
+
+export function useTeamSearch(q: string) {
+  return useQuery({
+    queryKey: ['sports', 'teams', 'search', q],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<TeamSearchHit[]>>('/sports/teams/search', { params: { q } })).data.data,
+    enabled: q.trim().length >= 2,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export interface TeamBet {
+  boletinId: string; boletinName: string | null; boletinStatus: string; market: string; selection: string; odd: number; result: string;
+  stake: number; singleProfit: number | null; multiple: number; kickoffAt: string | null; homeTeam: string; awayTeam: string;
+}
+export interface TeamMatch {
+  id: string; league: string; leagueName: string; kickoffAt: string; status: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'CANCELLED';
+  home: string; away: string; score: { home: number; away: number } | null; bets: TeamBet[];
+}
+export interface TeamHistory {
+  team: { sport: string; id: string | null; name: string; logo: string | null; leagues: string[] };
+  summary: { selections: number; won: number; lost: number; void: number; pending: number; hitRate: number | null; averageOdd: number | null; singlesProfit: number; singlesStaked: number };
+  matches: TeamMatch[];
+  otherBets: TeamBet[];
+}
+
+/** A team's matches since 2020 with the user's bets on them. */
+export function useTeamHistory(ref: { sport?: string; id?: string; name?: string }) {
+  return useQuery({
+    queryKey: ['sports', 'teams', 'history', ref.sport, ref.id, ref.name],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<TeamHistory>>('/sports/teams/history', { params: ref })).data.data,
+    enabled: Boolean(ref.id || ref.name),
+    staleTime: 10 * 60_000,
   });
 }
 

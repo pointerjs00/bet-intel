@@ -10,6 +10,7 @@ import { AppText } from '../../components/ui/AppText';
 import { ListCard, ListRow } from '../../components/ui/ListCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { TeamBadge } from '../../components/ui/TeamBadge';
+import { MarketSelection } from '../../components/boletins/MarketSelection';
 import { useToast } from '../../components/ui/Toast';
 import { useReviewItems, useUpdateBoletinItemsMutation, type ReviewItem } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
@@ -69,9 +70,7 @@ export default function ReviewQueueScreen() {
                   </View>
                   <View style={styles.flex}>
                   <AppText numberOfLines={1} variant="bodyStrong">{item.homeTeam} vs {item.awayTeam}</AppText>
-                  <AppText numberOfLines={2} variant="caption">
-                    {item.market} · {item.selection} · @{formatOdds(item.oddValue)}
-                  </AppText>
+                  <MarketSelection market={item.market} selection={item.selection} style={styles.ms} trailing={`@${formatOdds(item.oddValue)}`} />
                   <AppText variant="label">
                     {item.competition}{item.kickoffAt ? ` · ${formatShortDateTime(item.kickoffAt)}` : ''}{item.boletinName ? ` · ${item.boletinName}` : ''}
                   </AppText>
@@ -110,6 +109,7 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 8, paddingVertical: 48 },
   item: { gap: 10, padding: 16 },
   head: { flexDirection: 'row', gap: 12 },
+  ms: { marginVertical: 4 },
   flex: { flex: 1 },
   crests: { height: 40, width: 40 },
   crestBack: { bottom: 0, position: 'absolute', right: 0 },

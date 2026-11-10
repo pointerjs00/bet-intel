@@ -1,236 +1,355 @@
-// Jogos — free ESPN data: football (8 leagues, UEFA competitions and national teams),
-// NBA and ATP/WTA tennis, switched with the control at the top.
-import React, { useMemo, useState } from 'react';
-import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+// Jogos — football (followed leagues, UEFA and national teams), NBA and ATP/WTA tennis from ESPN,
+// any day since 2020. Sofascore-like layout: sport tabs, date navigator with a calendar, swipe
+// left/right to change day, league cards with crest, status column, winner in bold.
+import React, { useMemo, useRef, useState } from 'react';
+import { Image, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { AppText } from '../../components/ui/AppText';
-import { ListCard, ListRow } from '../../components/ui/ListCard';
+import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { Appear, LiveDot } from '../../components/ui/Appear';
-import { useGlow } from '../../components/ui/ListCard';
+import { LiveDot } from '../../components/ui/Appear';
+import { useCardElevation } from '../../components/ui/ListCard';
 import { TeamBadge } from '../../components/ui/TeamBadge';
-import { getLeagueLogoUrl } from '../../utils/sportAssets';
-import { SPORT_OPTIONS, useBasketballDay, useFootballDay, useTennisDay, type FootballMatch, type SimpleMatch, type SportKey } from '../../services/sportsService';
-import { SegmentedControl } from '../../components/ui/SegmentedControl';
+import { getCountryFlagUrl, getLeagueLogoUrl } from '../../utils/sportAssets';
+import { useBasketballDay, useFootballDay, useTennisDay, type FootballMatch, type SimpleMatch, type SportKey } from '../../services/sportsService';
 import { useTheme } from '../../theme/useTheme';
 import { hapticLight } from '../../utils/haptics';
 
-type Filter = 'all' | 'live' | 'bets';
+type AnyMatch = FootballMatch | SimpleMatch;
+type AnyGroup = { league: string; slug: string; matches: AnyMatch[] };
 
 const DAY_MS = 24 * 3600e3;
+export const FIRST_DAY = new Date(2020, 0, 1);
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-const toIsoDate = (d: Date) => d.toISOString().slice(0, 10);
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-function dayLabel(d: Date, offset: number): { top: string; day: string } {
-  if (offset === 0) return { top: 'Hoje', day: String(d.getDate()) };
-  if (offset === 1) return { top: 'Amanhã', day: String(d.getDate()) };
-  if (offset === -1) return { top: 'Ontem', day: String(d.getDate()) };
-  return { top: WEEKDAYS[d.getDay()]!, day: String(d.getDate()) };
-}
-
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const toIsoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const isLive = (m: { status: string }) => m.status === 'LIVE' || m.status === 'HALFTIME';
+const isDone = (m: { status: string }) => m.status === 'FINISHED' || m.status === 'RETIRED' || m.status === 'WALKOVER';
 
-type AnyGroup = { league: string; slug: string; matches: Array<FootballMatch | SimpleMatch> };
+/** Country line under the league name (flag + name), Sofascore-style. */
+const LEAGUE_COUNTRY: Record<string, string> = {
+  'Liga Portugal Betclic': 'Portugal', 'Premier League': 'Inglaterra', 'La Liga': 'Espanha', Bundesliga: 'Alemanha',
+  'Serie A': 'Itália', 'Ligue 1': 'França', Eredivisie: 'Holanda', 'Süper Lig': 'Turquia',
+};
+
+function dayTitle(d: Date): string {
+  const today = startOfDay(new Date()).getTime();
+  const diff = Math.round((startOfDay(d).getTime() - today) / DAY_MS);
+  if (diff === 0) return 'Hoje';
+  if (diff === -1) return 'Ontem';
+  if (diff === 1) return 'Amanhã';
+  const year = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '';
+  return `${WEEKDAYS[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} ${MONTHS[d.getMonth()]}${year}`;
+}
 
 export default function JogosScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const accentGlow = useGlow(colors.accent);
+  const elevation = useCardElevation();
   const [sport, setSport] = useState<SportKey>('football');
-  const [offset, setOffset] = useState(0);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [day, setDay] = useState(() => startOfDay(new Date()));
+  const [liveOnly, setLiveOnly] = useState(false);
+  const [betsOnly, setBetsOnly] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
-  const date = useMemo(() => new Date(Date.now() + offset * DAY_MS), [offset]);
-  const iso = toIsoDate(date);
+  const iso = toIsoDate(day);
   const footballQuery = useFootballDay(iso, sport === 'football');
   const basketballQuery = useBasketballDay(iso, sport === 'basketball');
   const tennisQuery = useTennisDay(iso, sport === 'tennis');
   const dayQuery = sport === 'football' ? footballQuery : sport === 'basketball' ? basketballQuery : tennisQuery;
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => i - 2), []);
   const allGroups = (dayQuery.data?.groups ?? []) as AnyGroup[];
-
   const groups = useMemo(() => allGroups
-    .map((g) => ({
-      ...g,
-      matches: g.matches.filter((m) => (filter === 'live' ? isLive(m) : filter === 'bets' ? m.hasBet : true)),
-    }))
-    .filter((g) => g.matches.length > 0), [allGroups, filter]);
-
+    .map((g) => ({ ...g, matches: g.matches.filter((m) => (!liveOnly || isLive(m)) && (!betsOnly || m.hasBet)) }))
+    .filter((g) => g.matches.length > 0), [allGroups, liveOnly, betsOnly]);
   const liveCount = allGroups.reduce((n, g) => n + g.matches.filter(isLive).length, 0);
-  const betCount = allGroups.reduce((n, g) => n + g.matches.filter((m) => m.hasBet).length, 0);
+
+  const today = startOfDay(new Date());
+  const isToday = day.getTime() === today.getTime();
+  const shift = (n: number) => {
+    const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + n);
+    if (next < FIRST_DAY) return;
+    hapticLight();
+    setDay(next);
+  };
+  // Swipe left → next day, swipe right → previous day. Captured before the rows' presses once the
+  // movement is clearly horizontal, so a swipe never opens a match.
+  const shiftRef = useRef(shift);
+  shiftRef.current = shift;
+  const swipe = useRef(PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_e, g) => Math.abs(g.dx) > 24 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+    onPanResponderRelease: (_e, g) => {
+      if (g.dx < -60) shiftRef.current(1);
+      else if (g.dx > 60) shiftRef.current(-1);
+    },
+    onPanResponderTerminationRequest: () => false,
+  })).current;
+
+  const tabs: Array<{ value: SportKey; label: string; icon: (c: string) => React.ReactNode }> = [
+    { value: 'football', label: 'Futebol', icon: (c) => <Ionicons color={c} name="football" size={22} /> },
+    { value: 'tennis', label: 'Ténis', icon: (c) => <MaterialCommunityIcons color={c} name="tennis" size={22} /> },
+    { value: 'basketball', label: 'Basquetebol', icon: (c) => <Ionicons color={c} name="basketball" size={22} /> },
+  ];
 
   return (
-    <ScrollView
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }]}
-      refreshControl={<RefreshControl onRefresh={() => void dayQuery.refetch()} refreshing={dayQuery.isRefetching} tintColor={colors.primary} />}
-      style={{ backgroundColor: colors.background }}
-    >
-      <AppText accessibilityRole="header" variant="title">Jogos</AppText>
-
-      <SegmentedControl onChange={(v) => { setSport(v); setFilter('all'); }} options={SPORT_OPTIONS} value={sport} />
-
-      {/* Day strip */}
-      <ScrollView contentContainerStyle={styles.days} horizontal showsHorizontalScrollIndicator={false}>
-        {days.map((o) => {
-          const d = new Date(Date.now() + o * DAY_MS);
-          const label = dayLabel(d, o);
-          const active = o === offset;
+    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Header: sport tabs + search */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        {tabs.map((t) => {
+          const active = t.value === sport;
           return (
             <Pressable
-              accessibilityRole="button"
+              accessibilityLabel={t.label}
+              accessibilityRole="tab"
               accessibilityState={{ selected: active }}
-              key={o}
-              onPress={() => { hapticLight(); setOffset(o); }}
-              style={[styles.day, { backgroundColor: active ? colors.accent : colors.surface }, active ? accentGlow : null]}
+              key={t.value}
+              onPress={() => { hapticLight(); setSport(t.value); setLiveOnly(false); setBetsOnly(false); }}
+              style={[styles.tab, active && { borderBottomColor: colors.primary }]}
             >
-              <AppText style={[styles.dayTop, active && styles.onAccent]} tone={active ? undefined : 'secondary'} variant="label">{label.top}</AppText>
-              <AppText style={active ? styles.onAccent : undefined} variant="number">{label.day}</AppText>
+              {t.icon(active ? colors.textPrimary : colors.textMuted)}
+              {active ? <AppText style={styles.tabLabel} variant="bodyStrong">{t.label}</AppText> : null}
             </Pressable>
           );
         })}
-      </ScrollView>
-
-      {/* Filters */}
-      <View style={styles.filters}>
-        {([
-          { key: 'all', label: 'Todos' },
-          { key: 'live', label: liveCount > 0 ? `Ao vivo · ${liveCount}` : 'Ao vivo' },
-          { key: 'bets', label: betCount > 0 ? `Com aposta · ${betCount}` : 'Com aposta' },
-        ] as const).map((f) => {
-          const active = filter === f.key;
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              key={f.key}
-              onPress={() => setFilter(f.key)}
-              style={[styles.pill, { backgroundColor: active ? `${colors.primary}26` : colors.surface }]}
-            >
-              <AppText style={{ color: active ? colors.primary : colors.textSecondary, fontWeight: active ? '700' : '500' }} variant="label">{f.label}</AppText>
-            </Pressable>
-          );
-        })}
+        <Pressable accessibilityLabel="Pesquisar equipa" accessibilityRole="button" hitSlop={8} onPress={() => router.push('/equipa/pesquisa')} style={styles.searchBtn}>
+          <Ionicons color={colors.textPrimary} name="search" size={22} />
+        </Pressable>
       </View>
 
-      {dayQuery.isLoading ? (
-        <ListCard>{[0, 1, 2, 3].map((i) => <ListRow key={i}><Skeleton height={40} width="100%" /></ListRow>)}</ListCard>
-      ) : dayQuery.isError ? (
-        <ListCard>
-          <ListRow onPress={() => void dayQuery.refetch()}>
-            <Ionicons color={colors.warning} name="cloud-offline-outline" size={22} />
-            <AppText style={styles.flex} variant="bodyStrong">Não foi possível carregar. Toca para tentar outra vez.</AppText>
-          </ListRow>
-        </ListCard>
-      ) : groups.length === 0 ? (
-        <View style={styles.empty}>
-          <Ionicons color={colors.textMuted} name="calendar-outline" size={40} />
-          <AppText variant="heading">
-            {filter === 'live' ? 'Nenhum jogo a decorrer' : filter === 'bets' ? 'Sem jogos com aposta neste dia' : 'Sem jogos neste dia'}
-          </AppText>
-          <AppText style={styles.center} variant="caption">
-            {sport === 'football'
-              ? 'Ligas seguidas: Portugal, Inglaterra, Espanha, Alemanha, Itália, França, Países Baixos, Turquia, provas UEFA e seleções (Liga das Nações, Mundial, Europeu, Copa América, amigáveis).'
-              : sport === 'basketball' ? 'Jogos da NBA (horas de Portugal).' : 'Torneios ATP e WTA, singulares.'}
-          </AppText>
-          {filter === 'all' ? (
-            <Pressable accessibilityRole="button" onPress={() => setOffset((o) => o + 1)} style={[styles.emptyBtn, { backgroundColor: colors.surface }]}>
-              <AppText tone="accent" variant="bodyStrong">Ver o dia seguinte</AppText>
-            </Pressable>
-          ) : null}
+      {/* Controls: live, with bet, date navigator */}
+      <View style={styles.controls}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: liveOnly }}
+          onPress={() => { hapticLight(); setLiveOnly((v) => !v); }}
+          style={[styles.pill, { borderColor: colors.live, backgroundColor: liveOnly ? `${colors.live}26` : 'transparent' }]}
+        >
+          <AppText style={{ color: colors.live, fontWeight: '700' }} variant="label">Ao vivo{liveCount ? ` ${liveCount}` : ''}</AppText>
+          <View style={[styles.liveRing, { borderColor: colors.live }]} />
+        </Pressable>
+        <Pressable
+          accessibilityLabel="Só jogos com aposta"
+          accessibilityRole="button"
+          accessibilityState={{ selected: betsOnly }}
+          onPress={() => { hapticLight(); setBetsOnly((v) => !v); }}
+          style={[styles.pill, styles.iconPill, { borderColor: betsOnly ? colors.primary : colors.surfaceRaised, backgroundColor: betsOnly ? `${colors.primary}26` : colors.surface }]}
+        >
+          <Ionicons color={betsOnly ? colors.primary : colors.textSecondary} name="receipt-outline" size={16} />
+        </Pressable>
+        <View style={[styles.dateNav, { backgroundColor: colors.surface }]}>
+          <Pressable accessibilityLabel="Dia anterior" hitSlop={8} onPress={() => shift(-1)} style={styles.navArrow}>
+            <Ionicons color={colors.accentText} name="chevron-back" size={20} />
+          </Pressable>
+          <Pressable accessibilityHint="Abre o calendário" accessibilityRole="button" onPress={() => setCalendarOpen(true)} style={styles.dateCenter}>
+            <AppText numberOfLines={1} style={isToday ? { color: colors.accentText } : undefined} variant="bodyStrong">{dayTitle(day)}</AppText>
+          </Pressable>
+          <Pressable accessibilityLabel="Dia seguinte" hitSlop={8} onPress={() => shift(1)} style={styles.navArrow}>
+            <Ionicons color={colors.accentText} name="chevron-forward" size={20} />
+          </Pressable>
         </View>
-      ) : (
-        groups.map((g, gi) => (
-          <Appear index={gi} key={g.slug} style={styles.group}>
-            <View style={styles.groupHead}>
-              {getLeagueLogoUrl(g.league) ? (
-                <Image resizeMode="contain" source={{ uri: getLeagueLogoUrl(g.league)! }} style={styles.leagueLogo} />
-              ) : null}
-              <AppText variant="bodyStrong">{g.league}</AppText>
-            </View>
-            <ListCard>
-              {g.matches.map((m) => (
-                <MatchRow
-                  key={m.providerMatchId}
-                  match={m}
-                  // Match detail (stats, incidents, preview) exists for football only.
-                  onPress={sport === 'football' ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: g.slug } }) : undefined}
-                  variant={sport === 'tennis' ? 'player' : 'team'}
-                />
-              ))}
-            </ListCard>
-          </Appear>
-        ))
-      )}
-    </ScrollView>
+      </View>
+
+      <View style={styles.flex} {...swipe.panHandlers}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}
+          refreshControl={<RefreshControl onRefresh={() => void dayQuery.refetch()} refreshing={dayQuery.isRefetching} tintColor={colors.primary} />}
+        >
+          <Animated.View entering={FadeIn.duration(180)} key={`${sport}-${iso}`} style={styles.groups}>
+            {dayQuery.isLoading ? (
+              [0, 1].map((i) => <View key={i} style={[styles.card, { backgroundColor: colors.surface }]}><Skeleton height={120} width="100%" /></View>)
+            ) : dayQuery.isError ? (
+              <Pressable onPress={() => void dayQuery.refetch()} style={[styles.card, styles.row, { backgroundColor: colors.surface }]}>
+                <Ionicons color={colors.warning} name="cloud-offline-outline" size={22} />
+                <AppText style={styles.flex} variant="bodyStrong">Não foi possível carregar. Toca para tentar outra vez.</AppText>
+              </Pressable>
+            ) : groups.length === 0 ? (
+              <View style={styles.empty}>
+                <Ionicons color={colors.textMuted} name="calendar-outline" size={40} />
+                <AppText variant="heading">{liveOnly ? 'Nenhum jogo a decorrer' : betsOnly ? 'Sem jogos com aposta neste dia' : 'Sem jogos neste dia'}</AppText>
+                <AppText style={styles.center} variant="caption">
+                  {sport === 'football'
+                    ? 'Portugal, Inglaterra, Espanha, Alemanha, Itália, França, Países Baixos, Turquia, provas UEFA e seleções.'
+                    : sport === 'basketball' ? 'Jogos da NBA (horas de Portugal).' : 'Torneios ATP e WTA, singulares.'}
+                </AppText>
+                <AppText style={styles.center} variant="caption">Desliza para os lados para mudar de dia.</AppText>
+              </View>
+            ) : (
+              groups.map((g) => (
+                <View key={g.slug} style={[styles.card, elevation, { backgroundColor: colors.surface }]}>
+                  <LeagueHeader league={g.league} sport={sport} />
+                  {g.matches.map((m) => (
+                    <MatchRow
+                      key={m.providerMatchId}
+                      match={m}
+                      onPress={sport === 'football' ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: g.slug } }) : undefined}
+                      sport={sport}
+                    />
+                  ))}
+                </View>
+              ))
+            )}
+          </Animated.View>
+        </ScrollView>
+      </View>
+
+      {!isToday ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => { hapticLight(); setDay(today); }}
+          style={[styles.todayBtn, { backgroundColor: colors.accent, bottom: insets.bottom + 96 }]}
+        >
+          {day > today ? <Ionicons color="#FFFFFF" name="chevron-back" size={16} /> : null}
+          <AppText style={styles.todayText} variant="bodyStrong">Hoje</AppText>
+          {day < today ? <Ionicons color="#FFFFFF" name="chevron-forward" size={16} /> : null}
+        </Pressable>
+      ) : null}
+
+      <CalendarPicker
+        maxDate={new Date(today.getTime() + 60 * DAY_MS)}
+        minDate={FIRST_DAY}
+        onClose={() => setCalendarOpen(false)}
+        onSelect={(d) => { setDay(startOfDay(d)); setCalendarOpen(false); }}
+        selected={day}
+        visible={calendarOpen}
+      />
+    </View>
   );
 }
 
-function MatchRow({ match: m, onPress, variant }: { match: FootballMatch | SimpleMatch; onPress?: () => void; variant: 'team' | 'player' }) {
+function LeagueHeader({ league, sport }: { league: string; sport: SportKey }) {
+  const { colors } = useTheme();
+  // Tennis groups come as "ATP · Tournament".
+  const [tour, tournament] = sport === 'tennis' && league.includes(' · ') ? league.split(' · ') as [string, string] : [null, league];
+  const title = tournament ?? league;
+  const sub = sport === 'tennis' ? tour : sport === 'basketball' ? 'EUA' : LEAGUE_COUNTRY[league] ?? (/^UEFA|Europeu|Liga das Nações/.test(league) ? 'Europa' : 'Mundo');
+  const logo = getLeagueLogoUrl(title) ?? getLeagueLogoUrl(league);
+  const flag = sub ? getCountryFlagUrl(sub) : null;
+  return (
+    <View style={styles.leagueHead}>
+      {logo ? <Image resizeMode="contain" source={{ uri: logo }} style={styles.leagueLogo} /> : (
+        <View style={[styles.leagueLogo, styles.leagueLogoFallback, { backgroundColor: colors.surfaceRaised }]}>
+          <Ionicons color={colors.textSecondary} name="trophy-outline" size={18} />
+        </View>
+      )}
+      <View style={styles.flex}>
+        <AppText numberOfLines={1} variant="bodyStrong">{title}</AppText>
+        {sub ? (
+          <View style={styles.row}>
+            {flag ? <Image resizeMode="contain" source={{ uri: flag }} style={styles.flag} /> : null}
+            <AppText variant="caption">{sub}</AppText>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function MatchRow({ match: m, onPress, sport }: { match: AnyMatch; onPress?: () => void; sport: SportKey }) {
   const { colors } = useTheme();
   const live = isLive(m);
-  const time = new Date(m.kickoffAt).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-  const done = m.status === 'FINISHED' || m.status === 'RETIRED' || m.status === 'WALKOVER';
-  const left = live
-    ? (m.status === 'HALFTIME' ? 'Int.' : variant === 'player' ? 'Ao vivo' : m.statusDetail)
-    : done ? (m.status === 'RETIRED' ? 'Desist.' : 'Fim') : m.status === 'POSTPONED' ? 'Adiado' : m.status === 'CANCELLED' ? 'Cancel.' : time;
-  const showScore = m.score && (live || done);
-  // NBA quarters / tennis sets, and the round for tennis.
+  const done = isDone(m);
+  const kick = new Date(m.kickoffAt);
+  const time = kick.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  const date = `${String(kick.getDate()).padStart(2, '0')}/${String(kick.getMonth() + 1).padStart(2, '0')}/${String(kick.getFullYear()).slice(2)}`;
+  const status = live
+    ? (m.status === 'HALFTIME' ? 'Int.' : sport === 'tennis' ? 'Ao vivo' : m.statusDetail)
+    : done ? (m.status === 'RETIRED' ? 'Desist.' : m.status === 'WALKOVER' ? 'W.O.' : 'FT')
+      : m.status === 'POSTPONED' ? 'Adiado' : m.status === 'CANCELLED' ? 'Cancel.' : time;
+  const variant = sport === 'tennis' ? 'player' : 'team';
+  const red = 'redCards' in m ? m.redCards : null;
   const line = 'line' in m ? m.line : null;
-  const sub = variant === 'player' ? [m.statusDetail, line].filter(Boolean).join(' · ') : live && line ? line : null;
+  // NBA: away team first, "@ Home" second (US convention, like Sofascore).
+  const top = sport === 'basketball' ? { name: m.away.name, score: m.score?.away, other: m.score?.home, reds: 0 } : { name: m.home.name, score: m.score?.home, other: m.score?.away, reds: red?.home ?? 0 };
+  const bottom = sport === 'basketball' ? { name: m.home.name, score: m.score?.home, other: m.score?.away, reds: 0, at: true } : { name: m.away.name, score: m.score?.away, other: m.score?.home, reds: red?.away ?? 0, at: false };
+  const showScore = m.score && (live || done);
+
+  const side = (s: typeof top & { at?: boolean }) => {
+    const won = done && s.score !== undefined && s.other !== undefined && s.score > s.other;
+    const lost = done && s.score !== undefined && s.other !== undefined && s.score < s.other;
+    return (
+      <View style={styles.side}>
+        <TeamBadge name={s.name} size={22} variant={variant} />
+        <AppText numberOfLines={1} style={[styles.teamName, { color: lost ? colors.textSecondary : colors.textPrimary, fontWeight: won ? '700' : '500' }]}>
+          {s.at ? '@ ' : ''}{s.name}
+        </AppText>
+        {s.reds > 0 ? <View style={[styles.redCard, { backgroundColor: colors.live }]} /> : null}
+        {showScore ? (
+          <AppText style={[styles.score, { color: live ? colors.live : lost ? colors.textSecondary : colors.textPrimary, fontWeight: won || live ? '800' : '600' }]} variant="number">{s.score}</AppText>
+        ) : null}
+      </View>
+    );
+  };
+
   return (
-    <ListRow accessibilityLabel={`${m.home.name} ${showScore ? `${m.score!.home} - ${m.score!.away}` : 'contra'} ${m.away.name}, ${left}`} onPress={onPress}>
-      <View style={styles.time}>
-        {live ? <LiveDot color={colors.live} size={7} /> : null}
-        <AppText style={live ? { color: colors.live } : undefined} variant="label">{left}</AppText>
+    <Pressable
+      accessibilityLabel={`${m.home.name} ${showScore ? `${m.score!.home} - ${m.score!.away}` : 'contra'} ${m.away.name}, ${status}`}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [styles.matchRow, pressed && { backgroundColor: colors.surfaceRaised }]}
+    >
+      <View style={styles.statusCol}>
+        <AppText style={styles.dateText} variant="caption">{date}</AppText>
+        <View style={styles.row}>
+          {live ? <LiveDot color={colors.live} size={6} /> : null}
+          <AppText style={[styles.statusText, { color: live ? colors.live : m.status === 'POSTPONED' || m.status === 'CANCELLED' ? colors.negative : colors.textSecondary }]} variant="caption">{status}</AppText>
+        </View>
       </View>
-      <View style={[styles.flex, styles.teams]}>
-        <View style={styles.team}>
-          <TeamBadge name={m.home.name} size={22} variant={variant} />
-          <AppText numberOfLines={1} style={styles.flex} variant="body">{m.home.name}</AppText>
-        </View>
-        <View style={styles.team}>
-          <TeamBadge name={m.away.name} size={22} variant={variant} />
-          <AppText numberOfLines={1} style={styles.flex} variant="body">{m.away.name}</AppText>
-        </View>
-        {sub ? <AppText numberOfLines={1} variant="caption">{sub}</AppText> : null}
+      <View style={styles.teams}>
+        {side(top)}
+        {side(bottom)}
+        {sport === 'tennis' && line ? <AppText numberOfLines={1} variant="caption">{line}</AppText> : null}
       </View>
-      {showScore ? (
-        <View style={styles.score}>
-          <AppText variant="number">{m.score!.home}</AppText>
-          <AppText variant="number">{m.score!.away}</AppText>
-        </View>
-      ) : null}
-      {m.hasBet ? (
-        <View accessibilityLabel="Tens aposta neste jogo" style={[styles.betDot, { backgroundColor: colors.primary }]} />
-      ) : (
-        <View style={styles.betDotSpacer} />
-      )}
-    </ListRow>
+      <View style={styles.betCol}>
+        {m.hasBet ? (
+          <View accessibilityLabel="Tens aposta neste jogo" style={[styles.betIcon, { borderColor: colors.primary }]}>
+            <Ionicons color={colors.primary} name="receipt" size={15} />
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 14, paddingHorizontal: 20 },
+  screen: { flex: 1 },
   flex: { flex: 1 },
   center: { textAlign: 'center' },
-  days: { gap: 8, paddingVertical: 2 },
-  day: { alignItems: 'center', borderRadius: 14, gap: 2, justifyContent: 'center', minHeight: 60, width: 56 },
-  dayTop: { textTransform: 'capitalize' },
-  onAccent: { color: '#FFFFFF' },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { borderRadius: 999, justifyContent: 'center', minHeight: 32, paddingHorizontal: 14 },
-  group: { gap: 8 },
-  time: { alignItems: 'center', gap: 4, width: 44 },
-  teams: { gap: 6 },
-  team: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  groupHead: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  leagueLogo: { height: 20, width: 20 },
-  score: { alignItems: 'flex-end', gap: 2 },
-  betDot: { borderRadius: 4, height: 8, width: 8 },
-  betDotSpacer: { width: 8 },
-  empty: { alignItems: 'center', gap: 10, paddingVertical: 40 },
-  emptyBtn: { borderRadius: 14, marginTop: 6, paddingHorizontal: 18, paddingVertical: 12 },
+  row: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  header: { alignItems: 'stretch', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', paddingHorizontal: 8 },
+  tab: { alignItems: 'center', borderBottomColor: 'transparent', borderBottomWidth: 3, flex: 1, gap: 4, justifyContent: 'center', minHeight: 64, paddingVertical: 8 },
+  tabLabel: { fontSize: 14 },
+  searchBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  controls: { alignItems: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
+  pill: { alignItems: 'center', borderRadius: 999, borderWidth: 1.5, flexDirection: 'row', gap: 6, height: 40, paddingHorizontal: 14 },
+  iconPill: { paddingHorizontal: 12 },
+  liveRing: { borderRadius: 6, borderWidth: 1.5, height: 11, width: 11 },
+  dateNav: { alignItems: 'center', borderRadius: 999, flex: 1, flexDirection: 'row', height: 40 },
+  navArrow: { alignItems: 'center', height: 40, justifyContent: 'center', width: 36 },
+  dateCenter: { alignItems: 'center', flex: 1, justifyContent: 'center' },
+  content: { paddingHorizontal: 12 },
+  groups: { gap: 12 },
+  card: { borderRadius: 22, overflow: 'hidden', paddingVertical: 6 },
+  leagueHead: { alignItems: 'center', flexDirection: 'row', gap: 14, paddingHorizontal: 16, paddingVertical: 12 },
+  leagueLogo: { height: 40, width: 40 },
+  leagueLogoFallback: { alignItems: 'center', borderRadius: 10, justifyContent: 'center' },
+  flag: { borderRadius: 3, height: 13, width: 18 },
+  matchRow: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
+  statusCol: { gap: 6, width: 62 },
+  dateText: { fontSize: 11 },
+  statusText: { fontSize: 12, fontWeight: '600' },
+  teams: { flex: 1, gap: 8 },
+  side: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  teamName: { flexShrink: 1, fontSize: 15 },
+  redCard: { borderRadius: 2, height: 14, width: 10 },
+  score: { fontSize: 16, marginLeft: 'auto', minWidth: 22, textAlign: 'right' },
+  betCol: { alignItems: 'center', width: 34 },
+  betIcon: { alignItems: 'center', borderRadius: 17, borderWidth: 1.5, height: 32, justifyContent: 'center', width: 32 },
+  empty: { alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingVertical: 40 },
+  todayBtn: { alignItems: 'center', alignSelf: 'center', borderRadius: 999, flexDirection: 'row', gap: 4, paddingHorizontal: 22, paddingVertical: 12, position: 'absolute' },
+  todayText: { color: '#FFFFFF' },
 });
