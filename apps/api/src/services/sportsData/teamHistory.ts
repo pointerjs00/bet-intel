@@ -7,6 +7,7 @@ import { teamNamesMatch } from '../marketResolutionEngine';
 import { countryToPt } from '../../utils/countryNames';
 import { ESPN_FOOTBALL_LEAGUES } from './espnFootball';
 import { TEAM_INDEX_KEY, type IndexedTeam } from '../../jobs/sportAssetsJob';
+import { matchScore } from './searchRank';
 
 const FIRST_SEASON = 2019; // ESPN season 2019 = 2019/20 (football), so matches from 2020 are covered
 const LEAGUE_NAME: Record<string, string> = {
@@ -23,23 +24,28 @@ async function allTeams(): Promise<IndexedTeam[]> {
 
 export interface SearchHit { kind: 'team' | 'name'; sport: string; id: string | null; name: string; logo: string | null; leagues: string[]; bets: number }
 
-/** Teams (ESPN index) and names from the user's own bets (tennis players, other leagues) matching the query. */
+/**
+ * Teams (ESPN index) and names from the user's own bets (tennis players, other leagues) matching
+ * the query, best match first. An empty query returns the teams the user bets on most.
+ */
 export async function searchTeams(userId: string, q: string): Promise<SearchHit[]> {
-  const words = norm(q).split(' ').filter(Boolean);
-  if (!words.length) return [];
-  const fits = (name: string) => { const n = norm(name); return words.every((w) => n.includes(w)); };
-  const teams = (await allTeams()).filter((t) => fits(t.name));
-
+  const empty = norm(q) === '';
   const items = await prisma.boletinItem.findMany({ where: { boletin: { userId } }, select: { sport: true, homeTeam: true, awayTeam: true } });
   const counts = new Map<string, { sport: string; n: number }>();
   for (const it of items) {
     for (const name of [it.homeTeam, it.awayTeam]) {
-      if (!fits(name)) continue;
+      if (!empty && matchScore(name, q) === 0) continue;
       const c = counts.get(name) ?? { sport: String(it.sport), n: 0 };
       c.n++;
       counts.set(name, c);
     }
   }
+  const index = await allTeams();
+  const teams = empty
+    // Only the indexed teams behind the user's most-bet names.
+    ? index.filter((t) => [...counts.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 15).some(([n, c]) => c.sport === t.sport && teamNamesMatch(n, t.name)))
+    : index.filter((t) => matchScore(t.name, q) > 0);
+
   const hits: SearchHit[] = teams.map((t) => ({
     kind: 'team', sport: t.sport, id: t.id, name: t.name, logo: t.logo, leagues: t.leagues.map((l) => LEAGUE_NAME[l] ?? l),
     bets: [...counts.entries()].filter(([n]) => teamNamesMatch(n, t.name)).reduce((a, [, c]) => a + c.n, 0),
@@ -50,7 +56,16 @@ export async function searchTeams(userId: string, q: string): Promise<SearchHit[
     if (hits.some((h) => h.kind === 'name' && teamNamesMatch(name, h.name))) continue;
     hits.push({ kind: 'name', sport: c.sport, id: null, name, logo: null, leagues: [], bets: c.n });
   }
-  return hits.sort((a, b) => b.bets - a.bets || a.name.localeCompare(b.name)).slice(0, 30);
+  if (empty) return hits.sort((a, b) => b.bets - a.bets || a.name.localeCompare(b.name)).slice(0, 12);
+  const score = new Map(hits.map((h) => [h, matchScore(h.name, q)]));
+  return hits
+    .sort((a, b) =>
+      score.get(b)! - score.get(a)!
+      || Number(b.bets > 0) - Number(a.bets > 0)
+      || b.bets - a.bets
+      || a.name.length - b.name.length
+      || a.name.localeCompare(b.name))
+    .slice(0, 20);
 }
 
 export interface TeamMatch {

@@ -19,7 +19,6 @@ import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import type { BoletinDetail } from '@betintel/shared';
 import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import type { Notification } from '@betintel/shared';
-import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import { ShareCard } from '../../components/boletins/ShareCard';
 import { SwipeableBoletinCard } from '../../components/boletins/SwipeableBoletinCard';
 import { useShareBoletinSheet } from '../../components/social/ShareBoletinProvider';
@@ -37,6 +36,7 @@ import { Appear } from '../../components/ui/Appear';
 import { AppText } from '../../components/ui/AppText';
 import { ListCard, ListRow } from '../../components/ui/ListCard';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
+import { StatusFilterSheet } from '../../components/boletins/StatusFilterSheet';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -62,18 +62,6 @@ const VISIBLE_BATCH_SIZE = 15;
 const LOAD_MORE_THRESHOLD = 0.4;
 
 type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBoletins>['data'] extends Array<infer T> | undefined ? T : never);
-
-
-
-const STATUS_FILTERS: Array<{ key: BoletinStatus; label: string; activeColor: string; activeBorder: string }> = [
-  { key: BoletinStatus.PENDING,  label: '⏳ Pendente',   activeColor: 'rgba(255,149,0,0.15)',  activeBorder: '#FF9500' },
-  { key: BoletinStatus.WON,      label: '✅ Ganhou',     activeColor: 'rgba(0,168,67,0.15)',   activeBorder: '#00A843' },
-  { key: BoletinStatus.LOST,     label: '❌ Perdeu',     activeColor: 'rgba(255,59,48,0.15)',  activeBorder: '#FF3B30' },
-  { key: BoletinStatus.VOID,     label: '🚫 Cancelado',  activeColor: 'rgba(0,122,255,0.15)',  activeBorder: '#007AFF' },
-  { key: BoletinStatus.CASHOUT,  label: '💵 Cashout',    activeColor: 'rgba(255,215,0,0.15)',  activeBorder: '#FFD700' },
-];
-
-const STATUS_FILTER_ITEMS = STATUS_FILTERS.map((f) => ({ label: f.label, value: f.key }));
 
 const ItemSeparator = () => <View style={{ height: 16 }} />;
 const keyExtractor = (item: SlipListItem) => item.id;
@@ -242,7 +230,6 @@ export default function HomeScreen() {
   const [sort, setSort] = useState<BoletinSort>({ by: 'date', dir: 'desc' });
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_BOLETINS);
   const [insightsItem, setInsightsItem] = useState<SelectionInsightsItem | null>(null);
-
 
   // Read filter params pushed from the stats screen (e.g. filterTeam, filterSport, etc.)
   const {
@@ -501,6 +488,12 @@ export default function HomeScreen() {
   }, [filter, dataRanges, exactMarket]);
 
   const isDefaultSort = sort.by === 'date' && sort.dir === 'desc';
+
+  const statusCounts = useMemo(() => {
+    const c: Partial<Record<BoletinStatus, number>> = {};
+    for (const b of boletins) c[b.status] = (c[b.status] ?? 0) + 1;
+    return c;
+  }, [boletins]);
 
   const filtered = useMemo(() => {
     let result = activeStatuses.size > 0 ? boletins.filter((b) => activeStatuses.has(b.status)) : boletins;
@@ -819,15 +812,13 @@ export default function HomeScreen() {
                 {activeStatuses.size > 0 ? <Text style={[styles.filterBtnBadge, { backgroundColor: colors.primary }]}>{activeStatuses.size}</Text> : null}
               </PressableScale>
 
-              <SearchableDropdown
-                visible={showStatusDropdown}
+              <StatusFilterSheet
+                counts={statusCounts}
+                onChange={setActiveStatuses}
                 onClose={() => setShowStatusDropdown(false)}
-                title="Filtrar por estado"
-                items={STATUS_FILTER_ITEMS}
-                multiSelect
-                selectedValues={Array.from(activeStatuses)}
-                onSelectMultiple={(vals) => setActiveStatuses(new Set(vals as BoletinStatus[]))}
-                onSelect={() => {}}
+                resultCount={filtered.length}
+                selected={activeStatuses}
+                visible={showStatusDropdown}
               />
 
               {/* Advanced filter button */}
@@ -848,7 +839,7 @@ export default function HomeScreen() {
                   size={18}
                 />
                 {(activeFilterCount > 0 || !isDefaultSort) ? (
-                  <Text style={styles.filterBtnBadge}>
+                  <Text style={[styles.filterBtnBadge, { backgroundColor: colors.primary }]}>
                     {activeFilterCount + (!isDefaultSort ? 1 : 0)}
                   </Text>
                 ) : null}
@@ -1295,6 +1286,9 @@ function getErrorMessage(error: unknown): string {
   return 'Não foi possível concluir a operação.';
 }
 
+/** Height shared by the search field and the filter buttons. */
+const CONTROL_H = 46;
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   headerWrap: { gap: 14, marginBottom: 18 },
@@ -1415,10 +1409,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: 10,
+    height: CONTROL_H,
     paddingHorizontal: 14,
-    paddingVertical: 11,
   },
-  searchInput: { flex: 1, fontSize: 15, fontWeight: '500' },
+  searchInput: { flex: 1, fontSize: 15, fontWeight: '500', paddingVertical: 0 },
   controlsRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   statusDropdownTrigger: {
     alignItems: 'center',
@@ -1432,15 +1426,14 @@ const styles = StyleSheet.create({
   },
   statusDropdownLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
   filterList: { gap: 8 },
+  // Same height as the search field so the row reads as one control strip.
   filterBtn: {
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    flexDirection: 'row',
-    gap: 4,
-    height: 36,
+    height: CONTROL_H,
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    width: CONTROL_H,
   },
   filterBtnBadge: { borderRadius: 8, color: '#0B0D0C', fontSize: 10, fontWeight: '800', minWidth: 16, overflow: 'hidden', paddingHorizontal: 3, position: 'absolute', right: 4, textAlign: 'center', top: 4 },
   flex1: { flex: 1 },

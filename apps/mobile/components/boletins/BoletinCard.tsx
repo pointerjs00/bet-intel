@@ -158,69 +158,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
           shows the quick preview; share/delete on swipe. */}
       {/* v3: thin status-coloured strip along the top edge */}
       <View pointerEvents="none" style={[styles.cTopBar, { backgroundColor: statusAccentColor(boletin.status, colors) }]} />
-      <View style={styles.cRow}>
-        {boletin.items.length === 1 && boletin.items[0] ? (
-          <View style={styles.cCrests}>
-            <TeamBadge name={boletin.items[0].homeTeam} size={30} variant={boletin.items[0].sport === 'TENNIS' ? 'player' : 'auto'} />
-            <TeamBadge name={boletin.items[0].awayTeam} size={22} style={styles.cCrestBack} variant={boletin.items[0].sport === 'TENNIS' ? 'player' : 'auto'} />
-          </View>
-        ) : null}
-        <View style={styles.cMain}>
-          <Text numberOfLines={1} style={[styles.cTitle, { color: colors.textPrimary }]}>
-            {boletinTitle(boletin)}
-          </Text>
-          {boletin.items.length === 1 ? (
-            <MarketSelection market={boletin.items[0]!.market} selection={boletin.items[0]!.selection} style={styles.cMs} />
-          ) : null}
-        </View>
-        <View style={styles.cRight}>
-          {(() => {
-            const stake = Number(boletin.stake);
-            if (boletin.status === BoletinStatus.PENDING) {
-              return (
-                <>
-                  <Text style={[styles.cAmount, { color: colors.textPrimary }]}>{formatCurrency(boletin.potentialReturn)}</Text>
-                  <Text style={[styles.cAmountHint, { color: colors.textMuted }]}>{formatCurrency(boletin.stake)} apostados</Text>
-                </>
-              );
-            }
-            const ret = Number(boletin.actualReturn ?? (boletin.status === BoletinStatus.CASHOUT ? boletin.cashoutAmount ?? 0 : 0));
-            const profit = ret - (boletin.isFreebet ? 0 : stake);
-            return (
-              <>
-                <Text style={[styles.cAmount, { color: profit > 0 ? colors.positive : profit < 0 ? colors.negative : colors.textSecondary }]}>
-                  {profit > 0 ? '+' : profit < 0 ? '−' : ''}{formatCurrency(Math.abs(profit))}
-                </Text>
-                <Text style={[styles.cAmountHint, { color: colors.textMuted }]}>{formatCurrency(boletin.stake)} · @{formatOdds(boletin.totalOdds)}</Text>
-              </>
-            );
-          })()}
-        </View>
-      </View>
-
-      {boletin.items.length > 1 ? (
-        <View style={styles.cLegs}>
-          {boletin.items.slice(0, 4).map((item) => {
-            const icon = itemResultIcon(item.result, colors);
-            return (
-              <View key={item.id} style={styles.cLeg}>
-                <Ionicons color={icon.color} name={icon.name} size={14} />
-                <TeamBadge name={item.homeTeam} size={18} variant={item.sport === 'TENNIS' ? 'player' : 'auto'} />
-                <View style={styles.cLegBody}>
-                  <Text numberOfLines={1} style={[styles.cLegText, { color: colors.textPrimary }]}>
-                    {item.homeTeam} vs {item.awayTeam}
-                  </Text>
-                  <MarketSelection inline market={item.market} selection={item.selection} />
-                </View>
-              </View>
-            );
-          })}
-          {boletin.items.length > 4 ? (
-            <Text style={[styles.cLegText, { color: colors.textMuted }]}>+ {boletin.items.length - 4} seleções</Text>
-          ) : null}
-        </View>
-      ) : null}
-
+      {/* Meta line: status, freebet, site, date */}
       <View style={styles.cMeta}>
         <StatusPill compact status={boletin.status} />
         {boletin.isFreebet ? (
@@ -228,10 +166,84 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress, o
             <Text style={[styles.freebetText, { color: colors.info }]}>Freebet</Text>
           </View>
         ) : null}
-        <Text numberOfLines={1} style={[styles.cMetaText, { color: colors.textMuted }]}>
+        {boletin.items.length > 1 ? (
+          <Text style={[styles.cMetaText, { color: colors.textSecondary }]}>{`Múltipla · ${boletin.items.length}`}</Text>
+        ) : null}
+        <Text numberOfLines={1} style={[styles.cMetaText, styles.cMetaRight, { color: colors.textMuted }]}>
           {[BETTING_SITES.find((s) => s.slug === boletin.siteSlug)?.name, new Date(boletin.betDate ?? boletin.createdAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '')].filter(Boolean).join(' · ')}
         </Text>
       </View>
+
+      {boletin.items.length === 1 && boletin.items[0] ? (
+        <View style={styles.cRow}>
+          <View style={styles.cCrestPair}>
+            <TeamBadge name={boletin.items[0].homeTeam} size={26} variant={boletin.items[0].sport === 'TENNIS' ? 'player' : 'auto'} />
+            <TeamBadge name={boletin.items[0].awayTeam} size={26} variant={boletin.items[0].sport === 'TENNIS' ? 'player' : 'auto'} />
+          </View>
+          <View style={styles.cMain}>
+            <Text numberOfLines={1} style={[styles.cTitle, { color: colors.textPrimary }]}>
+              {boletinTitle(boletin)}
+            </Text>
+            <MarketSelection market={boletin.items[0].market} selection={boletin.items[0].selection} />
+          </View>
+        </View>
+      ) : (
+        <View style={styles.cLegs}>
+          {boletin.name ? (
+            <Text numberOfLines={1} style={[styles.cTitle, { color: colors.textPrimary }]}>{boletin.name}</Text>
+          ) : null}
+          {boletin.items.slice(0, 4).map((item) => {
+            const icon = itemResultIcon(item.result, colors);
+            return (
+              <View key={item.id} style={styles.cLeg}>
+                <Ionicons color={icon.color} name={icon.name} size={15} />
+                <TeamBadge name={item.homeTeam} size={20} variant={item.sport === 'TENNIS' ? 'player' : 'auto'} />
+                <View style={styles.cLegBody}>
+                  <Text numberOfLines={1} style={[styles.cLegText, { color: colors.textPrimary }]}>
+                    {item.homeTeam} vs {item.awayTeam}
+                  </Text>
+                  <MarketSelection inline market={item.market} selection={item.selection} />
+                </View>
+                <Text style={[styles.cLegOdd, { color: colors.textSecondary }]}>{formatOdds(item.oddValue)}</Text>
+              </View>
+            );
+          })}
+          {boletin.items.length > 4 ? (
+            <Text style={[styles.cMore, { color: colors.textMuted }]}>+ {boletin.items.length - 4} seleções</Text>
+          ) : null}
+        </View>
+      )}
+
+      {/* Figures strip: stake · odd · return/profit */}
+      {(() => {
+        const stake = Number(boletin.stake);
+        const pending = boletin.status === BoletinStatus.PENDING;
+        const ret = Number(boletin.actualReturn ?? (boletin.status === BoletinStatus.CASHOUT ? boletin.cashoutAmount ?? 0 : 0));
+        const profit = ret - (boletin.isFreebet ? 0 : stake);
+        const resultColor = pending ? colors.textPrimary : profit > 0 ? colors.positive : profit < 0 ? colors.negative : colors.textSecondary;
+        return (
+          <View style={[styles.cStrip, { backgroundColor: colors.surfaceRaised }]}>
+            <View style={styles.cCell}>
+              <Text style={[styles.cCellLabel, { color: colors.textMuted }]}>APOSTA</Text>
+              <Text style={[styles.cCellValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
+            </View>
+            <View style={[styles.cDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.cCell}>
+              <Text style={[styles.cCellLabel, { color: colors.textMuted }]}>ODD</Text>
+              <Text style={[styles.cCellValue, { color: colors.textPrimary }]}>{formatOdds(boletin.totalOdds)}</Text>
+            </View>
+            <View style={[styles.cDivider, { backgroundColor: colors.border }]} />
+            <View style={[styles.cCell, styles.cCellEnd]}>
+              <Text style={[styles.cCellLabel, { color: colors.textMuted }]}>{pending ? 'RETORNO POSSÍVEL' : 'LUCRO'}</Text>
+              <Text style={[styles.cCellValue, styles.cCellBig, { color: resultColor }]}>
+                {pending
+                  ? formatCurrency(boletin.potentialReturn)
+                  : `${profit > 0 ? '+' : profit < 0 ? '−' : ''}${formatCurrency(Math.abs(profit))}`}
+              </Text>
+            </View>
+          </View>
+        );
+      })()}
     </PressableScale>
 
     {/* Long-press quick preview modal */}
@@ -322,25 +334,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 10,
     overflow: 'hidden',
-    padding: 16,
+    paddingBottom: 12,
+    paddingHorizontal: 14,
+    paddingTop: 14,
   },
-  cRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 },
+  cRow: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   cTopBar: { borderTopLeftRadius: 18, borderTopRightRadius: 18, height: 3, left: 0, position: 'absolute', right: 0, top: 0 },
-  cCrests: { height: 40, width: 40 },
-  cCrestBack: { bottom: 0, position: 'absolute', right: 0 },
-  cMain: { flex: 1, gap: 2 },
-  cTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16 },
-  cSub: { fontFamily: 'Inter_400Regular', fontSize: 13 },
-  cRight: { alignItems: 'flex-end', gap: 2 },
-  cAmount: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 17 },
-  cAmountHint: { fontFamily: 'Inter_400Regular', fontSize: 12 },
-  cLegs: { gap: 4 },
-  cLeg: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  cLegBody: { flex: 1, gap: 2 },
+  cCrestPair: { gap: 4 },
+  cMain: { flex: 1, gap: 4 },
+  cTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
+  cLegs: { gap: 8 },
+  cLeg: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  cLegBody: { flex: 1, gap: 1 },
   cLegText: { fontFamily: 'Inter_500Medium', fontSize: 13 },
-  cMs: { marginTop: 4 },
+  cLegOdd: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 13 },
+  cMore: { fontFamily: 'Inter_500Medium', fontSize: 12, marginLeft: 23 },
   cMeta: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-  cMetaText: { flex: 1, fontFamily: 'Inter_400Regular', fontSize: 12, textAlign: 'right' },
+  cMetaText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
+  cMetaRight: { flex: 1, textAlign: 'right' },
+  cStrip: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8 },
+  cCell: { flex: 1, gap: 1 },
+  cCellEnd: { alignItems: 'flex-end', flex: 1.4 },
+  cCellLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 9, letterSpacing: 0.6 },
+  cCellValue: { fontFamily: 'SpaceGrotesk_600SemiBold', fontSize: 14, lineHeight: 20 },
+  cCellBig: { fontSize: 16, lineHeight: 20 },
+  cDivider: { height: 24, marginHorizontal: 10, width: StyleSheet.hairlineWidth },
   statusStripe: {
     bottom: 0,
     left: 0,

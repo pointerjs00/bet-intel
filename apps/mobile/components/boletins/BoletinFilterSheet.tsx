@@ -1,9 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
+  Image,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -20,7 +20,6 @@ import { ionicon } from '../../types/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sport } from '@betintel/shared';
 import { RangeSlider } from '../ui/RangeSlider';
-import { Chip } from '../ui/Chip';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { PressableScale } from '../ui/PressableScale';
 import { TeamBadge } from '../ui/TeamBadge';
@@ -128,17 +127,16 @@ export function BoletinFilterSheet({
   onApply,
   onIndexChange,
 }: BoletinFilterSheetProps) {
-  const { colors, tokens } = useTheme();
+  const { colors } = useTheme();
   const { bottom: safeBottom } = useSafeAreaInsets();
-  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 : 56;
+  // Floating tab bar (height + its bottom margin) sits over the sheet; keep the footer above it.
+  const TAB_BAR_HEIGHT = 92;
   const bottomInset = safeBottom + TAB_BAR_HEIGHT;
 
   const [draftSort, setDraftSort] = useState<BoletinSort>(sort);
   const [draftFilter, setDraftFilter] = useState<BoletinFilter>(filter);
   const [sliderKey, setSliderKey] = useState(0);
   const [showTeamModal, setShowTeamModal] = useState(false);
-  const [sitesOpen, setSitesOpen] = useState(false);
-  const [sportOpen, setSportOpen] = useState(false);
   const [compOpen, setCompOpen] = useState(false);
   const [compSearch, setCompSearch] = useState('');
 
@@ -223,371 +221,334 @@ const teamItems = useMemo(
     }));
   };
 
+  // Active filters in the draft (for the header and the apply button).
+  const draftCount =
+    (draftFilter.stakeRange[0] > 0 || draftFilter.stakeRange[1] < maxStake ? 1 : 0) +
+    (draftFilter.oddsRange[0] > 1 || draftFilter.oddsRange[1] < maxOdds ? 1 : 0) +
+    (draftFilter.returnRange[0] > 0 || draftFilter.returnRange[1] < maxReturn ? 1 : 0) +
+    (draftFilter.sport ? 1 : 0) +
+    (draftFilter.competitions.length ? 1 : 0) +
+    (draftFilter.teams.length ? 1 : 0) +
+    (draftFilter.sites.length ? 1 : 0) +
+    (draftFilter.weekday !== null ? 1 : 0) +
+    (draftFilter.legCount !== null ? 1 : 0) +
+    (draftFilter.dateFrom || draftFilter.dateTo ? 1 : 0);
+
+  const pill = (key: string | number, label: string, active: boolean, onPress: () => void, left?: React.ReactNode) => (
+    <PressableScale
+      key={key}
+      onPress={onPress}
+      scaleDown={0.94}
+      style={[styles.pill, {
+        backgroundColor: active ? `${colors.primary}24` : colors.surface,
+        borderColor: active ? colors.primary : colors.border,
+      }]}
+    >
+      {left}
+      <Text numberOfLines={1} style={[styles.pillText, { color: active ? colors.primary : colors.textSecondary }]}>{label}</Text>
+    </PressableScale>
+  );
+
+  const section = (icon: string, title: string, children: React.ReactNode) => (
+    <View style={[styles.section, { backgroundColor: colors.surfaceRaised }]}>
+      <View style={styles.sectionHead}>
+        <View style={[styles.sectionIcon, { backgroundColor: `${colors.primary}1F` }]}>
+          <Ionicons color={colors.primary} name={ionicon(icon)} size={14} />
+        </View>
+        <Text style={[styles.sectionHeadText, { color: colors.textPrimary }]}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+
+  const label = (text: string) => <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{text}</Text>;
+
+  const numberRow = (options: Array<{ label: string; value: number }>, current: number | null, onToggle: (v: number) => void) => (
+    <View style={styles.dayRow}>
+      {options.map((opt) => {
+        const active = current === opt.value;
+        return (
+          <PressableScale
+            key={opt.value}
+            onPress={() => onToggle(opt.value)}
+            scaleDown={0.92}
+            style={[styles.dayBtn, {
+              backgroundColor: active ? colors.primary : colors.surface,
+              borderColor: active ? colors.primary : colors.border,
+            }]}
+          >
+            <Text style={[styles.dayText, { color: active ? '#0B0D0C' : colors.textSecondary }]}>{opt.label}</Text>
+          </PressableScale>
+        );
+      })}
+    </View>
+  );
+
   return (
     <>
       <GorhomBottomSheet
         ref={sheetRef}
-        snapPoints={['60%', '90%']}
+        snapPoints={['70%', '92%']}
         index={-1}
         enablePanDownToClose
         onChange={onSheetChange}
         backdropComponent={renderBackdrop}
         handleIndicatorStyle={{ backgroundColor: colors.border, width: 40, height: 4, borderRadius: 2 }}
-        backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
+        backgroundStyle={{ backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
       >
+        {/* Header (fixed) */}
+        <View style={[styles.sheetHeader, { borderBottomColor: colors.border }]}>
+          <View style={styles.flex}>
+            <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>Ordenar e filtrar</Text>
+            <Text style={[styles.sheetSub, { color: colors.textMuted }]}>
+              {draftCount ? `${draftCount} filtro${draftCount > 1 ? 's' : ''} ativo${draftCount > 1 ? 's' : ''}` : 'Sem filtros'}
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Fechar"
+            hitSlop={10}
+            onPress={() => sheetRef.current?.close()}
+            style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+          >
+            <Ionicons color={colors.textSecondary} name="close" size={18} />
+          </Pressable>
+        </View>
+
         <BottomSheetScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: 16 }]}
+          contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.sheetHeader}>
-            <Text style={[styles.sheetTitle, { color: colors.textPrimary }]}>Ordenar e Filtrar</Text>
-            <Pressable hitSlop={12} onPress={handleReset}>
-              <Text style={[styles.resetText, { color: colors.primary }]}>Repor</Text>
-            </Pressable>
-          </View>
-
           {/* SORT */}
-          <View style={styles.sectionTitleRow}>
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Ordenar por</Text>
-            <PressableScale
-              hitSlop={10}
-              onPress={toggleSortDir}
-              scaleDown={0.92}
-              style={[styles.dirButton, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            >
-              <Ionicons color={colors.primary} name={draftSort.dir === 'asc' ? 'arrow-up' : 'arrow-down'} size={15} />
-            </PressableScale>
-          </View>
-          <View style={styles.filterBtnRow}>
-            {SORT_OPTIONS.map((opt) => {
-              const active = draftSort.by === opt.key;
-              return (
-                <PressableScale
-                  key={opt.key}
-                  onPress={() => setDraftSort((prev) => ({ ...prev, by: opt.key }))}
-                  scaleDown={0.95}
-                  style={[styles.filterBtn, {
-                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
-                    borderColor: active ? colors.primary : colors.border,
-                  }]}
-                >
-                  <Ionicons name={ionicon(opt.icon)} size={14} color={active ? colors.primary : colors.textSecondary} />
-                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
-                    {opt.label}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </View>
-
-          {/* STAKE RANGE */}
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Stake (€)</Text>
-          <RangeSlider
-            key={`stake-${sliderKey}`}
-            min={0} max={maxStake} step={0.5}
-            low={draftFilter.stakeRange[0]} high={draftFilter.stakeRange[1]}
-            onLowChange={(v) => setDraftFilter((p) => ({ ...p, stakeRange: [v, p.stakeRange[1]] }))}
-            onHighChange={(v) => setDraftFilter((p) => ({ ...p, stakeRange: [p.stakeRange[0], v] }))}
-            formatValue={formatCurrency}
-          />
-
-          {/* ODDS RANGE */}
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Odds totais</Text>
-          <RangeSlider
-            key={`odds-${sliderKey}`}
-            min={1} max={maxOdds} step={0.01}
-            low={draftFilter.oddsRange[0]} high={draftFilter.oddsRange[1]}
-            onLowChange={(v) => setDraftFilter((p) => ({ ...p, oddsRange: [v, p.oddsRange[1]] }))}
-            onHighChange={(v) => setDraftFilter((p) => ({ ...p, oddsRange: [p.oddsRange[0], v] }))}
-            formatValue={formatOdds}
-          />
-
-          {/* RETURN RANGE */}
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Retorno (€)</Text>
-          <RangeSlider
-            key={`return-${sliderKey}`}
-            min={0} max={maxReturn} step={0.5}
-            low={draftFilter.returnRange[0]} high={draftFilter.returnRange[1]}
-            onLowChange={(v) => setDraftFilter((p) => ({ ...p, returnRange: [v, p.returnRange[1]] }))}
-            onHighChange={(v) => setDraftFilter((p) => ({ ...p, returnRange: [p.returnRange[0], v] }))}
-            formatValue={formatCurrency}
-          />
-
-          {/* DATE RANGE */}
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Período</Text>
-          <View style={styles.dateRangeRow}>
-            <View style={styles.dateField}>
-              <DatePickerField
-                label="De"
-                value={draftFilter.dateFrom}
-                placeholder="Início"
-                maxDate={draftFilter.dateTo ?? undefined}
-                onChange={(d) => setDraftFilter((p) => ({ ...p, dateFrom: d }))}
-                onClear={() => setDraftFilter((p) => ({ ...p, dateFrom: null }))}
-              />
-            </View>
-            <View style={styles.dateField}>
-              <DatePickerField
-                label="Até"
-                value={draftFilter.dateTo}
-                placeholder="Fim"
-                minDate={draftFilter.dateFrom ?? undefined}
-                onChange={(d) => setDraftFilter((p) => ({ ...p, dateTo: d }))}
-                onClear={() => setDraftFilter((p) => ({ ...p, dateTo: null }))}
-              />
-            </View>
-          </View>
-
-          {/* BETTING SITES */}
-          {allSites.length > 0 && (
+          {section('swap-vertical', 'Ordenar', (
             <>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Casa de apostas</Text>
-              <PressableScale
-                onPress={() => setSitesOpen((v) => !v)}
-                style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-              >
-                <Text style={[styles.dropdownHeaderText, { color: draftFilter.sites.length > 0 ? colors.textPrimary : colors.textMuted }]}>
-                  {draftFilter.sites.length > 0
-                    ? draftFilter.sites.map((slug) => allSites.find((s) => s.slug === slug)?.name ?? slug).join(', ')
-                    : 'Todas as casas'}
-                </Text>
-                <Ionicons color={colors.textMuted} name={sitesOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-              </PressableScale>
-              {sitesOpen && (
-                <Animated.View entering={FadeInDown.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
-                  {allSites.map((site, i) => {
-                    const active = draftFilter.sites.includes(site.slug);
-                    return (
-                      <PressableScale
-                        key={site.slug}
-                        onPress={() =>
-                          setDraftFilter((prev) => ({
-                            ...prev,
-                            sites: active
-                              ? prev.sites.filter((s) => s !== site.slug)
-                              : [...prev.sites, site.slug],
-                          }))
-                        }
-                        style={[styles.dropdownItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                      >
-                        <Text style={[styles.dropdownItemText, { color: active ? colors.primary : colors.textPrimary }]}>
-                          {site.name}
-                        </Text>
-                        {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
-                      </PressableScale>
-                    );
-                  })}
-                </Animated.View>
-              )}
-            </>
-          )}
-
-          {/* SPORT */}
-          {availableSports.length > 1 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Desporto</Text>
-              <PressableScale
-                onPress={() => setSportOpen((v) => !v)}
-                style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-              >
-                <Text style={[styles.dropdownHeaderText, { color: draftFilter.sport ? colors.textPrimary : colors.textMuted }]}>
-                  {draftFilter.sport ? (SPORT_LABELS[draftFilter.sport] ?? draftFilter.sport) : 'Todos os desportos'}
-                </Text>
-                <Ionicons color={colors.textMuted} name={sportOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-              </PressableScale>
-              {sportOpen && (
-                <Animated.View entering={FadeInDown.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
-                  {availableSports.map((s, i) => {
-                    const active = draftFilter.sport === s;
-                    return (
-                      <PressableScale
-                        key={s}
-                        onPress={() => { setSport(s); setSportOpen(false); }}
-                        style={[styles.dropdownItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                      >
-                        <Text style={[styles.dropdownItemText, { color: active ? colors.primary : colors.textPrimary }]}>
-                          {SPORT_LABELS[s] ?? s}
-                        </Text>
-                        {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
-                      </PressableScale>
-                    );
-                  })}
-                </Animated.View>
-              )}
-            </>
-          )}
-
-          {/* COMPETITIONS */}
-          {allCompetitions.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Competição</Text>
-              <PressableScale
-                onPress={() => { setCompOpen((v) => !v); setCompSearch(''); }}
-                style={[styles.dropdownHeader, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-              >
-                <Text style={[styles.dropdownHeaderText, { color: draftFilter.competitions.length > 0 ? colors.textPrimary : colors.textMuted }]}>
-                  {draftFilter.competitions.length > 0
-                    ? `${draftFilter.competitions.length} selecionada${draftFilter.competitions.length > 1 ? 's' : ''}`
-                    : 'Todas as competições'}
-                </Text>
-                <Ionicons color={colors.textMuted} name={compOpen ? 'chevron-up' : 'chevron-down'} size={16} />
-              </PressableScale>
-              {compOpen && (
-                <Animated.View entering={FadeInDown.duration(120)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}>
-                  <View style={[styles.compSearchRow, { borderBottomColor: colors.border }]}>
-                    <Ionicons color={colors.textMuted} name="search" size={14} />
-                    <TextInput
-                      autoFocus={false}
-                      onChangeText={setCompSearch}
-                      placeholder="Pesquisar…"
-                      placeholderTextColor={colors.textMuted}
-                      style={[styles.compSearchInput, { color: colors.textPrimary }]}
-                      value={compSearch}
-                    />
-                    {compSearch.length > 0 && (
-                      <Pressable hitSlop={8} onPress={() => setCompSearch('')}>
-                        <Ionicons color={colors.textMuted} name="close-circle" size={14} />
-                      </Pressable>
-                    )}
-                  </View>
-                  {visibleCompetitions
-                    .filter((c) => c.name.toLowerCase().includes(compSearch.toLowerCase()))
-                    .map((c, i) => {
-                      const active = draftFilter.competitions.includes(c.name);
-                      return (
-                        <PressableScale
-                          key={c.name}
-                          onPress={() =>
-                            setDraftFilter((prev) => ({
-                              ...prev,
-                              competitions: active
-                                ? prev.competitions.filter((x) => x !== c.name)
-                                : [...prev.competitions, c.name],
-                            }))
-                          }
-                          style={[styles.dropdownItem, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}
-                        >
-                          <CompetitionBadge name={c.name} size={14} />
-                          <Text numberOfLines={1} style={[styles.dropdownItemText, { flex: 1, color: active ? colors.primary : colors.textPrimary }]}>
-                            {c.name}
-                          </Text>
-                          {active && <Ionicons color={colors.primary} name="checkmark" size={16} />}
-                        </PressableScale>
-                      );
-                    })}
-                </Animated.View>
-              )}
-            </>
-          )}
-
-          {/* WEEKDAY */}
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Dia da semana</Text>
-          <View style={styles.filterBtnRow}>
-            {WEEKDAY_OPTIONS.map((opt) => {
-              const active = draftFilter.weekday === opt.value;
-              return (
-                <PressableScale
-                  key={opt.value}
-                  onPress={() => setDraftFilter((prev) => ({
-                    ...prev,
-                    weekday: prev.weekday === opt.value ? null : opt.value,
-                  }))}
-                  scaleDown={0.95}
-                  style={[styles.filterBtn, {
-                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
-                    borderColor: active ? colors.primary : colors.border,
-                  }]}
-                >
-                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
-                    {opt.label}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </View>
-
-          {/* LEG COUNT */}
-          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Nº de seleções</Text>
-          <View style={styles.filterBtnRow}>
-            {LEG_COUNT_OPTIONS.map((opt) => {
-              const active = draftFilter.legCount === opt.value;
-              return (
-                <PressableScale
-                  key={opt.value}
-                  onPress={() => setDraftFilter((prev) => ({
-                    ...prev,
-                    legCount: prev.legCount === opt.value ? null : opt.value,
-                  }))}
-                  scaleDown={0.95}
-                  style={[styles.filterBtn, {
-                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
-                    borderColor: active ? colors.primary : colors.border,
-                  }]}
-                >
-                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
-                    {opt.label}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </View>
-
-          {/* TEAMS */}
-          {allTeams.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>Equipa</Text>
-                <PressableScale
-                onPress={() => setShowTeamModal(true)}
-                style={[styles.triggerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-              >
-                <Ionicons color={colors.textMuted} name="search" size={16} />
-                <Text style={[styles.triggerText, { color: draftFilter.teams.length > 0 ? colors.textPrimary : colors.textMuted }]}>
-                  {draftFilter.teams.length > 0
-                    ? `${draftFilter.teams.length} selecionada${draftFilter.teams.length > 1 ? 's' : ''}`
-                    : 'Pesquisar equipas…'}
-                </Text>
-                <Ionicons color={colors.textMuted} name="chevron-down" size={14} />
-              </PressableScale>
-              {draftFilter.teams.length > 0 && (
-                <View style={styles.selectedChips}>
-                  {draftFilter.teams.map((t) => (
+              <View style={styles.pillWrap}>
+                {SORT_OPTIONS.map((opt) =>
+                  pill(opt.key, opt.label, draftSort.by === opt.key, () => setDraftSort((prev) => ({ ...prev, by: opt.key })),
+                    <Ionicons color={draftSort.by === opt.key ? colors.primary : colors.textMuted} name={ionicon(opt.icon)} size={14} />))}
+              </View>
+              <View style={[styles.segment, { backgroundColor: colors.surface }]}>
+                {(['desc', 'asc'] as const).map((d) => {
+                  const active = draftSort.dir === d;
+                  return (
                     <Pressable
-                      key={t}
-                      onPress={() =>
-                        setDraftFilter((p) => ({ ...p, teams: p.teams.filter((x) => x !== t) }))
-                      }
-                      style={[styles.selectedChip, { backgroundColor: `${colors.primary}22`, borderColor: colors.primary }]}
+                      key={d}
+                      onPress={() => { if (!active) toggleSortDir(); }}
+                      style={[styles.segmentItem, active && { backgroundColor: `${colors.primary}24` }]}
                     >
-                      <TeamBadge name={t} size={14} />
-                      <Text numberOfLines={1} style={[styles.selectedChipText, { color: colors.primary }]}>{t}</Text>
-                      <Ionicons color={colors.primary} name="close" size={12} />
+                      <Ionicons color={active ? colors.primary : colors.textMuted} name={d === 'desc' ? 'arrow-down' : 'arrow-up'} size={14} />
+                      <Text style={[styles.segmentText, { color: active ? colors.primary : colors.textSecondary }]}>
+                        {d === 'desc' ? (draftSort.by === 'date' ? 'Mais recentes' : 'Maior primeiro') : (draftSort.by === 'date' ? 'Mais antigos' : 'Menor primeiro')}
+                      </Text>
                     </Pressable>
-                  ))}
-                </View>
-              )}
+                  );
+                })}
+              </View>
             </>
-          )}
+          ))}
+
+          {/* VALUES */}
+          {section('cash-outline', 'Valores', (
+            <>
+              {label('STAKE')}
+              <RangeSlider
+                key={`stake-${sliderKey}`}
+                min={0} max={maxStake} step={0.5}
+                low={draftFilter.stakeRange[0]} high={draftFilter.stakeRange[1]}
+                onLowChange={(v) => setDraftFilter((p) => ({ ...p, stakeRange: [v, p.stakeRange[1]] }))}
+                onHighChange={(v) => setDraftFilter((p) => ({ ...p, stakeRange: [p.stakeRange[0], v] }))}
+                formatValue={formatCurrency}
+              />
+              {label('ODD TOTAL')}
+              <RangeSlider
+                key={`odds-${sliderKey}`}
+                min={1} max={maxOdds} step={0.01}
+                low={draftFilter.oddsRange[0]} high={draftFilter.oddsRange[1]}
+                onLowChange={(v) => setDraftFilter((p) => ({ ...p, oddsRange: [v, p.oddsRange[1]] }))}
+                onHighChange={(v) => setDraftFilter((p) => ({ ...p, oddsRange: [p.oddsRange[0], v] }))}
+                formatValue={formatOdds}
+              />
+              {label('RETORNO')}
+              <RangeSlider
+                key={`return-${sliderKey}`}
+                min={0} max={maxReturn} step={0.5}
+                low={draftFilter.returnRange[0]} high={draftFilter.returnRange[1]}
+                onLowChange={(v) => setDraftFilter((p) => ({ ...p, returnRange: [v, p.returnRange[1]] }))}
+                onHighChange={(v) => setDraftFilter((p) => ({ ...p, returnRange: [p.returnRange[0], v] }))}
+                formatValue={formatCurrency}
+              />
+            </>
+          ))}
+
+          {/* WHEN */}
+          {section('calendar-outline', 'Quando', (
+            <>
+              <View style={styles.dateRangeRow}>
+                <View style={styles.dateField}>
+                  <DatePickerField
+                    label="De"
+                    value={draftFilter.dateFrom}
+                    placeholder="Início"
+                    maxDate={draftFilter.dateTo ?? undefined}
+                    onChange={(d) => setDraftFilter((p) => ({ ...p, dateFrom: d }))}
+                    onClear={() => setDraftFilter((p) => ({ ...p, dateFrom: null }))}
+                  />
+                </View>
+                <View style={styles.dateField}>
+                  <DatePickerField
+                    label="Até"
+                    value={draftFilter.dateTo}
+                    placeholder="Fim"
+                    minDate={draftFilter.dateFrom ?? undefined}
+                    onChange={(d) => setDraftFilter((p) => ({ ...p, dateTo: d }))}
+                    onClear={() => setDraftFilter((p) => ({ ...p, dateTo: null }))}
+                  />
+                </View>
+              </View>
+              {label('DIA DA SEMANA')}
+              {numberRow(WEEKDAY_OPTIONS, draftFilter.weekday, (v) =>
+                setDraftFilter((prev) => ({ ...prev, weekday: prev.weekday === v ? null : v })))}
+            </>
+          ))}
+
+          {/* WHAT */}
+          {section('receipt-outline', 'Apostas', (
+            <>
+              {availableSports.length > 1 ? (
+                <>
+                  {label('DESPORTO')}
+                  <View style={styles.pillWrap}>
+                    {availableSports.map((s) => pill(s, SPORT_LABELS[s] ?? s, draftFilter.sport === s, () => setSport(s)))}
+                  </View>
+                </>
+              ) : null}
+
+              {allSites.length > 0 ? (
+                <>
+                  {label('CASA DE APOSTAS')}
+                  <View style={styles.pillWrap}>
+                    {allSites.map((site) => {
+                      const active = draftFilter.sites.includes(site.slug);
+                      return pill(site.slug, site.name, active, () =>
+                        setDraftFilter((prev) => ({
+                          ...prev,
+                          sites: active ? prev.sites.filter((x) => x !== site.slug) : [...prev.sites, site.slug],
+                        })),
+                        site.logo ? <Image resizeMode="contain" source={site.logo} style={styles.siteLogo} /> : undefined);
+                    })}
+                  </View>
+                </>
+              ) : null}
+
+              {label('Nº DE SELEÇÕES')}
+              {numberRow(LEG_COUNT_OPTIONS, draftFilter.legCount, (v) =>
+                setDraftFilter((prev) => ({ ...prev, legCount: prev.legCount === v ? null : v })))}
+
+              {allCompetitions.length > 0 ? (
+                <>
+                  {label('COMPETIÇÃO')}
+                  <PressableScale
+                    onPress={() => { setCompOpen((v) => !v); setCompSearch(''); }}
+                    style={[styles.triggerBtn, { backgroundColor: colors.surface, borderColor: compOpen ? colors.primary : colors.border }]}
+                  >
+                    <Ionicons color={colors.textMuted} name="trophy-outline" size={16} />
+                    <Text numberOfLines={1} style={[styles.triggerText, { color: draftFilter.competitions.length > 0 ? colors.textPrimary : colors.textMuted }]}>
+                      {draftFilter.competitions.length > 0 ? draftFilter.competitions.join(', ') : 'Todas as competições'}
+                    </Text>
+                    <Ionicons color={colors.textMuted} name={compOpen ? 'chevron-up' : 'chevron-down'} size={16} />
+                  </PressableScale>
+                  {compOpen && (
+                    <Animated.View entering={FadeInDown.duration(140)} style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+                      <View style={[styles.compSearchRow, { borderBottomColor: colors.border }]}>
+                        <Ionicons color={colors.textMuted} name="search" size={14} />
+                        <TextInput
+                          onChangeText={setCompSearch}
+                          placeholder="Pesquisar…"
+                          placeholderTextColor={colors.textMuted}
+                          style={[styles.compSearchInput, { color: colors.textPrimary }]}
+                          value={compSearch}
+                        />
+                        {compSearch.length > 0 && (
+                          <Pressable hitSlop={8} onPress={() => setCompSearch('')}>
+                            <Ionicons color={colors.textMuted} name="close-circle" size={14} />
+                          </Pressable>
+                        )}
+                      </View>
+                      {visibleCompetitions
+                        .filter((c) => c.name.toLowerCase().includes(compSearch.toLowerCase()))
+                        .map((c, i) => {
+                          const active = draftFilter.competitions.includes(c.name);
+                          return (
+                            <PressableScale
+                              key={c.name}
+                              onPress={() =>
+                                setDraftFilter((prev) => ({
+                                  ...prev,
+                                  competitions: active ? prev.competitions.filter((x) => x !== c.name) : [...prev.competitions, c.name],
+                                }))
+                              }
+                              style={[styles.dropdownItem, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
+                            >
+                              <CompetitionBadge name={c.name} size={16} />
+                              <Text numberOfLines={1} style={[styles.dropdownItemText, { color: active ? colors.primary : colors.textPrimary }]}>{c.name}</Text>
+                              <Ionicons color={active ? colors.primary : colors.border} name={active ? 'checkmark-circle' : 'ellipse-outline'} size={18} />
+                            </PressableScale>
+                          );
+                        })}
+                    </Animated.View>
+                  )}
+                </>
+              ) : null}
+
+              {allTeams.length > 0 ? (
+                <>
+                  {label('EQUIPA')}
+                  <PressableScale
+                    onPress={() => setShowTeamModal(true)}
+                    style={[styles.triggerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+                  >
+                    <Ionicons color={colors.textMuted} name="search" size={16} />
+                    <Text style={[styles.triggerText, { color: colors.textMuted }]}>
+                      {draftFilter.teams.length > 0 ? 'Adicionar equipa…' : 'Pesquisar equipas…'}
+                    </Text>
+                    <Ionicons color={colors.textMuted} name="add" size={16} />
+                  </PressableScale>
+                  {draftFilter.teams.length > 0 && (
+                    <View style={styles.pillWrap}>
+                      {draftFilter.teams.map((t) => (
+                        <Pressable
+                          key={t}
+                          onPress={() => setDraftFilter((p) => ({ ...p, teams: p.teams.filter((x) => x !== t) }))}
+                          style={[styles.pill, { backgroundColor: `${colors.primary}24`, borderColor: colors.primary }]}
+                        >
+                          <TeamBadge name={t} size={16} />
+                          <Text numberOfLines={1} style={[styles.pillText, { color: colors.primary }]}>{t}</Text>
+                          <Ionicons color={colors.primary} name="close" size={13} />
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </>
+              ) : null}
+            </>
+          ))}
         </BottomSheetScrollView>
 
-        {/* Sticky apply button — inside the sheet, clears the tab bar via paddingBottom */}
-        <View
-          style={[
-            styles.applyBar,
-            {
-              backgroundColor: colors.surface,
-              borderTopColor: colors.border,
-              paddingBottom: bottomInset + 12,
-            },
-          ]}
-        >
-          <PressableScale onPress={handleApply} scaleDown={0.98} style={[styles.applyBtn, { backgroundColor: colors.primary }]}> 
-            <Text style={styles.applyBtnText}>Aplicar</Text>
+        {/* Sticky footer — clears the tab bar */}
+        <View style={[styles.applyBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: bottomInset + 10 }]}>
+          <PressableScale
+            onPress={handleReset}
+            scaleDown={0.97}
+            style={[styles.footerBtn, styles.resetBtn, { borderColor: colors.border }]}
+          >
+            <Text style={[styles.resetBtnText, { color: colors.textPrimary }]}>Limpar</Text>
+          </PressableScale>
+          <PressableScale onPress={handleApply} scaleDown={0.98} style={[styles.footerBtn, styles.applyBtn, { backgroundColor: colors.primary }]}>
+            <Ionicons color="#0B0D0C" name="checkmark" size={18} />
+            <Text style={styles.applyBtnText}>{draftCount ? `Aplicar ${draftCount} filtro${draftCount > 1 ? 's' : ''}` : 'Aplicar'}</Text>
           </PressableScale>
         </View>
       </GorhomBottomSheet>
-
 
       <SearchableDropdown
         visible={showTeamModal}
@@ -605,67 +566,40 @@ const teamItems = useMemo(
 }
 
 const styles = StyleSheet.create({
-  content: { gap: 16, paddingHorizontal: 20, paddingTop: 8 },
-  sheetHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  sheetTitle: { fontSize: 18, fontWeight: '800' },
-  resetText: { fontSize: 14, fontWeight: '700' },
-  sectionTitle: { fontSize: 11, fontWeight: '700', marginTop: 4 },
-  sectionTitleRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  sortChips: { gap: 8 },
-  dirButton: { alignItems: 'center', borderRadius: 8, borderWidth: 1, height: 30, justifyContent: 'center', width: 30 },
-  filterBtnRow: { flexDirection: 'row', gap: 6 },
-  filterBtn: { alignItems: 'center', borderRadius: 10, borderWidth: 1, flex: 1, gap: 3, paddingVertical: 10 },
-  filterBtnLabel: { fontSize: 11, fontWeight: '700' },
-  dropdownHeader: {
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  dropdownHeaderText: { flex: 1, fontSize: 14, fontWeight: '600' },
-  dropdownList: {
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  dropdownItemText: { fontSize: 14, fontWeight: '500' },
-  triggerBtn: {
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
+  flex: { flex: 1 },
+  content: { gap: 12, paddingBottom: 20, paddingHorizontal: 16, paddingTop: 12 },
+  sheetHeader: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 12, paddingBottom: 12, paddingHorizontal: 20, paddingTop: 2 },
+  sheetTitle: { fontFamily: 'Inter_700Bold', fontSize: 19 },
+  sheetSub: { fontFamily: 'Inter_500Medium', fontSize: 12, marginTop: 1 },
+  closeBtn: { alignItems: 'center', borderRadius: 16, height: 32, justifyContent: 'center', width: 32 },
+  section: { borderRadius: 18, gap: 10, padding: 14 },
+  sectionHead: { alignItems: 'center', flexDirection: 'row', gap: 8, marginBottom: 2 },
+  sectionIcon: { alignItems: 'center', borderRadius: 8, height: 24, justifyContent: 'center', width: 24 },
+  sectionHeadText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
+  fieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 0.8, marginTop: 2 },
+  pillWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill: { alignItems: 'center', borderRadius: 999, borderWidth: 1, flexDirection: 'row', gap: 6, height: 36, maxWidth: '100%', paddingHorizontal: 12 },
+  pillText: { flexShrink: 1, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  siteLogo: { borderRadius: 4, height: 16, width: 16 },
+  segment: { borderRadius: 12, flexDirection: 'row', gap: 4, padding: 3 },
+  segmentItem: { alignItems: 'center', borderRadius: 9, flex: 1, flexDirection: 'row', gap: 6, height: 36, justifyContent: 'center' },
+  segmentText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  dayRow: { flexDirection: 'row', gap: 6 },
+  dayBtn: { alignItems: 'center', borderRadius: 12, borderWidth: 1, flex: 1, height: 40, justifyContent: 'center' },
+  dayText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  dropdownList: { borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  dropdownItem: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  dropdownItemText: { flex: 1, fontSize: 14, fontWeight: '500' },
+  triggerBtn: { alignItems: 'center', borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 8, height: 46, paddingHorizontal: 14 },
   triggerText: { flex: 1, fontSize: 14, fontWeight: '500' },
-  selectedChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  selectedChip: {
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 5,
-    maxWidth: '100%',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  selectedChipText: { flexShrink: 1, fontSize: 12, fontWeight: '700' },
-  dateRangeRow: { flexDirection: 'row', gap: 12 },
+  dateRangeRow: { flexDirection: 'row', gap: 10 },
   dateField: { flex: 1 },
-  applyBar: { borderTopWidth: 1, marginBottom: 30, paddingBottom: 30, paddingHorizontal: 20, paddingTop: 20 },
-  applyBtn: { alignItems: 'center', borderRadius: 14, paddingVertical: 14 },
-  applyBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  applyBar: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12 },
+  footerBtn: { alignItems: 'center', borderRadius: 14, flexDirection: 'row', gap: 6, height: 50, justifyContent: 'center' },
+  resetBtn: { borderWidth: 1, paddingHorizontal: 22 },
+  resetBtnText: { fontSize: 15, fontWeight: '700' },
+  applyBtn: { flex: 1 },
+  applyBtnText: { color: '#0B0D0C', fontSize: 15, fontWeight: '800' },
   compSearchRow: { alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
   compSearchInput: { flex: 1, fontSize: 14, padding: 0 },
 });

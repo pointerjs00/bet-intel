@@ -217,7 +217,18 @@ export default function RootLayout() {
                 {/* key: remount on theme change so Android re-applies the icon colour */}
                 <StatusBar key={isDark ? 'dark' : 'light'} style={isDark ? 'light' : 'dark'} />
                 <View style={[styles.flex, { backgroundColor: colors.background }]}>
-                  <Stack screenOptions={{ headerShown: false, gestureEnabled: true }}>
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      gestureEnabled: true,
+                      // Themed defaults so no pushed screen shows the stock white header.
+                      headerStyle: { backgroundColor: colors.background },
+                      headerTintColor: colors.textPrimary,
+                      headerTitleStyle: { color: colors.textPrimary, fontFamily: 'Inter_600SemiBold' },
+                      headerShadowVisible: false,
+                      contentStyle: { backgroundColor: colors.background },
+                    }}
+                  >
                     <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
                     <Stack.Screen name="settings" options={{ headerShown: true }} />

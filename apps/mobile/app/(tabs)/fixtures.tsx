@@ -1,12 +1,12 @@
 // Jogos — football (followed leagues, UEFA and national teams), NBA and ATP/WTA tennis from ESPN,
 // any day since 2020. Sofascore-like layout: sport tabs, date navigator with a calendar, swipe
 // left/right to change day, league cards with crest, status column, winner in bold.
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { AppText } from '../../components/ui/AppText';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -22,6 +22,7 @@ type AnyMatch = FootballMatch | SimpleMatch;
 type AnyGroup = { league: string; slug: string; matches: AnyMatch[] };
 
 const DAY_MS = 24 * 3600e3;
+const SWITCH_PAD = 3;
 export const FIRST_DAY = new Date(2020, 0, 1);
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -69,12 +70,15 @@ export default function JogosScreen() {
     .filter((g) => g.matches.length > 0), [allGroups, liveOnly, betsOnly]);
   const liveCount = allGroups.reduce((n, g) => n + g.matches.filter(isLive).length, 0);
 
+  /** Direction of the last change (sport or day), so new content slides in from that side. */
+  const dirRef = useRef<1 | -1>(1);
   const today = startOfDay(new Date());
   const isToday = day.getTime() === today.getTime();
   const shift = (n: number) => {
     const next = new Date(day.getFullYear(), day.getMonth(), day.getDate() + n);
     if (next < FIRST_DAY) return;
     hapticLight();
+    dirRef.current = n > 0 ? 1 : -1;
     setDay(next);
   };
   // Swipe left → next day, swipe right → previous day. Captured before the rows' presses once the
@@ -90,34 +94,33 @@ export default function JogosScreen() {
     onPanResponderTerminationRequest: () => false,
   })).current;
 
-  const tabs: Array<{ value: SportKey; label: string; icon: (c: string) => React.ReactNode }> = [
-    { value: 'football', label: 'Futebol', icon: (c) => <Ionicons color={c} name="football" size={22} /> },
-    { value: 'tennis', label: 'Ténis', icon: (c) => <MaterialCommunityIcons color={c} name="tennis" size={22} /> },
-    { value: 'basketball', label: 'Basquetebol', icon: (c) => <Ionicons color={c} name="basketball" size={22} /> },
+  const tabs: SportTab[] = [
+    { value: 'football', label: 'Futebol', icon: (c) => <Ionicons color={c} name="football" size={18} /> },
+    { value: 'tennis', label: 'Ténis', icon: (c) => <MaterialCommunityIcons color={c} name="tennis" size={18} /> },
+    { value: 'basketball', label: 'Basquetebol', icon: (c) => <Ionicons color={c} name="basketball" size={18} /> },
   ];
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      {/* Header: sport tabs + search */}
-      <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        {tabs.map((t) => {
-          const active = t.value === sport;
-          return (
-            <Pressable
-              accessibilityLabel={t.label}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              key={t.value}
-              onPress={() => { hapticLight(); setSport(t.value); setLiveOnly(false); setBetsOnly(false); }}
-              style={[styles.tab, active && { borderBottomColor: colors.primary }]}
-            >
-              {t.icon(active ? colors.textPrimary : colors.textMuted)}
-              {active ? <AppText style={styles.tabLabel} variant="bodyStrong">{t.label}</AppText> : null}
-            </Pressable>
-          );
-        })}
-        <Pressable accessibilityLabel="Pesquisar equipa" accessibilityRole="button" hitSlop={8} onPress={() => router.push('/equipa/pesquisa')} style={styles.searchBtn}>
-          <Ionicons color={colors.textPrimary} name="search" size={22} />
+      {/* Header: sliding sport switcher + search */}
+      <View style={styles.header}>
+        <SportSwitcher
+          onChange={(v) => {
+            hapticLight();
+            dirRef.current = tabs.findIndex((t) => t.value === v) > tabs.findIndex((t) => t.value === sport) ? 1 : -1;
+            setSport(v); setLiveOnly(false); setBetsOnly(false);
+          }}
+          tabs={tabs}
+          value={sport}
+        />
+        <Pressable
+          accessibilityLabel="Pesquisar equipa"
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={() => router.push('/equipa/pesquisa')}
+          style={[styles.searchBtn, { backgroundColor: colors.surface }]}
+        >
+          <Ionicons color={colors.textPrimary} name="search" size={20} />
         </Pressable>
       </View>
 
@@ -159,7 +162,11 @@ export default function JogosScreen() {
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}
           refreshControl={<RefreshControl onRefresh={() => void dayQuery.refetch()} refreshing={dayQuery.isRefetching} tintColor={colors.primary} />}
         >
-          <Animated.View entering={FadeIn.duration(180)} key={`${sport}-${iso}`} style={styles.groups}>
+          <Animated.View
+            entering={(dirRef.current > 0 ? FadeInRight : FadeInLeft).duration(240)}
+            key={`${sport}-${iso}`}
+            style={styles.groups}
+          >
             {dayQuery.isLoading ? (
               [0, 1].map((i) => <View key={i} style={[styles.card, { backgroundColor: colors.surface }]}><Skeleton height={120} width="100%" /></View>)
             ) : dayQuery.isError ? (
@@ -201,7 +208,7 @@ export default function JogosScreen() {
       {!isToday ? (
         <Pressable
           accessibilityRole="button"
-          onPress={() => { hapticLight(); setDay(today); }}
+          onPress={() => { hapticLight(); dirRef.current = day > today ? -1 : 1; setDay(today); }}
           style={[styles.todayBtn, { backgroundColor: colors.accent, bottom: insets.bottom + 96 }]}
         >
           {day > today ? <Ionicons color="#FFFFFF" name="chevron-back" size={16} /> : null}
@@ -214,10 +221,59 @@ export default function JogosScreen() {
         maxDate={new Date(today.getTime() + 60 * DAY_MS)}
         minDate={FIRST_DAY}
         onClose={() => setCalendarOpen(false)}
-        onSelect={(d) => { setDay(startOfDay(d)); setCalendarOpen(false); }}
+        onSelect={(d) => { dirRef.current = startOfDay(d) > day ? 1 : -1; setDay(startOfDay(d)); setCalendarOpen(false); }}
         selected={day}
         visible={calendarOpen}
       />
+    </View>
+  );
+}
+
+type SportTab = { value: SportKey; label: string; icon: (c: string) => React.ReactNode };
+
+/**
+ * Segmented sport switcher: a tinted thumb springs under the selected sport, and the icon and
+ * label colours cross-fade, instead of a static underline jumping between tabs.
+ */
+function SportSwitcher({ tabs, value, onChange }: { tabs: SportTab[]; value: SportKey; onChange: (v: SportKey) => void }) {
+  const { colors } = useTheme();
+  const [width, setWidth] = useState(0);
+  const index = Math.max(0, tabs.findIndex((t) => t.value === value));
+  const slot = width / tabs.length;
+  const x = useSharedValue(0);
+  const first = useRef(true);
+  useEffect(() => {
+    if (!slot) return;
+    // Jump into place on first layout, spring afterwards.
+    x.value = first.current ? index * slot : withSpring(index * slot, { damping: 20, mass: 0.7, stiffness: 240 });
+    first.current = false;
+  }, [index, slot, x]);
+  const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }], width: slot }));
+
+  return (
+    <View
+      accessibilityRole="tablist"
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width - SWITCH_PAD * 2)}
+      style={[styles.switcher, { backgroundColor: colors.surface }]}
+    >
+      {slot ? <Animated.View pointerEvents="none" style={[styles.switchThumb, thumb, { backgroundColor: `${colors.primary}26`, borderColor: `${colors.primary}55` }]} /> : null}
+      {tabs.map((t) => {
+        const active = t.value === value;
+        const c = active ? colors.primary : colors.textMuted;
+        return (
+          <Pressable
+            accessibilityLabel={t.label}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+            key={t.value}
+            onPress={() => { if (!active) onChange(t.value); }}
+            style={styles.switchTab}
+          >
+            {t.icon(c)}
+            <AppText numberOfLines={1} style={[styles.switchLabel, { color: active ? colors.textPrimary : colors.textMuted }]}>{t.label}</AppText>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -322,10 +378,12 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
   row: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  header: { alignItems: 'stretch', borderBottomWidth: StyleSheet.hairlineWidth, flexDirection: 'row', paddingHorizontal: 8 },
-  tab: { alignItems: 'center', borderBottomColor: 'transparent', borderBottomWidth: 3, flex: 1, gap: 4, justifyContent: 'center', minHeight: 64, paddingVertical: 8 },
-  tabLabel: { fontSize: 14 },
-  searchBtn: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12 },
+  header: { alignItems: 'center', flexDirection: 'row', gap: 8, paddingBottom: 6, paddingHorizontal: 16, paddingTop: 8 },
+  switcher: { borderRadius: 14, flex: 1, flexDirection: 'row', height: 46, padding: SWITCH_PAD },
+  switchThumb: { borderRadius: 11, borderWidth: 1, bottom: SWITCH_PAD, left: SWITCH_PAD, position: 'absolute', top: SWITCH_PAD },
+  switchTab: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 4, justifyContent: 'center', paddingHorizontal: 2 },
+  switchLabel: { flexShrink: 1, fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  searchBtn: { alignItems: 'center', borderRadius: 14, height: 46, justifyContent: 'center', width: 46 },
   controls: { alignItems: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
   pill: { alignItems: 'center', borderRadius: 999, borderWidth: 1.5, flexDirection: 'row', gap: 6, height: 40, paddingHorizontal: 14 },
   iconPill: { paddingHorizontal: 12 },
