@@ -6,7 +6,7 @@ import { useTheme } from '../../theme/useTheme';
 interface MarketSelectionProps {
   market: string;
   selection: string;
-  /** One line (market · selection), for dense lists. Default: market on top, selection below. */
+  /** One line (selection · market), for dense lists. Default: market label on top, selection below. */
   inline?: boolean;
   /** Extra text after the selection, e.g. "@1,85". */
   trailing?: string;
@@ -14,44 +14,41 @@ interface MarketSelectionProps {
 }
 
 /**
- * Market and selection shown apart: the market as a quiet label, the selection as a tinted
- * pill, so "what was bet on" stands out from "which market".
+ * Market and selection shown apart without chrome: the selection in strong text (what was bet on),
+ * the market as a quiet uppercase label (where it was bet).
  */
 export function MarketSelection({ market, selection, inline = false, trailing, style }: MarketSelectionProps) {
   const { colors } = useTheme();
-  const pill = (
-    <View style={[styles.pill, { backgroundColor: `${colors.accent}1F` }]}>
-      <AppText numberOfLines={inline ? 1 : 2} style={[styles.selection, { color: colors.accentText }]}>{selection}</AppText>
-    </View>
-  );
   if (inline) {
     return (
       <View style={[styles.inline, style]}>
-        <AppText numberOfLines={1} style={styles.marketInline} variant="caption">{market}</AppText>
-        {pill}
-        {trailing ? <AppText style={styles.trailing} variant="caption">{trailing}</AppText> : null}
+        <AppText numberOfLines={1} style={[styles.selectionInline, { color: colors.textPrimary }]}>{selection}</AppText>
+        <View style={[styles.dot, { backgroundColor: colors.textMuted }]} />
+        <AppText numberOfLines={1} style={[styles.marketInline, { color: colors.textMuted }]}>{market}</AppText>
+        {trailing ? <AppText style={[styles.trailing, { color: colors.textSecondary }]}>{trailing}</AppText> : null}
       </View>
     );
   }
   return (
     <View style={[styles.block, style]}>
-      <AppText numberOfLines={1} style={styles.market} variant="label">{market}</AppText>
+      <AppText numberOfLines={1} style={[styles.market, { color: colors.textMuted }]}>{market.toUpperCase()}</AppText>
       <View style={styles.row}>
-        {pill}
-        {trailing ? <AppText style={styles.trailing} variant="caption">{trailing}</AppText> : null}
+        <AppText numberOfLines={2} style={[styles.selection, { color: colors.textPrimary }]}>{selection}</AppText>
+        {trailing ? <AppText style={[styles.trailing, { color: colors.textSecondary }]}>{trailing}</AppText> : null}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  block: { gap: 4 },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  block: { gap: 2 },
+  row: { alignItems: 'baseline', flexDirection: 'row', gap: 6 },
   inline: { alignItems: 'center', flexDirection: 'row', flexWrap: 'nowrap', gap: 6 },
-  market: { fontSize: 11, letterSpacing: 0.2 },
+  market: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 0.6 },
   // The selection gets priority on one line; the market shrinks first.
-  marketInline: { flexShrink: 3, fontSize: 12, maxWidth: '40%' },
-  pill: { alignSelf: 'flex-start', borderRadius: 8, flexShrink: 1, paddingHorizontal: 8, paddingVertical: 3 },
-  selection: { fontFamily: 'Inter_600SemiBold', fontSize: 13, lineHeight: 17 },
-  trailing: { fontSize: 12 },
+  marketInline: { flexShrink: 3, fontSize: 12 },
+  dot: { borderRadius: 2, height: 3, opacity: 0.7, width: 3 },
+  selection: { flexShrink: 1, fontFamily: 'Inter_700Bold', fontSize: 14, lineHeight: 18 },
+  selectionInline: { flexShrink: 1, fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  trailing: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
 });

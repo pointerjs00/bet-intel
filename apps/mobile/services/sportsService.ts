@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { apiClient } from './apiClient';
 
 interface ApiEnvelope<T> { success: boolean; data: T }
@@ -82,11 +82,13 @@ export function useItemMatches(boletinId: string | undefined) {
 
 export interface TeamSearchHit { kind: 'team' | 'name'; sport: string; id: string | null; name: string; logo: string | null; leagues: string[]; bets: number }
 
+/** As-you-type team search. An empty query returns the teams the user bets on most. */
 export function useTeamSearch(q: string) {
   return useQuery({
-    queryKey: ['sports', 'teams', 'search', q],
-    queryFn: async () => (await apiClient.get<ApiEnvelope<TeamSearchHit[]>>('/sports/teams/search', { params: { q } })).data.data,
-    enabled: q.trim().length >= 2,
+    queryKey: ['sports', 'teams', 'search', q.trim().toLowerCase()],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<TeamSearchHit[]>>('/sports/teams/search', { params: { q: q.trim() } })).data.data,
+    // Keep the previous suggestions on screen while the next keystroke loads.
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60_000,
   });
 }
