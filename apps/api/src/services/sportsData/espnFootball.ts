@@ -7,6 +7,7 @@
 // The mappers are pure functions so they can be tested against recorded responses.
 
 import type { MatchIncident, MatchStatus, MatchTeamStats, NormalizedMatch, ScorePair } from './types';
+import { recordAssets } from './assetRegistry';
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 const USER_AGENT = 'BetIntel/1.0 (personal use)';
@@ -32,7 +33,7 @@ interface EspnStatusType { name?: string; state?: string; shortDetail?: string; 
 interface EspnCompetitor {
   homeAway?: 'home' | 'away';
   score?: string | number;
-  team?: { id?: string; displayName?: string };
+  team?: { id?: string; displayName?: string; logo?: string };
   linescores?: Array<{ displayValue?: string; value?: number }>;
 }
 interface EspnCompetition {
@@ -211,7 +212,17 @@ async function getJson<T>(url: string): Promise<T> {
 /** Matches of one league on one day (date as YYYY-MM-DD or YYYYMMDD). */
 export async function fetchEspnFootballDay(leagueSlug: string, date: string): Promise<NormalizedMatch[]> {
   const d = date.replace(/-/g, '');
-  return mapEspnScoreboard(await getJson<EspnScoreboard>(`${BASE}/${leagueSlug}/scoreboard?dates=${d}`));
+  const json = await getJson<EspnScoreboard>(`${BASE}/${leagueSlug}/scoreboard?dates=${d}`);
+  const logos: Record<string, string> = {};
+  for (const ev of json.events ?? []) {
+    for (const c of ev.competitions?.[0]?.competitors ?? []) {
+      const name = c.team?.displayName;
+      const logo = c.team?.logo ?? (c.team?.id ? `https://a.espncdn.com/i/teamlogos/soccer/500/${c.team.id}.png` : undefined);
+      if (name && logo) logos[name] = logo;
+    }
+  }
+  recordAssets(logos, {});
+  return mapEspnScoreboard(json);
 }
 
 /** Full detail of one match (stats and incidents included). */

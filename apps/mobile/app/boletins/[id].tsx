@@ -8,6 +8,7 @@ import { BoletinStatus, ItemResult, Sport } from '@betintel/shared';
 import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { AppText } from '../../components/ui/AppText';
+import { HeroCard } from '../../components/ui/HeroCard';
 import { ListCard, ListRow, useCardElevation } from '../../components/ui/ListCard';
 import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
@@ -431,7 +432,6 @@ export default function BoletinDetailScreen() {
     showToast('Boletim duplicado — edita e guarda.', 'success');
   }, [boletin, router, showToast]);
 
-  const ticketElevation = useCardElevation();
   const [showMoreActions, setShowMoreActions] = useState(false);
   const bannerColor = useMemo(() => {
     // Darker shades to ensure WCAG AA contrast (≥4.5:1) with white text
@@ -515,7 +515,7 @@ export default function BoletinDetailScreen() {
           <View style={styles.headerWrap}>
             <Animated.View entering={FadeInUp.duration(160).springify()}>
               {/* Redesign D6: "talão" hero instead of the coloured banner + 6-tile grid. */}
-              <View style={[styles.ticket, ticketElevation, { backgroundColor: colors.surface }]}>
+              <HeroCard style={styles.ticket}>
                 <View style={styles.ticketTopRow}>
                   <StatusPill status={boletin.status} />
                   <AppText variant="label">{formatLongDate(boletin.betDate ?? boletin.createdAt)}</AppText>
@@ -526,7 +526,7 @@ export default function BoletinDetailScreen() {
                     onChangeText={setEditName}
                     placeholder="Nome do boletim"
                     placeholderTextColor={colors.textMuted}
-                    style={[styles.ticketNameInput, { color: colors.textPrimary, borderBottomColor: colors.primary }]}
+                    style={[styles.ticketNameInput, { color: colors.heroText, borderBottomColor: colors.heroPositive }]}
                     value={editName}
                   />
                 ) : (
@@ -539,7 +539,7 @@ export default function BoletinDetailScreen() {
                 <AppText tone={(boletinStats?.displayProfit ?? 0) >= 0 ? 'positive' : 'negative'} variant="number">
                   {(boletinStats?.displayProfit ?? 0) >= 0 ? '+' : ''}{formatCurrency(boletinStats?.displayProfit ?? 0)} · ROI {(boletinStats?.displayROI ?? 0) >= 0 ? '+' : ''}{(boletinStats?.displayROI ?? 0).toFixed(1).replace('.', ',')}%
                 </AppText>
-                <View style={[styles.ticketDivider, { borderColor: colors.border }]} />
+                <View style={[styles.ticketDivider, { borderColor: 'rgba(255,255,255,0.16)' }]} />
                 <View style={styles.ticketMetrics}>
                   <Pressable accessibilityRole="button" accessibilityLabel="Stake" onPress={() => pushInfo('boletim-stake', boletinStats?.stake)} style={styles.ticketMetric}>
                     <AppText variant="label">Stake</AppText>
@@ -551,7 +551,7 @@ export default function BoletinDetailScreen() {
                         placeholder="0.00"
                         placeholderTextColor={colors.textMuted}
                         selectTextOnFocus
-                        style={[styles.statValueInput, { color: colors.textPrimary, borderBottomColor: colors.primary }]}
+                        style={[styles.statValueInput, { color: colors.heroText, borderBottomColor: colors.heroPositive }]}
                         value={editStake}
                       />
                     ) : (
@@ -567,7 +567,7 @@ export default function BoletinDetailScreen() {
                     <AppText variant="number">{boletinStats?.selectionCount ?? 0}</AppText>
                   </Pressable>
                 </View>
-              </View>
+              </HeroCard>
             </Animated.View>
 
             <Animated.View entering={FadeInDown.delay(30).duration(280).springify()}>
@@ -1376,7 +1376,7 @@ const styles = StyleSheet.create({
   moreButton: { alignItems: 'center', borderRadius: 12, height: 40, justifyContent: 'center', width: 48 },
   sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.5)', flex: 1 },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 },
-  ticket: { borderRadius: 20, gap: 4, padding: 20 },
+  ticket: { gap: 4, padding: 20 },
   ticketTopRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   ticketNameInput: { borderBottomWidth: 1, fontSize: 17, fontWeight: '600', paddingVertical: 4 },
   ticketReturnLabel: { marginTop: 12 },

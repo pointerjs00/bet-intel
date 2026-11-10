@@ -11,6 +11,9 @@ import { Avatar } from '../../components/ui/Avatar';
 import { ListCard, ListRow, useCardElevation } from '../../components/ui/ListCard';
 import { MetricTile, SectionHeader } from '../../components/ui/SectionHeader';
 import { StatusPill } from '../../components/ui/StatusPill';
+import { Appear, LiveDot } from '../../components/ui/Appear';
+import { HeroCard, HeroTile } from '../../components/ui/HeroCard';
+import { TeamBadge } from '../../components/ui/TeamBadge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useBoletins, useLiveItems, useReviewItems, type LiveItem } from '../../services/boletinService';
 import { useUnreadNotificationsCount } from '../../services/socialService';
@@ -149,16 +152,14 @@ export default function HomeDashboard() {
       </View>
 
       {/* Hero: profit this year */}
-      <Pressable
-        accessibilityHint="Abre a análise"
-        accessibilityRole="button"
-        onPress={() => router.push('/(tabs)/stats')}
-        style={[styles.hero, elevation, { backgroundColor: colors.surface }]}
-      >
+      <Appear index={0}>
+      <HeroCard accessibilityHint="Abre a análise" onPress={() => router.push('/(tabs)/stats')}>
         <View style={styles.rowBetween}>
           <AppText variant="label">Lucro · {year}</AppText>
           {summary.settledCount > 0 ? (
-            <AppText tone={profitTone} variant="label">ROI {summary.roi >= 0 ? '+' : ''}{summary.roi.toFixed(1).replace('.', ',')}%</AppText>
+            <View style={[styles.roiPill, { backgroundColor: summary.roi >= 0 ? 'rgba(61,255,162,0.16)' : 'rgba(255,107,122,0.18)' }]}>
+              <AppText tone={profitTone} variant="label">ROI {summary.roi >= 0 ? '+' : ''}{summary.roi.toFixed(1).replace('.', ',')}%</AppText>
+            </View>
           ) : null}
         </View>
         {boletinsQuery.isLoading ? (
@@ -173,7 +174,7 @@ export default function HomeDashboard() {
             <View key={i} style={styles.barSlot}>
               <View
                 style={{
-                  backgroundColor: v >= 0 ? colors.primary : colors.danger,
+                  backgroundColor: v >= 0 ? colors.heroPositive : colors.heroNegative,
                   borderRadius: 4,
                   height: `${Math.max(6, (Math.abs(v) / maxWeekly) * 100)}%`,
                   opacity: v === 0 ? 0.25 : 1,
@@ -183,12 +184,13 @@ export default function HomeDashboard() {
           ))}
         </View>
         <AppText variant="caption">Últimas {WEEKS} semanas</AppText>
-        <View style={[styles.metrics, { borderTopColor: colors.border }]}>
-          <MetricTile label="Apostado" value={formatCurrency(summary.staked)} />
-          <MetricTile label="Taxa de vitória" value={summary.winRate === null ? '—' : `${summary.winRate}%`} />
-          <MetricTile label="Pendentes" tone={summary.pending > 0 ? 'pending' : undefined} value={String(summary.pending)} />
+        <View style={styles.metrics}>
+          <HeroTile><MetricTile label="Apostado" value={formatCurrency(summary.staked)} /></HeroTile>
+          <HeroTile><MetricTile label="Vitórias" value={summary.winRate === null ? '—' : `${summary.winRate}%`} /></HeroTile>
+          <HeroTile><MetricTile label="Pendentes" tone={summary.pending > 0 ? 'pending' : undefined} value={String(summary.pending)} /></HeroTile>
         </View>
-      </Pressable>
+      </HeroCard>
+      </Appear>
 
       {limitWarning ? (
         <Pressable
@@ -207,9 +209,11 @@ export default function HomeDashboard() {
       {live.length > 0 ? (
         <>
           <SectionHeader actionLabel="Ver jogos" onAction={() => router.push('/(tabs)/fixtures')} title="A decorrer" />
-          <ListCard>
-            {live.map((item) => <LiveRow item={item} key={item.itemId} onPress={() => router.push(`/boletins/${item.boletinId}`)} />)}
-          </ListCard>
+          <Appear index={1}>
+            <ListCard>
+              {live.map((item) => <LiveRow item={item} key={item.itemId} onPress={() => router.push(`/boletins/${item.boletinId}`)} />)}
+            </ListCard>
+          </Appear>
         </>
       ) : null}
 
@@ -253,12 +257,26 @@ export default function HomeDashboard() {
           </ListRow>
         </ListCard>
       ) : (
+        <Appear index={2}>
         <ListCard>
           {recent.map((b) => {
             const pending = b.status === BoletinStatus.PENDING;
             const p = profitOf(b);
+            const first = b.items[0];
             return (
               <ListRow accessibilityLabel={titleOf(b)} key={b.id} onPress={() => router.push(`/boletins/${b.id}`)}>
+                {first ? (
+                  b.items.length === 1 ? (
+                    <TeamBadge name={first.homeTeam} size={34} variant={first.sport === 'TENNIS' ? 'player' : 'auto'} />
+                  ) : (
+                    <View style={styles.stack}>
+                      <TeamBadge name={first.homeTeam} size={26} variant={first.sport === 'TENNIS' ? 'player' : 'auto'} />
+                      <View style={[styles.stackCount, { backgroundColor: colors.accent }]}>
+                        <AppText style={styles.stackCountText}>{b.items.length}</AppText>
+                      </View>
+                    </View>
+                  )
+                ) : null}
                 <View style={styles.flex}>
                   <AppText numberOfLines={1} variant="bodyStrong">{titleOf(b)}</AppText>
                   <AppText numberOfLines={1} variant="caption">{subtitleOf(b)}</AppText>
@@ -277,6 +295,7 @@ export default function HomeDashboard() {
             );
           })}
         </ListCard>
+        </Appear>
       )}
     </ScrollView>
   );
@@ -288,16 +307,22 @@ function LiveRow({ item, onPress }: { item: LiveItem; onPress: () => void }) {
   const verdictTone = item.verdict === 'a ganhar' || item.verdict === 'ganha' ? 'positive' : item.verdict ? 'negative' : 'secondary';
   return (
     <ListRow accessibilityLabel={`${item.home} ${item.score ?? ''} ${item.away}, ${item.selection}${item.verdict ? `, ${item.verdict}` : ''}`} onPress={onPress}>
-      <View style={styles.flex}>
+      <View style={[styles.flex, styles.liveBody]}>
         <View style={styles.liveTop}>
-          {inPlay ? <View style={[styles.liveDot, { backgroundColor: colors.live }]} /> : null}
+          {inPlay ? <LiveDot color={colors.live} /> : null}
           <AppText tone={inPlay ? undefined : 'secondary'} variant="label">{inPlay ? item.detail || 'Ao vivo' : item.status === 'FINISHED' ? 'Terminado' : item.detail}</AppText>
         </View>
-        <AppText numberOfLines={1} variant="bodyStrong">
-          {item.home} <AppText variant="number">{item.score ?? '–'}</AppText> {item.away}
-        </AppText>
+        <View style={styles.team}>
+          <TeamBadge name={item.home} size={22} variant={item.sport === 'TENNIS' ? 'player' : 'auto'} />
+          <AppText numberOfLines={1} style={styles.flex} variant="bodyStrong">{item.home}</AppText>
+        </View>
+        <View style={styles.team}>
+          <TeamBadge name={item.away} size={22} variant={item.sport === 'TENNIS' ? 'player' : 'auto'} />
+          <AppText numberOfLines={1} style={styles.flex} variant="bodyStrong">{item.away}</AppText>
+        </View>
         <AppText numberOfLines={1} variant="caption">{item.selection}</AppText>
       </View>
+      <AppText style={styles.liveScore} variant="number">{item.score ?? '–'}</AppText>
       {item.verdict ? (
         <View style={[styles.verdict, { backgroundColor: `${verdictTone === 'positive' ? colors.primary : colors.danger}22` }]}>
           <AppText tone={verdictTone} variant="label">{item.verdict}</AppText>
@@ -314,11 +339,17 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', gap: 10, marginBottom: 4 },
   iconButton: { alignItems: 'center', borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   dot: { borderRadius: 4, height: 8, position: 'absolute', right: 11, top: 10, width: 8 },
-  hero: { borderRadius: 20, gap: 8, padding: 20 },
   rowBetween: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  roiPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   bars: { alignItems: 'flex-end', flexDirection: 'row', gap: 8, height: 56, marginTop: 6 },
   barSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' },
-  metrics: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 12, marginTop: 8, paddingTop: 14 },
+  metrics: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  stack: { height: 34, width: 34 },
+  stackCount: { alignItems: 'center', borderRadius: 9, bottom: 0, height: 18, justifyContent: 'center', minWidth: 18, paddingHorizontal: 4, position: 'absolute', right: 0 },
+  stackCountText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800', lineHeight: 12 },
+  liveBody: { gap: 4 },
+  team: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  liveScore: { fontSize: 20, marginLeft: 8 },
   banner: { alignItems: 'center', borderRadius: 16, flexDirection: 'row', gap: 12, minHeight: 56, paddingHorizontal: 16 },
   right: { alignItems: 'flex-end', gap: 4 },
   liveTop: { alignItems: 'center', flexDirection: 'row', gap: 6 },

@@ -33,6 +33,7 @@ import {
 } from '../../components/boletins/BoletinFilterSheet';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Appear } from '../../components/ui/Appear';
 import { AppText } from '../../components/ui/AppText';
 import { ListCard, ListRow } from '../../components/ui/ListCard';
 import { ConfirmModal } from '../../components/ui/ConfirmModal';
@@ -959,7 +960,7 @@ export default function HomeScreen() {
             />
           );
 
-          return card;
+          return <Appear index={index}>{card}</Appear>;
         }}
         ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={

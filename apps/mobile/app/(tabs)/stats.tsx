@@ -15,7 +15,6 @@ import { HeatmapCalendar } from '../../components/stats/HeatmapCalendar';
 import { HomeAwayCard } from '../../components/stats/HomeAwayCard';
 import { AIReviewCard } from '../../components/stats/AIReviewCard';
 import { GoalProgressCard } from '../../components/stats/GoalProgressCard';
-import { InsightsCard } from '../../components/stats/InsightsCard';
 import { LegKillChart } from '../../components/stats/LegKillChart';
 import { OddsRangeBar } from '../../components/stats/OddsRangeBar';
 import { PnLChart, type TimelineGranularity } from '../../components/stats/PnLChart';
@@ -28,6 +27,8 @@ import { TableSortButton, type SortKey } from '../../components/stats/TableSortB
 import { WinRateRing } from '../../components/stats/WinRateRing';
 import { AppText } from '../../components/ui/AppText';
 import { useCardElevation } from '../../components/ui/ListCard';
+import { HeroCard, HeroTile } from '../../components/ui/HeroCard';
+import { ionicon } from '../../types/icons';
 import { MetricTile } from '../../components/ui/SectionHeader';
 import { SegmentedControl } from '../../components/ui/SegmentedControl';
 import { Card } from '../../components/ui/Card';
@@ -973,10 +974,17 @@ export default function StatsScreen() {
         ) : (
           <View style={styles.contentStack}>
             {/* Hero (D7): one main number per screen — profit of the period */}
-            <Animated.View entering={FadeInDown.delay(35).duration(160).springify()} style={[styles.hero, elevation, { backgroundColor: colors.surface }]}>
+            <Animated.View entering={FadeInDown.delay(35).duration(220)}>
+            <HeroCard>
               <View style={styles.heroTop}>
                 <AppText variant="label">Lucro · {useCustomRange ? 'intervalo escolhido' : PERIOD_TITLE[period]}</AppText>
-                <Pressable accessibilityHint="Explica o ROI" accessibilityRole="button" hitSlop={8} onPress={() => pushInfo('roi', stats.summary.roi)}>
+                <Pressable
+                  accessibilityHint="Explica o ROI"
+                  accessibilityRole="button"
+                  hitSlop={8}
+                  onPress={() => pushInfo('roi', stats.summary.roi)}
+                  style={[styles.roiPill, { backgroundColor: stats.summary.roi >= 0 ? 'rgba(61,255,162,0.16)' : 'rgba(255,107,122,0.18)' }]}
+                >
                   <AppText tone={stats.summary.roi >= 0 ? 'positive' : 'negative'} variant="label">
                     ROI {stats.summary.roi >= 0 ? '+' : ''}{stats.summary.roi.toFixed(1).replace('.', ',')}%
                   </AppText>
@@ -992,7 +1000,7 @@ export default function StatsScreen() {
                     <View key={i} style={styles.heroBarSlot}>
                       <View
                         style={{
-                          backgroundColor: v >= 0 ? colors.primary : colors.danger,
+                          backgroundColor: v >= 0 ? colors.heroPositive : colors.heroNegative,
                           borderRadius: 4,
                           height: `${Math.max(6, (Math.abs(v) / heroMax) * 100)}%`,
                           opacity: v === 0 ? 0.25 : 1,
@@ -1002,12 +1010,36 @@ export default function StatsScreen() {
                   ))}
                 </View>
               ) : null}
-              <View style={[styles.heroMetrics, { borderTopColor: colors.border }]}>
-                <MetricTile label="Apostado" value={formatCurrency(stats.summary.totalStaked)} />
-                <MetricTile label="Taxa de vitória" value={`${Math.round(stats.summary.winRate)}%`} />
-                <MetricTile label="Odd média" value={formatOdds(stats.summary.averageOdds)} />
+              <View style={styles.heroTiles}>
+                <HeroTile><MetricTile label="Apostado" value={formatCurrency(stats.summary.totalStaked)} /></HeroTile>
+                <HeroTile><MetricTile label="Vitórias" value={`${Math.round(stats.summary.winRate)}%`} /></HeroTile>
+                <HeroTile><MetricTile label="Odd média" value={formatOdds(stats.summary.averageOdds)} /></HeroTile>
               </View>
+            </HeroCard>
             </Animated.View>
+
+            {/* Highlights: the automatic conclusions first, so the screen opens with "what this means" */}
+            {stats.insights.length > 0 ? (
+              <ScrollView
+                contentContainerStyle={styles.highlightRow}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.highlightScroll}
+              >
+                {stats.insights.map((ins, i) => {
+                  const tint = ins.sentiment === 'positive' ? colors.positive : ins.sentiment === 'negative' ? colors.negative : colors.accent;
+                  return (
+                    <Animated.View entering={FadeInDown.delay(80 + i * 40).duration(220)} key={ins.id} style={[styles.highlightCard, elevation, { backgroundColor: colors.surface }]}>
+                      <View style={[styles.highlightIcon, { backgroundColor: `${tint}22` }]}>
+                        <Ionicons color={tint} name={ionicon(ins.icon)} size={18} />
+                      </View>
+                      <AppText numberOfLines={2} variant="bodyStrong">{ins.title}</AppText>
+                      <AppText numberOfLines={3} variant="caption">{ins.body}</AppText>
+                    </Animated.View>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
 
             {getEffectiveOrder().map((sectionId) => {
               if (!isSectionVisible(sectionId)) return null;
@@ -1225,11 +1257,8 @@ export default function StatsScreen() {
                 </Animated.View>
               );
 
-              case 'insights': return stats.insights.length > 0 ? (
-                <Animated.View key="insights" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <InsightsCard insights={stats.insights} onInfoPress={() => pushInfo('insights', stats.insights.length)} />
-                </Animated.View>
-              ) : (
+              // Insights are shown as the highlight strip under the hero.
+              case 'insights': return stats.insights.length > 0 ? null : (
                 <Animated.View key="insights" entering={FadeInDown.delay(45).duration(160).springify()}>
                   <Card style={{ gap: 6 }}>
                     <View style={styles.placeholderRow}>
@@ -1473,6 +1502,12 @@ const styles = StyleSheet.create({
   filterBadgeText: { color: '#0B0D0C', fontSize: 10 },
   hero: { borderRadius: 20, gap: 8, padding: 20 },
   heroTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  roiPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  heroTiles: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  highlightScroll: { marginHorizontal: -16 },
+  highlightRow: { gap: 10, paddingHorizontal: 16, paddingVertical: 6 },
+  highlightCard: { borderRadius: 20, gap: 6, padding: 14, width: 220 },
+  highlightIcon: { alignItems: 'center', borderRadius: 12, height: 34, justifyContent: 'center', width: 34 },
   heroBars: { alignItems: 'flex-end', flexDirection: 'row', gap: 6, height: 56, marginTop: 6 },
   heroBarSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' },
   heroMetrics: { borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 12, marginTop: 8, paddingTop: 14 },

@@ -1,53 +1,84 @@
-// Design tokens v2 (PLANO_MELHORIAS.md §6.2): dark "Painel escuro" palette by default,
-// light theme from the "Claro editorial" direction. Same keys as v1 so every screen
-// that reads colors through useTheme() picks the new palette up automatically.
+// Design tokens v3: dark = "Neon Arena" (deep navy-black, electric green + violet, glowing
+// accents), light = "Clean Pro" (cool grey-blue ground, white cards with layered soft shadows,
+// ink hero card). Same base keys as v1/v2 so every screen reading useTheme() picks them up.
 export const tokens = {
   colors: {
     dark: {
-      background: '#0B0D0C',
-      surface: '#151817',
-      surfaceRaised: '#1D211F',
-      border: '#262B28',
-      primary: '#2FD27A',
-      primaryDark: '#1FA862',
-      danger: '#FF6B5E',
-      warning: '#F5B13D',
-      info: '#6EA8FF',
-      textPrimary: '#F2F5F3',
-      textSecondary: '#A3ABA6',
-      // ~6:1 on surface (v1 #505050 was ~2.2:1 and failed WCAG)
-      textMuted: '#8E9791',
-      gold: '#F2C94C',
-      live: '#FF6B5E',
-      /** Profit and won states as text (brighter than primary for contrast on dark surfaces). */
-      positive: '#5BE39A',
+      background: '#07090F',
+      surface: '#111522',
+      surfaceRaised: '#1A2033',
+      border: '#252C44',
+      primary: '#3DFFA2',
+      primaryDark: '#1FD98A',
+      danger: '#FF6B7A',
+      warning: '#FFC24B',
+      info: '#5AA9FF',
+      textPrimary: '#F4F6FF',
+      textSecondary: '#A3AAC6',
+      textMuted: '#8B93B3',
+      gold: '#FFC24B',
+      live: '#FF3B5C',
+      /** Profit and won states as text. */
+      positive: '#3DFFA2',
       /** Losses as text. */
-      negative: '#FF8A7F',
+      negative: '#FF6B7A',
       /** Text and icons on a primary-coloured fill. */
-      onPrimary: '#FFFFFF',
+      onPrimary: '#04140C',
+      /** Secondary brand colour (selected dates, social, highlights). */
+      accent: '#8B5CFF',
+      /** Text-safe accent on dark surfaces. */
+      accentText: '#B79CFF',
+      /** Third colour for avatars and notification dots. */
+      accentAlt: '#FF4FD8',
+      /** Hero card gradient (top-left → bottom-right) and its text. */
+      heroFrom: '#1B1446',
+      heroVia: '#0E2A3A',
+      heroTo: '#0A3B2A',
+      heroText: '#F4F6FF',
+      heroTextMuted: '#C9CFF0',
+      heroPositive: '#3DFFA2',
+      heroNegative: '#FF8A96',
+      /** Primary button gradient end (start is `primary`). */
+      primaryGradientEnd: '#1FD3FF',
+      /** Coloured shadow under primary elements. */
+      glow: '#3DFFA2',
+      shadow: '#000000',
     },
     light: {
-      background: '#F4F3EF',
+      background: '#F3F5F9',
       surface: '#FFFFFF',
-      surfaceRaised: '#F8F7F3',
-      border: '#E6E4DE',
-      primary: '#0E6B42',
-      primaryDark: '#0A5233',
-      danger: '#B23A27',
-      warning: '#9A5B00',
-      info: '#1F5FD1',
-      textPrimary: '#17181A',
-      textSecondary: '#5B5F66',
-      textMuted: '#6B7078',
-      gold: '#8A6A00',
-      live: '#C2412D',
-      positive: '#0E6B42',
-      negative: '#B23A27',
+      surfaceRaised: '#EEF1F6',
+      border: '#E4E8EF',
+      primary: '#0B8F5A',
+      primaryDark: '#087447',
+      danger: '#D92D20',
+      warning: '#B45309',
+      info: '#2563EB',
+      textPrimary: '#0F172A',
+      textSecondary: '#5B6578',
+      textMuted: '#667085',
+      gold: '#A16207',
+      live: '#E11D48',
+      positive: '#0B8F5A',
+      negative: '#D92D20',
       onPrimary: '#FFFFFF',
+      accent: '#2563EB',
+      accentText: '#2563EB',
+      accentAlt: '#E11D48',
+      heroFrom: '#0F172A',
+      heroVia: '#16213A',
+      heroTo: '#0F2A2A',
+      heroText: '#FFFFFF',
+      heroTextMuted: '#A5B0C5',
+      heroPositive: '#4ADE80',
+      heroNegative: '#FCA5A5',
+      primaryGradientEnd: '#0B8F5A',
+      glow: '#0B8F5A',
+      shadow: '#0F172A',
     },
   },
   spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 },
-  radius: { sm: 6, md: 12, lg: 16, xl: 20, full: 9999 },
+  radius: { sm: 8, md: 14, lg: 18, xl: 22, full: 9999 },
   font: {
     /** Loaded in app/_layout.tsx. Use `numeric` for money, odds and percentages (tabular figures). */
     family: {
@@ -64,4 +95,4 @@ export const tokens = {
 } as const;
 
 export type ThemeMode = keyof typeof tokens.colors;
-export type ThemeColors = (typeof tokens.colors)[ThemeMode];
+export type ThemeColors = { [K in keyof (typeof tokens.colors)['dark']]: string };

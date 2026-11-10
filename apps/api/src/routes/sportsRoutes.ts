@@ -11,6 +11,7 @@ import { logger } from '../utils/logger';
 import { teamNamesMatch } from '../services/marketResolutionEngine';
 import { ESPN_FOOTBALL_LEAGUES, fetchEspnFootballDay, fetchEspnFootballMatch } from '../services/sportsData/espnFootball';
 import type { NormalizedMatch } from '../services/sportsData/types';
+import { getAssets } from '../services/sportsData/assetRegistry';
 
 export const sportsRouter: Router = Router();
 sportsRouter.use(authenticate);
@@ -27,6 +28,11 @@ async function cached<T>(key: string, ttlSeconds: number, load: () => Promise<T>
   redis.set(key, JSON.stringify(value), 'EX', ttlSeconds).catch(() => {});
   return value;
 }
+
+/** Crest and player-photo URLs by display name, collected from ESPN (see assetRegistry). */
+sportsRouter.get('/assets', async (_req: Request, res: Response) => {
+  res.json({ success: true, data: await getAssets() });
+});
 
 function isValidDate(d: unknown): d is string {
   return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));

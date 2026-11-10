@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { ONBOARDING_DONE_KEY } from './onboarding';
 import { useAuthStore } from '../stores/authStore';
+import { useSportAssetsStore } from '../stores/sportAssetsStore';
 import { ShareBoletinProvider } from '../components/social/ShareBoletinProvider';
 import { ConnectivityBanner } from '../components/ui/ConnectivityBanner';
 import { useTheme } from '../theme/useTheme';
@@ -63,6 +64,7 @@ function usePrefetchHomeData(isAuthenticated: boolean) {
     if (!isAuthenticated) return;
 
     const safeFetch = (fn: () => Promise<unknown>) => fn().catch(() => undefined);
+    void useSportAssetsStore.getState().load();
 
     void safeFetch(() =>
       qc.prefetchQuery({

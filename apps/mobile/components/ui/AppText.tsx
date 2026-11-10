@@ -9,6 +9,9 @@ export type TextTone = 'primary' | 'secondary' | 'muted' | 'positive' | 'negativ
 
 const F = tokens.font.family;
 
+/** True inside a HeroCard: text switches to the hero palette (light text on the gradient). */
+export const OnHeroContext = React.createContext(false);
+
 const VARIANTS: Record<TextVariant, TextStyle> = {
   display: { fontFamily: F.bold, fontSize: 32, lineHeight: 38, letterSpacing: -0.5 },
   title: { fontFamily: F.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.3 },
@@ -29,16 +32,28 @@ interface AppTextProps extends TextProps {
 /** Text with the design-system font, size and colour. Prefer this over raw <Text> in new screens. */
 export function AppText({ variant = 'body', tone, style, ...rest }: AppTextProps) {
   const { colors, isDark } = useTheme();
+  const onHero = React.useContext(OnHeroContext);
   const defaultTone: TextTone = variant === 'label' || variant === 'caption' ? 'secondary' : 'primary';
-  const color = {
-    primary: colors.textPrimary,
-    secondary: colors.textSecondary,
-    muted: colors.textMuted,
-    positive: colors.positive,
-    negative: colors.negative,
-    pending: colors.warning,
-    accent: colors.primary,
-    inverse: isDark ? '#06140C' : '#FFFFFF',
-  }[tone ?? defaultTone];
+  const color = (onHero
+    ? {
+        primary: colors.heroText,
+        secondary: colors.heroTextMuted,
+        muted: colors.heroTextMuted,
+        positive: colors.heroPositive,
+        negative: colors.heroNegative,
+        pending: colors.warning,
+        accent: colors.heroPositive,
+        inverse: colors.heroFrom,
+      }
+    : {
+        primary: colors.textPrimary,
+        secondary: colors.textSecondary,
+        muted: colors.textMuted,
+        positive: colors.positive,
+        negative: colors.negative,
+        pending: colors.warning,
+        accent: colors.primary,
+        inverse: isDark ? '#06140C' : '#FFFFFF',
+      })[tone ?? defaultTone];
   return <Text {...rest} style={[VARIANTS[variant], { color }, style]} />;
 }

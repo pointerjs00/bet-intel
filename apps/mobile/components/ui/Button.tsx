@@ -14,7 +14,9 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
+import { useGlow } from './ListCard';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -40,7 +42,9 @@ export const Button = React.memo(function Button({
   ...props
 }: ButtonProps) {
   const { colors, tokens } = useTheme();
+  const glow = useGlow();
   const isDisabled = disabled || loading;
+  const isPrimary = variant === 'primary';
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -67,11 +71,20 @@ export const Button = React.memo(function Button({
           opacity: isDisabled ? 0.55 : 1,
           height: getHeight(size),
         },
+        isPrimary && !isDisabled ? glow : null,
         animatedStyle,
         style,
       ]}
       {...props}
     >
+      {isPrimary ? (
+        <LinearGradient
+          colors={[colors.primary, colors.primaryGradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[StyleSheet.absoluteFill, styles.gradient]}
+        />
+      ) : null}
       <View style={styles.content}>
         {loading ? (
           <ActivityIndicator color={getTextColor(variant, colors)} size="small" />
@@ -113,7 +126,7 @@ function getBackgroundColor(variant: ButtonProps['variant'], colors: ReturnType<
 function getBorderColor(variant: ButtonProps['variant'], colors: ReturnType<typeof useTheme>['colors']) {
   switch (variant) {
     case 'ghost':
-      return colors.border;
+      return colors.primary;
     case 'secondary':
       return colors.surfaceRaised;
     case 'danger':
@@ -127,9 +140,11 @@ function getBorderColor(variant: ButtonProps['variant'], colors: ReturnType<type
 function getTextColor(variant: ButtonProps['variant'], colors: ReturnType<typeof useTheme>['colors']) {
   switch (variant) {
     case 'secondary':
-    case 'ghost':
       return colors.textPrimary;
+    case 'ghost':
+      return colors.primary;
     case 'danger':
+      return '#FFFFFF';
     case 'primary':
     default:
       return colors.onPrimary;
@@ -149,9 +164,10 @@ function getHeight(size: ButtonProps['size']) {
 }
 
 const styles = StyleSheet.create({
+  gradient: { borderRadius: 16 },
   base: {
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
     justifyContent: 'center',
     paddingHorizontal: 16,
   },

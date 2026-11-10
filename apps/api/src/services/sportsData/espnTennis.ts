@@ -3,6 +3,7 @@
 // ESPN only gives set scores (no live points, no per-match stats). See ESTUDO_FONTES_DADOS.md.
 
 import type { TennisResult, TennisSet } from '../tennisMarketEngine';
+import { espnAthleteIdFromLinks, espnTennisHeadshot, recordAssets } from './assetRegistry';
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/tennis';
 
@@ -28,7 +29,7 @@ interface EspnCompetitor {
   homeAway?: string;
   order?: number;
   winner?: boolean;
-  athlete?: { displayName?: string };
+  athlete?: { displayName?: string; links?: Array<{ href?: string }> };
   roster?: { athletes?: Array<{ displayName?: string }> };
   linescores?: Array<{ value?: number }>;
 }
@@ -101,7 +102,20 @@ export async function fetchEspnTennisDay(tour: 'atp' | 'wta', date: string): Pro
     signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error(`ESPN tennis ${res.status}`);
-  return mapEspnTennisScoreboard((await res.json()) as EspnTennisScoreboard, tour);
+  const json = (await res.json()) as EspnTennisScoreboard;
+  const photos: Record<string, string> = {};
+  for (const ev of json.events ?? []) {
+    for (const g of ev.groupings ?? []) {
+      for (const c of g.competitions ?? []) {
+        for (const p of c.competitors ?? []) {
+          const id = espnAthleteIdFromLinks(p.athlete?.links);
+          if (p.athlete?.displayName && id) photos[p.athlete.displayName] = espnTennisHeadshot(id);
+        }
+      }
+    }
+  }
+  recordAssets({}, photos);
+  return mapEspnTennisScoreboard(json, tour);
 }
 
 /** Engine input for a match that ended (or null while it is still to be played/in play). */
