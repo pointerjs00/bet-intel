@@ -14,7 +14,7 @@ Documentos relacionados:
 
 ## Estado da implementação
 
-Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main` e **deploy feito a 10/11/2026** (tracker ativo em produção).
+Alterações de 10/11/2026: em commit no branch `melhorias`. Merge no `main` e deploy da API feitos a 10/11/2026 até às migrações do #24 (tracker ativo em produção). Os commits seguintes (D7, D10, D2/D3, #22, #23, #26, #31, #45, #59) esperam pelo próximo merge.
 
 | Item | Estado | Notas |
 |---|---|---|
@@ -29,7 +29,7 @@ Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main`
 | #9 | Feito | Erros 500 devolvem "Erro interno do servidor". |
 | #10 | Feito | Sem limiter duplicado nas rotas. O limite global mantém-se em 2000 / 15 min (para uso pessoal não vale a pena baixar). |
 | #11, #12 | Feito | O socket volta às salas em cada reconexão; `boletim:result` atualiza boletins e estatísticas. |
-| #13 | Parcial | Golo anulado já não notifica. "Fim do jogo" continua dependente da fase 2. |
+| #13 | Feito | Golo anulado já não notifica; o "Fim do jogo" é enviado pelo tracker (#55) nos jogos com aposta. |
 | #14 | Feito (falta build) | `expo-haptics` instalado; a vibração funciona na próxima build nativa (EAS). |
 | #15, #37 | Feito | Campo "Cashout" na edição do boletim; a API grava e preserva o valor. |
 | #16 | Parcial | Quem não é dono já não vê as outras partilhas. O arredondamento ficou: o import usa de propósito a odd total do talão. |
@@ -50,24 +50,31 @@ Alterações de 10/11/2026: em commit no branch `melhorias`, com merge no `main`
 | #42, #43, #44 | Feito | Regra das linhas vermelhas corrigida; prompt corrigido; anulados importados devolvem a stake. |
 | #48 | Feito | SDK `@google/genai` com schema JSON obrigatório e 3 tentativas em 429/503. Validado com 2 screenshots reais (iguais à correção). Nota: com o schema a leitura demora 6–7 s em vez de 1,3 s. |
 | #49 | Feito | Ver "Resultado do benchmark" na secção 5. |
-| #53 | Parcial | Modelo normalizado (`services/sportsData/types.ts`) e adaptador ESPN de futebol, testado com uma resposta real gravada e contra a API real. Faltam os adaptadores FotMob, LiveScore e WTA. |
+| #53 | Parcial | Modelo normalizado e adaptadores ESPN (futebol e ténis) e LiveScore (pontos do ténis ao vivo), testados com respostas reais gravadas. Faltam a FotMob (xG, momentum) e a API da WTA (estatísticas por set): são extras, não bloqueiam nada. |
 | #54 | Feito | Cada seleção pendente é ligada ao jogo da ESPN por liga, data e nomes das equipas (inclui nomes portugueses); a ligação fica no Redis 7 dias, sem migração. |
 | #55 | Feito | `liveBetTrackerJob`: corre a cada minuto, com 3 leituras (~20 s), só para jogos com seleções pendentes das 11 competições. |
-| #56 | Parcial | Estado "a ganhar/a perder" por seleção, calculado pelo motor com o resultado e os cantos ao vivo. Falta mostrá-lo na app (D5/D8). |
+| #56 | Feito | Estado "a ganhar/a perder" por seleção, calculado pelo motor com o resultado e os cantos ao vivo, mostrado em "A decorrer" no Início. |
 | #57 | Feito | Notificações de início, golo (com o estado de cada aposta), intervalo e fim, com deduplicação e respeitando as preferências. O job antigo deixou de notificar quem tem aposta, para não haver duplicados. |
 | #3 | Resolvido via #55 | Para as 11 competições cobertas, o tracker liquida com o resultado aos 90' da ESPN. O job antigo da API-Football continua sem esse dado. |
 | #58 | Parcial | O ecrã Jogos já não usa a API-Football. Continuam a usá-la o "Por jogo" (criar boletim), as classificações e os insights. |
 | #60 | Feito | `GET /api/sports/football/day` e `/match/:league/:id` (ESPN, cache Redis, marca de "tens aposta"). Ver D8. |
 | — | Validado | Teste de ponta a ponta com a base de dados local e a ESPN real (jogos de 08/11/2026): 5 de 5 seleções liquidadas como esperado (resultado, cantos, ambas marcam, marcador para revisão, empate) e notificações certas. |
-| #59 | Parcial | Motor de mercados de ténis (vencedor, resultado em sets, vencedor de set, total de jogos e de sets; desistência e walkover vão para revisão) e adaptador ESPN ATP/WTA. O tracker acompanha as apostas de ténis: início, fim de cada set, fim com o estado da aposta, e liquidação. Teste de ponta a ponta 4 de 4 (Estocolmo, 09/11). Faltam os pontos ao vivo (LiveScore/WTA). |
-| D2 | Parcial | Paleta v2 e fontes (Inter, Space Grotesk) carregadas e expostas em `tokens.font.family`. Falta aplicá-las nos componentes e tirar as 268 cores fixas (D3). |
-| D3 | Parcial | Componentes base criados: `AppText`, `ListCard`/`ListRow`, `StatusPill`, `SegmentedControl`, `SectionHeader`/`MetricTile`. Usados no Início e no Novo boletim; os ecrãs antigos ainda não os usam. |
+| #59 | Feito | Motor de mercados de ténis (vencedor, resultado em sets, vencedor de set, total de jogos e de sets; desistência e walkover vão para revisão) e adaptador ESPN ATP/WTA. O tracker acompanha e liquida as apostas de ténis (teste 4 de 4, Estocolmo, 09/11). Os pontos do jogo em curso e quem serve vêm da LiveScore (no máximo um pedido a cada 15 s, só com jogos ao vivo) e aparecem em "A decorrer", por exemplo "7-6 1-6 5-3 (40-40) · serve Geerts". 2 testes com uma resposta real gravada. |
+| D2 | Parcial | Paleta v2, fontes e tokens `positive`, `negative` e `onPrimary` (§6.2). Os componentes base, Início, Boletins (cartão e seleções), Análise (topo), Perfil e Limites já usam os tokens. Restam cerca de 420 cores fixas, sobretudo nos cartões de partilha (imagem com paleta própria, de propósito), no ecrã antigo de jogos e nos insights da API-Football (saem com o #58). |
+| D3 | Feito | `AppText`, `ListCard`/`ListRow`, `StatusPill`, `SegmentedControl`, `SectionHeader`/`MetricTile`, usados no Início, Boletins, Análise, Perfil, Limites, A rever e Novo boletim. O `StatusBadge` antigo foi substituído pelo `StatusPill` e apagado. |
 | D4 | Feito | Barra Início · Boletins · + · Jogos · Análise. Perfil pelo avatar do Início; Amigos pelo Perfil (com selo de pedidos). As ligações das estatísticas abrem Boletins. |
 | D5 | Feito | Início novo: lucro do ano, ROI, 8 semanas, métricas, "A decorrer" com estado ao vivo (precisa do deploy do endpoint `/boletins/live`), resolver pendentes e recentes. |
 | D6 | Feito | Cabeçalho de Boletins simplificado; cartão sem faixa lateral nem fila de botões (tocar abre o detalhe; partilhar/apagar por deslize), estado com ícone e texto, título com o jogo. Detalhe em "talão" (estado, jogo, retorno em destaque, lucro e ROI, stake/odd/seleções; nome e stake editáveis no próprio bloco). Ações: Editar e Partilhar à vista; imagem, duplicar, público/privado e apagar no menu "…". |
-| D7 | Parcial | Análise abre em "Este Ano"; período vazio mostra "Sem apostas neste período" com atalho para "Sempre". Falta o redesenho completo. |
+| D7 | Feito | Título "Análise", período em controlo segmentado (Semana · Mês · Ano · Sempre) e um botão de filtros com contador (intervalo, casas, comparar) em vez de duas filas de botões. Cartão principal com o lucro do período, ROI, barras por período e 3 métricas (apostado, taxa de vitória, odd média). As secções detalhadas continuam por baixo. Abre em "Ano"; período vazio mostra "Sem apostas neste período". |
 | D8 | Feito | Novo ecrã Jogos com dados ESPN (tira de dias, filtros Todos / Ao vivo / Com aposta, ligas agrupadas, atualização de 30 s ao vivo) e detalhe do jogo (resultado, intervalo, estádio, eventos de cada lado, estatísticas em barras). O ecrã antigo (API-Football) continua só no "Novo boletim → Por jogo". |
 | D9 | Feito | Ecrã "Novo boletim" com os 4 modos, aberto pelo + central. |
+| D10 | Feito | Perfil novo: identidade, métricas do mês com o período explícito e uma lista (Editar perfil, Notificações, Amigos, Limites e alertas, Definições). A edição de nome e bio passou para um ecrã próprio (`/perfil-editar`). |
+| #22 | Feito | A liquidação parte das seleções pendentes (sai logo quando não há nenhuma) e emparelha os jogos em memória: 2 consultas por execução, em vez de 1 a 2 por jogo terminado. |
+| #23 | Feito | A API aceita pedidos logo após a base de dados, o Redis e a seed; rankings, sincronização de jogos e agendamentos arrancam em segundo plano. No encerramento fecha os sockets e força a saída ao fim de 10 s. |
+| #26 | Parcial | Config plugin `withAbiFilters`: a APK só leva a arquitetura pedida, cerca de 45 MB no telemóvel (arm64) em vez de 141 MB. O catálogo `sofascoreTournaments` continua no bundle. |
+| #31 | Parcial | App sem `any` e com 0 erros de `tsc` (eram 20). Os tipos revelaram 2 bugs: o registo rápido nunca enviava a competição, por isso guardar falhava sempre; e o "histórico geral" no detalhe do boletim nunca aparecia. Na API restam cerca de 110 `any`, quase todos nos jobs da API-Football (saem com o #58). |
+| #45 | Parcial | O motor passou a ler o atalho de bet builder "X vence & +1.5 Golos", que antes ia para revisão. Os nomes do Betclic, como "Resultado (Tempo Regulamentar)", já eram reconhecidos desde o #1. Falta normalizar os mercados de outras casas (depende do #50). |
+| — | Corrigido | **APK de release fechava ao abrir:** a minificação R8 removia classes do `expo-modules-core`. Desligada no `gradle.properties` e no `app.config.js`. |
 | #64 | Feito | **Bug novo:** a app terminava a sessão perante qualquer erro de rede durante o refresh; agora só o faz quando o servidor recusa o token. (Nota: as quedas de sessão no emulador eram outra coisa — sem login biométrico ativo, a app apaga os tokens em cada arranque a frio, de propósito, em `authStore.hydrate`.) |
 
 ---
