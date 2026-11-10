@@ -58,15 +58,19 @@ export interface SharedBoletinFeedItem {
   boletin: BoletinDetail;
 }
 
-/** Returns the authenticated user's boletins ordered from newest to oldest. */
+/**
+ * Returns the authenticated user's boletins ordered from newest to oldest.
+ * Plan #18: the list skips the shares (and their users), which no list screen shows;
+ * the detail endpoint still returns them.
+ */
 export async function listUserBoletins(userId: string): Promise<BoletinDetail[]> {
   const boletins = await prisma.boletin.findMany({
     where: { userId },
-    include: BOLETIN_DETAIL_INCLUDE,
+    include: { user: { select: COMPACT_USER_SELECT }, items: { orderBy: { id: 'asc' } } },
     orderBy: { createdAt: 'desc' },
   });
 
-  return boletins.map(serializeBoletinDetail);
+  return boletins.map((b) => serializeBoletinDetail({ ...b, sharedWith: [] }));
 }
 
 /** Creates a new boletin with user-supplied match info and odds. */

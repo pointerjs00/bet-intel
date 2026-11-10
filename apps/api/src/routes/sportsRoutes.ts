@@ -13,6 +13,7 @@ import { ESPN_FOOTBALL_LEAGUES, fetchEspnFootballDay, fetchEspnFootballMatch } f
 import type { NormalizedMatch } from '../services/sportsData/types';
 import { getAssets } from '../services/sportsData/assetRegistry';
 import { fetchEspnPreview } from '../services/sportsData/espnPreview';
+import { getProviderHealth } from '../services/sportsData/providerHealth';
 
 export const sportsRouter: Router = Router();
 sportsRouter.use(authenticate);
@@ -29,6 +30,11 @@ async function cached<T>(key: string, ttlSeconds: number, load: () => Promise<T>
   redis.set(key, JSON.stringify(value), 'EX', ttlSeconds).catch(() => {});
   return value;
 }
+
+/** Last result per data provider (plan #61). */
+sportsRouter.get('/health', async (_req: Request, res: Response) => {
+  res.json({ success: true, data: await getProviderHealth() });
+});
 
 /** Crest and player-photo URLs by display name, collected from ESPN (see assetRegistry). */
 sportsRouter.get('/assets', async (_req: Request, res: Response) => {

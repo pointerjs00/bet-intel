@@ -14,6 +14,8 @@ interface LsEvent {
   Esrv?: number;
   [setKey: string]: unknown;
 }
+import { ProviderFormatError, tracked } from './providerHealth';
+
 interface LsResponse { Stages?: Array<{ Events?: LsEvent[] }> }
 
 /** Live state of one tennis match from LiveScore. */
@@ -60,9 +62,16 @@ export function mapLiveScoreTennis(json: LsResponse): LiveTennisPoints[] {
 /** All live tennis matches with points; empty list on any error (it is only an enrichment). */
 export async function fetchLiveTennisPoints(): Promise<LiveTennisPoints[]> {
   try {
-    const res = await fetch(LIVE_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return [];
-    return mapLiveScoreTennis((await res.json()) as LsResponse);
+    return await tracked('livescore', async () => {
+      const res = await fetch(LIVE_URL, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(8000) });
+      if (!res.ok) throw new Error(`LiveScore ${res.status}`);
+      const json = (await res.json()) as LsResponse;
+      // No live matches can mean no Stages key, so only a non-object counts as a format change.
+      if (!json || typeof json !== 'object' || (json.Stages !== undefined && !Array.isArray(json.Stages))) {
+        throw new ProviderFormatError('LiveScore response has an unexpected shape');
+      }
+      return mapLiveScoreTennis(json);
+    });
   } catch {
     return [];
   }

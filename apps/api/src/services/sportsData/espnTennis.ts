@@ -4,6 +4,7 @@
 
 import type { TennisResult, TennisSet } from '../tennisMarketEngine';
 import { espnAthleteIdFromLinks, espnTennisHeadshot, recordAssets } from './assetRegistry';
+import { ProviderFormatError, tracked } from './providerHealth';
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/tennis';
 
@@ -97,12 +98,16 @@ export function mapEspnTennisScoreboard(json: EspnTennisScoreboard, tour: 'atp' 
 }
 
 export async function fetchEspnTennisDay(tour: 'atp' | 'wta', date: string): Promise<TennisMatch[]> {
-  const res = await fetch(`${BASE}/${tour}/scoreboard?dates=${date.replace(/-/g, '')}`, {
-    headers: { 'User-Agent': 'BetIntel/1.0 (personal use)', Accept: 'application/json' },
-    signal: AbortSignal.timeout(15_000),
+  const json = await tracked('espn-tennis', async () => {
+    const res = await fetch(`${BASE}/${tour}/scoreboard?dates=${date.replace(/-/g, '')}`, {
+      headers: { 'User-Agent': 'BetIntel/1.0 (personal use)', Accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`ESPN tennis ${res.status}`);
+    const j = (await res.json()) as EspnTennisScoreboard;
+    if (!Array.isArray(j.events)) throw new ProviderFormatError('ESPN tennis scoreboard without events[]');
+    return j;
   });
-  if (!res.ok) throw new Error(`ESPN tennis ${res.status}`);
-  const json = (await res.json()) as EspnTennisScoreboard;
   const photos: Record<string, string> = {};
   for (const ev of json.events ?? []) {
     for (const g of ev.groupings ?? []) {

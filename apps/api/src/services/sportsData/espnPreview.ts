@@ -1,6 +1,8 @@
 // Pre-match context from the ESPN summary (plan #58: replaces the API-Football standings,
 // form and head-to-head). Pure mapper, tested against a recorded response shape.
 
+import { tracked } from './providerHealth';
+
 export interface PreviewStandingRow {
   rank: number;
   team: string;
@@ -77,6 +79,10 @@ export function mapEspnPreview(json: RawSummary): MatchPreview {
 }
 
 export async function fetchEspnPreview(leagueSlug: string, eventId: string): Promise<MatchPreview> {
+  return tracked('espn-preview', () => fetchPreviewRaw(leagueSlug, eventId));
+}
+
+async function fetchPreviewRaw(leagueSlug: string, eventId: string): Promise<MatchPreview> {
   const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${leagueSlug}/summary?event=${encodeURIComponent(eventId)}`, {
     headers: { 'User-Agent': 'BetIntel/1.0 (personal use)', Accept: 'application/json' },
     signal: AbortSignal.timeout(15_000),

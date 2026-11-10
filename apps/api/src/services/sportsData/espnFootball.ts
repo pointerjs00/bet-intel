@@ -8,6 +8,7 @@
 
 import type { MatchIncident, MatchStatus, MatchTeamStats, NormalizedMatch, ScorePair } from './types';
 import { recordAssets } from './assetRegistry';
+import { ProviderFormatError, tracked } from './providerHealth';
 
 const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 const USER_AGENT = 'BetIntel/1.0 (personal use)';
@@ -212,7 +213,11 @@ async function getJson<T>(url: string): Promise<T> {
 /** Matches of one league on one day (date as YYYY-MM-DD or YYYYMMDD). */
 export async function fetchEspnFootballDay(leagueSlug: string, date: string): Promise<NormalizedMatch[]> {
   const d = date.replace(/-/g, '');
-  const json = await getJson<EspnScoreboard>(`${BASE}/${leagueSlug}/scoreboard?dates=${d}`);
+  const json = await tracked('espn-football', async () => {
+    const j = await getJson<EspnScoreboard>(`${BASE}/${leagueSlug}/scoreboard?dates=${d}`);
+    if (!Array.isArray(j.events)) throw new ProviderFormatError('ESPN scoreboard without events[]');
+    return j;
+  });
   const logos: Record<string, string> = {};
   for (const ev of json.events ?? []) {
     for (const c of ev.competitions?.[0]?.competitors ?? []) {
@@ -227,5 +232,5 @@ export async function fetchEspnFootballDay(leagueSlug: string, date: string): Pr
 
 /** Full detail of one match (stats and incidents included). */
 export async function fetchEspnFootballMatch(leagueSlug: string, eventId: string): Promise<NormalizedMatch | null> {
-  return mapEspnSummary(await getJson<EspnSummary>(`${BASE}/${leagueSlug}/summary?event=${encodeURIComponent(eventId)}`));
+  return mapEspnSummary(await tracked('espn-football', () => getJson<EspnSummary>(`${BASE}/${leagueSlug}/summary?event=${encodeURIComponent(eventId)}`)));
 }
