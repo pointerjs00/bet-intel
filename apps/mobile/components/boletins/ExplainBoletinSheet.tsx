@@ -236,12 +236,12 @@ export function ExplainBoletinSheet({ visible, boletin, onClose }: Props) {
                 style={[
                   styles.chip,
                   {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
                   },
                 ]}
               >
-                <Text style={[styles.chipText, { color: active ? '#fff' : colors.textSecondary }]}>
+                <Text style={[styles.chipText, { color: active ? colors.primary : colors.textSecondary }]}>
                   {chip.label}
                 </Text>
               </Pressable>

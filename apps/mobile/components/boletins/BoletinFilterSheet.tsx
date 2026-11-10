@@ -269,12 +269,12 @@ const teamItems = useMemo(
                   onPress={() => setDraftSort((prev) => ({ ...prev, by: opt.key }))}
                   scaleDown={0.95}
                   style={[styles.filterBtn, {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
                   }]}
                 >
-                  <Ionicons name={ionicon(opt.icon)} size={14} color={active ? '#fff' : colors.textSecondary} />
-                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Ionicons name={ionicon(opt.icon)} size={14} color={active ? colors.primary : colors.textSecondary} />
+                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </PressableScale>
@@ -496,11 +496,11 @@ const teamItems = useMemo(
                   }))}
                   scaleDown={0.95}
                   style={[styles.filterBtn, {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
                   }]}
                 >
-                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </PressableScale>
@@ -522,11 +522,11 @@ const teamItems = useMemo(
                   }))}
                   scaleDown={0.95}
                   style={[styles.filterBtn, {
-                    backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                    backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                     borderColor: active ? colors.primary : colors.border,
                   }]}
                 >
-                  <Text style={[styles.filterBtnLabel, { color: active ? '#fff' : colors.textSecondary }]}>
+                  <Text style={[styles.filterBtnLabel, { color: active ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </PressableScale>

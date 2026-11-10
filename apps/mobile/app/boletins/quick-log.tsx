@@ -293,12 +293,12 @@ export default function QuickLogScreen() {
                       style={[
                         styles.selectionPill,
                         {
-                          backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                          backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                           borderColor: active ? colors.primary : colors.border,
                         },
                       ]}
                     >
-                      <Text style={[styles.selectionPillText, { color: active ? '#FFFFFF' : colors.textPrimary }]}>{s}</Text>
+                      <Text style={[styles.selectionPillText, { color: active ? colors.primary : colors.textPrimary }]}>{s}</Text>
                     </Pressable>
                   );
                 })}

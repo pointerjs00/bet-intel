@@ -307,12 +307,12 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
                 onPress={() => setPlayerTourTab(tab)}
                 style={{
                   flex: 1, paddingVertical: 8, alignItems: 'center',
-                  backgroundColor: active ? colors.primary : colors.surfaceRaised,
+                  backgroundColor: active ? `${colors.primary}24` : colors.surfaceRaised,
                   borderRightWidth: tab !== 'WTA' ? 1 : 0,
                   borderRightColor: colors.border,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#fff' : colors.textSecondary, letterSpacing: 0.5 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: active ? colors.primary : colors.textSecondary, letterSpacing: 0.5 }}>
                   {tab === 'ALL' ? 'Todos' : tab}
                 </Text>
               </PressableScale>
@@ -547,12 +547,12 @@ export function EditItemModal({ visible, item, isSaving, onSave, onClose }: Edit
                   style={[
                     styles.doublesBtn,
                     {
-                      backgroundColor: isDoubles === opt.value ? colors.primary : colors.surfaceRaised,
+                      backgroundColor: isDoubles === opt.value ? `${colors.primary}24` : colors.surfaceRaised,
                       borderColor: isDoubles === opt.value ? colors.primary : colors.border,
                     },
                   ]}
                 >
-                  <Text style={[styles.doublesBtnText, { color: isDoubles === opt.value ? '#fff' : colors.textSecondary }]}>
+                  <Text style={[styles.doublesBtnText, { color: isDoubles === opt.value ? colors.primary : colors.textSecondary }]}>
                     {opt.label}
                   </Text>
                 </Pressable>

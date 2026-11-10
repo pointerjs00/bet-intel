@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Keyboard, Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -837,12 +837,12 @@ export default function BoletinDetailScreen() {
                         style={[
                           styles.doublesBtn,
                           {
-                            backgroundColor: addIsDoubles === opt.value ? colors.primary : colors.surfaceRaised,
+                            backgroundColor: addIsDoubles === opt.value ? `${colors.primary}24` : colors.surfaceRaised,
                             borderColor: addIsDoubles === opt.value ? colors.primary : colors.border,
                           },
                         ]}
                       >
-                        <Text style={[styles.doublesBtnText, { color: addIsDoubles === opt.value ? '#fff' : colors.textSecondary }]}>
+                        <Text style={[styles.doublesBtnText, { color: addIsDoubles === opt.value ? colors.primary : colors.textSecondary }]}>
                           {opt.label}
                         </Text>
                       </Pressable>
