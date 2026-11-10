@@ -43,3 +43,10 @@ build-archive-test.tar.gz
 *.apk
 *.aab
 *.ipa
+
+# Firebase config (root copy) and scan training data with real screenshots
+/google-services.json
+apps/api/training-data/
+api_logs.txt
+/*.jpg
+/PT_*.pdf
