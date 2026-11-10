@@ -35,6 +35,18 @@ type FixtureRow = {
 export async function autoSettlementJob(): Promise<void> {
   const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
+  // Plan #22: start from the pending items (usually none for a single user) instead of
+  // querying per finished fixture. Two queries in total, matching happens in memory.
+  const pending = await prisma.boletinItem.findMany({
+    where: {
+      result: 'PENDING',
+      sport: 'FOOTBALL',
+      boletin: { status: 'PENDING' },
+      OR: [{ kickoffAt: { gte: new Date(since.getTime() - 2 * 60 * 60 * 1000) } }, { eventExternalId: { not: null } }],
+    },
+  });
+  if (!pending.length) return;
+
   const fixtures: FixtureRow[] = await prisma.fixture.findMany({
     where: { status: { in: SETTLEABLE_STATUSES }, kickoffAt: { gte: since } },
     select: {
@@ -53,13 +65,16 @@ export async function autoSettlementJob(): Promise<void> {
   let settled = 0;
   let flagged = 0;
   const touchedBoletins = new Set<string>();
+  const handled = new Set<string>();
 
   for (const fixture of fixtures) {
     if (fixture.status === 'FINISHED' && (fixture.homeScore === null || fixture.awayScore === null)) continue;
     if (fixture.status === 'POSTPONED' && Date.now() - fixture.kickoffAt.getTime() < POSTPONED_REVIEW_AFTER_MS) continue;
 
-    const matches = await findMatchingItems(fixture);
+    const matches = findMatchingItems(fixture, pending);
     for (const { item, confidence } of matches) {
+      if (handled.has(item.id)) continue; // settled or flagged against another fixture in this run
+      handled.add(item.id);
       if (item.needsReview && item.eventExternalId) continue; // already flagged for this fixture
 
       let resolution: Resolution | null = null;
@@ -119,29 +134,21 @@ export async function autoSettlementJob(): Promise<void> {
 
 // ─── Match fixture to pending BoletinItems ────────────────────────────────────
 
-async function findMatchingItems(fixture: FixtureRow): Promise<Array<{ item: BoletinItem; confidence: number }>> {
+/** Pending items that belong to this fixture (pure; `pending` is loaded once per run). */
+export function findMatchingItems(fixture: FixtureRow, pending: BoletinItem[]): Array<{ item: BoletinItem; confidence: number }> {
   // 1. Exact API-Football ID match (most reliable)
   if (fixture.apiFootballId) {
-    const byId = await prisma.boletinItem.findMany({
-      where: {
-        eventExternalId: String(fixture.apiFootballId),
-        result: 'PENDING',
-        boletin: { status: 'PENDING' },
-      },
-    });
+    const id = String(fixture.apiFootballId);
+    const byId = pending.filter((item) => item.eventExternalId === id);
     if (byId.length) return byId.map((item) => ({ item, confidence: 1 }));
   }
 
-  // 2. Fuzzy match by team names + kickoff ±2h (football items only)
-  const from = new Date(fixture.kickoffAt.getTime() - 2 * 60 * 60 * 1000);
-  const to = new Date(fixture.kickoffAt.getTime() + 2 * 60 * 60 * 1000);
-  const candidates = await prisma.boletinItem.findMany({
-    where: {
-      result: 'PENDING',
-      sport: 'FOOTBALL',
-      boletin: { status: 'PENDING' },
-      kickoffAt: { gte: from, lte: to },
-    },
+  // 2. Fuzzy match by team names + kickoff ±2h
+  const from = fixture.kickoffAt.getTime() - 2 * 60 * 60 * 1000;
+  const to = fixture.kickoffAt.getTime() + 2 * 60 * 60 * 1000;
+  const candidates = pending.filter((item) => {
+    const t = item.kickoffAt?.getTime();
+    return t !== undefined && t >= from && t <= to;
   });
 
   return candidates
