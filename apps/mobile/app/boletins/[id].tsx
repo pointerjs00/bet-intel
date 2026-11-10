@@ -9,7 +9,7 @@ import { BoletinItem } from '../../components/boletins/BoletinItem';
 import { StatusBadge } from '../../components/boletins/StatusBadge';
 import { StatusPill } from '../../components/ui/StatusPill';
 import { AppText } from '../../components/ui/AppText';
-import { useCardElevation } from '../../components/ui/ListCard';
+import { ListCard, ListRow, useCardElevation } from '../../components/ui/ListCard';
 import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { EditItemModal, type EditItemInitialValues } from '../../components/boletins/EditItemModal';
 import { ShareCard } from '../../components/boletins/ShareCard';
@@ -433,6 +433,7 @@ export default function BoletinDetailScreen() {
   }, [boletin, router, showToast]);
 
   const ticketElevation = useCardElevation();
+  const [showMoreActions, setShowMoreActions] = useState(false);
   const bannerColor = useMemo(() => {
     // Darker shades to ensure WCAG AA contrast (≥4.5:1) with white text
     switch (boletin?.status) {
@@ -626,14 +627,6 @@ export default function BoletinDetailScreen() {
                         variant="secondary"
                       />
                       <Button
-                        leftSlot={<Ionicons color={colors.textPrimary} name="globe-outline" size={16} />}
-                        onPress={() => setPendingPublic(true)}
-                        size="sm"
-                        style={{ flex: 1, minWidth: 100 }}
-                        title={boletin.isPublic ? 'Tornar privado' : 'Tornar público'}
-                        variant="secondary"
-                      />
-                      <Button
                         leftSlot={<Ionicons color={colors.textPrimary} name="share-social-outline" size={16} />}
                         onPress={() => {
                           if (!id) {
@@ -647,30 +640,38 @@ export default function BoletinDetailScreen() {
                         title="Partilhar"
                         variant="secondary"
                       />
-                      <Button
-                        leftSlot={<Ionicons color={colors.textPrimary} name="image-outline" size={16} />}
-                        onPress={() => setShowShareCard(true)}
-                        size="sm"
-                        style={{ flex: 1, minWidth: 100 }}
-                        title="Imagem"
-                        variant="secondary"
-                      />
-                      <Button
-                        leftSlot={<Ionicons color={colors.danger} name="trash-outline" size={16} />}
-                        onPress={() => setPendingDelete(true)}
-                        size="sm"
-                        style={{ flex: 1, minWidth: 100 }}
-                        title="Apagar"
-                        variant="secondary"
-                      />
-                      <Button
-                        leftSlot={<Ionicons color={colors.textPrimary} name="copy-outline" size={16} />}
-                        onPress={handleClone}
-                        size="sm"
-                        style={{ flex: 1, minWidth: 100 }}
-                        title="Duplicar"
-                        variant="secondary"
-                      />
+                      {/* Redesign D6: secondary actions live in the "…" sheet. */}
+                      <Pressable
+                        accessibilityLabel="Mais ações"
+                        accessibilityRole="button"
+                        onPress={() => setShowMoreActions(true)}
+                        style={[styles.moreButton, { backgroundColor: colors.surface }]}
+                      >
+                        <Ionicons color={colors.textPrimary} name="ellipsis-horizontal" size={20} />
+                      </Pressable>
+                      <Modal
+                        animationType="slide"
+                        onRequestClose={() => setShowMoreActions(false)}
+                        transparent
+                        visible={showMoreActions}
+                      >
+                        <Pressable accessibilityLabel="Fechar" onPress={() => setShowMoreActions(false)} style={styles.sheetBackdrop} />
+                        <View style={[styles.sheet, { backgroundColor: colors.background, paddingBottom: insets.bottom + 16 }]}>
+                          <ListCard>
+                            {[
+                              { icon: 'image-outline' as const, label: 'Partilhar como imagem', onPress: () => setShowShareCard(true) },
+                              { icon: 'copy-outline' as const, label: 'Duplicar', onPress: handleClone },
+                              { icon: 'globe-outline' as const, label: boletin.isPublic ? 'Tornar privado' : 'Tornar público', onPress: () => setPendingPublic(true) },
+                              { icon: 'trash-outline' as const, label: 'Apagar', danger: true, onPress: () => setPendingDelete(true) },
+                            ].map((a) => (
+                              <ListRow accessibilityLabel={a.label} key={a.label} onPress={() => { setShowMoreActions(false); a.onPress(); }}>
+                                <Ionicons color={a.danger ? colors.danger : colors.textPrimary} name={a.icon} size={20} />
+                                <AppText style={[{ flex: 1 }, a.danger ? { color: colors.danger } : null]} variant="bodyStrong">{a.label}</AppText>
+                              </ListRow>
+                            ))}
+                          </ListCard>
+                        </View>
+                      </Modal>
                     </>
                   ) : (
                     <View style={[styles.readOnlyNotice, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}> 
@@ -1373,6 +1374,9 @@ function getErrorMessage(error: unknown): string {
 }
 
 const styles = StyleSheet.create({
+  moreButton: { alignItems: 'center', borderRadius: 12, height: 40, justifyContent: 'center', width: 48 },
+  sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.5)', flex: 1 },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 },
   ticket: { borderRadius: 20, gap: 4, padding: 20 },
   ticketTopRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   ticketNameInput: { borderBottomWidth: 1, fontSize: 17, fontWeight: '600', paddingVertical: 4 },
