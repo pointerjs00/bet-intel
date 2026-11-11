@@ -5,7 +5,7 @@
 
 ## 0. CURRENT STATE (read first — overrides the original spec below where they differ)
 
-The sections after this one are the original build prompt. The app has since diverged; when they conflict, this section and the code win. Improvement plan and status: `PLANO_MELHORIAS.md`; sports-data study: `ESTUDO_FONTES_DADOS.md`.
+The sections after this one are the original build prompt. The app has since diverged; when they conflict, this section and the code win. Full history, flows, screens and rationale (read before proposing changes): `CONTEXTO_BETINTEL.md`. Improvement plan and status: `PLANO_MELHORIAS.md`; sports-data study: `ESTUDO_FONTES_DADOS.md`.
 
 - **Personal use only** (single user). Correctness and UX come before multi-user scale.
 - **No odds scrapers.** The Betclic/Placard/etc. scrapers, `scrape:all` and the odds feed no longer exist. Boletins are logged manually, imported from screenshots (Gemini `gemini-3.5-flash-lite` via `@google/genai`, `services/geminiVisionParser.ts`) or built from fixtures.
