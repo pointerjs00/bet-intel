@@ -22,7 +22,7 @@ const SPORTS: Array<{ value: string; label: string }> = [
   { value: 'AMERICAN_FOOTBALL', label: 'F. Americano' }, { value: 'OTHER', label: 'Outro' },
 ];
 const RESULTS: Array<{ value: Result; label: string }> = [
-  { value: 'PENDING', label: 'Pendente' }, { value: 'WON', label: 'Ganhou' }, { value: 'LOST', label: 'Perdeu' }, { value: 'VOID', label: 'Anulada' },
+  { value: 'PENDING', label: 'Pendente' }, { value: 'WON', label: 'Certa' }, { value: 'LOST', label: 'Falhada' }, { value: 'VOID', label: 'Anulada' },
 ];
 const BOLETIM_STATUS: Array<{ value: string; label: string }> = [
   { value: 'PENDING', label: 'Pendente' }, { value: 'WON', label: 'Ganhou' }, { value: 'LOST', label: 'Perdeu' }, { value: 'VOID', label: 'Anulado' }, { value: 'CASHOUT', label: 'Cashout' },

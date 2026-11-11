@@ -79,8 +79,8 @@ export default function ReviewQueueScreen() {
                 </Pressable>
                 <View style={styles.actions}>
                   {([
-                    { result: ItemResult.WON, label: 'Ganhou', icon: 'checkmark' as const, color: colors.primary },
-                    { result: ItemResult.LOST, label: 'Perdeu', icon: 'close' as const, color: colors.danger },
+                    { result: ItemResult.WON, label: 'Certa', icon: 'checkmark' as const, color: colors.primary },
+                    { result: ItemResult.LOST, label: 'Falhada', icon: 'close' as const, color: colors.danger },
                     { result: ItemResult.VOID, label: 'Anulada', icon: 'remove-circle-outline' as const, color: colors.textSecondary },
                   ]).map((a) => (
                     <Pressable

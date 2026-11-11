@@ -23,7 +23,7 @@ export function LegCard({ item, match, index, onPress }: { item: Item; match?: I
   const { colors } = useTheme();
   const elevation = useCardElevation();
   const tone = item.result === ItemResult.WON ? colors.positive : item.result === ItemResult.LOST ? colors.negative : item.result === ItemResult.VOID ? colors.textMuted : colors.warning;
-  const tag = item.result === ItemResult.WON ? 'CERTA' : item.result === ItemResult.LOST ? 'FALHOU' : item.result === ItemResult.VOID ? 'ANULADA' : match && LIVE.has(match.status) ? 'AO VIVO' : 'PENDENTE';
+  const tag = item.result === ItemResult.WON ? 'CERTA' : item.result === ItemResult.LOST ? 'FALHADA' : item.result === ItemResult.VOID ? 'ANULADA' : match && LIVE.has(match.status) ? 'AO VIVO' : 'PENDENTE';
   const live = Boolean(match && LIVE.has(match.status));
   const s = match?.score ?? null;
   // NBA lists the away team first ("Knicks @ Bulls").

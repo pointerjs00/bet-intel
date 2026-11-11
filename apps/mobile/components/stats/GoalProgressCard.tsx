@@ -31,7 +31,7 @@ const GOAL_META: Record<GoalType, {
     unit: '%',
     icon: 'trophy-outline',
     isLimit: false,
-    format: (v) => `${v.toFixed(0)}%`,
+    format: (v) => `${formatPercentage(v, 0)}`,
   },
   [GoalType.PROFIT]: {
     label: 'Lucro',
@@ -134,7 +134,7 @@ function GoalRow({
           ? `+${(progress - 100).toFixed(0)}% acima do limite`
           : isMet
             ? 'Objetivo atingido'
-            : `${progress.toFixed(0)}%`}
+            : `${formatPercentage(progress, 0)}`}
       </Text>
     </View>
   );
@@ -169,7 +169,7 @@ export function GoalProgressCard({ onInfoPress }: { onInfoPress?: () => void }) 
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleRow}>
             <Ionicons name="flag-outline" size={18} color={colors.primary} />
-            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Objetivos de Este Mês</Text>
+            <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>Objetivos deste mês</Text>
           </View>
           {onInfoPress && (
             <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} onPress={onInfoPress} />

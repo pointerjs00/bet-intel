@@ -10,7 +10,7 @@ import { TeamBadge } from '../ui/TeamBadge';
 import { LiveDot } from '../ui/Appear';
 import { useCardElevation } from '../ui/ListCard';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatOdds } from '../../utils/formatters';
 import type { MatchBet } from '../../utils/dayBets';
 import { betTone, isDone, matchStatus, TennisRows, type AnyMatch } from './MatchCard';
 import { setsWon } from '../../utils/tennisSets';
@@ -18,8 +18,8 @@ import { setsWon } from '../../utils/tennisSets';
 function stateLabel(bet: MatchBet | 'unknown', live: boolean, done: boolean): string {
   if (bet === 'unknown') return live ? 'EM JOGO' : done ? 'A RESOLVER' : 'COM APOSTA';
   if (done && bet.result === ItemResult.PENDING) return 'A RESOLVER';
-  if (bet.result === ItemResult.WON) return 'GANHOU';
-  if (bet.result === ItemResult.LOST) return 'PERDEU';
+  if (bet.result === ItemResult.WON) return 'CERTA';
+  if (bet.result === ItemResult.LOST) return 'FALHADA';
   if (bet.result === ItemResult.VOID) return 'ANULADA';
   return live ? 'EM JOGO' : 'POR COMEÇAR';
 }
@@ -77,7 +77,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
               <Text numberOfLines={1} style={[styles.market, { color: colors.textMuted }]}>{known ? known.market.toUpperCase() : 'APOSTA'}</Text>
               <Text numberOfLines={2} style={[styles.selection, { color: colors.textPrimary }]}>{known ? known.selection : 'Tens aposta neste jogo'}</Text>
             </View>
-            {known ? <Text style={[styles.odd, { color: colors.gold }]}>{known.odd.toFixed(2)}</Text> : null}
+            {known ? <Text style={[styles.odd, { color: colors.gold }]}>{formatOdds(known.odd)}</Text> : null}
           </View>
 
           <View style={styles.foot}>

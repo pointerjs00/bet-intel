@@ -27,6 +27,7 @@ import { useTheme } from '../../theme/useTheme';
 import { tokens } from '../../theme/tokens';
 import { createBoletinRequest, updateBoletinItemsRequest, boletinQueryKeys } from '../../services/boletinService';
 import { hapticLight, hapticSuccess } from '../../utils/haptics';
+import { formatCurrency } from '../../utils/formatters';
 
 /* ─── Quick-select options ─── */
 
@@ -356,7 +357,7 @@ export default function QuickLogScreen() {
             {potentialReturn > 0 && (
               <Animated.View entering={FadeInDown.duration(200)} style={[styles.returnRow, { borderTopColor: colors.border }]}>
                 <Text style={[styles.returnLabel, { color: colors.textSecondary }]}>Retorno potencial</Text>
-                <Text style={[styles.returnValue, { color: colors.primary }]}>€{potentialReturn.toFixed(2)}</Text>
+                <Text style={[styles.returnValue, { color: colors.primary }]}>{formatCurrency(potentialReturn)}</Text>
               </Animated.View>
             )}
           </Card>

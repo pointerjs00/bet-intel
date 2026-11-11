@@ -4,7 +4,7 @@ import { Pressable } from '../ui/Pressable';
 import type { RollingWindowStats } from '@betintel/shared';
 import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatPercentage } from '../../utils/formatters';
 
 const WINDOWS = [10, 20, 30] as const;
 
@@ -69,14 +69,14 @@ export const RecentFormCard = React.memo(function RecentFormCard({ windows, onIn
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, { color: colors.textMuted }]}>ROI</Text>
               <Text style={[styles.metricValue, { color: roiColor }]}>
-                {data.roi >= 0 ? '+' : ''}{data.roi.toFixed(1)}%
+                {formatPercentage(data.roi, 1, true)}
               </Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />
             <View style={styles.metric}>
               <Text style={[styles.metricLabel, { color: colors.textMuted }]}>Taxa vitória</Text>
               <Text style={[styles.metricValue, { color: colors.textPrimary }]}>
-                {data.winRate.toFixed(0)}%
+                {formatPercentage(data.winRate, 0)}
               </Text>
             </View>
             <View style={[styles.divider, { backgroundColor: colors.border }]} />

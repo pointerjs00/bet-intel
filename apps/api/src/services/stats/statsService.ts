@@ -27,6 +27,16 @@ import type {
   StatsTopBoletin,
 } from '@betintel/shared';
 import { prisma } from '../../prisma';
+
+/** "61,51 €" — insight texts are shown as-is in the app (pt-PT). */
+function eur(v: number): string {
+  return `${Math.abs(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €`.replace(/^-/, '−');
+}
+/** "24,5%" / "−7,9%". */
+function pctPt(v: number): string {
+  const t = Math.abs(v).toFixed(1).replace(/\.0$/, '').replace('.', ',');
+  return `${v < 0 ? '−' : ''}${t}%`;
+}
 import { redis } from '../../utils/redis';
 
 const STATS_CACHE_TTL = 120; // 2 minutes
@@ -1224,7 +1234,7 @@ function buildInsights(summary: StatsSummary, boletins: StatsBoletinRecord[]): S
         icon: 'warning-outline',
         sentiment: 'negative',
         title: 'Acumuladas a prejudicar-te',
-        body: `O teu ROI em apostas simples é ${round(singlesROI)}% mas em acumuladas de 3+ seleções é apenas ${round(parlaysROI)}%. Considera reduzir o número de seleções.`,
+        body: `O teu ROI em apostas simples é ${pctPt(singlesROI)} mas em acumuladas de 3+ seleções é apenas ${pctPt(parlaysROI)}. Considera reduzir o número de seleções.`,
       });
     }
   }
@@ -1236,7 +1246,7 @@ function buildInsights(summary: StatsSummary, boletins: StatsBoletinRecord[]): S
       icon: 'trending-down-outline',
       sentiment: 'negative',
       title: 'Stakes mais altas nas perdas',
-      body: `A tua stake média em apostas perdidas (€${round(summary.averageLostStake)}) é significativamente maior do que nas ganhas (€${round(summary.averageWonStake)}). Isto pode indicar "tilt" ou excesso de confiança.`,
+      body: `A tua stake média em apostas perdidas (${eur(summary.averageLostStake)}) é significativamente maior do que nas ganhas (${eur(summary.averageWonStake)}). Pode ser sinal de tilt ou excesso de confiança.`,
     });
   }
 
@@ -1249,7 +1259,7 @@ function buildInsights(summary: StatsSummary, boletins: StatsBoletinRecord[]): S
       icon: 'calendar-outline',
       sentiment: 'negative',
       title: `${worstDay.label} é o teu pior dia`,
-      body: `Tens um prejuízo de €${round(Math.abs(worstDay.profitLoss))} às ${worstDay.label.toLowerCase()}s com ${worstDay.totalBets} apostas. Considera evitar apostar nesse dia.`,
+      body: `Tens um prejuízo de ${eur(Math.abs(worstDay.profitLoss))} às ${worstDay.label.toLowerCase()}s com ${worstDay.totalBets} apostas. Considera evitar apostar nesse dia.`,
     });
   }
 
@@ -1281,7 +1291,7 @@ function buildInsights(summary: StatsSummary, boletins: StatsBoletinRecord[]): S
       id: String(++id),
       icon: 'trophy-outline',
       sentiment: 'positive',
-      title: `ROI positivo de ${round(summary.roi)}%`,
+      title: `ROI positivo de ${pctPt(summary.roi)}`,
       body: `Com ${summary.settledBoletins} apostas resolvidas, estás a superar a expectativa. Continua com a mesma estratégia.`,
     });
   }
@@ -1294,7 +1304,7 @@ function buildInsights(summary: StatsSummary, boletins: StatsBoletinRecord[]): S
         icon: 'swap-horizontal-outline',
         sentiment: 'neutral',
         title: 'Mais lucro nos underdogs',
-        body: `O teu ROI em favoritos (odds < 2.00) é ${round(summary.favouriteROI)}% mas em underdogs é ${round(summary.underdogROI)}%. Podes ter mais edge em apostas de valor.`,
+        body: `O teu ROI em favoritos (odds abaixo de 2,00) é ${pctPt(summary.favouriteROI)} mas em underdogs é ${pctPt(summary.underdogROI)}. Podes ter mais edge em apostas de valor.`,
       });
     }
   }
@@ -1306,7 +1316,7 @@ function buildInsights(summary: StatsSummary, boletins: StatsBoletinRecord[]): S
       icon: 'speedometer-outline',
       sentiment: 'negative',
       title: 'Eficiência de odds baixa',
-      body: `A tua eficiência de odds é ${round(summary.oddsEfficiency)}% — estás a retornar significativamente menos do que o esperado pelas odds. Revê a tua seleção de apostas.`,
+      body: `A tua eficiência de odds é ${pctPt(summary.oddsEfficiency)} — estás a retornar significativamente menos do que o esperado pelas odds. Revê a tua seleção de apostas.`,
     });
   }
 

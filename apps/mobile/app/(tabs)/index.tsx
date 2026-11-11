@@ -23,7 +23,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useLimitsStore } from '../../stores/limitsStore';
 import { computeLimitStatus } from '../../utils/bettingLimits';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency, formatOdds } from '../../utils/formatters';
+import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
 
 const WEEKS = 8;
@@ -160,7 +160,7 @@ export default function HomeDashboard() {
           <AppText variant="label">Lucro · {year}</AppText>
           {summary.settledCount > 0 ? (
             <View style={[styles.roiPill, { backgroundColor: summary.roi >= 0 ? 'rgba(61,255,162,0.16)' : 'rgba(255,107,122,0.18)' }]}>
-              <AppText tone={profitTone} variant="label">ROI {summary.roi >= 0 ? '+' : ''}{summary.roi.toFixed(1).replace('.', ',')}%</AppText>
+              <AppText tone={profitTone} variant="label">ROI {formatPercentage(summary.roi, 1, true)}</AppText>
             </View>
           ) : null}
         </View>

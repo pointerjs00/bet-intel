@@ -28,7 +28,7 @@ import {
   useRemoveFriendMutation,
 } from '../../services/socialService';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency, formatPercentage, formatRelativeTime } from '../../utils/formatters';
+import { formatCurrency, formatPercentage, formatRelativeTime, formatOdds } from '../../utils/formatters';
 
 function MetricPill({
   icon,
@@ -72,7 +72,7 @@ function BoletinPreviewCard({ item, onPress }: { item: PublicBoletinPreview; onP
           {item.itemCount} {item.itemCount === 1 ? 'seleção' : 'seleções'}
         </Text>
         <Text style={[previewStyles.detail, { color: colors.textSecondary }]}>
-          Odd: <Text style={{ color: colors.gold, fontWeight: '900' }}>{parseFloat(item.totalOdds).toFixed(2)}</Text>
+          Odd: <Text style={{ color: colors.gold, fontWeight: '900' }}>{formatOdds(item.totalOdds)}</Text>
         </Text>
         <Text style={[previewStyles.detail, { color: colors.textSecondary }]}>
           {formatCurrency(parseFloat(item.stake))}

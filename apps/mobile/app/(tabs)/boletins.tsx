@@ -51,7 +51,7 @@ import {
 import { tokens } from '../../theme/tokens';
 import { useTheme } from '../../theme/useTheme';
 import { getNotificationTarget } from '../../utils/notificationNavigation';
-import { formatCurrency, formatRelativeTime } from '../../utils/formatters';
+import { formatCurrency, formatRelativeTime, formatPercentage } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 import { SelectionInsightsItem, SelectionInsightsSheet } from '../../components/boletins/SelectionInsightsSheet';
@@ -769,7 +769,7 @@ export default function HomeScreen() {
             <Pressable accessibilityHint="Abre a análise" accessibilityRole="button" onPress={() => router.push('/(tabs)/stats')}>
               <AppText variant="caption">
                 {boletins.length} boletin{boletins.length === 1 ? '' : 's'} · {formatCurrency(summary.totalStaked)} apostados · ROI{' '}
-                <AppText tone={roi >= 0 ? 'positive' : 'negative'} variant="caption">{roi >= 0 ? '+' : ''}{roi.toFixed(1).replace('.', ',')}%</AppText>
+                <AppText tone={roi >= 0 ? 'positive' : 'negative'} variant="caption">{formatPercentage(roi, 1, true)}</AppText>
               </AppText>
             </Pressable>
 

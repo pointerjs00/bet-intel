@@ -8,7 +8,7 @@ import { TeamBadge } from '../ui/TeamBadge';
 import { MarketSelection } from './MarketSelection';
 import { PressableScale } from '../ui/PressableScale';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency, formatLongDate, formatOdds } from '../../utils/formatters';
+import { formatCurrency, formatLongDate, formatOdds, plural } from '../../utils/formatters';
 import { hapticMedium } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 import { StatusPill } from '../ui/StatusPill';
@@ -147,7 +147,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress }:
             );
           })}
           {boletin.items.length > 4 ? (
-            <Text style={[styles.cMore, { color: colors.textMuted }]}>+ {boletin.items.length - 4} seleções</Text>
+            <Text style={[styles.cMore, { color: colors.textMuted }]}>+{plural(boletin.items.length - 4, 'seleção', 'seleções')}</Text>
           ) : null}
         </View>
       )}
@@ -216,7 +216,7 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress }:
               <Text style={[previewStyles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(boletin.stake)}</Text>
             </View>
             <View style={previewStyles.metric}>
-              <Text style={[previewStyles.metricLabel, { color: colors.textMuted }]}>🎯 Odds</Text>
+              <Text style={[previewStyles.metricLabel, { color: colors.textMuted }]}>Odds</Text>
               <Text style={[previewStyles.metricValue, { color: colors.gold }]}>{formatOdds(boletin.totalOdds)}</Text>
             </View>
             <View style={previewStyles.metric}>

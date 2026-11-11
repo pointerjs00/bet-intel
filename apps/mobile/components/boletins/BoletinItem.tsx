@@ -16,7 +16,7 @@ import { MarketSelection } from './MarketSelection';
 import type { ItemMatch } from '../../services/sportsService';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { useTheme } from '../../theme/useTheme';
-import { formatOdds } from '../../utils/formatters';
+import { formatOdds, formatPercentage } from '../../utils/formatters';
 
 interface BoletinItemProps {
   item: {
@@ -358,11 +358,11 @@ function ResultToggleButton({
 function getResultMeta(result: ItemResult, colors: ReturnType<typeof useTheme>['colors']) {
   switch (result) {
     case ItemResult.WON:
-      return { icon: 'checkmark', color: colors.positive, background: `${colors.positive}1F`, a11yLabel: 'Ganhou' } as const;
+      return { icon: 'checkmark', color: colors.positive, background: `${colors.positive}1F`, a11yLabel: 'Certa' } as const;
     case ItemResult.LOST:
       return { icon: 'close', color: colors.negative, background: `${colors.negative}1F`, a11yLabel: 'Perdeu' } as const;
     case ItemResult.VOID:
-      return { icon: 'remove', color: colors.info, background: `${colors.info}1F`, a11yLabel: 'Cancelado' } as const;
+      return { icon: 'remove', color: colors.info, background: `${colors.info}1F`, a11yLabel: 'Anulada' } as const;
     case ItemResult.PENDING:
     default:
       return { icon: 'time-outline', color: colors.warning, background: `${colors.warning}1F`, a11yLabel: 'Pendente' } as const;
@@ -398,7 +398,7 @@ function ImpliedProbability({ oddValue, result }: { oddValue: string; result: It
         />
       </View>
       <Text style={[probStyles.label, { color: displayColor }]}>
-        {pct.toFixed(0)}% prob.
+        {formatPercentage(pct, 0)} prob.
       </Text>
     </View>
   );

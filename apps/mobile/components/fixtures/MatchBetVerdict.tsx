@@ -7,7 +7,7 @@ import type { FootballMatch } from '../../services/sportsService';
 import { useCardElevation } from '../ui/ListCard';
 import { PressableScale } from '../ui/PressableScale';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatOdds } from '../../utils/formatters';
 import { explainBet, parseMinute, type GoalEvent } from '../../utils/betTimeline';
 import type { MatchBet } from '../../utils/dayBets';
 
@@ -66,7 +66,7 @@ export function MatchBetVerdict({ match, bet, onOpenBoletim }: { match: Football
   const gradient: [string, string] = isDark
     ? won ? ['#0F3328', '#12263A'] : lost ? ['#3A1822', '#1A1B2E'] : ['#33280F', '#14182A']
     : won ? ['#E7F8EF', '#FFFFFF'] : lost ? ['#FDECEE', '#FFFFFF'] : ['#FFF6E5', '#FFFFFF'];
-  const verdict = won ? 'GANHOU' : lost ? 'PERDEU' : live ? 'EM JOGO' : 'PENDENTE';
+  const verdict = won ? 'CERTA' : lost ? 'FALHADA' : live ? 'EM JOGO' : 'PENDENTE';
   const money = bet.legs === 1 && bet.profit !== null
     ? `${bet.profit >= 0 ? '+' : '−'}${formatCurrency(Math.abs(bet.profit))}`
     : bet.legs > 1 ? `Múltipla · ${bet.wonLegs}/${bet.legs} certas` : null;
@@ -90,7 +90,7 @@ export function MatchBetVerdict({ match, bet, onOpenBoletim }: { match: Football
               <Text style={[styles.boxValue, { color: colors.textPrimary }]}>{match.score ? `${match.score.home}–${match.score.away}` : '—'}{won ? ' ✓' : lost ? ' ✕' : ''}</Text>
             </View>
           </View>
-          <Text style={[styles.pick, { color: colors.textSecondary }]}>{bet.market} · {bet.selection} @{bet.odd.toFixed(2)}</Text>
+          <Text style={[styles.pick, { color: colors.textSecondary }]}>{bet.market} · {bet.selection} @{formatOdds(bet.odd)}</Text>
         </PressableScale>
         {e.segments ? (
           <View style={[styles.timeline, { backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(15,23,42,0.04)' }]}>

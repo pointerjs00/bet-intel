@@ -11,7 +11,7 @@ import { useTheme } from '../../theme/useTheme';
 import { TeamBadge } from '../ui/TeamBadge';
 import { CompetitionBadge } from '../ui/CompetitionBadge';
 import { Skeleton } from '../ui/Skeleton';
-import { formatCurrency, formatOdds } from '../../utils/formatters';
+import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -422,7 +422,7 @@ export function SelectionInsightsSheet({ visible, item, onClose }: Props) {
             <View style={{ alignItems: 'flex-end', gap: 2 }}>
               <Text style={[styles.oddValue, { color: colors.gold }]}>{formatOdds(odd)}</Text>
               <Text style={[styles.impliedProbText, { color: colors.textSecondary }]}>
-                {impliedProb.toFixed(0)}% prob. implícita
+                {formatPercentage(impliedProb, 0)} prob. implícita
               </Text>
             </View>
           </View>

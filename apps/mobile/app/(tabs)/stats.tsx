@@ -54,19 +54,6 @@ import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
 
-const SPORT_EMOJIS: Record<string, string> = {
-  FOOTBALL: '⚽',
-  BASKETBALL: '🏀',
-  TENNIS: '🎾',
-  HANDBALL: '🤾',
-  VOLLEYBALL: '🏐',
-  HOCKEY: '🏒',
-  RUGBY: '🏉',
-  AMERICAN_FOOTBALL: '🏈',
-  BASEBALL: '⚾',
-  OTHER: '🎯',
-};
-
 const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
   { value: 'week', label: 'Semana' },
   { value: 'month', label: 'Mês' },

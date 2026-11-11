@@ -48,7 +48,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useBoletinBuilderStore } from '../../stores/boletinBuilderStore';
 import { useCompetitions, useTeams, useMarkets } from '../../services/referenceService';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate } from '../../utils/formatters';
+import { formatCurrency, formatLongDate, formatDateToDDMMYYYY, parseDDMMYYYYToISO, parseDDMMYYYYToDate, formatOdds } from '../../utils/formatters';
 import { isSelfDescribing, humanizeMarket, MARKET_CATEGORY_ORDER } from '../../utils/marketUtils';
 import { BETTING_SITES, getCountryFlagEmoji } from '../../utils/sportAssets';
 import { SelectionInsightsSheet, type SelectionInsightsItem } from '../../components/boletins/SelectionInsightsSheet';
@@ -570,7 +570,7 @@ export default function BoletinDetailScreen() {
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="Odd total" onPress={() => pushInfo('boletim-odds', boletinStats?.totalOdds)} style={styles.ticketMetric}>
                     <AppText variant="label">Odd total</AppText>
-                    <AppText variant="number">{(boletinStats?.totalOdds ?? 1).toFixed(2)}</AppText>
+                    <AppText variant="number">{formatOdds(boletinStats?.totalOdds ?? 1)}</AppText>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="Seleções" onPress={() => pushInfo('boletim-selections', boletinStats?.selectionCount)} style={styles.ticketMetric}>
                     <AppText variant="label">Seleções</AppText>

@@ -104,7 +104,7 @@ export default function PorJogoScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const accentGlow = useGlow(colors.accent);
+  const accentGlow = useGlow(colors.primary);
   const items = useBoletinBuilderStore((s) => s.items);
   const [sport, setSport] = useState<SportKey>('football');
   const [offset, setOffset] = useState(0);
@@ -141,7 +141,7 @@ export default function PorJogoScreen() {
                 accessibilityState={{ selected: active }}
                 key={o}
                 onPress={() => { hapticLight(); setOffset(o); }}
-                style={[styles.day, { backgroundColor: active ? colors.accent : colors.surface }, active ? accentGlow : null]}
+                style={[styles.day, { backgroundColor: active ? colors.primary : colors.surface }, active ? accentGlow : null]}
               >
                 <AppText style={[styles.cap, active && styles.white]} tone={active ? undefined : 'secondary'} variant="label">{label.top}</AppText>
                 <AppText style={active ? styles.white : undefined} variant="number">{label.day}</AppText>
@@ -320,7 +320,7 @@ function MarketSheet({ match, league, onClose, onPreview, sport }: {
                     accessibilityState={{ selected: on }}
                     key={s.value}
                     onPress={() => { hapticLight(); setSelection(s.value); }}
-                    style={[styles.sel, market.selections.length > 3 && styles.selHalf, { backgroundColor: on ? colors.accent : colors.surface }]}
+                    style={[styles.sel, market.selections.length > 3 && styles.selHalf, { backgroundColor: on ? colors.primary : colors.surface }]}
                   >
                     <AppText numberOfLines={2} style={[styles.center, on && styles.white]} variant="bodyStrong">{fill(s.label)}</AppText>
                   </Pressable>
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
   cap: { textTransform: 'capitalize' },
-  white: { color: '#FFFFFF' },
+  white: { color: '#04140C' },
   days: { gap: 8, paddingVertical: 2 },
   day: { alignItems: 'center', borderRadius: 14, gap: 2, justifyContent: 'center', minHeight: 60, width: 56 },
   empty: { alignItems: 'center', gap: 10, paddingVertical: 40 },
