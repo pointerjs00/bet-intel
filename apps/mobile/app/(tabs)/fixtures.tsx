@@ -23,6 +23,7 @@ import { LiveBetMatchCard } from '../../components/fixtures/BetMatchCard';
 import { getCountryFlagUrl, getLeagueLogoUrl } from '../../utils/sportAssets';
 import { useBasketballDay, useFootballDay, useTennisDay, type SportKey } from '../../services/sportsService';
 import { useBoletins } from '../../services/boletinService';
+import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../theme/useTheme';
 import { hapticLight, hapticSelection } from '../../utils/haptics';
 import { findMatchBet, indexBetsByDay, type MatchBet } from '../../utils/dayBets';
@@ -125,6 +126,22 @@ export default function JogosScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [footballQuery.data, basketballQuery.data, tennisQuery.data, betOf]);
   const betsLoading = footballQuery.isLoading || basketballQuery.isLoading || tennisQuery.isLoading;
+  // A finished game whose bet is still pending: ask the API to settle it now (the results endpoint
+  // runs a tracking round), then refresh the boletins.
+  const pendingDone = useMemo(
+    () => [...new Set(betMatches.filter((x) => isDone(x.m) && x.bet !== 'unknown' && x.bet.result === ItemResult.PENDING).map((x) => (x.bet as MatchBet).boletinId))],
+    [betMatches],
+  );
+  const askedRef = useRef(new Set<string>());
+  useEffect(() => {
+    const ids = pendingDone.filter((id) => !askedRef.current.has(id));
+    if (!ids.length) return undefined;
+    ids.forEach((id) => { askedRef.current.add(id); void apiClient.get(`/betintel/${id}/results`).catch(() => undefined); });
+    const t = setTimeout(() => { void boletinsQuery.refetch(); }, 20_000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDone]);
+
   // While a game with a bet is live, refresh the boletins too, so the bet state follows the tracker.
   const anyBetLive = betMatches.some((x) => isLive(x.m));
   useEffect(() => {

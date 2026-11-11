@@ -100,6 +100,15 @@ async function backfillKickoffs(): Promise<void> {
   if (n) logger.info('[liveBetTracker] kickoff filled from the matched game', { count: n });
 }
 
+/**
+ * Runs one tracking round now (in the background), at most once a minute: used when the app shows a
+ * finished game whose selection is still pending, so it settles without waiting for the schedule.
+ */
+export async function settleSoon(): Promise<void> {
+  if (!(await redis.set('tracker:settle-soon', '1', 'EX', 60, 'NX').catch(() => null))) return;
+  trackOnce().catch((err) => logger.warn('[liveBetTracker] on-demand round failed', { error: err instanceof Error ? err.message : String(err) }));
+}
+
 async function trackOnce(): Promise<void> {
   await backfillKickoffs().catch((err) => logger.warn('[liveBetTracker] backfill failed', { error: err instanceof Error ? err.message : String(err) }));
   await trackFootball();
@@ -136,7 +145,8 @@ async function trackBasketball(): Promise<void> {
   for (const item of items) {
     // ESPN uses US game days: a 00:30 UTC tip-off belongs to the previous date.
     const k = item.kickoffAt!;
-    const days = [new Date(k.getTime() - 24 * 3600e3), k].map((d) => d.toISOString().slice(0, 10));
+    // Also the day after: a kickoff saved from the bet date can be a day off the US game day.
+    const days = [new Date(k.getTime() - 24 * 3600e3), k, new Date(k.getTime() + 24 * 3600e3)].map((d) => d.toISOString().slice(0, 10));
     let found: BasketballMatch | undefined;
     for (const day of days) {
       found = (await nbaDay(day)).find((m) =>

@@ -14,8 +14,9 @@ import { formatCurrency } from '../../utils/formatters';
 import type { MatchBet } from '../../utils/dayBets';
 import { betTone, isDone, matchStatus, type AnyMatch } from './MatchCard';
 
-function stateLabel(bet: MatchBet | 'unknown', live: boolean): string {
-  if (bet === 'unknown') return live ? 'EM JOGO' : 'COM APOSTA';
+function stateLabel(bet: MatchBet | 'unknown', live: boolean, done: boolean): string {
+  if (bet === 'unknown') return live ? 'EM JOGO' : done ? 'A RESOLVER' : 'COM APOSTA';
+  if (done && bet.result === ItemResult.PENDING) return 'A RESOLVER';
   if (bet.result === ItemResult.WON) return 'GANHOU';
   if (bet.result === ItemResult.LOST) return 'PERDEU';
   if (bet.result === ItemResult.VOID) return 'ANULADA';
@@ -80,7 +81,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
 
           <View style={styles.foot}>
             <View style={[styles.state, { backgroundColor: `${tone}22` }]}>
-              <Text style={[styles.stateText, { color: tone }]}>{stateLabel(bet, st.live)}</Text>
+              <Text style={[styles.stateText, { color: tone }]}>{stateLabel(bet, st.live, done)}</Text>
             </View>
             {known && known.legs > 1 ? (
               <View style={styles.legs}>
