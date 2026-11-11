@@ -20,6 +20,7 @@ import {
 import { prisma } from '../prisma';
 import { coverageOf } from '../services/marketCoverage';
 import { findItemMatches } from '../services/sportsData/itemMatch';
+import { settleSoon } from '../jobs/liveBetTrackerJob';
 import { betclicApiHandler, bulkImportHandler, parsePdfHandler, scanAiHandler, scanFeedbackHandler } from '../controllers/importController';
 
 const boletinCollectionRouter: Router = Router();
@@ -53,11 +54,20 @@ betintelRouter.get('/shared', listSharedBoletinsHandler);
 betintelRouter.get('/:id/results', async (req, res) => {
   const boletin = await prisma.boletin.findFirst({
     where: { id: req.params.id, userId: req.user!.sub },
-    select: { betDate: true, createdAt: true, items: { select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true } } },
+    select: { betDate: true, createdAt: true, items: { select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true, result: true } } },
   });
   if (!boletin) { res.status(404).json({ success: false, error: 'Boletim não encontrado' }); return; }
   const anchor = boletin.betDate ?? boletin.createdAt;
-  const data = await findItemMatches(boletin.items.map((i) => ({ ...i, sport: String(i.sport), anchor })));
+  const data = await findItemMatches(boletin.items.map(({ result: _r, ...i }) => ({ ...i, sport: String(i.sport), anchor })));
+  // Store the kickoff we found for selections saved without one, and settle finished games now.
+  let stale = false;
+  for (const it of boletin.items) {
+    const m = data[it.id];
+    if (!m || it.result !== 'PENDING') continue;
+    if (!it.kickoffAt) await prisma.boletinItem.update({ where: { id: it.id }, data: { kickoffAt: new Date(m.kickoffAt) } }).catch(() => undefined);
+    if (['FINISHED', 'RETIRED', 'WALKOVER'].includes(m.status)) stale = true;
+  }
+  if (stale) void settleSoon();
   res.json({ success: true, data });
 });
 betintelRouter.get('/:id', getBoletinHandler);
