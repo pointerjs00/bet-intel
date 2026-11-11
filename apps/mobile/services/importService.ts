@@ -18,6 +18,8 @@ export interface ParsedBetclicItem {
   eventDate?: string;
   /** Individual selection result — only present on resolved bets */
   result?: 'WON' | 'LOST' | 'VOID' | 'PENDING';
+  /** Fields the reader was unsure about (highlighted in the review). */
+  uncertain?: string[];
 }
 
 export interface ParsedBetclicBoletin {
@@ -27,6 +29,8 @@ export interface ParsedBetclicBoletin {
   totalOdds: number;
   potentialReturn: number;
   status: string;
+  /** Betting site detected on the screenshot, or null. */
+  site?: string | null;
   items: ParsedBetclicItem[];
   parseError: boolean;
   parseErrorReason?: string;

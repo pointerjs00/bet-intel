@@ -1,866 +1,557 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+// Import bets from screenshots — one screen, four phases:
+// pick (skipped when an image is shared to the app) → reading → review (tap a selection to fix
+// anything) → imported. The betting site is read from the image; fields the reader was unsure
+// about are highlighted; already-imported slips are flagged and left out.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import {
-  ActivityIndicator,
-  BackHandler,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { Pressable } from '../../components/ui/Pressable';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  FadeInDown,
-  FadeInUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  Easing,
-} from 'react-native-reanimated';
-
-import { Button } from '../../components/ui/Button';
+import Animated, { Easing, FadeIn, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming, ZoomIn } from 'react-native-reanimated';
+import { Pressable } from '../../components/ui/Pressable';
 import { PressableScale } from '../../components/ui/PressableScale';
-import { AppText } from '../../components/ui/AppText';
-import { Chip } from '../../components/ui/Chip';
-import { ListCard, ListRow } from '../../components/ui/ListCard';
+import { SiteMark } from '../../components/ui/SiteMark';
+import { TeamBadge } from '../../components/ui/TeamBadge';
+import { useCardElevation } from '../../components/ui/ListCard';
 import { useToast } from '../../components/ui/Toast';
+import { EditLegSheet } from '../../components/import/EditLegSheet';
 import { useTheme } from '../../theme/useTheme';
-import type { BetclicPdfResult } from '../../services/importService';
-import { scanImageAiRequest, storeScanFeedbackContext } from '../../services/importService';
-import { BETTING_SITES } from '../../utils/sportAssets';
+import {
+  consumeScanFeedbackContext,
+  scanImageAiRequest,
+  storeScanFeedbackContext,
+  submitScanFeedbackRequest,
+  useBulkImportMutation,
+  type ParsedBetclicBoletin,
+} from '../../services/importService';
+import { useBoletins } from '../../services/boletinService';
 import { resolveTeamAlias, inferCompetition, normalizeCompetitionName } from '../../utils/teamAliases';
-import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
+import { hapticError, hapticLight, hapticSuccess } from '../../utils/haptics';
+import { formatCurrency } from '../../utils/formatters';
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
+type Phase = 'pick' | 'reading' | 'review' | 'done';
+type Draft = ParsedBetclicBoletin & { key: string; selected: boolean; duplicate: boolean };
 
-export default function ScanScreen() {
-  const { colors } = useTheme();
+const STATUS_LABEL: Record<string, string> = { PENDING: 'Pendente', WON: 'Ganhou', LOST: 'Perdeu', VOID: 'Anulado', CASHOUT: 'Cashout' };
+const SPORT_LABEL: Record<string, string> = { FOOTBALL: 'Futebol', TENNIS: 'Ténis', BASKETBALL: 'Basquetebol' };
+
+export default function ImportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
   const { showToast } = useToast();
   const { sharedImageUri } = useLocalSearchParams<{ sharedImageUri?: string }>();
+  const boletins = useBoletins();
+  const bulkImport = useBulkImportMutation();
 
-  const [imageUris, setImageUris] = useState<string[]>([]);
-  const [selectedSite, setSelectedSite] = useState('betclic');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | null>(null);
-  const [parseResult, setParseResult] = useState<BetclicPdfResult | null>(null);
-  const [expandedBoletins, setExpandedBoletins] = useState<Set<number>>(new Set());
-  const [viewingImageIdx, setViewingImageIdx] = useState<number | null>(null);
-  const [disclaimerVisible, setDisclaimerVisible] = useState(false);
-  const [disclaimerDontShow, setDisclaimerDontShow] = useState(false);
+  const [phase, setPhase] = useState<Phase>('pick');
+  const [images, setImages] = useState<string[]>([]);
+  const [recent, setRecent] = useState<string[]>([]);
+  const [progress, setProgress] = useState<{ current: number; total: number; step: number }>({ current: 0, total: 0, step: 0 });
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [editing, setEditing] = useState<{ b: number; i: number } | null>(null);
+  const [created, setCreated] = useState<{ ids: string[]; count: number } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const startedShared = useRef(false);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const isFirstFocus = useRef(true);
-  useFocusEffect(
-    useCallback(() => {
-      if (isFirstFocus.current) {
-        isFirstFocus.current = false;
+  // Recent photos from the gallery (screenshots are usually the latest).
+  useEffect(() => {
+    (async () => {
+      try {
+        let perm = await MediaLibrary.getPermissionsAsync(false, ['photo']);
+        if (!perm.granted && perm.canAskAgain) perm = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
+        if (!perm.granted && perm.accessPrivileges !== 'limited') return;
+        const page = await MediaLibrary.getAssetsAsync({ first: 8, mediaType: MediaLibrary.MediaType.photo, sortBy: [MediaLibrary.SortBy.creationTime] });
+        setRecent(page.assets.map((a) => a.uri));
+      } catch (err) {
+        console.warn('[import] recent photos unavailable', err);
+      }
+    })();
+  }, []);
+
+  // ── Reading ────────────────────────────────────────────────────────────────
+  const read = useCallback(async (uris: string[]) => {
+    if (!uris.length) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setPhase('reading');
+    setProgress({ current: 1, total: uris.length, step: 0 });
+    const stepTimer = setInterval(() => setProgress((p) => ({ ...p, step: Math.min(p.step + 1, 3) })), 1400);
+    const out: ParsedBetclicBoletin[] = [];
+    try {
+      for (let i = 0; i < uris.length; i++) {
+        setProgress({ current: i + 1, total: uris.length, step: 0 });
+        const small = await ImageManipulator.manipulateAsync(uris[i]!, [{ resize: { width: 1000 } }], { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG });
+        const base64 = await FileSystem.readAsStringAsync(small.uri, { encoding: FileSystem.EncodingType.Base64 });
+        const result = await scanImageAiRequest(base64, 'image/jpeg', controller.signal);
+        storeScanFeedbackContext({ imageBase64: base64, mimeType: 'image/jpeg', aiOutput: result });
+        out.push(...result.boletins.map((b) => ({
+          ...b,
+          items: b.items.map((it) => {
+            const home = resolveTeamAlias(it.homeTeam);
+            const away = resolveTeamAlias(it.awayTeam);
+            return { ...it, homeTeam: home, awayTeam: away, competition: inferCompetition(home, away) || normalizeCompetitionName(it.competition) };
+          }),
+        })));
+      }
+      clearInterval(stepTimer);
+      if (!out.length) {
+        hapticError();
+        showToast('Não encontrei nenhuma aposta. Confirma que é o screenshot de um boletim.', 'error');
+        setPhase('pick');
         return;
       }
-      setImageUris([]);
-      setParseResult(null);
-      setIsProcessing(false);
-      setExpandedBoletins(new Set());
-      setSelectedSite('betclic');
-    }, []),
-  );
-
-  // Show disclaimer on first visit unless user opted out
-  useEffect(() => {
-    AsyncStorage.getItem('scan_disclaimer_dismissed').then((val) => {
-      if (val !== 'true') setDisclaimerVisible(true);
-    });
-  }, []);
-
-  const dismissDisclaimer = useCallback(async () => {
-    if (disclaimerDontShow) {
-      await AsyncStorage.setItem('scan_disclaimer_dismissed', 'true');
-    }
-    setDisclaimerVisible(false);
-  }, [disclaimerDontShow]);
-
-  const pickImage = useCallback(async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
-        allowsMultipleSelection: true,
-        allowsEditing: false,
-      });
-
-      if (!result.canceled && result.assets.length > 0) {
-        hapticLight();
-        setImageUris((prev) => [...prev, ...result.assets.map((a) => a.uri)]);
-        setParseResult(null);
-      }
-    } catch {
-      showToast('Erro ao abrir galeria. Verifica as permissões nas definições.', 'error');
-    }
-  }, [showToast]);
-
-  const takePhoto = useCallback(async () => {
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
-        allowsEditing: false,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        hapticLight();
-        setImageUris((prev) => [...prev, result.assets[0]!.uri]);
-        setParseResult(null);
-      }
-    } catch {
-      showToast('Erro ao abrir câmara. Verifica as permissões nas definições.', 'error');
-    }
-  }, [showToast]);
-
-  // Auto-load image when screen is opened via Android share intent
-  useEffect(() => {
-    if (sharedImageUri && imageUris.length === 0) {
-      setImageUris([sharedImageUri]);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sharedImageUri]);
-
-  const cancelScan = useCallback(() => {
-    abortControllerRef.current?.abort();
-  }, []);
-
-  const processImage = useCallback(async () => {
-    if (imageUris.length === 0) return;
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    setIsProcessing(true);
-
-    const allBoletins: BetclicPdfResult['boletins'] = [];
-    let totalFound = 0;
-    let errorCount = 0;
-
-    try {
-      for (let i = 0; i < imageUris.length; i++) {
-        setScanProgress({ current: i + 1, total: imageUris.length });
-        const uri = imageUris[i]!;
-
-        // Compress & resize to max 1000px wide JPEG 80% — reduces upload & AI processing time
-        const compressed = await ImageManipulator.manipulateAsync(
-          uri,
-          [{ resize: { width: 1000 } }],
-          { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
-        );
-
-        // Read compressed image as base64
-        const base64 = await FileSystem.readAsStringAsync(compressed.uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-
-        const mimeType = 'image/jpeg';
-
-        // Send to backend AI parser
-        const result = await scanImageAiRequest(base64, mimeType, controller.signal);
-
-        // Store raw AI result + image for silent feedback submission after successful import
-        storeScanFeedbackContext({ imageBase64: base64, mimeType, aiOutput: result });
-
-        // Post-process: resolve Portuguese team name aliases + infer missing competitions
-        const processed = result.boletins.map((b) => ({
-          ...b,
-          items: b.items.map((item) => {
-            const home = resolveTeamAlias(item.homeTeam);
-            const away = resolveTeamAlias(item.awayTeam);
-            const competition =
-              inferCompetition(home, away) ||
-              normalizeCompetitionName(item.competition);
-            return { ...item, homeTeam: home, awayTeam: away, competition };
-          }),
-        }));
-
-        allBoletins.push(...processed);
-        totalFound += result.totalFound;
-        errorCount += result.errorCount;
-      }
-
-      const merged: BetclicPdfResult = { boletins: allBoletins, totalFound, errorCount };
-      setParseResult(merged);
-
-      if (allBoletins.length === 0) {
-        hapticError();
-        showToast('Nenhuma aposta encontrada. Confirma que é um screenshot de uma aposta.', 'error');
-      } else if (errorCount > 0) {
-        hapticLight();
-        showToast('Apostas lidas com alguns erros. Revê os dados antes de importar.', 'info');
-      } else {
-        hapticSuccess();
-        showToast(`${totalFound} aposta(s) encontrada(s)!`, 'success');
-      }
+      hapticSuccess();
+      setDrafts(out.map((b, i) => {
+        const dup = isDuplicate(b, boletins.data ?? []);
+        return { ...b, key: `${b.reference}-${i}`, selected: !dup, duplicate: dup };
+      }));
+      setPhase('review');
     } catch (err) {
-      if (axios.isCancel(err)) return;
+      clearInterval(stepTimer);
+      if (axios.isCancel(err)) { setPhase('pick'); return; }
       hapticError();
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[ScanScreen] scan error:', msg);
-      showToast(
-        msg.includes('timeout')
-          ? 'A análise demorou demasiado. Tenta novamente.'
-          : `Erro: ${msg}`,
-        'error',
-      );
+      showToast(msg.includes('timeout') ? 'A leitura demorou demasiado. Tenta outra vez.' : `Não foi possível ler: ${msg}`, 'error');
+      setPhase('pick');
     } finally {
-      setIsProcessing(false);
-      setScanProgress(null);
-      abortControllerRef.current = null;
+      abortRef.current = null;
     }
-  }, [imageUris, showToast]);
+  }, [boletins.data, showToast]);
 
-  const navigateToReview = useCallback(() => {
-    if (!parseResult || parseResult.boletins.length === 0) return;
-    const pdfResult: BetclicPdfResult = {
-      boletins: parseResult.boletins,
-      totalFound: parseResult.totalFound,
-      errorCount: parseResult.errorCount,
-    };
-    router.push({ pathname: '/boletins/import-review', params: { data: JSON.stringify(pdfResult), siteSlug: selectedSite } });
-  }, [parseResult, router, selectedSite]);
-
-  const reset = useCallback(() => {
-    setImageUris([]);
-    setParseResult(null);
-    setExpandedBoletins(new Set());
-    setViewingImageIdx(null);
-    setSelectedSite('betclic');
-  }, []);
-
-  // When images are loaded, intercept Android hardware back to reset instead of leaving
+  // Shared from another app: go straight to reading.
   useEffect(() => {
-    if (imageUris.length === 0) return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      reset();
-      return true;
-    });
-    return () => sub.remove();
-  }, [imageUris, reset]);
+    if (sharedImageUri && !startedShared.current) {
+      startedShared.current = true;
+      setImages([sharedImageUri]);
+      void read([sharedImageUri]);
+    }
+  }, [sharedImageUri, read]);
 
-  const hasResult = parseResult && parseResult.boletins.length > 0;
-  const hasImages = imageUris.length > 0;
+  const pickGallery = useCallback(async () => {
+    try {
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1, allowsMultipleSelection: true });
+      if (!r.canceled && r.assets.length) { hapticLight(); setImages((p) => [...p, ...r.assets.map((a) => a.uri)]); }
+    } catch { showToast('Não foi possível abrir a galeria. Verifica as permissões.', 'error'); }
+  }, [showToast]);
+  const takePhoto = useCallback(async () => {
+    try {
+      const r = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 1 });
+      if (!r.canceled && r.assets[0]) { hapticLight(); setImages((p) => [...p, r.assets[0]!.uri]); }
+    } catch { showToast('Não foi possível abrir a câmara. Verifica as permissões.', 'error'); }
+  }, [showToast]);
+  const toggleRecent = (uri: string) => {
+    hapticLight();
+    setImages((p) => (p.includes(uri) ? p.filter((u) => u !== uri) : [...p, uri]));
+  };
+
+  // ── Import ────────────────────────────────────────────────────────────────
+  const selected = drafts.filter((d) => d.selected);
+  const doImport = useCallback(async () => {
+    if (!selected.length) return;
+    // One request per betting site (the API takes the site per request).
+    const bySite = new Map<string, Draft[]>();
+    for (const d of selected) {
+      const k = d.site ?? 'outros';
+      bySite.set(k, [...(bySite.get(k) ?? []), d]);
+    }
+    let imported = 0;
+    const ids: string[] = [];
+    const errors: string[] = [];
+    try {
+      for (const [site, list] of bySite) {
+        const res = await bulkImport.mutateAsync({ boletins: list.map(({ key: _k, selected: _s, duplicate: _d, ...b }) => b), source: site });
+        imported += res.imported;
+        ids.push(...(res.createdBoletins ?? []).map((c) => c.id));
+        errors.push(...(res.errorDetails ?? []));
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível importar.', 'error');
+      return;
+    }
+    if (!imported) {
+      showToast(errors[0] ?? 'Nenhum boletim importado.', errors.length ? 'error' : 'info');
+      return;
+    }
+    if (errors.length) showToast(`${errors.length} com erro: ${errors[0]}`, 'warning');
+    const fb = consumeScanFeedbackContext();
+    if (fb) submitScanFeedbackRequest(fb.imageBase64, fb.mimeType, fb.aiOutput, { boletins: selected, totalFound: selected.length, errorCount: 0 }).catch(() => undefined);
+    hapticSuccess();
+    setCreated({ ids, count: imported });
+    setPhase('done');
+  }, [selected, bulkImport, showToast]);
+
+  const reset = () => { setImages([]); setDrafts([]); setCreated(null); setPhase('pick'); };
+  const unsureCount = selected.reduce((n, d) => n + d.items.reduce((m, it) => m + (it.uncertain?.length ? 1 : 0), 0), 0);
+  const editingDraft = editing ? drafts[editing.b] : null;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <Stack.Screen
-        options={{
-          title: 'Importar screenshot',
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.textPrimary,
-          headerShadowVisible: false,
-          headerBackTitle: '',
-          // Disable swipe-back when images are loaded so it resets to empty state instead
-          gestureEnabled: !hasImages,
-          headerLeft: hasImages
-            ? ({ tintColor }) => (
-                <Pressable hitSlop={12} onPress={reset} style={{ paddingRight: 8 }}>
-                  <Ionicons name="arrow-back" size={24} color={tintColor ?? colors.textPrimary} />
-                </Pressable>
-              )
-            : undefined,
-        }}
-      />
+    <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={styles.top}>
+        <Pressable
+          accessibilityLabel={phase === 'review' ? 'Voltar' : 'Fechar'}
+          hitSlop={8}
+          onPress={() => (phase === 'reading' ? abortRef.current?.abort() : phase === 'review' ? reset() : router.back())}
+          style={[styles.topBtn, { backgroundColor: colors.surface }]}
+        >
+          <Ionicons color={colors.textPrimary} name={phase === 'review' ? 'chevron-back' : 'close'} size={20} />
+        </Pressable>
+        <Text style={[styles.topTitle, { color: colors.textPrimary }]}>
+          {phase === 'pick' ? 'Importar aposta' : phase === 'reading' ? 'A ler a aposta…' : phase === 'review' ? 'Rever antes de importar' : ''}
+        </Text>
+      </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 120 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Intro (redesign: one sentence instead of a hero + steps) */}
-        {!hasImages && (
-          <AppText variant="caption">
-            Escolhe um ou mais screenshots de boletins. A IA lê as seleções, as odds e o resultado; revês tudo antes de importar.
-          </AppText>
-        )}
-
-        {/* Site picker */}
-        {!hasImages && (
-          <View style={styles.siteBlock}>
-            <AppText variant="label">Casa de apostas</AppText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sitePickerRow}>
-              {BETTING_SITES.map((site) => (
-                <Chip key={site.slug} label={site.name} onPress={() => setSelectedSite(site.slug)} selected={selectedSite === site.slug} />
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Source picker or image previews */}
-        {!hasImages ? (
-          <ListCard>
-            <ListRow accessibilityLabel="Escolher screenshots da galeria" onPress={pickImage}>
-              <Ionicons color={colors.primary} name="images-outline" size={22} />
-              <View style={styles.flex1}>
-                <AppText variant="bodyStrong">Escolher da galeria</AppText>
-                <AppText variant="caption">Um ou vários screenshots</AppText>
-              </View>
-              <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
-            </ListRow>
-            <ListRow accessibilityLabel="Tirar foto ao talão" onPress={takePhoto}>
-              <Ionicons color={colors.primary} name="camera-outline" size={22} />
-              <View style={styles.flex1}>
-                <AppText variant="bodyStrong">Tirar foto</AppText>
-                <AppText variant="caption">Ao talão ou ao ecrã de outro dispositivo</AppText>
-              </View>
-              <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
-            </ListRow>
-          </ListCard>
-        ) : (
-          <Animated.View entering={FadeInDown.delay(60).duration(220).springify()} style={styles.previewSection}>
-            {/* Thumbnail strip */}
-            <View style={[styles.previewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.thumbnailStrip}
-              >
-                {imageUris.map((uri, idx) => (
-                  <View key={`${uri}-${idx}`} style={styles.thumbnailWrap}>
-                    <Pressable onPress={() => setViewingImageIdx(idx)} style={styles.thumbnailPressable}>
-                      <Image source={{ uri }} style={styles.thumbnail} resizeMode="cover" />
-                      <View style={styles.thumbnailZoomHint}>
-                        <Ionicons name="expand-outline" size={13} color="rgba(255,255,255,0.85)" />
-                      </View>
-                    </Pressable>
-                    <Pressable
-                      onPress={() => {
-                        setImageUris((prev) => prev.filter((_, i) => i !== idx));
-                        setParseResult(null);
-                      }}
-                      style={styles.thumbnailRemove}
-                      hitSlop={6}
-                    >
-                      <Ionicons name="close-circle" size={22} color="#EF4444" />
-                    </Pressable>
-                  </View>
-                ))}
-
-                {/* Add more button */}
-                <Pressable
-                  onPress={pickImage}
-                  style={[styles.thumbnailAdd, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-                >
-                  <Ionicons name="add" size={28} color={colors.primary} />
-                  <Text style={[styles.thumbnailAddText, { color: colors.primary }]}>Mais</Text>
-                </Pressable>
-              </ScrollView>
-
-              {imageUris.length > 1 && (
-                <Text style={[styles.imageCountLabel, { color: colors.textMuted }]}>
-                  {imageUris.length} screenshots selecionados
-                </Text>
-              )}
-            </View>
-
-            {!parseResult && (
-              <Button
-                title={imageUris.length > 1 ? `Analisar ${imageUris.length} screenshots` : 'Analisar aposta'}
-                leftSlot={<MaterialCommunityIcons name="text-recognition" size={20} color="#fff" />}
-                onPress={processImage}
-                style={styles.processBtn}
+      {phase === 'pick' ? (
+        <PickPhase images={images} onCamera={takePhoto} onGallery={pickGallery} onRead={() => void read(images)} onRemove={(u) => setImages((p) => p.filter((x) => x !== u))} onToggleRecent={toggleRecent} recent={recent} />
+      ) : phase === 'reading' ? (
+        <ReadingPhase image={images[progress.current - 1] ?? images[0]} progress={progress} />
+      ) : phase === 'review' ? (
+        <>
+          <ScrollView contentContainerStyle={[styles.pad, { paddingBottom: insets.bottom + 110 }]}>
+            <Animated.View entering={FadeIn.duration(260)} style={[styles.banner, { backgroundColor: unsureCount ? `${colors.warning}1A` : `${colors.primary}1A` }]}>
+              <Ionicons color={unsureCount ? colors.warning : colors.primary} name={unsureCount ? 'alert-circle' : 'checkmark-circle'} size={22} />
+              <Text style={[styles.bannerText, { color: colors.textSecondary }]}>
+                <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold' }}>{drafts.length} boletim{drafts.length > 1 ? 's' : ''} lido{drafts.length > 1 ? 's' : ''}.</Text>
+                {unsureCount ? ` ${unsureCount} seleç${unsureCount > 1 ? 'ões' : 'ão'} para confirmar.` : ' Tudo lido com confiança.'}
+              </Text>
+            </Animated.View>
+            {drafts.map((d, bi) => (
+              <DraftCard
+                draft={d}
+                index={bi}
+                key={d.key}
+                onEdit={(i) => setEditing({ b: bi, i })}
+                onToggle={() => setDrafts((p) => p.map((x, j) => (j === bi ? { ...x, selected: !x.selected } : x)))}
               />
-            )}
+            ))}
+            <Pressable onPress={() => { setPhase('pick'); }} style={styles.addMore}>
+              <Ionicons color={colors.primary} name="add-circle-outline" size={18} />
+              <Text style={[styles.addMoreText, { color: colors.primary }]}>Adicionar outro screenshot</Text>
+            </Pressable>
+          </ScrollView>
+          <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 12 }]}>
+            <PressableScale disabled={!selected.length || bulkImport.isPending} onPress={() => void doImport()} style={[styles.cta, { backgroundColor: selected.length ? colors.primary : colors.surfaceRaised }]}>
+              <Text style={[styles.ctaText, { color: selected.length ? '#06110B' : colors.textMuted }]}>
+                {bulkImport.isPending ? 'A importar…' : selected.length ? `Importar ${selected.length} boletim${selected.length > 1 ? 's' : ''}` : 'Escolhe um boletim'}
+              </Text>
+            </PressableScale>
+            <Text style={[styles.hint, { color: colors.textMuted }]}>Toca numa seleção para corrigir</Text>
+          </View>
+        </>
+      ) : (
+        <DonePhase count={created?.count ?? 0} drafts={selected} onAnother={reset} onOpen={() => (created?.ids[0] ? router.replace(`/boletins/${created.ids[0]}`) : router.replace('/(tabs)/boletins'))} />
+      )}
+
+      {editing && editingDraft ? (
+        <EditLegSheet
+          boletin={editingDraft}
+          index={editing.i}
+          onClose={() => setEditing(null)}
+          onNavigate={(i) => setEditing({ b: editing.b, i })}
+          onRemove={() => {
+            setDrafts((p) => p.map((x, j) => (j === editing.b ? { ...x, items: x.items.filter((_, k) => k !== editing.i) } : x)).filter((x) => x.items.length > 0));
+            setEditing(null);
+          }}
+          onSave={(b) => setDrafts((p) => p.map((x, j) => (j === editing.b ? { ...x, ...b, duplicate: x.duplicate } : x)))}
+          visible
+        />
+      ) : null}
+    </View>
+  );
+}
+
+/** Same rule as the API: same site, same day, same stake and same first odd. */
+function isDuplicate(b: ParsedBetclicBoletin, existing: Array<{ siteSlug?: string | null; betDate?: string | null; createdAt: string; stake: string; items: Array<{ oddValue: string }> }>): boolean {
+  const day = (iso: string) => new Date(iso).toISOString().slice(0, 10);
+  return existing.some((e) => (e.siteSlug ?? null) === (b.site ?? e.siteSlug ?? null)
+    && Boolean(e.betDate) && day(e.betDate!) === day(b.betDate)
+    && Math.abs(Number(e.stake) - b.stake) <= 0.01
+    && e.items.length > 0 && b.items.length > 0 && Math.abs(Number(e.items[0]!.oddValue) - b.items[0]!.oddValue) <= 0.01);
+}
+
+// ── Pick ──────────────────────────────────────────────────────────────────────
+function PickPhase({ images, recent, onGallery, onCamera, onToggleRecent, onRemove, onRead }: {
+  images: string[]; recent: string[]; onGallery: () => void; onCamera: () => void; onToggleRecent: (u: string) => void; onRemove: (u: string) => void; onRead: () => void;
+}) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const extra = images.filter((u) => !recent.includes(u));
+  return (
+    <>
+      <ScrollView contentContainerStyle={[styles.pad, { paddingBottom: insets.bottom + 100 }]}>
+        <Animated.View entering={FadeInDown.duration(300)}>
+          <PressableScale onPress={onGallery} scaleDown={0.98} style={[styles.drop, { borderColor: `${colors.primary}80` }]}>
+            <LinearGradient colors={[`${colors.primary}1F`, `${colors.info}12`]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.dropInner}>
+              <LinearGradient colors={['#3DFFA2', '#0FB980']} style={styles.dropIcon}>
+                <Ionicons color="#06110B" name="images" size={30} />
+              </LinearGradient>
+              <Text style={[styles.dropTitle, { color: colors.textPrimary }]}>Escolher screenshots</Text>
+              <Text style={[styles.dropSub, { color: colors.textSecondary }]}>Um ou vários boletins. A casa de apostas, as seleções e o resultado são lidos sozinhos.</Text>
+            </LinearGradient>
+          </PressableScale>
+        </Animated.View>
+
+        {recent.length ? (
+          <Animated.View entering={FadeInDown.delay(80).duration(300)} style={styles.recentBlock}>
+            <Text style={[styles.section, { color: colors.textMuted }]}>RECENTES NA GALERIA</Text>
+            <View style={styles.recentGrid}>
+              {recent.map((u) => {
+                const on = images.includes(u);
+                return (
+                  <Pressable key={u} onPress={() => onToggleRecent(u)} style={[styles.recentItem, { borderColor: on ? colors.primary : 'transparent' }]}>
+                    <Image source={{ uri: u }} style={styles.recentImg} />
+                    {on ? <Animated.View entering={ZoomIn.duration(160)} style={[styles.check, { backgroundColor: colors.primary }]}><Ionicons color="#06110B" name="checkmark" size={14} /></Animated.View> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
           </Animated.View>
-        )}
+        ) : null}
 
-        {/* Parse result — one card per detected boletin */}
-        {hasResult && parseResult && parseResult.boletins.map((boletin, boletinIdx) => {
-          const isExpanded = expandedBoletins.has(boletinIdx);
-          return (
-            <Animated.View key={boletinIdx} entering={FadeInDown.delay(80 + boletinIdx * 40).duration(260).springify()}>
-              {parseResult.boletins.length > 1 && (
-                <Text style={[styles.boletimCountLabel, { color: colors.textSecondary }]}>
-                  {`Boletim ${boletinIdx + 1} de ${parseResult.boletins.length}`}
-                </Text>
-              )}
-              <View style={[styles.resultCard, { backgroundColor: colors.surface, borderColor: boletin.parseError ? colors.warning : colors.primary }]}>
-                <View style={[styles.resultHeader, { backgroundColor: boletin.parseError ? `${colors.warning}18` : `${colors.primary}18`, borderColor: boletin.parseError ? `${colors.warning}40` : `${colors.primary}40` }]}>
-                  <Ionicons
-                    name={boletin.parseError ? 'warning' : 'checkmark-circle'}
-                    size={20}
-                    color={boletin.parseError ? colors.warning : colors.primary}
-                  />
-                  <Text style={[styles.resultHeaderText, { color: boletin.parseError ? colors.warning : colors.primary }]}>
-                    {boletin.parseError ? 'Aposta lida com erros' : 'Aposta lida com sucesso!'}
-                  </Text>
-                </View>
-
-                <View style={styles.metrics}>
-                  <Metric label="Seleções" value={String(boletin.items.length)} colors={colors} />
-                  <MetricDivider colors={colors} />
-                  <Metric label="Cota" value={boletin.totalOdds > 0 ? boletin.totalOdds.toFixed(2) : '—'} colors={colors} accent={colors.gold} />
-                  <MetricDivider colors={colors} />
-                  <Metric label="Stake" value={boletin.stake > 0 ? `${boletin.stake.toFixed(2)} €` : '—'} colors={colors} />
-                  <MetricDivider colors={colors} />
-                  <Metric
-                    label="Estado"
-                    value={boletin.status === 'WON' ? 'Ganhou' : boletin.status === 'LOST' ? 'Perdida' : 'Pendente'}
-                    colors={colors}
-                    accent={boletin.status === 'WON' ? colors.primary : boletin.status === 'LOST' ? colors.danger : colors.warning}
-                  />
-                </View>
-
-                <View style={[styles.itemsSection, { borderColor: colors.border }]}>
-                  {(isExpanded ? boletin.items : boletin.items.slice(0, 3)).map((item, idx) => (
-                    <View key={idx} style={[styles.itemRow, idx > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}>
-                      <View style={styles.itemLeft}>
-                        <Text numberOfLines={2} style={[styles.itemTeams, { color: colors.textPrimary }]}>
-                          {item.selection}
-                        </Text>
-                        <Text numberOfLines={1} style={[styles.itemMarket, { color: colors.textSecondary }]}>
-                          {item.market}
-                        </Text>
-                      </View>
-                      <Text style={[styles.itemOdd, { color: colors.gold }]}>
-                        {item.oddValue > 0 ? item.oddValue.toFixed(2) : '—'}
-                      </Text>
-                    </View>
-                  ))}
-                  {boletin.items.length > 3 && (
-                    <Pressable
-                      onPress={() => setExpandedBoletins((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(boletinIdx)) next.delete(boletinIdx); else next.add(boletinIdx);
-                        return next;
-                      })}
-                      style={[styles.expandBtn, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }]}
-                    >
-                      <Ionicons
-                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={14}
-                        color={colors.primary}
-                      />
-                      <Text style={[styles.moreItems, { color: colors.primary }]}>
-                        {isExpanded ? 'Mostrar menos' : `+ ${boletin.items.length - 3} mais seleções`}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-
-                {boletin.parseErrorReason && (
-                  <View style={[styles.errorBanner, { backgroundColor: `${colors.danger}12` }]}>
-                    <Ionicons name="alert-circle-outline" size={14} color={colors.danger} />
-                    <Text style={[styles.errorText, { color: colors.danger }]}>{boletin.parseErrorReason}</Text>
-                  </View>
-                )}
+        {extra.length ? (
+          <View style={styles.recentGrid}>
+            {extra.map((u) => (
+              <View key={u} style={[styles.recentItem, { borderColor: colors.primary }]}>
+                <Image source={{ uri: u }} style={styles.recentImg} />
+                <Pressable accessibilityLabel="Remover" hitSlop={6} onPress={() => onRemove(u)} style={[styles.check, { backgroundColor: colors.negative }]}><Ionicons color="#fff" name="close" size={14} /></Pressable>
               </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.row2}>
+          <PressableScale onPress={onCamera} style={[styles.secondary, { backgroundColor: colors.surface }]}>
+            <Ionicons color={colors.textPrimary} name="camera-outline" size={18} />
+            <Text style={[styles.secondaryText, { color: colors.textPrimary }]}>Tirar foto</Text>
+          </PressableScale>
+        </View>
+
+        <View style={[styles.tip, { backgroundColor: colors.surface }]}>
+          <View style={[styles.tipIcon, { backgroundColor: `${colors.info}22` }]}><Ionicons color={colors.info} name="share-social-outline" size={16} /></View>
+          <Text style={[styles.tipText, { color: colors.textSecondary }]}>Mais rápido: na app da casa de apostas, <Text style={{ color: colors.textPrimary, fontFamily: 'Inter_700Bold' }}>Partilhar → BetIntel</Text>. Abre logo a leitura.</Text>
+        </View>
+      </ScrollView>
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: insets.bottom + 12 }]}>
+        <PressableScale disabled={!images.length} onPress={onRead} style={[styles.cta, { backgroundColor: images.length ? colors.primary : colors.surfaceRaised }]}>
+          <Text style={[styles.ctaText, { color: images.length ? '#06110B' : colors.textMuted }]}>
+            {images.length ? `Ler ${images.length} screenshot${images.length > 1 ? 's' : ''}` : 'Escolhe um screenshot'}
+          </Text>
+        </PressableScale>
+      </View>
+    </>
+  );
+}
+
+// ── Reading ───────────────────────────────────────────────────────────────────
+function ReadingPhase({ image, progress }: { image?: string; progress: { current: number; total: number; step: number } }) {
+  const { colors } = useTheme();
+  const elevation = useCardElevation();
+  const y = useSharedValue(0);
+  useEffect(() => { y.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.quad) }), -1, true); }, [y]);
+  const [h, setH] = useState(0);
+  const line = useAnimatedStyle(() => ({ transform: [{ translateY: y.value * Math.max(h - 4, 0) }] }));
+  const steps = ['Casa de apostas', 'Boletim e valores', 'Seleções e odds', 'Jogos e horas'];
+  return (
+    <View style={styles.pad}>
+      <View onLayout={(e) => setH(e.nativeEvent.layout.height)} style={[styles.shot, elevation, { backgroundColor: colors.surface }]}>
+        {image ? <Image resizeMode="contain" source={{ uri: image }} style={StyleSheet.absoluteFill} /> : null}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(5,6,10,0.25)' }]} />
+        <Animated.View style={[styles.scanLine, line, { backgroundColor: colors.primary, shadowColor: colors.primary }]} />
+      </View>
+      {progress.total > 1 ? <Text style={[styles.counter, { color: colors.textSecondary }]}>Screenshot {progress.current} de {progress.total}</Text> : null}
+      <View style={styles.steps}>
+        {steps.map((s, i) => {
+          const done = i < progress.step; const doing = i === progress.step;
+          return (
+            <Animated.View entering={FadeInDown.delay(i * 80).duration(240)} key={s} style={styles.stepRow}>
+              <View style={[styles.stepDot, { backgroundColor: done ? colors.primary : doing ? `${colors.primary}33` : colors.surface }]}>
+                {done ? <Ionicons color="#06110B" name="checkmark" size={13} /> : doing ? <View style={[styles.pulse, { backgroundColor: colors.primary }]} /> : null}
+              </View>
+              <Text style={[styles.stepText, { color: done || doing ? colors.textPrimary : colors.textMuted }]}>{s}</Text>
             </Animated.View>
           );
         })}
-      </ScrollView>
+      </View>
+    </View>
+  );
+}
 
-      {/* Disclaimer modal */}
-      <Modal
-        visible={disclaimerVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={dismissDisclaimer}
-        statusBarTranslucent
-      >
-        <View style={styles.disclaimerBackdrop}>
-          <View style={[styles.disclaimerCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.disclaimerIconWrap, { backgroundColor: `${colors.warning}18` }]}>
-              <MaterialCommunityIcons name="information-outline" size={36} color={colors.warning} />
+// ── Review card ───────────────────────────────────────────────────────────────
+function DraftCard({ draft: d, index, onToggle, onEdit }: { draft: Draft; index: number; onToggle: () => void; onEdit: (i: number) => void }) {
+  const { colors, isDark } = useTheme();
+  const elevation = useCardElevation();
+  const pending = d.status === 'PENDING';
+  const ret = pending ? d.potentialReturn || d.stake * d.totalOdds : d.status === 'WON' ? d.potentialReturn || d.stake * d.totalOdds : 0;
+  const tone = d.status === 'WON' ? colors.positive : d.status === 'LOST' ? colors.negative : colors.warning;
+  const date = new Date(d.betDate);
+  return (
+    <Animated.View entering={FadeInDown.delay(80 + index * 70).duration(320).springify().damping(18)} style={[styles.card, elevation, { backgroundColor: colors.surface, borderColor: d.selected ? `${colors.primary}66` : colors.border, opacity: d.selected ? 1 : 0.6 }]}>
+      <LinearGradient colors={isDark ? [`${tone}26`, colors.surface] : [`${tone}1A`, colors.surface]} end={{ x: 0.8, y: 1 }} start={{ x: 0, y: 0 }} style={styles.cardHead}>
+        <View style={styles.cardTop}>
+          {d.site ? <SiteMark size={18} slug={d.site} textStyle={{ color: colors.textSecondary, fontSize: 13 }} /> : (
+            <Pressable onPress={() => onEdit(0)} style={[styles.unknownSite, { borderColor: `${colors.warning}88` }]}><Text style={[styles.unknownText, { color: colors.warning }]}>Escolher casa</Text></Pressable>
+          )}
+          <Text style={[styles.meta, { color: colors.textSecondary }]}>· {isNaN(date.getTime()) ? '' : date.toLocaleString('pt-PT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace('.', '')}</Text>
+          <Pressable accessibilityLabel={d.selected ? 'Não importar' : 'Importar'} accessibilityRole="checkbox" accessibilityState={{ checked: d.selected }} hitSlop={8} onPress={onToggle} style={[styles.toggle, { backgroundColor: d.selected ? colors.primary : 'transparent', borderColor: d.selected ? colors.primary : colors.border }]}>
+            {d.selected ? <Ionicons color="#06110B" name="checkmark" size={16} /> : null}
+          </Pressable>
+        </View>
+        {d.duplicate ? <Text style={[styles.dup, { color: colors.warning }]}>Parece já importado · fica de fora (toca no visto para importar na mesma)</Text> : null}
+        {d.parseErrorReason ? <Text style={[styles.dup, { color: colors.warning }]}>{d.parseErrorReason}</Text> : null}
+        <View style={styles.bigRow}>
+          <View>
+            <Text style={[styles.meta, { color: colors.textSecondary }]}>{d.items.length > 1 ? `Múltipla · ${d.items.length} seleções` : 'Simples'} · {STATUS_LABEL[d.status] ?? d.status}</Text>
+            <Text style={[styles.big, { color: tone }]}>{pending || d.status === 'WON' ? formatCurrency(ret) : d.status === 'LOST' ? `−${formatCurrency(d.stake)}` : formatCurrency(d.stake)}</Text>
+          </View>
+          <Text style={[styles.meta, { color: colors.textMuted }]}>{pending ? 'retorno possível' : d.status === 'WON' ? 'recebido' : ''}</Text>
+        </View>
+        <View style={styles.tiles}>
+          {[['Aposta', formatCurrency(d.stake)], ['Odd', d.totalOdds.toFixed(2).replace('.', ',')], ['Estado', STATUS_LABEL[d.status] ?? d.status]].map(([l, v]) => (
+            <Pressable key={l} onPress={() => onEdit(0)} style={[styles.tile, { backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(15,23,42,0.05)' }]}>
+              <Text style={[styles.tileLabel, { color: colors.textSecondary }]}>{l}</Text>
+              <Text style={[styles.tileValue, { color: colors.textPrimary }]}>{v}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </LinearGradient>
+      {d.items.map((it, i) => {
+        const unsure = (it.uncertain?.length ?? 0) > 0;
+        const k = it.eventDate ? new Date(it.eventDate) : null;
+        const res = it.result ?? 'PENDING';
+        return (
+          <Pressable key={i} onPress={() => onEdit(i)} style={[styles.leg, { borderTopColor: colors.border }]}>
+            <View style={[styles.legDot, { backgroundColor: res === 'WON' ? colors.positive : res === 'LOST' ? colors.negative : res === 'VOID' ? colors.textMuted : `${colors.warning}88` }]} />
+            <TeamBadge name={it.selection} size={26} variant={it.sport === 'TENNIS' ? 'player' : 'auto'} />
+            <View style={styles.flex}>
+              <Text numberOfLines={1} style={[styles.legMatch, { color: colors.textMuted }]}>{it.homeTeam} – {it.awayTeam}{k && !isNaN(k.getTime()) ? ` · ${k.toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''}</Text>
+              <Text numberOfLines={2} style={[styles.legSel, { color: colors.textPrimary }]}>{it.selection}</Text>
+              <Text numberOfLines={1} style={[styles.legMarket, { color: colors.textMuted }]}>{it.market.toUpperCase()} · {it.competition || SPORT_LABEL[it.sport] || it.sport}</Text>
+              {unsure ? <Text style={[styles.unsure, { backgroundColor: `${colors.warning}22`, color: colors.warning }]}>Confirma: {(it.uncertain ?? []).map(fieldPt).join(', ')}</Text> : null}
             </View>
-            <Text style={[styles.disclaimerTitle, { color: colors.textPrimary }]}>Leitura automática</Text>
-            <Text style={[styles.disclaimerBody, { color: colors.textSecondary }]}>
-              {'A leitura por IA '}
-              <Text style={{ color: colors.textPrimary, fontWeight: '600' }}>{'pode ter erros'}</Text>
-              {'.'}
-              {'\n'}
-              {'Confirma as odds, as seleções e as datas no ecrã de revisão antes de importar.'}
-            </Text>
-            <Pressable
-              onPress={() => setDisclaimerDontShow((v) => !v)}
-              style={styles.disclaimerCheckRow}
-              hitSlop={8}
-            >
-              <View style={[
-                styles.disclaimerCheckbox,
-                { borderColor: disclaimerDontShow ? colors.primary : colors.border },
-                disclaimerDontShow && { backgroundColor: colors.primary },
-              ]}>
-                {disclaimerDontShow && <Ionicons name="checkmark" size={13} color="#fff" />}
-              </View>
-              <Text style={[styles.disclaimerCheckLabel, { color: colors.textSecondary }]}>Não mostrar novamente</Text>
-            </Pressable>
-            <Pressable
-              onPress={dismissDisclaimer}
-              style={[styles.disclaimerBtn, { backgroundColor: colors.primary }]}
-            >
-              <Text style={styles.disclaimerBtnText}>Entendido</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Fullscreen image viewer */}
-      {viewingImageIdx !== null && imageUris[viewingImageIdx] && (
-        <Modal
-          visible
-          transparent
-          animationType="fade"
-          onRequestClose={() => setViewingImageIdx(null)}
-          statusBarTranslucent
-        >
-          <View style={styles.imageViewerBackdrop}>
-            <Pressable
-              style={styles.imageViewerClose}
-              onPress={() => setViewingImageIdx(null)}
-              hitSlop={16}
-            >
-              <Ionicons name="close-circle" size={36} color="rgba(255,255,255,0.9)" />
-            </Pressable>
-            <Image source={{ uri: imageUris[viewingImageIdx] }} style={styles.imageViewerImage} resizeMode="contain" />
-            {imageUris.length > 1 && (
-              <Text style={styles.imageViewerCount}>
-                {viewingImageIdx + 1} / {imageUris.length}
-              </Text>
-            )}
-          </View>
-        </Modal>
-      )}
-
-      {/* Full-screen analysis overlay — blocks all interaction while processing */}
-      {isProcessing && (
-        <View style={styles.scanOverlay}>
-          <ScanLoadingCard colors={colors} onCancel={cancelScan} scanProgress={scanProgress} />
-        </View>
-      )}
-
-      {/* Bottom CTA */}
-      {hasResult && (
-        <Animated.View
-          entering={FadeInDown.delay(160).duration(240)}
-          style={[styles.bottomBar, { backgroundColor: colors.background, paddingBottom: insets.bottom + 14, borderTopColor: colors.border }]}
-        >
-          <Button variant="ghost" title="Cancelar" onPress={reset} style={{ flex: 1 }} />
-          <Button
-            title="Rever e importar"
-            leftSlot={<Ionicons name="checkmark-circle-outline" size={18} color="#fff" />}
-            onPress={navigateToReview}
-            style={{ flex: 2 }}
-          />
-        </Animated.View>
-      )}
-    </View>
-  );
-}
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const STEPS: Array<{ icon: 'image-outline' | 'text-recognition' | 'check-circle-outline'; label: string }> = [
-  { icon: 'image-outline', label: 'Escolhe os screenshots' },
-  { icon: 'text-recognition', label: 'Análise automática' },
-  { icon: 'check-circle-outline', label: 'Revê e importa' },
-];
-
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function PickTile({
-  icon,
-  label,
-  sub,
-  onPress,
-  accent,
-  colors,
-}: {
-  icon: 'images-outline' | 'camera-outline';
-  label: string;
-  sub: string;
-  onPress: () => void;
-  accent: string;
-  colors: Record<string, string>;
-}) {
-  return (
-    <PressableScale
-      scaleDown={0.93}
-      onPress={onPress}
-      style={[styles.pickTile, { backgroundColor: `${accent}10`, borderColor: `${accent}45` }]}
-    >
-      <View style={[styles.pickIconWrap, { backgroundColor: `${accent}1E` }]}>
-        <Ionicons name={icon} size={42} color={accent} />
-      </View>
-      <Text style={[styles.pickLabel, { color: colors.textPrimary }]}>{label}</Text>
-      <Text style={[styles.pickSub, { color: accent }]}>{sub}</Text>
-    </PressableScale>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  colors,
-  accent,
-}: {
-  label: string;
-  value: string;
-  colors: Record<string, string>;
-  accent?: string;
-}) {
-  return (
-    <View style={styles.metric}>
-      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>{label}</Text>
-      <Text style={[styles.metricValue, { color: accent ?? colors.textPrimary }]}>{value}</Text>
-    </View>
-  );
-}
-
-function MetricDivider({ colors }: { colors: Record<string, string> }) {
-  return <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />;
-}
-
-const SCAN_MESSAGES = [
-  'A enviar imagem para análise…',
-  'A identificar as apostas…',
-  'A extrair cotas e seleções…',
-  'A verificar resultados…',
-  'A finalizar…',
-];
-// Simulated duration in ms — slightly under typical response time so the bar
-// reaches ~85% and holds there until the real response arrives.
-const PROGRESS_DURATION_MS = 16_000;
-
-function ScanLoadingCard({
-  colors,
-  onCancel,
-  scanProgress,
-}: {
-  colors: Record<string, string>;
-  onCancel: () => void;
-  scanProgress: { current: number; total: number } | null;
-}) {
-  const progress = useSharedValue(0);
-  const [msgIdx, setMsgIdx] = useState(0);
-  const [trackWidth, setTrackWidth] = useState(0);
-
-  useEffect(() => {
-    progress.value = withTiming(0.85, {
-      duration: PROGRESS_DURATION_MS,
-      easing: Easing.out(Easing.cubic),
-    });
-
-    const interval = setInterval(() => {
-      setMsgIdx((i) => (i + 1) % SCAN_MESSAGES.length);
-    }, PROGRESS_DURATION_MS / SCAN_MESSAGES.length);
-
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fillStyle = useAnimatedStyle(() => ({
-    width: progress.value * trackWidth,
-  }));
-
-  const isMulti = scanProgress && scanProgress.total > 1;
-
-  return (
-    <Animated.View
-      entering={FadeInDown.duration(220).springify()}
-      style={[scanLoadingStyles.card, { backgroundColor: colors.surface }]}
-    >
-      <View style={[scanLoadingStyles.iconWrap, { backgroundColor: `${colors.primary}18` }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-      <Text style={[scanLoadingStyles.title, { color: colors.textPrimary }]}>
-        {isMulti
-          ? `Imagem ${scanProgress.current} de ${scanProgress.total}…`
-          : 'A analisar o boletim…'}
-      </Text>
-      <Text style={[scanLoadingStyles.msg, { color: colors.textSecondary }]}>
-        {SCAN_MESSAGES[msgIdx]}
-      </Text>
-      <View
-        style={[scanLoadingStyles.track, { backgroundColor: `${colors.primary}20` }]}
-        onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
-      >
-        <Animated.View style={[scanLoadingStyles.fill, { backgroundColor: colors.primary }, fillStyle]} />
-      </View>
-      <Pressable
-        onPress={onCancel}
-        style={[scanLoadingStyles.cancelBtn, { borderColor: colors.border }]}
-        hitSlop={8}
-      >
-        <Text style={[scanLoadingStyles.cancelText, { color: colors.textSecondary }]}>Cancelar</Text>
-      </Pressable>
+            <Text style={[styles.legOdd, { color: colors.gold }]}>{it.oddValue > 0 ? it.oddValue.toFixed(2).replace('.', ',') : '—'}</Text>
+            <Ionicons color={colors.textMuted} name="chevron-forward" size={16} />
+          </Pressable>
+        );
+      })}
     </Animated.View>
   );
 }
 
-const scanLoadingStyles = StyleSheet.create({
-  card: {
-    width: '100%',
-    borderRadius: 24,
-    paddingHorizontal: 28,
-    paddingVertical: 32,
-    alignItems: 'center',
-    gap: 16,
-  },
-  iconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  msg: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  track: {
-    width: '100%',
-    height: 6,
-    borderRadius: 99,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  fill: {
-    height: 6,
-    borderRadius: 99,
-  },
-  cancelBtn: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderRadius: 99,
-    paddingHorizontal: 28,
-    paddingVertical: 10,
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
+const FIELD_PT: Record<string, string> = { homeTeam: 'equipa/jogador', awayTeam: 'equipa/jogador', competition: 'competição', market: 'mercado', selection: 'seleção', oddValue: 'odd', eventDate: 'hora do jogo', result: 'resultado' };
+const fieldPt = (f: string) => FIELD_PT[f] ?? f;
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ── Done ──────────────────────────────────────────────────────────────────────
+function DonePhase({ count, drafts, onOpen, onAnother }: { count: number; drafts: Draft[]; onOpen: () => void; onAnother: () => void }) {
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  const elevation = useCardElevation();
+  const legs = drafts.reduce((n, d) => n + d.items.length, 0);
+  return (
+    <View style={[styles.done, { paddingBottom: insets.bottom + 16 }]}>
+      <View style={styles.doneCenter}>
+        <Animated.View entering={ZoomIn.springify().damping(12)}>
+          <LinearGradient colors={['#3DFFA2', '#0FB980']} style={styles.doneIcon}><Ionicons color="#06110B" name="checkmark" size={44} /></LinearGradient>
+        </Animated.View>
+        <Animated.Text entering={FadeInDown.delay(120)} style={[styles.doneTitle, { color: colors.textPrimary }]}>{count} boletim{count > 1 ? 's' : ''} importado{count > 1 ? 's' : ''}</Animated.Text>
+        <Animated.Text entering={FadeInDown.delay(180)} style={[styles.doneSub, { color: colors.textSecondary }]}>Vamos acompanhar {legs === 1 ? 'o jogo' : `os ${legs} jogos`} e avisar-te quando cada seleção ficar decidida.</Animated.Text>
+      </View>
+      {drafts.slice(0, 2).map((d) => (
+        <Animated.View entering={FadeInDown.delay(240).duration(300)} key={d.key} style={[styles.doneCard, elevation, { backgroundColor: colors.surface }]}>
+          <View style={styles.cardTop}>
+            {d.site ? <SiteMark size={16} slug={d.site} /> : null}
+            <Text style={[styles.meta, { color: colors.textSecondary, flex: 1 }]}>{d.items.length > 1 ? `Múltipla ${d.items.length}` : 'Simples'}</Text>
+            <Text style={[styles.tileValue, { color: colors.gold }]}>{formatCurrency(d.potentialReturn || d.stake * d.totalOdds)}</Text>
+          </View>
+          {d.items.map((it, i) => (
+            <View key={i} style={styles.doneLeg}>
+              <Text numberOfLines={1} style={[styles.legSel, { color: colors.textPrimary, flex: 1 }]}>{it.selection}</Text>
+              <Text style={[styles.legOdd, { color: colors.gold }]}>{it.oddValue.toFixed(2).replace('.', ',')}</Text>
+            </View>
+          ))}
+        </Animated.View>
+      ))}
+      <View style={styles.doneBtns}>
+        <PressableScale onPress={onOpen} style={[styles.cta, { backgroundColor: colors.primary }]}><Text style={[styles.ctaText, { color: '#06110B' }]}>Ver boletim</Text></PressableScale>
+        <PressableScale onPress={onAnother} style={[styles.cta, { backgroundColor: colors.surface }]}><Text style={[styles.ctaText, { color: colors.textPrimary }]}>Importar outro</Text></PressableScale>
+      </View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-  siteBlock: { gap: 8 },
-  flex1: { flex: 1 },
-  container: { flex: 1 },
-  scroll: { padding: 16, gap: 16 },
-
-  hero: { borderRadius: 20, alignItems: 'center', padding: 24, gap: 12 },
-  heroIconWrap: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  heroTitle: { fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  heroSub: { fontSize: 14, lineHeight: 20, textAlign: 'center' },
-  steps: { flexDirection: 'row', width: '100%', marginTop: 8 },
-  stepItem: { flex: 1, alignItems: 'center', gap: 6 },
-  stepNum: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  stepNumText: { fontSize: 11, fontWeight: '900', color: '#fff' },
-  stepLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
-
-  pickRow: { flexDirection: 'row', gap: 14 },
-  pickTileWrapper: { flex: 1 },
-  pickTile: { borderRadius: 24, borderWidth: 2, paddingVertical: 32, paddingHorizontal: 16, alignItems: 'center', gap: 14 },
-  pickIconWrap: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  pickLabel: { fontSize: 19, fontWeight: '900' },
-  pickSub: { fontSize: 13, fontWeight: '700' },
-
-  boletimCountLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6, marginLeft: 2 },
-
-  previewSection: { gap: 12 },
-  previewCard: { borderRadius: 18, borderWidth: 1, padding: 12 },
-
-  // Thumbnail strip
-  thumbnailStrip: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingBottom: 4 },
-  thumbnailWrap: { position: 'relative' },
-  thumbnailPressable: { position: 'relative' },
-  thumbnail: { width: 110, height: 170, borderRadius: 10 },
-  thumbnailZoomHint: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.50)',
-    borderRadius: 6,
-    padding: 4,
-  },
-  thumbnailRemove: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 11,
-  },
-  thumbnailAdd: {
-    width: 110,
-    height: 170,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  thumbnailAddText: { fontSize: 12, fontWeight: '700' },
-  imageCountLabel: { fontSize: 12, fontWeight: '600', marginTop: 8, textAlign: 'center' },
-
-  imageViewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center', alignItems: 'center' },
-  imageViewerClose: { position: 'absolute', top: 52, right: 16, zIndex: 10 },
-  imageViewerImage: { width: '100%', height: '88%' },
-  imageViewerCount: { position: 'absolute', bottom: 40, color: 'rgba(255,255,255,0.7)', fontSize: 14, fontWeight: '700' },
-
-  disclaimerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.60)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  disclaimerCard: { width: '100%', maxWidth: 400, borderRadius: 20, borderWidth: 1, padding: 24, alignItems: 'center', gap: 14 },
-  disclaimerIconWrap: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center' },
-  disclaimerTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
-  disclaimerBody: { fontSize: 14, lineHeight: 21, textAlign: 'center' },
-  disclaimerCheckRow: { flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start' },
-  disclaimerCheckbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-  disclaimerCheckLabel: { fontSize: 14 },
-  disclaimerBtn: { width: '100%', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
-  disclaimerBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  sitePickerLabel: { fontSize: 12, fontWeight: '700', marginBottom: 8 },
-  sitePickerRow: { flexDirection: 'row', gap: 8, paddingBottom: 2 },
-  siteChip: { borderRadius: 20, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 7 },
-  siteChipText: { fontSize: 13, fontWeight: '700' },
-
-  processBtn: { marginTop: 20 },
-
-  resultCard: { borderRadius: 20, borderWidth: 1.5, overflow: 'hidden' },
-  resultHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
-  resultHeaderText: { fontSize: 15, fontWeight: '800' },
-  metrics: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 14, alignItems: 'center' },
-  metric: { flex: 1, alignItems: 'center', gap: 3 },
-  metricLabel: { fontSize: 10, fontWeight: '700' },
-  metricValue: { fontSize: 14, fontWeight: '900' },
-  metricDivider: { width: 1, height: 28, marginHorizontal: 2 },
-  itemsSection: { borderTopWidth: 1, paddingHorizontal: 16 },
-  itemRow: { paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  itemLeft: { flex: 1, gap: 2 },
-  itemTeams: { fontSize: 14, fontWeight: '700' },
-  itemMarket: { fontSize: 12 },
-  itemOdd: { fontSize: 15, fontWeight: '900', minWidth: 40, textAlign: 'right' },
-  moreItems: { fontSize: 12, fontWeight: '600', textAlign: 'center', paddingVertical: 10 },
-  expandBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 10 },
-  errorBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, margin: 16, marginTop: 4, padding: 10, borderRadius: 10 },
-  errorText: { fontSize: 12, fontWeight: '600', flex: 1, lineHeight: 16 },
-
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
-  scanOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    zIndex: 50,
-  },
+  screen: { flex: 1 },
+  flex: { flex: 1, gap: 2 },
+  top: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 10 },
+  topBtn: { alignItems: 'center', borderRadius: 12, height: 40, justifyContent: 'center', width: 40 },
+  topTitle: { fontFamily: 'Inter_700Bold', fontSize: 17 },
+  pad: { gap: 14, paddingHorizontal: 16, paddingTop: 4 },
+  section: { fontFamily: 'Inter_700Bold', fontSize: 12, letterSpacing: 0.6 },
+  drop: { borderRadius: 26, borderStyle: 'dashed', borderWidth: 1.5, overflow: 'hidden' },
+  dropInner: { alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 32 },
+  dropIcon: { alignItems: 'center', borderRadius: 20, height: 64, justifyContent: 'center', width: 64 },
+  dropTitle: { fontFamily: 'Inter_700Bold', fontSize: 18 },
+  dropSub: { fontFamily: 'Inter_500Medium', fontSize: 13, lineHeight: 19, textAlign: 'center' },
+  recentBlock: { gap: 10 },
+  recentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  recentItem: { borderRadius: 14, borderWidth: 2, height: 112, overflow: 'hidden', width: '23%' },
+  recentImg: { height: '100%', width: '100%' },
+  check: { alignItems: 'center', borderRadius: 11, bottom: 5, height: 22, justifyContent: 'center', position: 'absolute', right: 5, width: 22 },
+  row2: { flexDirection: 'row', gap: 10 },
+  secondary: { alignItems: 'center', borderRadius: 16, flex: 1, flexDirection: 'row', gap: 8, height: 52, justifyContent: 'center' },
+  secondaryText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  tip: { alignItems: 'center', borderRadius: 16, flexDirection: 'row', gap: 10, padding: 12 },
+  tipIcon: { alignItems: 'center', borderRadius: 9, height: 30, justifyContent: 'center', width: 30 },
+  tipText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12, lineHeight: 17 },
+  footer: { borderTopWidth: StyleSheet.hairlineWidth, bottom: 0, gap: 6, left: 0, paddingHorizontal: 16, paddingTop: 12, position: 'absolute', right: 0 },
+  cta: { alignItems: 'center', borderRadius: 16, height: 54, justifyContent: 'center' },
+  ctaText: { fontFamily: 'Inter_700Bold', fontSize: 16 },
+  hint: { fontFamily: 'Inter_500Medium', fontSize: 12, textAlign: 'center' },
+  shot: { borderRadius: 22, height: 430, overflow: 'hidden' },
+  scanLine: { elevation: 8, height: 3, left: 0, position: 'absolute', right: 0, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.9, shadowRadius: 12, top: 0 },
+  counter: { fontFamily: 'Inter_600SemiBold', fontSize: 13, textAlign: 'center' },
+  steps: { gap: 10 },
+  stepRow: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  stepDot: { alignItems: 'center', borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },
+  pulse: { borderRadius: 4, height: 8, width: 8 },
+  stepText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  banner: { alignItems: 'center', borderRadius: 14, flexDirection: 'row', gap: 10, padding: 12 },
+  bannerText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 13 },
+  card: { borderRadius: 24, borderWidth: 1, overflow: 'hidden' },
+  cardHead: { gap: 12, padding: 16 },
+  cardTop: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  meta: { fontFamily: 'Inter_500Medium', fontSize: 12 },
+  unknownSite: { borderRadius: 8, borderStyle: 'dashed', borderWidth: 1, paddingHorizontal: 8, paddingVertical: 3 },
+  unknownText: { fontFamily: 'Inter_700Bold', fontSize: 12 },
+  toggle: { alignItems: 'center', borderRadius: 8, borderWidth: 2, height: 26, justifyContent: 'center', marginLeft: 'auto', width: 26 },
+  dup: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  bigRow: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between' },
+  big: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 32, lineHeight: 38 },
+  tiles: { flexDirection: 'row', gap: 8 },
+  tile: { borderRadius: 12, flex: 1, gap: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  tileLabel: { fontFamily: 'Inter_500Medium', fontSize: 11 },
+  tileValue: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 15 },
+  leg: { alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
+  legDot: { borderRadius: 3, height: 34, width: 4 },
+  legMatch: { fontFamily: 'Inter_500Medium', fontSize: 11 },
+  legSel: { fontFamily: 'Inter_700Bold', fontSize: 15 },
+  legMarket: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 0.4 },
+  unsure: { alignSelf: 'flex-start', borderRadius: 6, fontFamily: 'Inter_700Bold', fontSize: 11, marginTop: 4, overflow: 'hidden', paddingHorizontal: 7, paddingVertical: 3 },
+  legOdd: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 16 },
+  addMore: { alignItems: 'center', alignSelf: 'center', flexDirection: 'row', gap: 6, padding: 8 },
+  addMoreText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  done: { flex: 1, gap: 14, paddingHorizontal: 16 },
+  doneCenter: { alignItems: 'center', flex: 1, gap: 12, justifyContent: 'center' },
+  doneIcon: { alignItems: 'center', borderRadius: 44, height: 88, justifyContent: 'center', width: 88 },
+  doneTitle: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 26 },
+  doneSub: { fontFamily: 'Inter_500Medium', fontSize: 14, lineHeight: 20, textAlign: 'center' },
+  doneCard: { borderRadius: 22, gap: 10, padding: 16 },
+  doneLeg: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  doneBtns: { gap: 8 },
 });

@@ -14,6 +14,8 @@ export interface AIParsedItem {
   eventDate?: string;
   /** Individual selection result — only present on resolved bets */
   result?: 'WON' | 'LOST' | 'VOID' | 'PENDING';
+  /** Fields the model could not read with confidence (to highlight in the review). */
+  uncertain?: string[];
 }
 
 export interface AIParsedBoletin {
@@ -23,6 +25,8 @@ export interface AIParsedBoletin {
   totalOdds: number;
   potentialReturn: number;
   status: string;
+  /** Betting site read from the screenshot (branding), or null. */
+  site?: string | null;
   items: AIParsedItem[];
   /**
    * Team name strings that appear in RED on the screenshot (the losing legs).
@@ -57,6 +61,9 @@ function getGenAI(): GoogleGenAI {
 /** JSON schema the model must follow (enforced by the API, so no more half-formed JSON). */
 const RESULT_ENUM = ['WON', 'LOST', 'VOID', 'PENDING'];
 const SPORT_ENUM = ['FOOTBALL', 'BASKETBALL', 'TENNIS', 'HANDBALL', 'VOLLEYBALL', 'HOCKEY', 'RUGBY', 'AMERICAN_FOOTBALL', 'BASEBALL', 'OTHER'];
+const SITE_ENUM = ['betclic', 'placard', 'bet365', 'esconline', 'moosh', 'solverde', 'betano', 'betway', '888sport', 'bwin', 'lebull', 'unknown'];
+const UNCERTAIN_ENUM = ['homeTeam', 'awayTeam', 'competition', 'market', 'selection', 'oddValue', 'eventDate', 'result'];
+
 const RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
@@ -70,6 +77,7 @@ const RESPONSE_SCHEMA = {
           totalOdds: { type: 'number' },
           potentialReturn: { type: 'number' },
           status: { type: 'string', enum: ['WON', 'LOST', 'PENDING'] },
+          site: { type: 'string', enum: SITE_ENUM },
           losingSelections: { type: 'array', items: { type: 'string' } },
           items: {
             type: 'array',
@@ -85,6 +93,7 @@ const RESPONSE_SCHEMA = {
                 oddValue: { type: 'number' },
                 eventDate: { type: 'string' },
                 result: { type: 'string', enum: RESULT_ENUM },
+                uncertain: { type: 'array', items: { type: 'string', enum: UNCERTAIN_ENUM } },
               },
               required: ['homeTeam', 'awayTeam', 'competition', 'sport', 'market', 'selection', 'oddValue', 'result'],
             },
@@ -118,6 +127,8 @@ Rules:
 - sport: FOOTBALL, BASKETBALL, TENNIS, HANDBALL, VOLLEYBALL, HOCKEY, RUGBY, AMERICAN_FOOTBALL, BASEBALL, or OTHER
 - eventDate and betDate: ISO 8601 format
 - Extract ALL selections from accumulators
+- "site": the betting site whose branding (logo, colours, layout) the screenshot shows: betclic, placard, bet365, esconline, moosh, solverde, betano, betway, 888sport, bwin, lebull — or "unknown".
+- Per item, "uncertain": list the fields you could NOT read clearly or had to guess (e.g. a competition not shown on the slip, a player name abbreviated to an initial, a cut-off market). Empty array when everything was read directly.
 - IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot — do NOT translate them to English. Examples: keep "Resultado (Tempo Regulamentar)" not "Match Result (Regular Time)", keep "SC Braga / Empate & Acima de 1,5" not "SC Braga / Draw & Over 1.5 Goals", keep "Resultado duplo/Golos - acima/abaixo" not "Double Chance/Goals - over/under".
 - IMPORTANT: Each item has its own "result" field. In Betclic screenshots, the status indicators are small circular icons shown horizontally near the top of the bet slip next to the "Múltipla" or "Simples" label — one icon per selection, ordered left-to-right matching the selections top-to-bottom. Interpret each icon: GREEN filled circle = "WON"; RED filled circle = "LOST"; GREY circle = "VOID"; CLOCK icon or outline circle = "PENDING". Match icon position to selection by order. Use selection text colour as a secondary confirmation: green = WON, red = LOST, grey = VOID, white/default = PENDING.
 - IMPORTANT: At the boletin level, add a "losingSelections" array: list the EXACT team name text strings (as written in the screenshot) for every team name that appears in RED. For example, if "SC Braga" and "FC Arouca" appear in red, output ["SC Braga", "FC Arouca"]. If no team names are red (pending bet), output []. This field is the most reliable way to identify losing legs.
@@ -172,6 +183,14 @@ export function normalizeParsedResult(parsed: {
       oddValue: typeof item.oddValue === 'number' && item.oddValue > 1 ? item.oddValue : 0,
       eventDate: item.eventDate ?? undefined,
       result: (['WON', 'LOST', 'VOID', 'PENDING'].includes(item.result ?? '') ? item.result : 'PENDING') as 'WON' | 'LOST' | 'VOID' | 'PENDING',
+      uncertain: [
+        ...((item as { uncertain?: string[] }).uncertain ?? []).filter((f) => UNCERTAIN_ENUM.includes(f)),
+        // Placeholders and unreadable odds are always worth a look.
+        ...(!item.competition ? ['competition'] : []),
+        ...(!(typeof item.oddValue === 'number' && item.oddValue > 1) ? ['oddValue'] : []),
+        ...(!item.homeTeam ? ['homeTeam'] : []),
+        ...(!item.awayTeam ? ['awayTeam'] : []),
+      ].filter((f, i, a) => a.indexOf(f) === i),
     }));
 
     // ── losingSelections override ──────────────────────────────────────────
@@ -230,6 +249,7 @@ export function normalizeParsedResult(parsed: {
       totalOdds: typeof b.totalOdds === 'number' && b.totalOdds > 0 ? b.totalOdds : 0,
       potentialReturn: typeof b.potentialReturn === 'number' && b.potentialReturn > 0 ? b.potentialReturn : 0,
       status: ['WON', 'LOST', 'PENDING'].includes(b.status) ? b.status : 'PENDING',
+      site: (() => { const v = (b as { site?: string }).site; return v && v !== 'unknown' && SITE_ENUM.includes(v) ? v : null; })(),
       items,
       parseError: hasError,
       parseErrorReason: errorReason,
