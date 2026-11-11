@@ -127,8 +127,8 @@ O botão **+** central abre **Novo boletim** (`/boletins/novo`) com 4 caminhos:
 |---|---|---|
 | **Screenshot** (principal) | `/boletins/scan` | Partilhar ou escolher prints do boletim. A IA lê casa, seleções, odds, datas e estado. |
 | Por jogo | `/boletins/por-jogo` | Escolher o jogo real (ESPN) e um mercado que o motor sabe liquidar. |
-| Registo rápido | `/boletins/quick-log` | Registo mínimo. |
-| Manual | `/boletins/create` | Formulário completo (fallback). |
+| Escrever à mão | `/boletins/confirmar?manual=1` | Seleção escrita na folha de edição. |
+| (fim de todos) | `/boletins/confirmar` | Confirmar boletim: seleções → valor → casa e data → extras. Substituiu `create.tsx` e `quick-log.tsx` (removidos a 11/11). |
 
 **Importação por screenshot** (`scan.tsx`, redesenhada a 11/11):
 1. **Escolher:** prints recentes da galeria (toque para marcar), escolher ficheiros ou tirar foto. Partilhar uma imagem a partir da Betclic → a app abre aqui e salta para a leitura (`hooks/useSharedImage.ts`, espera pelo login).
@@ -176,12 +176,12 @@ O botão **+** central abre **Novo boletim** (`/boletins/novo`) com 4 caminhos:
 ### Boletins
 | Ecrã | Ficheiro | Mostra / porquê |
 |---|---|---|
-| Detalhe | `boletins/[id].tsx` | Cartão "talão" com resultado em destaque (`BoletimResultHero`), seleções (`LegCard`) com resultado real e "Ver jogo"/"Ver porque ganhou", botão "Análise do boletim". Simples de propósito; o avançado está noutro ecrã. Tem ainda um modo de edição **antigo** com cores fixas (a substituir pela folha de edição). |
+| Detalhe | `boletins/[id].tsx` | Cartão "talão" com resultado em destaque (`BoletimResultHero`), seleções (`LegCard`) com resultado real e "Ver jogo"/"Ver porque ganhou", botão "Análise do boletim". Simples de propósito; o avançado está noutro ecrã. “Editar” abre a folha de edição única (`EditLegSheet`, a mesma da importação). |
 | Análise do boletim | `boletins/analise.tsx` | Dados avançados (ver §5.4). |
 | Novo boletim | `boletins/novo.tsx` | Hub dos 4 caminhos. |
 | Screenshot | `boletins/scan.tsx` | Ver §5.1. |
 | Por jogo | `boletins/por-jogo.tsx` | Jogo real + mercados que o motor lê. |
-| Registo rápido / Manual | `boletins/quick-log.tsx`, `boletins/create.tsx` | Registo sem screenshot. `create` também é usado para **duplicar** um boletim. |
+| Confirmar boletim | `boletins/confirmar.tsx` | Onde qualquer boletim novo é terminado (Escolher jogo, escrever à mão, Duplicar). |
 | Rever importação (PDF) | `boletins/import-review.tsx` | Revisão da importação do histórico em PDF. Antigo; manter até migrar. |
 | A rever | `boletins/rever.tsx` | Fila de seleções incertas. |
 | Resolver em lote | `boletins/batch-resolve.tsx` | Resolver várias pendentes de uma vez. |
@@ -278,3 +278,17 @@ Componentes base a preferir: `AppText`, `ListCard`/`ListRow`, `StatusPill`, `Seg
 - **Plano de design** (11/11, artifact "BetIntel Design Review"): Sheet comum e fim das cores fixas; editar boletim com a folha da importação; hub de criação com 3 opções (Por jogo absorve Manual); A rever/lote com o jogo real; lista de boletins agrupada por dia; Agenda dentro de Jogos; Perfil/Definições/Amigos em listas agrupadas; importação PDF na revisão nova.
 - Do [PLANO_MELHORIAS.md](PLANO_MELHORIAS.md): #26 (catálogo `sofascoreTournaments` no bundle), #31 (`any` na API), #45 (normalizar mercados de outras casas), #35 gestão de banca, #39 etiquetas/modelos, #41 widget, FotMob (xG) e API WTA (estatísticas por set), #32 upgrade do Expo (opcional).
 - Decisões em aberto: manter ou simplificar a parte social; quando fazer o upgrade do Expo.
+
+---
+
+## 12. Revisão de ecrãs de 11/11/2026 (aplicada)
+
+A partir de 171 capturas, em 8 blocos com commit cada (ver git log de 11/11):
+1. Números pt-PT em todo o lado (`formatOdds` "2,20", `formatPercentage`, `formatSignedCurrency`, `plural`); estados: boletim Ganhou/Perdeu/Anulado/Cashout, seleção Certa/Falhada/Anulada; `SportIcon` em vez de emojis; verde do tema nos seletores de dias.
+2. Um só editor: `EditLegSheet` (modos importação, `saved` e `legOnly`). Saíram o modo de edição antigo do detalhe e o `EditItemModal`.
+3. Jogos: seleção e boletim separados ("Múltipla 2/3 · perdida"); explicação por condição (`utils/betConditions.ts`); "Hoje" dentro do seletor de dias; secções vazias escondidas.
+4. Criação: hub com screenshot primeiro e prints recentes; Escolher jogo com "Escrever à mão"; `confirmar.tsx`.
+5. Boletins: chips de estado + uma folha de filtros; agrupado por dia; tocar na tab volta ao topo.
+6. Análise do boletim começa por "Porque perdeu/ganhou"; Análise com um seletor Lucro/Retorno por tab, objetivos em Hábitos, folha de exportação.
+7. Notificações de resultado dizem qual aposta e quanto; agrupadas por dia; push de teste não fica guardado.
+8. Definições gravam ao mudar; diagnóstico de push só em desenvolvimento; foto do perfil com ações ao tocar; Amigos abre na lista; cartões de partilha sem emojis.
