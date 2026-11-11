@@ -51,6 +51,12 @@ export class DayCache {
 
 /** Days to search: around the kickoff, or from the day before the bet to 3 days after it. */
 function searchDays(item: ItemRef): string[] {
+  // NBA lists games on the US date: a 01:00 UTC tip-off sits on the previous day, and a kickoff
+  // saved a day late needs one more day back.
+  if (item.kickoffAt && item.sport === 'BASKETBALL') {
+    const k = item.kickoffAt.getTime();
+    return [-2, -1, 0, 1].map((o) => new Date(k + o * 24 * 3600e3).toISOString().slice(0, 10));
+  }
   if (item.kickoffAt) return days(item.kickoffAt);
   const a = item.anchor!;
   return [-1, 0, 1, 2, 3].map((o) => new Date(a.getTime() + o * 24 * 3600e3).toISOString().slice(0, 10));
@@ -123,7 +129,8 @@ const DONE = new Set(['FINISHED', 'CANCELLED', 'POSTPONED', 'RETIRED', 'WALKOVER
 export async function findItemMatches(items: ItemRef[], cache = new DayCache()): Promise<Record<string, ItemMatch | null>> {
   const out: Record<string, ItemMatch | null> = {};
   await Promise.all(items.map(async (item) => {
-    const key = `itemmatch:${item.id}`;
+    // v2: drops the 'none' cached before the NBA US-date fix.
+    const key = `itemmatch2:${item.id}`;
     const hit = await redis.get(key).catch(() => null);
     if (hit) { out[item.id] = hit === 'none' ? null : (JSON.parse(hit) as ItemMatch); return; }
     const m = await lookup(item, cache).catch(() => null);

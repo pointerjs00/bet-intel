@@ -101,7 +101,7 @@ async function backfillKickoffs(): Promise<void> {
     // Only overrule a future kickoff with a game that already started (not another, earlier meeting).
     if (prev && m.status === 'SCHEDULED') continue;
     await prisma.boletinItem.update({ where: { id }, data: { kickoffAt: new Date(m.kickoffAt) } }).catch(() => undefined);
-    await redis.del(`itemmatch:${id}`).catch(() => undefined);
+    await redis.del(`itemmatch2:${id}`).catch(() => undefined);
     n++;
   }
   if (n) logger.info('[liveBetTracker] kickoff filled from the matched game', { count: n });
@@ -153,7 +153,8 @@ async function trackBasketball(): Promise<void> {
     // ESPN uses US game days: a 00:30 UTC tip-off belongs to the previous date.
     const k = item.kickoffAt!;
     // Also the day after: a kickoff saved from the bet date can be a day off the US game day.
-    const days = [new Date(k.getTime() - 24 * 3600e3), k, new Date(k.getTime() + 24 * 3600e3)].map((d) => d.toISOString().slice(0, 10));
+    // ESPN's US date can be the day before the UTC kickoff, and one more back covers a kickoff saved a day late.
+    const days = [-2, -1, 0, 1].map((o) => new Date(k.getTime() + o * 24 * 3600e3).toISOString().slice(0, 10));
     let found: BasketballMatch | undefined;
     for (const day of days) {
       found = (await nbaDay(day)).find((m) =>
