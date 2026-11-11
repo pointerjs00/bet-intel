@@ -232,6 +232,11 @@ export default function JogosScreen() {
             <Ionicons color={colors.textMuted} name="calendar-outline" size={14} />
             <Text numberOfLines={1} style={[styles.dateText, { color: isToday ? colors.primary : colors.textPrimary }]}>{dayTitle(day)}</Text>
           </Pressable>
+          {!isToday ? (
+            <Pressable accessibilityLabel="Voltar a hoje" hitSlop={6} onPress={() => { hapticLight(); dirRef.current = day > today ? -1 : 1; setDay(today); }} style={[styles.todayChip, { backgroundColor: `${colors.primary}26` }]}>
+              <Text style={[styles.todayChipText, { color: colors.primary }]}>Hoje</Text>
+            </Pressable>
+          ) : null}
           <Pressable accessibilityLabel="Dia seguinte" hitSlop={8} onPress={() => shift(1)} style={styles.navArrow}>
             <Ionicons color={colors.textPrimary} name="chevron-forward" size={18} />
           </Pressable>
@@ -312,17 +317,6 @@ export default function JogosScreen() {
         </ScrollView>
       </View>
 
-      {!isToday ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => { hapticLight(); dirRef.current = day > today ? -1 : 1; setDay(today); }}
-          style={[styles.todayBtn, { backgroundColor: colors.accent, bottom: insets.bottom + 96 }]}
-        >
-          {day > today ? <Ionicons color="#FFFFFF" name="chevron-back" size={16} /> : null}
-          <AppText style={styles.todayText} variant="bodyStrong">Hoje</AppText>
-          {day < today ? <Ionicons color="#FFFFFF" name="chevron-forward" size={16} /> : null}
-        </Pressable>
-      ) : null}
 
       <Modal animationType="fade" onRequestClose={() => setSortOpen(false)} transparent visible={sortOpen}>
         <Pressable feedback="none" onPress={() => setSortOpen(false)} style={styles.sheetBackdrop}>
@@ -555,6 +549,8 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingTop: 48 },
   emptyBtn: { borderRadius: 14, marginTop: 6, paddingHorizontal: 18, paddingVertical: 12 },
   emptyBtnText: { color: '#06110B', fontFamily: 'Inter_700Bold', fontSize: 14 },
+  todayChip: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
+  todayChipText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
   todayBtn: { alignItems: 'center', alignSelf: 'center', borderRadius: 999, flexDirection: 'row', gap: 4, paddingHorizontal: 18, paddingVertical: 10, position: 'absolute' },
   todayText: { color: '#FFFFFF' },
   sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.5)', flex: 1, justifyContent: 'flex-end' },

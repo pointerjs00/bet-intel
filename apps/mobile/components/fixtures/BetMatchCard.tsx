@@ -54,7 +54,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
             <Text numberOfLines={1} style={[styles.league, { color: colors.textSecondary }]}>{league}</Text>
             <View style={[styles.statusPill, { backgroundColor: st.live ? `${colors.live}22` : colors.background }]}>
               {st.live ? <LiveDot color={colors.live} size={5} /> : null}
-              <Text style={[styles.statusText, { color: st.live ? colors.live : colors.textSecondary }]}>{st.label || st.time}</Text>
+              <Text style={[styles.statusText, { color: st.live ? colors.live : colors.textSecondary }]}>{st.label === 'FT' ? 'Terminado' : st.label || st.time}</Text>
             </View>
           </View>
 
@@ -65,7 +65,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
               return (
                 <View key={`${r.name}-${r.at}`} style={styles.teamRow}>
                   <TeamBadge name={r.name} size={28} variant="team" />
-                  <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_600SemiBold' }]}>{r.at ? '@ ' : ''}{r.name}</Text>
+                  <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_600SemiBold' }]}>{r.name}</Text>
                   {showScore ? <Text style={[styles.score, { color: st.live ? colors.live : lost ? colors.textSecondary : colors.textPrimary }]}>{r.score}</Text> : null}
                 </View>
               );
@@ -89,7 +89,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
                 {Array.from({ length: known.legs }, (_, i) => (
                   <View key={i} style={[styles.leg, { backgroundColor: i < known.wonLegs ? colors.positive : colors.border }]} />
                 ))}
-                <Text style={[styles.legsText, { color: colors.textSecondary }]}>Múltipla {known.wonLegs}/{known.legs}</Text>
+                <Text style={[styles.legsText, { color: colors.textSecondary }]}>Múltipla {known.wonLegs}/{known.legs}{known.profit !== null ? (known.profit >= 0 ? ' · ganha' : ' · perdida') : ''}</Text>
               </View>
             ) : <View style={styles.flex} />}
             {known && known.profit !== null ? (

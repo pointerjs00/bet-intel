@@ -33,7 +33,7 @@ export function MatchBetsStrip({ kickoff, home, away, live }: { kickoff: string;
               </View>
               {bet.legs === 1 && bet.profit !== null ? (
                 <Text style={[styles.profit, { color: tone }]}>{bet.profit >= 0 ? '+' : '−'}{formatCurrency(Math.abs(bet.profit))}</Text>
-              ) : bet.legs > 1 ? <Text style={[styles.multi, { color: colors.textSecondary }]}>{bet.wonLegs}/{bet.legs}</Text> : null}
+              ) : bet.legs > 1 ? <Text style={[styles.multi, { color: colors.textSecondary }]}>Múltipla {bet.wonLegs}/{bet.legs}</Text> : null}
             </PressableScale>
           </Animated.View>
         );

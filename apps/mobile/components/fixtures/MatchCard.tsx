@@ -92,7 +92,7 @@ export const MatchCard = React.memo(function MatchCard({ match: m, sport, bet, i
               <View key={`${r.name}-${r.at}`} style={styles.teamRow}>
                 <TeamBadge name={r.name} size={20} variant="team" />
                 <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_500Medium' }]}>
-                  {r.at ? '@ ' : ''}{r.name}
+                  {r.name}
                 </Text>
                 {r.reds > 0 ? <View style={[styles.redCard, { backgroundColor: colors.live }]} /> : null}
                 {showScore ? (

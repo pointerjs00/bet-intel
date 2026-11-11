@@ -155,7 +155,7 @@ export default function MatchDetailScreen() {
               </>
             ) : null}
 
-            {m.stats ? (
+            {m.stats && STAT_ROWS.some((row) => m.stats!.home[row.key] !== null || m.stats!.away[row.key] !== null) ? (
               <>
                 <AppText variant="heading">Estatísticas</AppText>
                 <View style={[styles.statsCard, elevation, { backgroundColor: colors.surface }]}>

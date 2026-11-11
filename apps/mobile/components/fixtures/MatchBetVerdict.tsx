@@ -10,6 +10,7 @@ import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds } from '../../utils/formatters';
 import { explainBet, parseMinute, type GoalEvent } from '../../utils/betTimeline';
 import type { MatchBet } from '../../utils/dayBets';
+import { betConditions } from '../../utils/betConditions';
 
 const GOALS = new Set(['GOAL', 'PENALTY_GOAL', 'OWN_GOAL']);
 
@@ -67,9 +68,11 @@ export function MatchBetVerdict({ match, bet, onOpenBoletim }: { match: Football
     ? won ? ['#0F3328', '#12263A'] : lost ? ['#3A1822', '#1A1B2E'] : ['#33280F', '#14182A']
     : won ? ['#E7F8EF', '#FFFFFF'] : lost ? ['#FDECEE', '#FFFFFF'] : ['#FFF6E5', '#FFFFFF'];
   const verdict = won ? 'CERTA' : lost ? 'FALHADA' : live ? 'EM JOGO' : 'PENDENTE';
-  const money = bet.legs === 1 && bet.profit !== null
-    ? `${bet.profit >= 0 ? '+' : '−'}${formatCurrency(Math.abs(bet.profit))}`
-    : bet.legs > 1 ? `Múltipla · ${bet.wonLegs}/${bet.legs} certas` : null;
+  const money = bet.profit !== null ? `${bet.profit >= 0 ? '+' : '−'}${formatCurrency(Math.abs(bet.profit))}` : null;
+  const multiLine = bet.legs > 1
+    ? `Na múltipla de ${bet.legs}: ${bet.wonLegs} ${bet.wonLegs === 1 ? 'certa' : 'certas'}.${bet.profit !== null ? ` Boletim ${bet.profit >= 0 ? 'ganho' : 'perdido'} ${money}.` : ''}`
+    : null;
+  const conditions = betConditions(bet.selection, match.home.name, match.away.name, match.score, match.status === 'FINISHED');
   const tile = { backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(15,23,42,0.05)' };
 
   return (
@@ -78,8 +81,22 @@ export function MatchBetVerdict({ match, bet, onOpenBoletim }: { match: Football
         <PressableScale disabled={!onOpenBoletim} onPress={onOpenBoletim} scaleDown={0.99} style={styles.inner}>
           <View style={styles.top}>
             <Text style={[styles.verdict, { color: tone }]}>A TUA APOSTA · {verdict}</Text>
-            {money ? <Animated.Text entering={ZoomIn.delay(150).springify()} style={[styles.money, { color: tone }]}>{money}</Animated.Text> : null}
+            {money && bet.legs === 1 ? <Animated.Text entering={ZoomIn.delay(150).springify()} style={[styles.money, { color: tone }]}>{money}</Animated.Text> : <Text style={[styles.oddTop, { color: colors.gold }]}>{formatOdds(bet.odd)}</Text>}
           </View>
+          <Text style={[styles.selTitle, { color: colors.textPrimary }]}>{bet.selection}</Text>
+          {conditions.length ? (
+            <View style={styles.conds}>
+              {conditions.map((c, i) => (
+                <View key={i} style={styles.cond}>
+                  <View style={[styles.condMark, { backgroundColor: c.ok === null ? colors.border : c.ok ? colors.positive : colors.negative }]}>
+                    <Text style={styles.condMarkText}>{c.ok === null ? '·' : c.ok ? '✓' : '✕'}</Text>
+                  </View>
+                  <Text style={[styles.condLabel, { color: colors.textPrimary }]}>{c.label}</Text>
+                  <Text style={[styles.condDetail, { color: colors.textSecondary }]}>{c.detail}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
           <View style={styles.pair}>
             <View style={[styles.box, tile]}>
               <Text style={[styles.boxLabel, { color: colors.textSecondary }]}>Precisavas</Text>
@@ -90,7 +107,9 @@ export function MatchBetVerdict({ match, bet, onOpenBoletim }: { match: Football
               <Text style={[styles.boxValue, { color: colors.textPrimary }]}>{match.score ? `${match.score.home}–${match.score.away}` : '—'}{won ? ' ✓' : lost ? ' ✕' : ''}</Text>
             </View>
           </View>
-          <Text style={[styles.pick, { color: colors.textSecondary }]}>{bet.market} · {bet.selection} @{formatOdds(bet.odd)}</Text>
+          )}
+          <Text style={[styles.pick, { color: colors.textSecondary }]}>{bet.market} · odd {formatOdds(bet.odd)}</Text>
+          {multiLine ? <Text style={[styles.pick, { color: colors.textSecondary }]}>{multiLine}</Text> : null}
         </PressableScale>
         {e.segments ? (
           <View style={[styles.timeline, { backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(15,23,42,0.04)' }]}>
@@ -161,6 +180,14 @@ export function OtherMarkets({ match }: { match: FootballMatch }) {
 }
 
 const styles = StyleSheet.create({
+  oddTop: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 16 },
+  selTitle: { fontFamily: 'Inter_700Bold', fontSize: 16 },
+  conds: { gap: 8 },
+  cond: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  condMark: { alignItems: 'center', borderRadius: 10, height: 20, justifyContent: 'center', width: 20 },
+  condMarkText: { color: '#06110B', fontFamily: 'Inter_700Bold', fontSize: 11 },
+  condLabel: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  condDetail: { fontFamily: 'Inter_500Medium', fontSize: 13 },
   wrap: { borderRadius: 24 },
   card: { borderRadius: 24, overflow: 'hidden' },
   inner: { gap: 12, padding: 16 },
