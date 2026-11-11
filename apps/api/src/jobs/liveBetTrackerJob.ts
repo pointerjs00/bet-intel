@@ -101,7 +101,7 @@ async function backfillKickoffs(): Promise<void> {
     // Only overrule a future kickoff with a game that already started (not another, earlier meeting).
     if (prev && m.status === 'SCHEDULED') continue;
     await prisma.boletinItem.update({ where: { id }, data: { kickoffAt: new Date(m.kickoffAt) } }).catch(() => undefined);
-    await redis.del(`itemmatch2:${id}`).catch(() => undefined);
+    await redis.del(`itemmatch3:${id}`).catch(() => undefined);
     n++;
   }
   if (n) logger.info('[liveBetTracker] kickoff filled from the matched game', { count: n });

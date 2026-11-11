@@ -130,12 +130,12 @@ export async function findItemMatches(items: ItemRef[], cache = new DayCache()):
   const out: Record<string, ItemMatch | null> = {};
   await Promise.all(items.map(async (item) => {
     // v2: drops the 'none' cached before the NBA US-date fix.
-    const key = `itemmatch2:${item.id}`;
+    const key = `itemmatch3:${item.id}`;
     const hit = await redis.get(key).catch(() => null);
     if (hit) { out[item.id] = hit === 'none' ? null : (JSON.parse(hit) as ItemMatch); return; }
     const m = await lookup(item, cache).catch(() => null);
     out[item.id] = m;
-    const ttl = !m ? 6 * 3600 : DONE.has(m.status) ? 30 * 24 * 3600 : 60;
+    const ttl = !m ? 30 * 60 : DONE.has(m.status) ? 30 * 24 * 3600 : 60;
     await redis.set(key, m ? JSON.stringify(m) : 'none', 'EX', ttl).catch(() => {});
   }));
   return out;
