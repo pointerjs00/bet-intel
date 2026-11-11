@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   BackHandler,
   FlatList,
+  ScrollView,
   RefreshControl,
   StyleSheet,
   Text,
@@ -65,6 +66,18 @@ type SlipListItem = { id: string; type: 'skeleton' } | (ReturnType<typeof useBol
 
 const ItemSeparator = () => <View style={{ height: 16 }} />;
 const keyExtractor = (item: SlipListItem) => item.id;
+
+/** "Hoje · 11/11", "Ontem · 10/11", "qua · 05/11". */
+function dayHeading(iso: string): string {
+  const d = new Date(iso);
+  const t = new Date();
+  const days = Math.round((new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000);
+  const dm = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (days === 0) return `Hoje · ${dm}`;
+  if (days === 1) return `Ontem · ${dm}`;
+  const wd = d.toLocaleDateString('pt-PT', { weekday: 'short' }).replace('.', '');
+  return `${wd} · ${dm}${d.getFullYear() !== t.getFullYear() ? `/${d.getFullYear()}` : ''}`;
+}
 
 const NOTIF_ICONS: Record<string, { name: string; color: string }> = {
   FRIEND_REQUEST: { name: 'account-plus-outline', color: 'info' },
@@ -275,6 +288,13 @@ export default function HomeScreen() {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const flatListRef = useRef<import('react-native').FlatList>(null);
   const scrollTopOpacity = useSharedValue(0);
+  // Tapping the Boletins tab again while on it scrolls back to the top (replaces the floating button).
+  useEffect(() => {
+    const unsub = (navigation as unknown as { addListener: (e: string, cb: () => void) => () => void }).addListener('tabPress', () => {
+      if (navigation.isFocused()) flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    });
+    return unsub;
+  }, [navigation]);
   const fabIconRotation = useSharedValue(0);
 
   const handleQuickResolve = useCallback(
@@ -697,25 +717,11 @@ export default function HomeScreen() {
     transform: [{ rotate: `${fabIconRotation.value}deg` }],
   }));
 
-  const scrollTopStyle = useAnimatedStyle(() => ({
-    opacity: scrollTopOpacity.value,
-    transform: [{ scale: interpolate(scrollTopOpacity.value, [0, 1], [0.7, 1], Extrapolation.CLAMP) }],
-    pointerEvents: scrollTopOpacity.value > 0.1 ? 'auto' : 'none',
-  }));
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <FlatList
         ref={flatListRef}
-        onScroll={(e) => {
-          const y = e.nativeEvent.contentOffset.y;
-          const shouldShow = y > 80;
-          if (shouldShow !== showScrollTop) {
-            setShowScrollTop(shouldShow);
-            scrollTopOpacity.value = withTiming(shouldShow ? 1 : 0, { duration: 200 });
-          }
-        }}
-        scrollEventThrottle={32}
         contentContainerStyle={{
           paddingTop: insets.top + tokens.spacing.md,
           paddingBottom: Math.max(insets.bottom, 12) + 64 + tokens.spacing.lg,
@@ -747,20 +753,22 @@ export default function HomeScreen() {
                 <PressableScale
                   scaleDown={0.88}
                   accessibilityRole="button"
-                  accessibilityLabel="Os meus jogos"
+                  accessibilityLabel="Agenda"
                   onPress={() => { hapticLight(); router.push('/boletins/agenda'); }}
-                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
+                  style={[styles.textPill, { backgroundColor: colors.surface }]}
                 >
-                  <Ionicons color={colors.textSecondary} name="calendar-outline" size={20} />
+                  <Ionicons color={colors.textSecondary} name="calendar-outline" size={15} />
+                  <Text style={[styles.textPillText, { color: colors.textSecondary }]}>Agenda</Text>
                 </PressableScale>
                 <PressableScale
                   scaleDown={0.88}
                   accessibilityRole="button"
                   accessibilityLabel="Diário de apostas"
                   onPress={() => router.push('/boletins/journal')}
-                  style={[styles.iconButton, { backgroundColor: colors.surfaceRaised }]}
+                  style={[styles.textPill, { backgroundColor: colors.surface }]}
                 >
-                  <Ionicons color={colors.textSecondary} name="journal-outline" size={20} />
+                  <Ionicons color={colors.textSecondary} name="journal-outline" size={15} />
+                  <Text style={[styles.textPillText, { color: colors.textSecondary }]}>Diário</Text>
                 </PressableScale>
               </View>
             </Animated.View>
@@ -807,25 +815,6 @@ export default function HomeScreen() {
                 ) : null}
               </View>
 
-              {/* Status filter (icon + count) */}
-              <PressableScale
-                accessibilityLabel={activeStatuses.size > 0 ? `Estado, ${activeStatuses.size} selecionados` : 'Filtrar por estado'}
-                accessibilityRole="button"
-                onPress={() => { hapticLight(); setShowStatusDropdown(true); }}
-                style={[styles.filterBtn, { backgroundColor: activeStatuses.size > 0 ? `${colors.primary}24` : colors.surface, borderColor: 'transparent' }]}
-              >
-                <Ionicons color={activeStatuses.size > 0 ? colors.primary : colors.textSecondary} name="funnel-outline" size={18} />
-                {activeStatuses.size > 0 ? <Text style={[styles.filterBtnBadge, { backgroundColor: colors.primary }]}>{activeStatuses.size}</Text> : null}
-              </PressableScale>
-
-              <StatusFilterSheet
-                counts={statusCounts}
-                onChange={setActiveStatuses}
-                onClose={() => setShowStatusDropdown(false)}
-                resultCount={filtered.length}
-                selected={activeStatuses}
-                visible={showStatusDropdown}
-              />
 
               {/* Advanced filter button */}
               <PressableScale
@@ -851,6 +840,30 @@ export default function HomeScreen() {
                 ) : null}
               </PressableScale>
             </Animated.View>
+
+            {/* Most used states one tap away (the rest of the filters live in the sheet) */}
+            <ScrollView contentContainerStyle={styles.statusChips} horizontal showsHorizontalScrollIndicator={false}>
+              {([
+                { key: null, label: 'Todos', n: boletins.length },
+                { key: BoletinStatus.PENDING, label: 'Pendentes', n: statusCounts[BoletinStatus.PENDING] ?? 0 },
+                { key: BoletinStatus.WON, label: 'Ganhos', n: statusCounts[BoletinStatus.WON] ?? 0 },
+                { key: BoletinStatus.LOST, label: 'Perdidos', n: statusCounts[BoletinStatus.LOST] ?? 0 },
+                ...((statusCounts[BoletinStatus.VOID] ?? 0) > 0 ? [{ key: BoletinStatus.VOID, label: 'Anulados', n: statusCounts[BoletinStatus.VOID] ?? 0 }] : []),
+                ...((statusCounts[BoletinStatus.CASHOUT] ?? 0) > 0 ? [{ key: BoletinStatus.CASHOUT, label: 'Cashout', n: statusCounts[BoletinStatus.CASHOUT] ?? 0 }] : []),
+              ] as Array<{ key: BoletinStatus | null; label: string; n: number }>).map((c) => {
+                const on = c.key === null ? activeStatuses.size === 0 : activeStatuses.size === 1 && activeStatuses.has(c.key);
+                return (
+                  <Pressable
+                    accessibilityState={{ selected: on }}
+                    key={c.label}
+                    onPress={() => { hapticLight(); setActiveStatuses(c.key === null ? new Set() : new Set([c.key])); }}
+                    style={[styles.statusChip, { backgroundColor: on ? `${colors.primary}24` : colors.surface }]}
+                  >
+                    <Text style={[styles.statusChipText, { color: on ? colors.primary : colors.textSecondary }]}>{c.label} {c.n}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
             {/* Active filters summary */}
             {hasActiveControls ? (
@@ -957,7 +970,15 @@ export default function HomeScreen() {
             />
           );
 
-          return <Appear index={index}>{card}</Appear>;
+          const prev = index > 0 ? listData[index - 1] : null;
+          const dayOf = (b: typeof item) => new Date(b.betDate ?? b.createdAt).toDateString();
+          const showDay = sort.by === 'date' && (!prev || 'type' in prev || dayOf(prev) !== dayOf(item));
+          return (
+            <Appear index={index}>
+              {showDay ? <Text style={[styles.dayLabel, { color: colors.textMuted }]}>{dayHeading(item.betDate ?? item.createdAt)}</Text> : null}
+              {card}
+            </Appear>
+          );
         }}
         ItemSeparatorComponent={ItemSeparator}
         ListFooterComponent={
@@ -1221,28 +1242,6 @@ export default function HomeScreen() {
         onCancel={() => setShowMarkAllConfirm(false)}
       />
 
-      {/* Scroll-to-top floating button */}
-      <Animated.View
-        style={[
-          styles.scrollTopBtn,
-          { bottom: Math.max(insets.bottom, 16) + 64 + tokens.spacing.md },
-          scrollTopStyle,
-        ]}
-        pointerEvents={showScrollTop ? 'auto' : 'none'}
-      >
-        <PressableScale
-          scaleDown={0.88}
-          accessibilityRole="button"
-          accessibilityLabel="Ir para o topo"
-          onPress={() => {
-            hapticLight();
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-          }}
-          style={[styles.scrollTopInner, { backgroundColor: colors.primary }]}
-        >
-          <Ionicons color="#fff" name="arrow-up" size={20} />
-        </PressableScale>
-      </Animated.View>
 
       {/* Image share bottom sheet — swipe-to-dismiss, Reanimated-driven */}
       <BottomSheet
@@ -1480,6 +1479,12 @@ const styles = StyleSheet.create({
   },
   fabMenuLabel: { flex: 1, fontSize: 14, fontWeight: '600' },
   imageShareContent: { padding: 4, paddingBottom: 36, alignItems: 'center' },
+  textPill: { alignItems: 'center', borderRadius: 999, flexDirection: 'row', gap: 5, height: 34, paddingHorizontal: 12 },
+  textPillText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  statusChips: { gap: 6, paddingVertical: 2 },
+  statusChip: { alignItems: 'center', borderRadius: 999, justifyContent: 'center', minHeight: 32, paddingHorizontal: 12 },
+  statusChipText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  dayLabel: { fontFamily: 'Inter_700Bold', fontSize: 12, letterSpacing: 0.3, marginBottom: 8, marginTop: 6, textTransform: 'capitalize' },
   scrollTopBtn: { position: 'absolute', alignSelf: 'center' },
   scrollTopInner: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 6 },
 });

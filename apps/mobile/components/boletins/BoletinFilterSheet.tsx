@@ -34,16 +34,16 @@ if (Platform.OS === 'android') {
 }
 
 const SPORT_LABELS: Partial<Record<Sport, string>> = {
-  [Sport.FOOTBALL]: '⚽ Futebol',
-  [Sport.BASKETBALL]: '🏀 Basquetebol',
-  [Sport.TENNIS]: '🎾 Ténis',
-  [Sport.HANDBALL]: '🤾 Andebol',
-  [Sport.VOLLEYBALL]: '🏐 Voleibol',
-  [Sport.HOCKEY]: '🏒 Hóquei',
-  [Sport.RUGBY]: '🏉 Rugby',
-  [Sport.AMERICAN_FOOTBALL]: '🏈 F. Americano',
-  [Sport.BASEBALL]: '⚾ Basebol',
-  [Sport.OTHER]: '🏅 Outro',
+  [Sport.FOOTBALL]: 'Futebol',
+  [Sport.BASKETBALL]: 'Basquetebol',
+  [Sport.TENNIS]: 'Ténis',
+  [Sport.HANDBALL]: 'Andebol',
+  [Sport.VOLLEYBALL]: 'Voleibol',
+  [Sport.HOCKEY]: 'Hóquei',
+  [Sport.RUGBY]: 'Rugby',
+  [Sport.AMERICAN_FOOTBALL]: 'F. Americano',
+  [Sport.BASEBALL]: 'Basebol',
+  [Sport.OTHER]: 'Outro',
 };
 
 export type SortBy = 'date' | 'stake' | 'odds' | 'return' | 'events';
