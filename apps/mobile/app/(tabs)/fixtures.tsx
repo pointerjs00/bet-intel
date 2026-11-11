@@ -19,7 +19,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { useCardElevation } from '../../components/ui/ListCard';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { MatchCard, isLive, isDone, type AnyMatch } from '../../components/fixtures/MatchCard';
-import { BetMatchCard } from '../../components/fixtures/BetMatchCard';
+import { LiveBetMatchCard } from '../../components/fixtures/BetMatchCard';
 import { getCountryFlagUrl, getLeagueLogoUrl } from '../../utils/sportAssets';
 import { useBasketballDay, useFootballDay, useTennisDay, type SportKey } from '../../services/sportsService';
 import { useBoletins } from '../../services/boletinService';
@@ -125,6 +125,14 @@ export default function JogosScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [footballQuery.data, basketballQuery.data, tennisQuery.data, betOf]);
   const betsLoading = footballQuery.isLoading || basketballQuery.isLoading || tennisQuery.isLoading;
+  // While a game with a bet is live, refresh the boletins too, so the bet state follows the tracker.
+  const anyBetLive = betMatches.some((x) => isLive(x.m));
+  useEffect(() => {
+    if (!anyBetLive) return undefined;
+    const t = setInterval(() => { void boletinsQuery.refetch(); }, 30_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anyBetLive]);
 
   // ── Sport tabs ────────────────────────────────────────────────────────────
   const allGroups = (bets ? [] : (queries[tab].data?.groups ?? [])) as AnyGroup[];
@@ -235,7 +243,7 @@ export default function JogosScreen() {
                 <>
                   <BetsSummary items={betMatches} />
                   {(liveOnly ? betMatches.filter((x) => isLive(x.m)) : betMatches).map((x, i) => (
-                    <BetMatchCard bet={x.bet} index={i} key={`${x.sport}-${x.m.providerMatchId}`} league={x.league} match={x.m} onPress={openMatch(x.sport, x.m, x.slug)} sport={x.sport} />
+                    <LiveBetMatchCard bet={x.bet} date={iso} index={i} key={`${x.sport}-${x.m.providerMatchId}`} league={x.league} match={x.m} onPress={openMatch(x.sport, x.m, x.slug)} slug={x.slug} sport={x.sport} />
                   ))}
                   {betMatches.length === 0 ? (
                     <Empty

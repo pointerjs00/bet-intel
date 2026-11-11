@@ -53,10 +53,11 @@ betintelRouter.get('/shared', listSharedBoletinsHandler);
 betintelRouter.get('/:id/results', async (req, res) => {
   const boletin = await prisma.boletin.findFirst({
     where: { id: req.params.id, userId: req.user!.sub },
-    select: { items: { select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true } } },
+    select: { betDate: true, createdAt: true, items: { select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true } } },
   });
   if (!boletin) { res.status(404).json({ success: false, error: 'Boletim não encontrado' }); return; }
-  const data = await findItemMatches(boletin.items.map((i) => ({ ...i, sport: String(i.sport) })));
+  const anchor = boletin.betDate ?? boletin.createdAt;
+  const data = await findItemMatches(boletin.items.map((i) => ({ ...i, sport: String(i.sport), anchor })));
   res.json({ success: true, data });
 });
 betintelRouter.get('/:id', getBoletinHandler);

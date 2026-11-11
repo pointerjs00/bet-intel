@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { ItemResult } from '@betintel/shared';
-import type { SportKey } from '../../services/sportsService';
+import { useBasketballGame, useFootballMatch, useTennisMatch, type SportKey } from '../../services/sportsService';
 import { PressableScale } from '../ui/PressableScale';
 import { TeamBadge } from '../ui/TeamBadge';
 import { LiveDot } from '../ui/Appear';
@@ -126,3 +126,43 @@ const styles = StyleSheet.create({
   legsText: { fontFamily: 'Inter_600SemiBold', fontSize: 11, marginLeft: 4 },
   profit: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 17 },
 });
+
+/**
+ * BetMatchCard that, while its match is live (or about to start), follows the same per-match feed
+ * as the match screen, so the score and status refresh at the same pace (20–30 s).
+ */
+export function LiveBetMatchCard(props: { match: AnyMatch; sport: SportKey; league: string; slug: string; date: string; bet: MatchBet | 'unknown'; index?: number; onPress?: () => void }) {
+  const m = props.match;
+  const soon = new Date(m.kickoffAt).getTime() - Date.now() < 15 * 60 * 1000;
+  const active = (isLiveStatus(m.status) || (m.status === 'SCHEDULED' && soon)) && !isDone(m);
+  if (!active) return <BetMatchCard {...props} />;
+  if (props.sport === 'football') return <FootballLive {...props} />;
+  if (props.sport === 'basketball') return <BasketballLive {...props} />;
+  return <TennisLive {...props} />;
+}
+
+const isLiveStatus = (s: string) => s === 'LIVE' || s === 'HALFTIME';
+
+type LiveProps = Parameters<typeof LiveBetMatchCard>[0];
+
+function FootballLive(p: LiveProps) {
+  const q = useFootballMatch(p.slug, p.match.providerMatchId);
+  const d = q.data;
+  const match = d ? { ...p.match, status: d.status, statusDetail: d.statusDetail, score: d.score } as AnyMatch : p.match;
+  return <BetMatchCard {...p} match={match} />;
+}
+function BasketballLive(p: LiveProps) {
+  const q = useBasketballGame(p.match.providerMatchId);
+  const d = q.data;
+  const match = d ? { ...p.match, status: d.status, statusDetail: d.statusDetail, score: d.score } as AnyMatch : p.match;
+  return <BetMatchCard {...p} match={match} />;
+}
+function TennisLive(p: LiveProps) {
+  const q = useTennisMatch(p.match.providerMatchId, p.date);
+  const d = q.data;
+  const sets = d ? (d.live?.sets.length ? d.live.sets : d.sets) : null;
+  const match = d && sets
+    ? { ...p.match, status: d.status, statusDetail: d.statusDetail, score: sets.length ? { home: sets.filter((s) => s.a > s.b).length, away: sets.filter((s) => s.b > s.a).length } : null } as AnyMatch
+    : p.match;
+  return <BetMatchCard {...p} match={match} />;
+}

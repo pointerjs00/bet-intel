@@ -32,6 +32,8 @@ export interface ItemRef {
   homeTeam: string;
   awayTeam: string;
   kickoffAt: Date | null;
+  /** When the kickoff is unknown: the bet date, to search the following days. */
+  anchor?: Date | null;
 }
 
 const days = (d: Date) => [d, new Date(d.getTime() - 24 * 3600e3), new Date(d.getTime() + 24 * 3600e3)].map((x) => x.toISOString().slice(0, 10));
@@ -47,15 +49,25 @@ export class DayCache {
   }
 }
 
+/** Days to search: around the kickoff, or from the day before the bet to 3 days after it. */
+function searchDays(item: ItemRef): string[] {
+  if (item.kickoffAt) return days(item.kickoffAt);
+  const a = item.anchor!;
+  return [-1, 0, 1, 2, 3].map((o) => new Date(a.getTime() + o * 24 * 3600e3).toISOString().slice(0, 10));
+}
+
 async function lookup(item: ItemRef, cache: DayCache): Promise<ItemMatch | null> {
-  if (!item.kickoffAt) return null;
-  const when = item.kickoffAt;
-  const near = (iso: string) => Math.abs(new Date(iso).getTime() - when.getTime()) < 36 * 3600e3;
+  if (!item.kickoffAt && !item.anchor) return null;
+  const when = item.kickoffAt ?? item.anchor!;
+  // Unknown kickoff: any game of these teams from the bet date on (bets are placed before the game).
+  const near = (iso: string) => item.kickoffAt
+    ? Math.abs(new Date(iso).getTime() - when.getTime()) < 36 * 3600e3
+    : new Date(iso).getTime() >= when.getTime() - 24 * 3600e3 && new Date(iso).getTime() <= when.getTime() + 4 * 24 * 3600e3;
 
   if (item.sport === 'FOOTBALL') {
     const league = espnLeagueFor(item.competition);
     if (!league) return null;
-    for (const day of days(when)) {
+    for (const day of searchDays(item)) {
       const list = await cache.get(`fb|${league}|${day}`, () => fetchEspnFootballDay(league, day));
       const m = list.find((x) => near(x.kickoffAt) && sameMatch(x.home.name, x.away.name, item.homeTeam, item.awayTeam));
       if (m) {
@@ -71,7 +83,7 @@ async function lookup(item: ItemRef, cache: DayCache): Promise<ItemMatch | null>
   }
 
   if (item.sport === 'BASKETBALL') {
-    for (const day of days(when)) {
+    for (const day of searchDays(item)) {
       const list = await cache.get(`nba|${day}`, () => fetchEspnNbaDay(day));
       const m = list.find((x) => near(x.startAt) && sameMatch(x.home.name, x.away.name, item.homeTeam, item.awayTeam));
       if (m) {
@@ -87,7 +99,7 @@ async function lookup(item: ItemRef, cache: DayCache): Promise<ItemMatch | null>
 
   if (item.sport === 'TENNIS') {
     for (const tour of ['atp', 'wta'] as const) {
-      for (const day of days(when)) {
+      for (const day of searchDays(item)) {
         const list = await cache.get(`t|${tour}|${day}`, () => fetchEspnTennisDay(tour, day));
         const m = list.find((x) => !x.doubles && near(x.startAt) && sameMatch(x.playerA, x.playerB, item.homeTeam, item.awayTeam));
         if (m) {
