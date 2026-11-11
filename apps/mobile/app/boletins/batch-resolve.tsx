@@ -205,7 +205,7 @@ export default function BatchResolveScreen() {
           <Animated.View key={current.id} entering={FadeInRight.duration(200).springify()} style={styles.cardSection}>
             <Card style={styles.mainCard}>
               <Text style={[styles.boletinName, { color: colors.textPrimary }]}>
-                {current.name || 'Boletim sem nome'}
+                {current.name || (current.items.length === 1 ? `${current.items[0]!.homeTeam} vs ${current.items[0]!.awayTeam}` : `Múltipla · ${current.items.length} seleções`)}
               </Text>
 
               <View style={styles.metaRow}>

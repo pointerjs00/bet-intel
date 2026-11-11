@@ -100,6 +100,7 @@ export default function ProfileScreen() {
           ) : (
             <HeroCard style={styles.identity}>
               <AvatarPicker
+                compact
                 currentUri={profile.avatarUrl}
                 name={profile.displayName ?? profile.username}
                 onPick={handleAvatarPick}

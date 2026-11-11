@@ -39,6 +39,13 @@ const PERIOD_LABEL: Record<StatsPeriod, string> = {
 
 
 const View = ReactNative.View;
+
+/** The boletim's own name, or the game ("Omonia vs SL Benfica") / "Múltipla · 3" when it has none. */
+function boletinTitle(b: { name: string | null; items: Array<{ homeTeam: string; awayTeam: string }> }): string {
+  if (b.name) return b.name;
+  if (b.items.length === 1) return `${b.items[0]!.homeTeam} vs ${b.items[0]!.awayTeam}`;
+  return b.items.length ? `Múltipla · ${b.items.length} seleções` : 'Boletim';
+}
 const ScrollView = ReactNative.ScrollView;
 
 const DETAILED_PAGE_COUNT = 4;
@@ -107,7 +114,7 @@ function BoletinList({ items, color }: { items: PersonalStats['bestBoletins']; c
         <View key={b.id} style={s.listRow}>
           <Text style={s.listRank}>{i + 1}</Text>
           <View style={s.listNameCol}>
-            <Text numberOfLines={1} style={s.listName}>{b.name ?? 'Boletim sem nome'}</Text>
+            <Text numberOfLines={1} style={s.listName}>{boletinTitle(b)}</Text>
             <Text style={s.listDate}>{fmtDate(b.createdAt)}</Text>
           </View>
           <Text style={[s.listValue, { color }]}>
@@ -428,7 +435,7 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
         {stats.bestBoletins[0] && stats.bestBoletins[0].profitLoss > 0 && (
           <View style={s.simpleBest}>
             <Text style={s.sectionLabel}>🏆  Melhor boletim</Text>
-            <Text numberOfLines={1} style={s.simpleBestName}>{stats.bestBoletins[0].name ?? 'Boletim sem nome'}</Text>
+            <Text numberOfLines={1} style={s.simpleBestName}>{boletinTitle(stats.bestBoletins[0])}</Text>
             <Text style={s.simpleBestSub}>
               {fmtDate(stats.bestBoletins[0].createdAt)} · +{formatCurrency(stats.bestBoletins[0].profitLoss)} · Odds {formatOdds(stats.bestBoletins[0].totalOdds)}
             </Text>
