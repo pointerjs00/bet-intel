@@ -32,7 +32,8 @@ import { recomputeBoletinAfterItemChange } from '../services/boletins/boletinSer
 
 const POLLS_PER_RUN = 3;
 const POLL_INTERVAL_MS = 20_000;
-const LOOKBACK_MS = 48 * 60 * 60 * 1000;
+// 5 days: a selection whose kickoff was filled late (or a delayed result) still gets settled.
+const LOOKBACK_MS = 5 * 24 * 60 * 60 * 1000;
 const LOOKAHEAD_MS = 15 * 60 * 1000;
 const REF_TTL_S = 7 * 24 * 60 * 60;
 
@@ -55,6 +56,7 @@ const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,
 
 export { espnLeagueFor } from '../services/sportsData/leagueMap';
 import { espnLeagueFor } from '../services/sportsData/leagueMap';
+import { findItemMatches } from '../services/sportsData/itemMatch';
 export async function liveBetTrackerJob(): Promise<void> {
   for (let i = 0; i < POLLS_PER_RUN; i++) {
     try {
@@ -66,7 +68,40 @@ export async function liveBetTrackerJob(): Promise<void> {
   }
 }
 
+/**
+ * Selections saved without a kickoff (quick log, some imports) were invisible to the tracker:
+ * find their game from the bet date and store its kickoff, so they get tracked, notified and
+ * settled like the rest. Runs at most once every 5 minutes.
+ */
+async function backfillKickoffs(): Promise<void> {
+  if (!(await redis.set('tracker:backfill', '1', 'EX', 300, 'NX').catch(() => null))) return;
+  const items = await prisma.boletinItem.findMany({
+    where: {
+      result: 'PENDING',
+      kickoffAt: null,
+      sport: { in: ['FOOTBALL', 'BASKETBALL', 'TENNIS'] },
+      boletin: { status: 'PENDING', createdAt: { gte: new Date(Date.now() - 10 * 24 * 3600e3) } },
+    },
+    select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, boletin: { select: { betDate: true, createdAt: true } } },
+    take: 100,
+  });
+  if (!items.length) return;
+  const found = await findItemMatches(items.map((i) => ({
+    id: i.id, sport: String(i.sport), competition: i.competition, homeTeam: i.homeTeam, awayTeam: i.awayTeam,
+    kickoffAt: null, anchor: i.boletin.betDate ?? i.boletin.createdAt,
+  })));
+  let n = 0;
+  for (const [id, m] of Object.entries(found)) {
+    if (!m) continue;
+    await prisma.boletinItem.update({ where: { id }, data: { kickoffAt: new Date(m.kickoffAt) } }).catch(() => undefined);
+    await redis.del(`itemmatch:${id}`).catch(() => undefined);
+    n++;
+  }
+  if (n) logger.info('[liveBetTracker] kickoff filled from the matched game', { count: n });
+}
+
 async function trackOnce(): Promise<void> {
+  await backfillKickoffs().catch((err) => logger.warn('[liveBetTracker] backfill failed', { error: err instanceof Error ? err.message : String(err) }));
   await trackFootball();
   await trackTennis();
   await trackBasketball();
