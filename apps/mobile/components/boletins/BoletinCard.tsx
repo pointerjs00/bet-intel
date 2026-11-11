@@ -12,6 +12,7 @@ import { formatCurrency, formatLongDate, formatOdds } from '../../utils/formatte
 import { hapticMedium } from '../../utils/haptics';
 import { BETTING_SITES } from '../../utils/sportAssets';
 import { StatusPill } from '../ui/StatusPill';
+import { SiteMark } from '../ui/SiteMark';
 import { useCardElevation } from '../ui/ListCard';
 
 interface BoletinCardProps {
@@ -103,9 +104,12 @@ export const BoletinCard = React.memo(function BoletinCard({ boletin, onPress }:
         {boletin.items.length > 1 ? (
           <Text style={[styles.cMetaText, { color: colors.textSecondary }]}>{`Múltipla · ${boletin.items.length}`}</Text>
         ) : null}
-        <Text numberOfLines={1} style={[styles.cMetaText, styles.cMetaRight, { color: colors.textMuted }]}>
-          {[BETTING_SITES.find((s) => s.slug === boletin.siteSlug)?.name, new Date(boletin.betDate ?? boletin.createdAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '')].filter(Boolean).join(' · ')}
-        </Text>
+        <View style={styles.cMetaRightRow}>
+          <SiteMark size={16} slug={boletin.siteSlug} />
+          <Text numberOfLines={1} style={[styles.cMetaText, { color: colors.textMuted }]}>
+            {boletin.siteSlug ? '· ' : ''}{new Date(boletin.betDate ?? boletin.createdAt).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' }).replace('.', '')}
+          </Text>
+        </View>
       </View>
 
       {boletin.items.length === 1 && boletin.items[0] ? (
@@ -287,7 +291,7 @@ const styles = StyleSheet.create({
   cMore: { fontFamily: 'Inter_500Medium', fontSize: 12, marginLeft: 23 },
   cMeta: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   cMetaText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
-  cMetaRight: { flex: 1, textAlign: 'right' },
+  cMetaRightRow: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 5, justifyContent: 'flex-end' },
   cStrip: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 8 },
   cCell: { flex: 1, gap: 1 },
   cCellEnd: { alignItems: 'flex-end', flex: 1.4 },

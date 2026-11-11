@@ -11,3 +11,23 @@ test('matchScore ranks prefix > word prefix > contained', () => {
   assert.equal(matchScore('Atlético Madrid', 'atle mad'), 2);
   assert.equal(matchScore('Anything', ''), 0);
 });
+
+import { resolveIndexedTeam } from './searchRank';
+
+test('resolveIndexedTeam picks the one team a bet name denotes', () => {
+  const index = [
+    { id: '1', sport: 'FOOTBALL' as const, name: 'Sporting CP' },
+    { id: '2', sport: 'FOOTBALL' as const, name: 'Sporting Gijón' },
+    { id: '3', sport: 'FOOTBALL' as const, name: 'Sporting Kansas City' },
+    { id: '4', sport: 'FOOTBALL' as const, name: 'Inglaterra' },
+    { id: '5', sport: 'FOOTBALL' as const, name: 'New England Revolution' },
+    { id: '6', sport: 'FOOTBALL' as const, name: 'Benfica' },
+  ];
+  assert.equal(resolveIndexedTeam('Sporting CP', 'FOOTBALL', index)?.id, '1');
+  assert.equal(resolveIndexedTeam('Sporting', 'FOOTBALL', index)?.id, '1');
+  assert.equal(resolveIndexedTeam('Inglaterra', 'FOOTBALL', index)?.id, '4');
+  assert.equal(resolveIndexedTeam('England', 'FOOTBALL', index)?.id, '4');
+  assert.equal(resolveIndexedTeam('SL Benfica', 'FOOTBALL', index)?.id, '6');
+  assert.equal(resolveIndexedTeam('Sporting Gijon', 'FOOTBALL', index)?.id, '2');
+  assert.equal(resolveIndexedTeam('Benfica', 'BASKETBALL', index), null);
+});

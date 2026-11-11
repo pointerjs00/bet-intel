@@ -3,11 +3,11 @@
 
 import { prisma } from '../../prisma';
 import { redis } from '../../utils/redis';
-import { teamNamesMatch } from '../marketResolutionEngine';
+import { teamMatchScore, teamNamesMatch } from '../marketResolutionEngine';
 import { countryToPt } from '../../utils/countryNames';
 import { ESPN_FOOTBALL_LEAGUES } from './espnFootball';
 import { TEAM_INDEX_KEY, type IndexedTeam } from '../../jobs/sportAssetsJob';
-import { matchScore } from './searchRank';
+import { matchScore, resolveIndexedTeam } from './searchRank';
 
 const FIRST_SEASON = 2019; // ESPN season 2019 = 2019/20 (football), so matches from 2020 are covered
 const LEAGUE_NAME: Record<string, string> = {
@@ -41,19 +41,27 @@ export async function searchTeams(userId: string, q: string): Promise<SearchHit[
     }
   }
   const index = await allTeams();
+  // Each bet name counts for exactly one team (or none), never for every lookalike.
+  const betsByTeam = new Map<string, number>();
+  const unresolved: Array<[string, { sport: string; n: number }]> = [];
+  for (const [n, c] of counts) {
+    const t = resolveIndexedTeam(n, c.sport, index);
+    if (t) betsByTeam.set(`${t.sport}:${t.id}`, (betsByTeam.get(`${t.sport}:${t.id}`) ?? 0) + c.n);
+    else unresolved.push([n, c]);
+  }
   const teams = empty
-    // Only the indexed teams behind the user's most-bet names.
-    ? index.filter((t) => [...counts.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 15).some(([n, c]) => c.sport === t.sport && teamNamesMatch(n, t.name)))
-    : index.filter((t) => matchScore(t.name, q) > 0);
+    // Only the indexed teams the user actually bets on.
+    ? index.filter((t) => betsByTeam.has(`${t.sport}:${t.id}`))
+    : index.filter((t) => matchScore(t.name, q) > 0 || betsByTeam.has(`${t.sport}:${t.id}`));
 
   const hits: SearchHit[] = teams.map((t) => ({
     kind: 'team', sport: t.sport, id: t.id, name: t.name, logo: t.logo, leagues: t.leagues.map((l) => LEAGUE_NAME[l] ?? l),
-    bets: [...counts.entries()].filter(([n]) => teamNamesMatch(n, t.name)).reduce((a, [, c]) => a + c.n, 0),
+    bets: betsByTeam.get(`${t.sport}:${t.id}`) ?? 0,
   }));
   // Names from bets that no indexed team covers (tennis players, unfollowed leagues).
-  for (const [name, c] of counts) {
-    if (hits.some((h) => h.kind === 'team' && teamNamesMatch(name, h.name))) continue;
-    if (hits.some((h) => h.kind === 'name' && teamNamesMatch(name, h.name))) continue;
+  for (const [name, c] of unresolved) {
+    const same = hits.find((h) => h.kind === 'name' && h.sport === c.sport && teamMatchScore(name, h.name) >= 2);
+    if (same) { same.bets += c.n; continue; }
     hits.push({ kind: 'name', sport: c.sport, id: null, name, logo: null, leagues: [], bets: c.n });
   }
   if (empty) return hits.sort((a, b) => b.bets - a.bets || a.name.localeCompare(b.name)).slice(0, 12);
@@ -184,7 +192,11 @@ export async function teamHistory(userId: string, ref: { sport?: string; id?: st
       boletin: { select: { id: true, name: true, status: true, stake: true, actualReturn: true, isFreebet: true, _count: { select: { items: true } } } },
     },
   });
-  const mine = items.filter((it) => teamNamesMatch(it.homeTeam, name) || teamNamesMatch(it.awayTeam, name));
+  // A selection is on this team when its name resolves to this team (indexed teams) or, for
+  // name-only entries (tennis players, other leagues), when the names are the same.
+  const index = team ? await allTeams() : [];
+  const isThis = (n: string) => (team ? resolveIndexedTeam(n, team.sport, index)?.id === team.id : teamMatchScore(n, name) >= 2);
+  const mine = items.filter((it) => isThis(it.homeTeam) || isThis(it.awayTeam));
   const otherBets: TeamBet[] = [];
   const summary = { selections: mine.length, won: 0, lost: 0, void: 0, pending: 0, hitRate: null as number | null, averageOdd: null as number | null, singlesProfit: 0, singlesStaked: 0 };
   let oddSum = 0;
@@ -201,7 +213,7 @@ export async function teamHistory(userId: string, ref: { sport?: string; id?: st
     if (it.result === 'WON') summary.won++; else if (it.result === 'LOST') summary.lost++; else if (it.result === 'VOID') summary.void++; else summary.pending++;
     oddSum += bet.odd;
     if (single && profit !== null) { summary.singlesProfit += profit; summary.singlesStaked += it.boletin.isFreebet ? 0 : stake; }
-    const opponent = teamNamesMatch(it.homeTeam, name) ? it.awayTeam : it.homeTeam;
+    const opponent = isThis(it.homeTeam) ? it.awayTeam : it.homeTeam;
     const match = it.kickoffAt ? matches.find((m) => Math.abs(new Date(m.kickoffAt).getTime() - it.kickoffAt!.getTime()) < 36 * 3600e3
       && (teamNamesMatch(m.home, opponent) || teamNamesMatch(m.away, opponent))) : undefined;
     if (match) match.bets.push(bet); else otherBets.push(bet);

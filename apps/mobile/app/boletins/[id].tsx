@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Keyboard, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { SiteMark } from '../../components/ui/SiteMark';
 import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useItemMatches } from '../../services/sportsService';
@@ -588,12 +589,7 @@ export default function BoletinDetailScreen() {
                   </View>
                 ) : null}
                 {boletin.siteSlug ? (
-                  <View style={styles.metaItem}>
-                    <Ionicons color={colors.textMuted} name="business-outline" size={13} />
-                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                      {BETTING_SITES.find((s) => s.slug === boletin.siteSlug)?.name ?? boletin.siteSlug}
-                    </Text>
-                  </View>
+                  <SiteMark size={16} slug={boletin.siteSlug} style={styles.metaItem} textStyle={styles.metaText} />
                 ) : null}
               </View>
             </Animated.View>
