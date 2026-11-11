@@ -78,11 +78,12 @@ async function backfillKickoffs(): Promise<void> {
   const items = await prisma.boletinItem.findMany({
     where: {
       result: 'PENDING',
-      kickoffAt: null,
+      // No kickoff, or a kickoff still ahead (it may be wrong: e.g. a day off the real game).
+      OR: [{ kickoffAt: null }, { kickoffAt: { gt: new Date(Date.now() + 15 * 60 * 1000), lt: new Date(Date.now() + 4 * 24 * 3600e3) } }],
       sport: { in: ['FOOTBALL', 'BASKETBALL', 'TENNIS'] },
       boletin: { status: 'PENDING', createdAt: { gte: new Date(Date.now() - 10 * 24 * 3600e3) } },
     },
-    select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, boletin: { select: { betDate: true, createdAt: true } } },
+    select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true, boletin: { select: { betDate: true, createdAt: true } } },
     take: 100,
   });
   if (!items.length) return;
@@ -91,8 +92,14 @@ async function backfillKickoffs(): Promise<void> {
     kickoffAt: null, anchor: i.boletin.betDate ?? i.boletin.createdAt,
   })));
   let n = 0;
+  const stored = new Map(items.map((i) => [i.id, i.kickoffAt]));
   for (const [id, m] of Object.entries(found)) {
     if (!m) continue;
+    const prev = stored.get(id);
+    // Keep a stored kickoff that agrees with the game (within 2 h); fix it when it's off.
+    if (prev && Math.abs(prev.getTime() - new Date(m.kickoffAt).getTime()) < 2 * 3600e3) continue;
+    // Only overrule a future kickoff with a game that already started (not another, earlier meeting).
+    if (prev && m.status === 'SCHEDULED') continue;
     await prisma.boletinItem.update({ where: { id }, data: { kickoffAt: new Date(m.kickoffAt) } }).catch(() => undefined);
     await redis.del(`itemmatch:${id}`).catch(() => undefined);
     n++;
