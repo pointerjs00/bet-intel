@@ -1,5 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Keyboard, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { SiteMark } from '../../components/ui/SiteMark';
+import { BoletimResultHero } from '../../components/boletins/BoletimResultHero';
+import { LegCard } from '../../components/boletins/LegCard';
+import { IconTile } from '../../components/stats/v3/StatCard';
 import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useItemMatches } from '../../services/sportsService';
@@ -517,6 +521,8 @@ export default function BoletinDetailScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={
           <View style={styles.headerWrap}>
+            {!isEditing ? <BoletimResultHero boletin={boletin} /> : null}
+            {isEditing ? (
             <Animated.View entering={FadeInUp.duration(160).springify()}>
               {/* Redesign D6: "talão" hero instead of the coloured banner + 6-tile grid. */}
               <HeroCard style={styles.ticket}>
@@ -573,7 +579,9 @@ export default function BoletinDetailScreen() {
                 </View>
               </HeroCard>
             </Animated.View>
+            ) : null}
 
+            {isEditing ? (
             <Animated.View entering={FadeInDown.delay(30).duration(280).springify()}>
               {/* Metadata row */}
               <View style={styles.metaRow}>
@@ -588,15 +596,11 @@ export default function BoletinDetailScreen() {
                   </View>
                 ) : null}
                 {boletin.siteSlug ? (
-                  <View style={styles.metaItem}>
-                    <Ionicons color={colors.textMuted} name="business-outline" size={13} />
-                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                      {BETTING_SITES.find((s) => s.slug === boletin.siteSlug)?.name ?? boletin.siteSlug}
-                    </Text>
-                  </View>
+                  <SiteMark size={16} slug={boletin.siteSlug} style={styles.metaItem} textStyle={styles.metaText} />
                 ) : null}
               </View>
             </Animated.View>
+            ) : null}
             <Animated.View entering={FadeInDown.delay(100).duration(280).springify()} style={styles.actionButtons}>
               {isEditing ? (
                 <>
@@ -797,20 +801,7 @@ export default function BoletinDetailScreen() {
               </Animated.View>
             ) : null}
 
-            <BoletinInsightsSection boletin={boletin} />
-
-            {boletin.status !== BoletinStatus.PENDING && (
-              <Pressable
-                onPress={() => setShowExplainer(true)}
-                style={[styles.explainBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-              >
-                <Ionicons name="search-outline" size={16} color={colors.primary} />
-                <Text style={[styles.explainBtnText, { color: colors.primary }]}>Explica-me esta aposta</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
-              </Pressable>
-            )}
-
-            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Seleções</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{isEditing ? 'Seleções' : boletin.items.length > 1 ? `Jogos · ${boletin.items.filter((i) => i.result === ItemResult.WON).length} de ${boletin.items.length} certas` : 'Jogo'}</Text>
 
             {isEditing ? (
               <Card style={styles.addItemCard}>
@@ -1167,7 +1158,35 @@ export default function BoletinDetailScreen() {
             ) : null}
           </View>
         }
-        renderItem={({ item, index }) => (
+        ListFooterComponent={!isEditing ? (
+          <Animated.View entering={FadeInDown.delay(260).duration(300)} style={styles.v2Footer}>
+            <PressableScale
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/boletins/analise', params: { id: boletin.id } })}
+              style={[styles.v2AnalysisBtn, { backgroundColor: colors.surface }]}
+            >
+              <IconTile icon={{ name: 'stats-chart', tone: 'blue' }} size={34} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.v2AnalysisTitle, { color: colors.textPrimary }]}>Análise do boletim</Text>
+                <Text style={[styles.v2AnalysisSub, { color: colors.textMuted }]}>Probabilidades, o teu histórico, explicação e gestão</Text>
+              </View>
+              <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+            </PressableScale>
+          </Animated.View>
+        ) : null}
+        renderItem={({ item, index }) => !isEditing ? (
+          <LegCard
+            index={index}
+            item={item}
+            match={itemMatches.data?.[item.id] ?? null}
+            onPress={(() => {
+              const m = itemMatches.data?.[item.id];
+              return m && m.sport === 'FOOTBALL' && m.league
+                ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: m.league!, item: item.id } })
+                : undefined;
+            })()}
+          />
+        ) : (
           <Animated.View entering={FadeInDown.delay(450 + index * 25).duration(280).springify()}>
             <BoletinItem
               item={{
@@ -1384,6 +1403,10 @@ function getErrorMessage(error: unknown): string {
 }
 
 const styles = StyleSheet.create({
+  v2Footer: { marginTop: 16 },
+  v2AnalysisBtn: { alignItems: 'center', borderRadius: 18, flexDirection: 'row', gap: 12, padding: 14 },
+  v2AnalysisTitle: { fontFamily: 'Inter_700Bold', fontSize: 15 },
+  v2AnalysisSub: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   moreButton: { alignItems: 'center', borderRadius: 12, height: 40, justifyContent: 'center', width: 48 },
   sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.5)', flex: 1 },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16 },

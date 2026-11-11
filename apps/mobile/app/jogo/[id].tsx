@@ -1,5 +1,5 @@
 // Match detail (redesign D8): score, incidents and team stats from ESPN via /api/sports.
-import React from 'react';
+import React, { useMemo } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Pressable } from '../../components/ui/Pressable';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,6 +14,9 @@ import { TeamBadge } from '../../components/ui/TeamBadge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useFootballMatch, type MatchIncident, type TeamStats } from '../../services/sportsService';
 import { useTheme } from '../../theme/useTheme';
+import { useBoletins } from '../../services/boletinService';
+import { findMatchBets, indexBetsByDay } from '../../utils/dayBets';
+import { MatchBetVerdict, OtherMarkets } from '../../components/fixtures/MatchBetVerdict';
 
 const STAT_ROWS: Array<{ key: keyof TeamStats; label: string; percent?: boolean }> = [
   { key: 'possession', label: 'Posse de bola', percent: true },
@@ -63,6 +66,14 @@ export default function MatchDetailScreen() {
   const live = m?.status === 'LIVE' || m?.status === 'HALFTIME';
   const kickoff = m ? new Date(m.kickoffAt) : null;
   const keyIncidents = (m?.incidents ?? []).filter((i) => i.type !== 'SUB');
+  // The user's selections on this match (one verdict per selection).
+  const boletins = useBoletins();
+  const bets = useMemo(() => {
+    if (!m) return [];
+    const seen = new Set<string>();
+    return findMatchBets(indexBetsByDay(boletins.data ?? []), m.kickoffAt, m.home.name, m.away.name)
+      .filter((x) => { const k = `${x.bet.boletinId}|${x.bet.selection}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  }, [boletins.data, m]);
 
   return (
     <>
@@ -112,6 +123,17 @@ export default function MatchDetailScreen() {
               </View>
               {m.venue ? <AppText style={styles.centerText} variant="caption">{m.venue}</AppText> : null}
             </HeroCard>
+
+            {bets.map((x, i) => (
+              <MatchBetVerdict
+                bet={x.bet}
+                key={`${x.bet.boletinId}-${i}`}
+                match={m}
+                onOpenBoletim={() => router.push(`/boletins/${x.bet.boletinId}`)}
+              />
+            ))}
+            <OtherMarkets match={m} />
+            {bets.length > 0 ? <AppText style={styles.sectionLabel} variant="label">O JOGO</AppText> : null}
 
             {keyIncidents.length > 0 ? (
               <>
@@ -175,6 +197,7 @@ export default function MatchDetailScreen() {
 
 const styles = StyleSheet.create({
   content: { gap: 14, paddingHorizontal: 20 },
+  sectionLabel: { letterSpacing: 0.6, marginTop: 6 },
   flex: { flex: 1 },
   back: { alignItems: 'center', borderRadius: 22, height: 44, justifyContent: 'center', width: 44 },
   hero: { gap: 12, padding: 20 },

@@ -170,6 +170,22 @@ function nameMatches(text: string, name: string): boolean {
   return ta.length > 0 && ta.every((t) => tb.has(t));
 }
 
+/**
+ * How strongly two names denote the same team, for picking ONE team among many (search, history):
+ * 3 = same name (after aliases / PT names), 2 = same significant words, 1 = loose match
+ * (one contained in the other, e.g. "Sporting" in "Sporting Gijón"), 0 = different.
+ */
+export function teamMatchScore(a: string, b: string): number {
+  const ka = teamKey(a);
+  const kb = teamKey(b);
+  if (!ka || !kb) return 0;
+  if (ka === kb) return 3;
+  const ta = [...new Set(significantTokens(a))].sort().join(' ');
+  const tb = [...new Set(significantTokens(b))].sort().join(' ');
+  if (ta && ta === tb) return 2;
+  return teamNamesMatch(a, b) ? 1 : 0;
+}
+
 /** Maps a team name found in a selection to the home or away side; null when ambiguous or unknown. */
 function sideOf(text: string, ctx?: MatchContext): 'H' | 'A' | null {
   if (!ctx || !text.trim()) return null;

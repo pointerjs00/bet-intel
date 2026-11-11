@@ -5,7 +5,7 @@ import { useSwipeToDismiss } from '../../hooks/useSwipeToDismiss';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { Easing, FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, FadeIn, FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import type { StatsBreakdownRow, StatsByHourRow, StatsPeriod } from '@betintel/shared';
 import { BreakdownTable, CompetitionBreakdownLabel, TeamBreakdownLabel } from '../../components/stats/BreakdownTable';
 import { CalibrationChart } from '../../components/stats/CalibrationChart';
@@ -44,7 +44,7 @@ import { DeltaBadge } from '../../components/stats/DeltaBadge';
 import { CustomMetricCard } from '../../components/stats/CustomMetricCard';
 import StatsCustomizeSheet from '../../components/stats/StatsCustomizeSheet';
 import { useAiReview, usePersonalStats, useRecentForm, useStatsTimeline } from '../../services/statsService';
-import { RecentFormCard } from '../../components/stats/RecentFormCard';
+import { BetsTab, HabitsTab, SportsTab, SummaryTab, type AnalysisTab, type TabContext } from '../../components/stats/v3/AnalysisTabs';
 import { StatsShareSheet } from '../../components/stats/StatsShareSheet';
 import { useCustomMetricsStore } from '../../stores/customMetricsStore';
 import { useStatsDashboardStore } from '../../stores/statsDashboardStore';
@@ -73,6 +73,20 @@ const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
   { value: 'year', label: 'Ano' },
   { value: 'all', label: 'Sempre' },
 ];
+
+const TAB_OPTIONS: Array<{ value: AnalysisTab; label: string }> = [
+  { value: 'summary', label: 'Resumo' },
+  { value: 'sports', label: 'Desportos' },
+  { value: 'bets', label: 'Apostas' },
+  { value: 'habits', label: 'Hábitos' },
+];
+
+const PERIOD_HERO: Record<StatsPeriod, string> = {
+  week: 'Esta semana',
+  month: 'Este mês',
+  year: 'Este ano',
+  all: 'Desde sempre',
+};
 
 const PERIOD_TITLE: Record<StatsPeriod, string> = {
   week: 'esta semana',
@@ -617,6 +631,7 @@ export default function StatsScreen() {
   const router = useRouter();
   const { colors, tokens } = useTheme();
   const [period, setPeriod] = useState<StatsPeriod>('year');
+  const [tab, setTab] = useState<AnalysisTab>('summary');
   // Custom date range (overrides period chips when both are set)
   const [useCustomRange, setUseCustomRange] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date | null>(null);
@@ -786,9 +801,6 @@ export default function StatsScreen() {
         <View style={styles.headerTopRow}>
           <AppText variant="title">Análise</AppText>
           <View style={{ flexDirection: 'row', gap: 4 }}>
-            <TouchableOpacity onPress={() => setShowCustomize(true)} hitSlop={8} style={styles.headerIconBtn}>
-              <Ionicons color={colors.textSecondary} name="options-outline" size={22} />
-            </TouchableOpacity>
             <TouchableOpacity onPress={handleExport} hitSlop={8} style={styles.headerIconBtn}>
               <Ionicons color={colors.textSecondary} name="download-outline" size={22} />
             </TouchableOpacity>
@@ -974,466 +986,66 @@ export default function StatsScreen() {
           )
         ) : (
           <View style={styles.contentStack}>
-            {/* Hero (D7): one main number per screen — profit of the period */}
-            <Animated.View entering={FadeInDown.delay(35).duration(220)}>
-            <HeroCard>
-              <View style={styles.heroTop}>
-                <AppText variant="label">Lucro · {useCustomRange ? 'intervalo escolhido' : PERIOD_TITLE[period]}</AppText>
-                <Pressable
-                  accessibilityHint="Explica o ROI"
-                  accessibilityRole="button"
-                  hitSlop={8}
-                  onPress={() => pushInfo('roi', stats.summary.roi)}
-                  style={[styles.roiPill, { backgroundColor: stats.summary.roi >= 0 ? 'rgba(61,255,162,0.16)' : 'rgba(255,107,122,0.18)' }]}
-                >
-                  <AppText tone={stats.summary.roi >= 0 ? 'positive' : 'negative'} variant="label">
-                    ROI {stats.summary.roi >= 0 ? '+' : ''}{stats.summary.roi.toFixed(1).replace('.', ',')}%
-                  </AppText>
-                </Pressable>
-              </View>
-              <AppText tone={stats.summary.profitLoss >= 0 ? 'positive' : 'negative'} variant="numberLarge">
-                {stats.summary.profitLoss >= 0 ? '+' : '−'}{formatCurrency(Math.abs(stats.summary.profitLoss))}
-              </AppText>
-              {prevStats ? <DeltaBadge current={stats.summary.profitLoss} previous={prevStats.summary.profitLoss} format="currency" /> : null}
-              {heroBars.length > 1 ? (
-                <View accessibilityLabel="Lucro por período" style={styles.heroBars}>
-                  {heroBars.map((v, i) => (
-                    <View key={i} style={styles.heroBarSlot}>
-                      <View
-                        style={{
-                          backgroundColor: v >= 0 ? colors.heroPositive : colors.heroNegative,
-                          borderRadius: 4,
-                          height: `${Math.max(6, (Math.abs(v) / heroMax) * 100)}%`,
-                          opacity: v === 0 ? 0.25 : 1,
-                        }}
-                      />
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-              <View style={styles.heroTiles}>
-                <HeroTile><MetricTile label="Apostado" value={formatCurrency(stats.summary.totalStaked)} /></HeroTile>
-                <HeroTile><MetricTile label="Vitórias" value={`${Math.round(stats.summary.winRate)}%`} /></HeroTile>
-                <HeroTile><MetricTile label="Odd média" value={formatOdds(stats.summary.averageOdds)} /></HeroTile>
-              </View>
-            </HeroCard>
+            <SegmentedControl onChange={setTab} options={TAB_OPTIONS} value={tab} />
+            <Animated.View entering={FadeIn.duration(220)} key={tab}>
+              {(() => {
+                const ctx: TabContext = {
+                  stats,
+                  timeline: timelineData,
+                  boletins: boletinsQuery.data ?? [],
+                  periodLabel: useCustomRange ? 'No intervalo escolhido' : PERIOD_HERO[period],
+                  onInfo: (metric, value) => pushInfo(metric, value),
+                  onFilter: (params) => router.push({ pathname: '/(tabs)/boletins', params }),
+                  onOpenTeam: (name) => router.push({ pathname: '/equipa', params: { name } }),
+                };
+                if (tab === 'sports') return <SportsTab ctx={ctx} />;
+                if (tab === 'bets') return <BetsTab ctx={ctx} />;
+                if (tab === 'habits') return <HabitsTab ctx={ctx} />;
+                return (
+                  <SummaryTab
+                    ctx={ctx}
+                    footer={
+                      <>
+                        <GoalProgressCard />
+                        <AIReviewCard
+                          data={aiReview.data}
+                          error={aiReview.error as Error | null}
+                          isLoading={aiReview.isLoading}
+                          onGenerate={aiReview.generate}
+                        />
+                        {customMetrics.length > 0 ? (
+                          <View style={styles.customMetricsHeader}>
+                            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>As tuas métricas</Text>
+                          </View>
+                        ) : null}
+                        {customMetrics.map((cm) => (
+                          <CustomMetricCard
+                            key={cm.id}
+                            metric={cm}
+                            onEdit={() => router.push({ pathname: '/custom-metric', params: { id: cm.id } })}
+                            stats={stats}
+                            timeline={timelineData}
+                          />
+                        ))}
+                        <Pressable
+                          onPress={() => router.push('/custom-metric')}
+                          style={[styles.addMetricBtn, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
+                        >
+                          <Ionicons color={colors.primary} name="add-circle-outline" size={20} />
+                          <Text style={[styles.addMetricText, { color: colors.primary }]}>Criar métrica personalizada</Text>
+                        </Pressable>
+                      </>
+                    }
+                  />
+                );
+              })()}
             </Animated.View>
-
-            {/* Highlights: the automatic conclusions first, so the screen opens with "what this means" */}
-            {stats.insights.length > 0 ? (
-              <ScrollView
-                contentContainerStyle={styles.highlightRow}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.highlightScroll}
-              >
-                {stats.insights.map((ins, i) => {
-                  const tint = ins.sentiment === 'positive' ? colors.positive : ins.sentiment === 'negative' ? colors.negative : colors.accent;
-                  return (
-                    <Animated.View entering={FadeInDown.delay(80 + i * 40).duration(220)} key={ins.id} style={[styles.highlightCard, elevation, { backgroundColor: colors.surface }]}>
-                      <View style={[styles.highlightIcon, { backgroundColor: `${tint}22` }]}>
-                        <Ionicons color={tint} name={ionicon(ins.icon)} size={18} />
-                      </View>
-                      <AppText numberOfLines={2} variant="bodyStrong">{ins.title}</AppText>
-                      <AppText numberOfLines={3} variant="caption">{ins.body}</AppText>
-                    </Animated.View>
-                  );
-                })}
-              </ScrollView>
-            ) : null}
-
-            {getEffectiveOrder().map((sectionId) => {
-              if (!isSectionVisible(sectionId)) return null;
-
-              switch (sectionId) {
-              case 'goals': return (
-                <GoalProgressCard key="goals" />
-              );
-
-              // ROI, total staked and profit now live in the hero card above (D7).
-              case 'roi': return null;
-
-              case 'hero-metrics': return null;
-
-              case 'avg-odds': return (
-                <Animated.View key="avg-odds" entering={FadeInDown.delay(80).duration(160).springify()} style={styles.heroMetricsRow}>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média (ganhas)</Text>
-                    <Text style={[styles.metricValue, { color: colors.primary }]}>{formatOdds(stats.summary.averageWonOdds)}</Text>
-                    {prevStats && <DeltaBadge current={stats.summary.averageWonOdds} previous={prevStats.summary.averageWonOdds} format="number" />}
-                  </Card>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média (perdidas)</Text>
-                    <Text style={[styles.metricValue, { color: colors.danger }]}>{formatOdds(stats.summary.averageLostOdds)}</Text>
-                    {prevStats && <DeltaBadge current={stats.summary.averageLostOdds} previous={prevStats.summary.averageLostOdds} format="number" invertColors />}
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'win-rate': return (
-                <Animated.View key="win-rate" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <WinRateRing winRate={stats.summary.winRate} onInfoPress={() => pushInfo('win-rate', stats.summary.winRate)} />
-                  {prevStats && (
-                    <View style={styles.comparisonRow}>
-                      <Text style={[styles.comparisonLabel, { color: colors.textMuted }]}>vs período anterior</Text>
-                      <DeltaBadge current={stats.summary.winRate} previous={prevStats.summary.winRate} format="percentage" />
-                    </View>
-                  )}
-                </Animated.View>
-              );
-
-              case 'streaks': return (
-                <Animated.View key="streaks" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <StreakCard streaks={stats.summary.streaks} onInfoPress={() => pushInfo('streaks', stats.summary.streaks.currentType === 'WON' ? stats.summary.streaks.currentCount : stats.summary.streaks.currentType === 'LOST' ? -stats.summary.streaks.currentCount : 0)} />
-                </Animated.View>
-              );
-
-              case 'recent-form': return (
-                <Animated.View key="recent-form" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <RecentFormCard windows={recentFormQuery.data ?? []} onInfoPress={() => pushInfo('recent-form', 0)} />
-                </Animated.View>
-              );
-
-              case 'stake-by-outcome': return (
-                <Animated.View key="stake-by-outcome" entering={FadeInDown.delay(95).duration(160).springify()} style={styles.heroMetricsRow}>
-                  <Card style={styles.metricCard}>
-                    <View style={styles.metricLabelRow}>
-                      <InfoButton accessibilityLabel="Informação sobre stake média" onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)} showLabel={false} size="sm" />
-                      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (ganhas)</Text>
-                    </View>
-                    <Text style={[styles.metricValue, { color: colors.primary }]}>{formatCurrency(stats.summary.averageWonStake)}</Text>
-                  </Card>
-                  <Card style={styles.metricCard}>
-                    <View style={styles.metricLabelRow}>
-                      <InfoButton accessibilityLabel="Informação sobre stake média" onPress={() => pushInfo('avg-stake-outcome', stats.summary.averageWonStake - stats.summary.averageLostStake)} showLabel={false} size="sm" />
-                      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média (perdidas)</Text>
-                    </View>
-                    <Text style={[styles.metricValue, { color: colors.danger }]}>{formatCurrency(stats.summary.averageLostStake)}</Text>
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'totals': return (
-                <Animated.View key="totals" entering={FadeInDown.delay(95).duration(160).springify()} style={styles.heroMetricsRow}>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Total boletins</Text>
-                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{stats.summary.totalBoletins}</Text>
-                    <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
-                      {stats.summary.settledBoletins} decidido{stats.summary.settledBoletins !== 1 ? 's' : ''} · {stats.summary.pendingBoletins} pendente{stats.summary.pendingBoletins !== 1 ? 's' : ''}
-                    </Text>
-                    {prevStats && <DeltaBadge current={stats.summary.totalBoletins} previous={prevStats.summary.totalBoletins} format="number" />}
-                  </Card>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Stake média</Text>
-                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.averageStake)}</Text>
-                    <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
-                      Retorno médio: {formatCurrency(stats.summary.averageReturn)}
-                    </Text>
-                    {prevStats && <DeltaBadge current={stats.summary.averageStake} previous={prevStats.summary.averageStake} format="currency" />}
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'averages': return (
-                <Animated.View key="averages" entering={FadeInDown.delay(35).duration(160).springify()} style={styles.heroMetricsRow}>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Odd média geral</Text>
-                    <Text style={[styles.metricValue, { color: colors.info }]}>{formatOdds(stats.summary.averageOdds)}</Text>
-                  </Card>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Ganhos / Perdidos</Text>
-                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>
-                      <Text style={{ color: colors.primary }}>{stats.summary.wonBoletins}</Text>
-                      {' / '}
-                      <Text style={{ color: colors.danger }}>{stats.summary.lostBoletins}</Text>
-                    </Text>
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'efficiency': return (
-                <Animated.View key="efficiency" entering={FadeInDown.delay(35).duration(160).springify()} style={styles.heroMetricsRow}>
-                  <Card style={styles.metricCard}>
-                    <View style={styles.metricLabelRow}>
-                      <InfoButton accessibilityLabel="Informação sobre eficiência de odds" onPress={() => pushInfo('odds-efficiency', stats.summary.oddsEfficiency)} showLabel={false} size="sm" />
-                      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Eficiência de odds</Text>
-                    </View>
-                    <Text style={[styles.metricValue, { color: stats.summary.oddsEfficiency >= 100 ? colors.primary : stats.summary.oddsEfficiency > 0 ? colors.danger : colors.textMuted }]}>
-                      {stats.summary.oddsEfficiency > 0 ? formatPercentage(stats.summary.oddsEfficiency) : '–'}
-                    </Text>
-                    <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
-                      {stats.summary.oddsEfficiency >= 100 ? 'Acima da expectativa' : stats.summary.oddsEfficiency > 0 ? 'Abaixo da expectativa' : 'Sem dados'}
-                    </Text>
-                  </Card>
-                  <Card style={styles.metricCard}>
-                    <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Retorno médio</Text>
-                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.averageReturn)}</Text>
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'pnl-chart': return (
-                <Animated.View key="pnl-chart" entering={FadeInDown.delay(100).duration(160).springify()}>
-                  <PnLChart data={timelineData} granularity={granularity} onGranularityChange={setGranularity} onInfoPress={() => pushInfo('pnl', stats.summary.profitLoss)} />
-                </Animated.View>
-              );
-
-              case 'by-sport': return (
-                <Animated.View key="by-sport" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.bySport} title="Por desporto" filterTitle="Por desporto" onInfoPress={() => pushInfo('by-sport', stats.bySport.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterSport: row.key } })} renderLabel={(row) => (
-                    <Text numberOfLines={1} style={[styles.tableLabel, { color: colors.textPrimary }]}>
-                      {SPORT_EMOJIS[row.sport] ?? '🎯'}{'  '}{row.label}
-                    </Text>
-                  )} />
-                </Animated.View>
-              );
-
-              case 'by-team': return (
-                <Animated.View key="by-team" entering={FadeInDown.delay(130).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byTeam} title="Por equipa" filterTitle="Por equipa" onInfoPress={() => pushInfo('by-team', stats.byTeam.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterTeam: row.label } })} renderLabel={(row) => (
-                    <TeamBreakdownLabel teamName={row.label} />
-                  )} />
-                </Animated.View>
-              );
-
-              case 'by-competition': return (
-                <Animated.View key="by-competition" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byCompetition} title="Por competição" filterTitle="Por competição" onInfoPress={() => pushInfo('by-competition', stats.byCompetition.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterCompetition: row.label } })} renderLabel={(row) => (
-                    <CompetitionBreakdownLabel competitionName={row.label} />
-                  )} />
-                </Animated.View>
-              );
-
-              case 'by-market': return (
-                <Animated.View key="by-market" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <FilteredBreakdownTable expandLabels rows={stats.byMarket} title="Por mercado" filterTitle="Por mercado" onInfoPress={() => pushInfo('by-market', stats.byMarket.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterMarket: row.label } })} />
-                </Animated.View>
-              );
-
-              case 'by-odds-range': return (
-                <Animated.View key="by-odds-range" entering={FadeInDown.delay(160).duration(160).springify()}>
-                  <OddsRangeBar rows={stats.byOddsRange} onInfoPress={() => pushInfo('by-odds-range', stats.byOddsRange.length)} />
-                </Animated.View>
-              );
-
-              case 'by-site': return (
-                <Animated.View key="by-site" entering={FadeInDown.delay(35).duration(160).springify()}>
-                  <SiteROITable rows={stats.bySite} onInfoPress={() => pushInfo('by-site', stats.bySite.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterSite: row.siteSlug } })} />
-                </Animated.View>
-              );
-
-              case 'by-weekday': return (
-                <Animated.View key="by-weekday" entering={FadeInDown.delay(170).duration(160).springify()}>
-                  <FilteredBreakdownTable maxRows={7} rows={stats.byWeekday} title="Por dia da semana" filterTitle="Por dia da semana" onInfoPress={() => pushInfo('by-weekday', stats.byWeekday.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterWeekday: String(row.weekday) } })} />
-                </Animated.View>
-              );
-
-              case 'by-leg-count': return (
-                <Animated.View key="by-leg-count" entering={FadeInDown.delay(50).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byLegCount} title="Por nº de seleções" filterTitle="Por nº de seleções" onInfoPress={() => pushInfo('by-leg-count', stats.byLegCount.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterLegCount: String(row.legCount) } })} />
-                </Animated.View>
-              );
-
-              case 'freebet': return (
-                <Animated.View key="freebet" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <FreebetCard summary={stats.summary.freebetSummary} onInfoPress={() => pushInfo('freebet', stats.summary.freebetSummary.totalFreebets)} />
-                </Animated.View>
-              );
-
-              case 'heatmap': return boletinsQuery.data && boletinsQuery.data.length > 0 ? (
-                <Animated.View key="heatmap" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <HeatmapCalendar boletins={boletinsQuery.data} onInfoPress={() => pushInfo('heatmap', nonPendingBoletinCount)} />
-                </Animated.View>
-              ) : null;
-
-              case 'by-stake': return (
-                <Animated.View key="by-stake" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <FilteredBreakdownTable rows={stats.byStakeBracket} title="Por faixa de stake" filterTitle="Por faixa de stake" onInfoPress={() => pushInfo('by-stake', stats.byStakeBracket.length)} onRowPress={(row) => router.push({ pathname: '/(tabs)/boletins', params: { filterStakeMin: String(row.minStake), filterStakeMax: row.maxStake === null ? 'open' : String(row.maxStake) } })} />
-                </Animated.View>
-              );
-
-              case 'sport-market-matrix': return (
-                <Animated.View key="sport-market-matrix" entering={FadeInDown.delay(95).duration(160).springify()}>
-                  <SportMarketMatrix cells={stats.bySportMarket} onInfoPress={() => pushInfo('sport-market-matrix', stats.bySportMarket.length)} />
-                </Animated.View>
-              );
-
-              // Insights are shown as the highlight strip under the hero.
-              case 'insights': return stats.insights.length > 0 ? null : (
-                <Animated.View key="insights" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <Card style={{ gap: 6 }}>
-                    <View style={styles.placeholderRow}>
-                      <Ionicons name="bulb-outline" size={16} color={colors.textMuted} />
-                      <Text style={[styles.placeholderTitle, { color: colors.textSecondary }]}>Insights</Text>
-                    </View>
-                    <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-                      Sem insights disponíveis. Regista mais apostas para desbloquear análises automáticas.
-                    </Text>
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'roi-trend': return stats.roiTrend.length >= 2 ? (
-                <Animated.View key="roi-trend" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <ROITrendChart data={stats.roiTrend} onInfoPress={() => pushInfo('roi-trend')} />
-                </Animated.View>
-              ) : (
-                <Animated.View key="roi-trend" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <Card style={{ gap: 6 }}>
-                    <View style={styles.placeholderRow}>
-                      <Ionicons name="trending-up-outline" size={16} color={colors.textMuted} />
-                      <Text style={[styles.placeholderTitle, { color: colors.textSecondary }]}>Tendência do ROI</Text>
-                    </View>
-                    <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-                      Precisas de pelo menos 6 apostas liquidadas para ver a tendência do ROI.
-                    </Text>
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'calibration': return stats.calibration.length >= 2 ? (
-                <Animated.View key="calibration" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <CalibrationChart data={stats.calibration} onInfoPress={() => pushInfo('calibration')} />
-                </Animated.View>
-              ) : (
-                <Animated.View key="calibration" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <Card style={{ gap: 6 }}>
-                    <View style={styles.placeholderRow}>
-                      <Ionicons name="locate-outline" size={16} color={colors.textMuted} />
-                      <Text style={[styles.placeholderTitle, { color: colors.textSecondary }]}>Calibração</Text>
-                    </View>
-                    <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-                      Precisas de apostas liquidadas com odds em intervalos distintos para ver a calibração.
-                    </Text>
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'home-away': return (
-                <Animated.View key="home-away" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <HomeAwayCard summary={stats.summary} onInfoPress={() => pushInfo('home-away')} />
-                </Animated.View>
-              );
-
-              case 'favourite-underdog': return (
-                <Animated.View key="favourite-underdog" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <FavouriteUnderdogCard summary={stats.summary} onInfoPress={() => pushInfo('favourite-underdog')} />
-                </Animated.View>
-              );
-
-              case 'leg-kill': return stats.legKillDistribution.length > 0 ? (
-                <Animated.View key="leg-kill" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <LegKillChart data={stats.legKillDistribution} onInfoPress={() => pushInfo('leg-kill')} />
-                </Animated.View>
-              ) : (
-                <Animated.View key="leg-kill" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <Card style={{ gap: 6 }}>
-                    <View style={styles.placeholderRow}>
-                      <Ionicons name="skull-outline" size={16} color={colors.textMuted} />
-                      <Text style={[styles.placeholderTitle, { color: colors.textSecondary }]}>Perna Assassina</Text>
-                    </View>
-                    <Text style={[styles.placeholderText, { color: colors.textMuted }]}>
-                      Precisas de acumuladas perdidas registadas para ver qual seleção te traiu mais.
-                    </Text>
-                  </Card>
-                </Animated.View>
-              );
-
-              case 'by-hour': return stats.byHour.length > 0 ? (
-                <Animated.View key="by-hour" entering={FadeInDown.delay(45).duration(160).springify()}>
-                  <ByHourSection rows={stats.byHour} onInfoPress={() => pushInfo('by-hour', stats.byHour.length)} />
-                </Animated.View>
-              ) : null;
-
-              case 'variance': return (stats.summary.variance !== undefined && stats.summary.variance > 0) ? (
-                <Animated.View key="variance" entering={FadeInDown.delay(45).duration(160).springify()} style={styles.heroMetricsRow}>
-                  <Card style={styles.metricCard}>
-                    <View style={styles.metricLabelRow}>
-                      <InfoButton accessibilityLabel="Informação sobre variância" onPress={() => pushInfo('variance', stats.summary.variance)} showLabel={false} size="sm" />
-                      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Variância</Text>
-                    </View>
-                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.variance)}</Text>
-                  </Card>
-                  <Card style={styles.metricCard}>
-                    <View style={styles.metricLabelRow}>
-                      <InfoButton accessibilityLabel="Informação sobre desvio padrão" onPress={() => pushInfo('std-dev', stats.summary.stdDev)} showLabel={false} size="sm" />
-                      <Text style={[styles.metricLabel, { color: colors.textSecondary }]}>Desvio padrão</Text>
-                    </View>
-                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{formatCurrency(stats.summary.stdDev)}</Text>
-                    <Text style={[styles.metricSmall, { color: colors.textMuted }]}>
-                      {stats.summary.stdDev < 5 ? 'Baixa volatilidade' : stats.summary.stdDev < 15 ? 'Volatilidade média' : 'Alta volatilidade'}
-                    </Text>
-                  </Card>
-                </Animated.View>
-              ) : null;
-
-              case 'best-worst': return (
-                <React.Fragment key="best-worst">
-                  <SectionTitle color={colors.textPrimary} title="Melhores boletins" />
-                  <ScrollView contentContainerStyle={styles.horizontalCards} horizontal showsHorizontalScrollIndicator={false}>
-                    {stats.bestBoletins.map((boletin) => (
-                      <MiniBoletinCard key={boletin.id} accentColor={colors.primary} label="Melhor" profitLoss={boletin.profitLoss} stake={boletin.stake} title={boletin.name ?? 'Boletim sem nome'} totalOdds={boletin.totalOdds} onPress={() => router.push(`/boletins/${boletin.id}`)} />
-                    ))}
-                  </ScrollView>
-                  <SectionTitle color={colors.textPrimary} title="Piores boletins" />
-                  <ScrollView contentContainerStyle={styles.horizontalCards} horizontal showsHorizontalScrollIndicator={false}>
-                    {stats.worstBoletins.map((boletin) => (
-                      <MiniBoletinCard key={boletin.id} accentColor={colors.danger} label="Pior" profitLoss={boletin.profitLoss} stake={boletin.stake} title={boletin.name ?? 'Boletim sem nome'} totalOdds={boletin.totalOdds} onPress={() => router.push(`/boletins/${boletin.id}`)} />
-                    ))}
-                  </ScrollView>
-                </React.Fragment>
-              );
-
-              default: return null;
-              }
-            })}
-
-            {/* AI Review */}
-            <AIReviewCard
-              data={aiReview.data}
-              isLoading={aiReview.isLoading}
-              error={aiReview.error as Error | null}
-              onGenerate={aiReview.generate}
-            />
-
-            {/* Custom metrics section */}
-            {customMetrics.length > 0 && (
-              <>
-                <View style={styles.customMetricsHeader}>
-                  <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>As tuas métricas</Text>
-                  <Pressable hitSlop={8} onPress={() => router.push('/custom-metric')}>
-                    <Ionicons color={colors.primary} name="add-circle-outline" size={22} />
-                  </Pressable>
-                </View>
-                {customMetrics.map((cm) => (
-                  <Animated.View key={cm.id} entering={FadeInDown.delay(45).duration(160).springify()}>
-                    <CustomMetricCard
-                      metric={cm}
-                      stats={stats}
-                      timeline={timelineData}
-                      onEdit={() => router.push({ pathname: '/custom-metric', params: { id: cm.id } })}
-                    />
-                  </Animated.View>
-                ))}
-              </>
-            )}
-
-            {/* Add custom metric button */}
-            <Pressable
-              onPress={() => router.push('/custom-metric')}
-              style={[styles.addMetricBtn, { borderColor: colors.border, backgroundColor: colors.surfaceRaised }]}
-            >
-              <Ionicons color={colors.primary} name="add-circle-outline" size={20} />
-              <Text style={[styles.addMetricText, { color: colors.primary }]}>Criar métrica personalizada</Text>
-            </Pressable>
           </View>
         )}
       </ScrollView>
 
       <StatsShareSheet visible={showShareCard} onClose={() => setShowShareCard(false)} />
 
-      {/* Rendered last so it paints on top of the ScrollView */}
-      <StatsCustomizeSheet visible={showCustomize} onClose={() => setShowCustomize(false)} />
     </View>
   );
 }
