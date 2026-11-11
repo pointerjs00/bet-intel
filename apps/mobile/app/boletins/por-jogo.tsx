@@ -156,8 +156,8 @@ export default function PorJogoScreen() {
           <View style={styles.empty}>
             <Ionicons color={colors.textMuted} name="calendar-outline" size={40} />
             <AppText variant="heading">Sem jogos por começar neste dia</AppText>
-            <AppText style={styles.center} variant="caption">Para jogos de outras ligas ou desportos, usa o registo manual.</AppText>
-            <Button onPress={() => router.replace('/boletins/create')} title="Registo manual" variant="secondary" />
+            <AppText style={styles.center} variant="caption">Escolhe outro dia ou, para jogos de outras ligas ou desportos, escreve a seleção à mão.</AppText>
+            <Button onPress={() => router.push({ pathname: '/boletins/confirmar', params: { manual: '1' } })} title="Escrever à mão" variant="secondary" />
           </View>
         ) : (
           groups.map((g, gi) => (
@@ -189,14 +189,26 @@ export default function PorJogoScreen() {
             </Appear>
           ))
         )}
+        {groups.length > 0 ? (
+          <ListCard>
+            <ListRow accessibilityLabel="Escrever à mão" onPress={() => router.push({ pathname: '/boletins/confirmar', params: { manual: '1' } })}>
+              <View style={styles.flex}>
+                <AppText variant="bodyStrong">Não encontras o jogo?</AppText>
+                <AppText variant="caption">Outras ligas ou desportos: escreve a seleção à mão.</AppText>
+              </View>
+              <AppText style={{ color: colors.primary }} variant="bodyStrong">Escrever</AppText>
+            </ListRow>
+          </ListCard>
+        ) : null}
+        <View style={{ height: items.length ? 80 : 0 }} />
       </ScrollView>
 
       {/* Builder bar: what's already in the boletim, and the way to stake and save */}
       {items.length > 0 ? (
         <View style={[styles.bar, { bottom: insets.bottom + 12 }]}>
           <Button
-            onPress={() => router.push('/boletins/create')}
-            title={`Rever boletim · ${items.length} ${items.length === 1 ? 'seleção' : 'seleções'}`}
+            onPress={() => router.push('/boletins/confirmar')}
+            title={`Continuar · ${items.length} ${items.length === 1 ? 'seleção' : 'seleções'} · odd ${items.reduce((a, it) => a * it.oddValue, 1).toFixed(2).replace('.', ',')}`}
           />
         </View>
       ) : null}

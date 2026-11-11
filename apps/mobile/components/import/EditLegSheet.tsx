@@ -57,6 +57,8 @@ interface Props {
   onAdd?: () => void;
   /** The real game behind this selection ("Celtics 123–101 76ers · terminado"). */
   matchLine?: string | null;
+  /** Only the selection fields (the boletim fields live on the screen, e.g. Confirmar boletim). */
+  legOnly?: boolean;
 }
 
 /**
@@ -64,7 +66,7 @@ interface Props {
  * kickoff, result) and about its boletim (site, stake, bet date and time, status). Fields the
  * reader was unsure about are highlighted.
  */
-export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemove, onNavigate, saved, onSaveExtras, onAdd, matchLine }: Props) {
+export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemove, onNavigate, saved, onSaveExtras, onAdd, matchLine, legOnly }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const total = boletin.items.length;
@@ -221,8 +223,8 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
                 </View>
                 {fieldN('HORA', unsure.has('eventDate'), input(kickTime, (v) => { setKickTime(v); set({}, 'eventDate'); }, { keyboard: 'numbers-and-punctuation', placeholder: '20:45' }))}
               </View>
-              <Text style={[styles.sub, { color: unsure.has('result') ? colors.warning : colors.textMuted }]}>Resultado desta seleção</Text>
-              {chips(RESULTS, leg.result ?? 'PENDING', (v) => set({ result: v }, 'result'), unsure.has('result'))}
+              {legOnly ? null : <Text style={[styles.sub, { color: unsure.has('result') ? colors.warning : colors.textMuted }]}>Resultado desta seleção</Text>}
+              {legOnly ? null : chips(RESULTS, leg.result ?? 'PENDING', (v) => set({ result: v }, 'result'), unsure.has('result'))}
               {matchLine ? <Text style={[styles.sub, { color: colors.textSecondary }]}>Jogo real: {matchLine}</Text> : null}
               {onAdd ? (
                 <Pressable onPress={() => { save(); onAdd(); }} style={[styles.addBtn, { borderColor: colors.border }]}>
@@ -231,6 +233,7 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
                 </Pressable>
               ) : null}
 
+              {legOnly ? null : (<>
               <Text style={[styles.section, { color: colors.textMuted }]}>BOLETIM</Text>
               <Text style={[styles.sub, { color: colors.textMuted }]}>Casa de apostas</Text>
               <ScrollView contentContainerStyle={styles.chips} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>
@@ -270,6 +273,7 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
                   {chips(BOLETIM_STATUS, status, setStatus)}
                 </>
               )}
+              </>)}
             </ScrollView>
 
             <View style={styles.footer}>
