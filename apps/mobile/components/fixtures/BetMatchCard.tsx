@@ -12,7 +12,8 @@ import { useCardElevation } from '../ui/ListCard';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
 import type { MatchBet } from '../../utils/dayBets';
-import { betTone, isDone, matchStatus, type AnyMatch } from './MatchCard';
+import { betTone, isDone, matchStatus, TennisRows, type AnyMatch } from './MatchCard';
+import { setsWon } from '../../utils/tennisSets';
 
 function stateLabel(bet: MatchBet | 'unknown', live: boolean, done: boolean): string {
   if (bet === 'unknown') return live ? 'EM JOGO' : done ? 'A RESOLVER' : 'COM APOSTA';
@@ -58,12 +59,12 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
           </View>
 
           <View style={styles.teams}>
-            {rows.map((r) => {
+            {sport === 'tennis' ? <TennisRows big done={done} live={st.live} match={m} /> : rows.map((r) => {
               const won = done && r.score != null && r.other != null && r.score > r.other;
               const lost = done && r.score != null && r.other != null && r.score < r.other;
               return (
                 <View key={`${r.name}-${r.at}`} style={styles.teamRow}>
-                  <TeamBadge name={r.name} size={28} variant={sport === 'tennis' ? 'player' : 'team'} />
+                  <TeamBadge name={r.name} size={28} variant="team" />
                   <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_600SemiBold' }]}>{r.at ? '@ ' : ''}{r.name}</Text>
                   {showScore ? <Text style={[styles.score, { color: st.live ? colors.live : lost ? colors.textSecondary : colors.textPrimary }]}>{r.score}</Text> : null}
                 </View>
@@ -163,7 +164,7 @@ function TennisLive(p: LiveProps) {
   const d = q.data;
   const sets = d ? (d.live?.sets.length ? d.live.sets : d.sets) : null;
   const match = d && sets
-    ? { ...p.match, status: d.status, statusDetail: d.statusDetail, score: sets.length ? { home: sets.filter((s) => s.a > s.b).length, away: sets.filter((s) => s.b > s.a).length } : null } as AnyMatch
+    ? { ...p.match, status: d.status, statusDetail: d.statusDetail, score: sets.length ? setsWon(sets) : null, sets, points: d.live?.pointsA != null && d.live?.pointsB != null ? { home: d.live.pointsA, away: d.live.pointsB } : null, server: d.live?.server === 'A' ? 'home' : d.live?.server === 'B' ? 'away' : null } as AnyMatch
     : p.match;
   return <BetMatchCard {...p} match={match} />;
 }

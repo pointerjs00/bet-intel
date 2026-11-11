@@ -3,6 +3,7 @@
 
 import { redis } from '../../utils/redis';
 import { teamNamesMatch } from '../marketResolutionEngine';
+import { setWinner } from '../tennisMarketEngine';
 import { countryToPt } from '../../utils/countryNames';
 import { fetchEspnFootballDay, NATIONAL_TEAM_LEAGUES } from './espnFootball';
 import { fetchEspnNbaDay } from './espnBasketball';
@@ -109,8 +110,8 @@ async function lookup(item: ItemRef, cache: DayCache): Promise<ItemMatch | null>
         const list = await cache.get(`t|${tour}|${day}`, () => fetchEspnTennisDay(tour, day));
         const m = list.find((x) => !x.doubles && near(x.startAt) && sameMatch(x.playerA, x.playerB, item.homeTeam, item.awayTeam));
         if (m) {
-          const a = m.sets.filter((s) => s.a > s.b).length;
-          const b = m.sets.filter((s) => s.b > s.a).length;
+          const a = m.sets.filter((s) => setWinner(s) === 'A').length;
+          const b = m.sets.filter((s) => setWinner(s) === 'B').length;
           return {
             sport: 'TENNIS', providerMatchId: m.providerMatchId, league: m.tour, status: m.status, statusDetail: m.round || m.statusDetail, kickoffAt: m.startAt,
             home: m.playerA, away: m.playerB, score: m.sets.length ? { home: a, away: b } : null, halfTime: null,

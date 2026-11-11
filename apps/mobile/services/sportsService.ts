@@ -136,6 +136,10 @@ export interface SimpleMatch {
   away: { name: string };
   score: { home: number; away: number } | null;
   line: string | null;
+  /** Tennis: games per set, and the point score + server while live. */
+  sets?: Array<{ a: number; b: number }>;
+  points?: { home: string; away: string } | null;
+  server?: 'home' | 'away' | null;
   hasBet: boolean;
 }
 export interface SimpleGroup { league: string; slug: string; matches: SimpleMatch[] }
