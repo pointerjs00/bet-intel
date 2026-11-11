@@ -427,13 +427,15 @@ export async function sendTestPushToUser(userId: string): Promise<{
     return { hasToken: false, tokenPrefix: null, notificationId: null };
   }
 
+  // Test pushes go to the phone only; they are not kept in the notifications list.
   const notification = await createNotification({
     userId,
     type: 'SYSTEM',
-    title: '🔔 Teste de notificação',
-    body: 'Push notifications estão a funcionar correctamente!',
+    title: 'Teste de notificação',
+    body: 'As notificações estão a funcionar.',
     data: { test: true },
   });
+  await prisma.notification.delete({ where: { id: notification.id } }).catch(() => undefined);
 
   return {
     hasToken: true,

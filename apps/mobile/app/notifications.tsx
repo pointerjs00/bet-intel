@@ -44,7 +44,13 @@ function NotificationRow({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
-  const iconConfig = NOTIFICATION_ICONS[notification.type] ?? NOTIFICATION_ICONS.SYSTEM;
+  // Results get their own icon and colour (won / lost / void) instead of one trophy for all.
+  const st = (notification.data as { status?: string } | null)?.status;
+  const iconConfig = notification.type === 'BOLETIN_RESULT'
+    ? st === 'WON' ? { name: 'check-circle-outline' as const, color: 'primary' as const }
+      : st === 'LOST' ? { name: 'close-circle-outline' as const, color: 'danger' as const }
+      : { name: 'minus-circle-outline' as const, color: 'info' as const }
+    : NOTIFICATION_ICONS[notification.type] ?? NOTIFICATION_ICONS.SYSTEM;
   const iconColor = colors[iconConfig.color];
 
   return (
@@ -158,7 +164,10 @@ export default function NotificationsScreen() {
           }}
           refreshControl={<RefreshControl refreshing={notificationsQuery.isRefetching} onRefresh={() => void notificationsQuery.refetch()} />}
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(index * 20).duration(160).springify()}>
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 20).duration(160).springify()}>
+              {index === 0 || dayGroup(items[index - 1]!.createdAt) !== dayGroup(item.createdAt) ? (
+                <Text style={[styles.dayLabel, { color: colors.textMuted }]}>{dayGroup(item.createdAt)}</Text>
+              ) : null}
               <NotificationRow
                 notification={item}
                 onMarkRead={() => markReadMutation.mutate(item.id)}
@@ -188,7 +197,22 @@ export default function NotificationsScreen() {
   );
 }
 
+/** "Hoje", "Ontem", "Esta semana", "Novembro", "Outubro de 2025". */
+function dayGroup(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((start(now) - start(d)) / 86400000);
+  if (days === 0) return 'Hoje';
+  if (days === 1) return 'Ontem';
+  if (days < 7) return 'Esta semana';
+  const month = d.toLocaleDateString('pt-PT', { month: 'long' });
+  const cap = month.charAt(0).toUpperCase() + month.slice(1);
+  return d.getFullYear() === now.getFullYear() ? cap : `${cap} de ${d.getFullYear()}`;
+}
+
 const styles = StyleSheet.create({
+  dayLabel: { fontFamily: 'Inter_700Bold', fontSize: 12, letterSpacing: 0.3, marginBottom: 8, marginTop: 10 },
   screen: { flex: 1 },
   loadingWrap: { gap: 10, paddingTop: 16 },
   unreadBanner: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 8, marginBottom: 14, paddingHorizontal: 14, paddingVertical: 10 },
