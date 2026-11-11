@@ -167,7 +167,16 @@ function nameMatches(text: string, name: string): boolean {
   if (a.length >= 4 && b.length >= 4 && (a.includes(b) || b.includes(a))) return true;
   const ta = significantTokens(text);
   const tb = new Set(significantTokens(name));
-  return ta.length > 0 && ta.every((t) => tb.has(t));
+  return (ta.length > 0 && ta.every((t) => tb.has(t))) || sameTransliteratedPerson(a, b);
+}
+
+/** "Alexander Shevchenko" = "Aleksandr Shevchenko": same surname, first names alike in their first 3 letters. */
+export function sameTransliteratedPerson(a: string, b: string): boolean {
+  const x = a.split(' ').filter(Boolean);
+  const y = b.split(' ').filter(Boolean);
+  if (x.length < 2 || y.length < 2) return false;
+  const lx = x[x.length - 1], ly = y[y.length - 1];
+  return lx.length >= 4 && lx === ly && x[0].length >= 3 && y[0].length >= 3 && x[0].slice(0, 3) === y[0].slice(0, 3);
 }
 
 /**

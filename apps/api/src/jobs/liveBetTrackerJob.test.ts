@@ -26,6 +26,8 @@ test('team names from bets match ESPN names', () => {
   assert.ok(teamNamesMatch('Estugarda', 'VfB Stuttgart'));
   assert.ok(!teamNamesMatch('Club Brugge', 'Cercle Brugge'));
   assert.ok(!teamNamesMatch('Manchester United', 'Manchester City'));
+  assert.ok(teamNamesMatch('Alexander Shevchenko', 'Aleksandr Shevchenko'));
+  assert.ok(!teamNamesMatch('Real Madrid', 'Atletico Madrid'));
 });
 
 test('national-team competitions map to ESPN leagues', () => {
