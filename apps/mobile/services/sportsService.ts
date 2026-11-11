@@ -180,3 +180,55 @@ export function useFootballMatch(league: string, id: string) {
     refetchInterval: (q) => (q.state.data?.status === 'LIVE' || q.state.data?.status === 'HALFTIME' ? 30_000 : false),
   });
 }
+
+export interface BasketballTotals { points: number; rebounds: number; assists: number; threes: number; steals: number; blocks: number; turnovers: number }
+export interface BasketballPlayerLine extends BasketballTotals { name: string; side: 'home' | 'away'; played: boolean }
+export interface BasketballGame {
+  providerMatchId: string;
+  startAt: string;
+  status: string;
+  statusDetail: string;
+  home: { name: string; abbreviation: string; logo: string | null };
+  away: { name: string; abbreviation: string; logo: string | null };
+  score: { home: number; away: number } | null;
+  periods: Array<{ home: number; away: number }>;
+  players?: BasketballPlayerLine[] | null;
+  totals: { home: BasketballTotals; away: BasketballTotals } | null;
+}
+
+/** One NBA game with box score; refreshes every 30 s while live. */
+export function useBasketballGame(id: string) {
+  return useQuery({
+    queryKey: ['sports', 'nba', 'game', id],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<BasketballGame>>(`/sports/basketball/game/${id}`)).data.data,
+    enabled: Boolean(id),
+    staleTime: 20_000,
+    refetchInterval: (q) => (q.state.data && (q.state.data.status === 'LIVE' || q.state.data.status === 'HALFTIME') ? 30_000 : false),
+  });
+}
+
+export interface TennisMatchDetail {
+  providerMatchId: string;
+  tour: 'atp' | 'wta';
+  tournament: { providerId: string; name: string };
+  round: string;
+  startAt: string;
+  status: string;
+  statusDetail: string;
+  playerA: string;
+  playerB: string;
+  sets: Array<{ a: number; b: number }>;
+  winner: 'A' | 'B' | null;
+  live: { pointsA: string | null; pointsB: string | null; server: 'A' | 'B' | null; sets: Array<{ a: number; b: number }> } | null;
+}
+
+/** One tennis match (sets, and the point score + server while live, refreshed every 20 s). */
+export function useTennisMatch(id: string, date: string) {
+  return useQuery({
+    queryKey: ['sports', 'tennis', 'match', id, date],
+    queryFn: async () => (await apiClient.get<ApiEnvelope<TennisMatchDetail>>(`/sports/tennis/match/${id}`, { params: { date } })).data.data,
+    enabled: Boolean(id),
+    staleTime: 15_000,
+    refetchInterval: (q) => (q.state.data?.status === 'LIVE' ? 20_000 : false),
+  });
+}

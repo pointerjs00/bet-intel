@@ -11,7 +11,8 @@ import { logger } from '../utils/logger';
 import { teamNamesMatch } from '../services/marketResolutionEngine';
 import { ESPN_FOOTBALL_LEAGUES, NATIONAL_TEAM_LEAGUES, fetchEspnFootballDay, fetchEspnFootballMatch } from '../services/sportsData/espnFootball';
 import { countryToPt } from '../utils/countryNames';
-import { fetchEspnNbaDay } from '../services/sportsData/espnBasketball';
+import { fetchEspnNbaDay, fetchEspnNbaGame } from '../services/sportsData/espnBasketball';
+import { fetchLiveTennisPoints, findLivePoints } from '../services/sportsData/livescoreTennis';
 import { fetchEspnTennisDay } from '../services/sportsData/espnTennis';
 import type { NormalizedMatch } from '../services/sportsData/types';
 import { getAssets } from '../services/sportsData/assetRegistry';
@@ -198,6 +199,47 @@ sportsRouter.get('/tennis/day', async (req: Request, res: Response) => {
   } catch (err) {
     logger.error('[sports] tennis day failed', { error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter os jogos agora.' });
+  }
+});
+
+/** One NBA game: score per quarter, box score per player and team totals from it. */
+sportsRouter.get('/basketball/game/:id', async (req: Request, res: Response) => {
+  const id = String(req.params.id ?? '');
+  if (!/^\d{5,12}$/.test(id)) { res.status(400).json({ success: false, error: 'Jogo inválido.' }); return; }
+  try {
+    const game = await cached(`sports:nba:game:${id}`, 30, () => fetchEspnNbaGame(id));
+    if (!game) { res.status(404).json({ success: false, error: 'Jogo não encontrado.' }); return; }
+    const players = game.players ?? [];
+    const total = (side: 'home' | 'away') => players.filter((p) => p.side === side && p.played).reduce((t, p) => ({
+      points: t.points + p.points, rebounds: t.rebounds + p.rebounds, assists: t.assists + p.assists, threes: t.threes + p.threes,
+      steals: t.steals + p.steals, blocks: t.blocks + p.blocks, turnovers: t.turnovers + p.turnovers,
+    }), { points: 0, rebounds: 0, assists: 0, threes: 0, steals: 0, blocks: 0, turnovers: 0 });
+    res.json({ success: true, data: { ...game, totals: players.length ? { home: total('home'), away: total('away') } : null } });
+  } catch (err) {
+    logger.error('[sports] nba game failed', { error: err instanceof Error ? err.message : String(err) });
+    res.status(502).json({ success: false, error: 'Não foi possível obter o jogo agora.' });
+  }
+});
+
+/** One tennis match from the day's draw (sets), plus the point score and server while live. */
+sportsRouter.get('/tennis/match/:id', async (req: Request, res: Response) => {
+  const id = String(req.params.id ?? '');
+  const date = isValidDate(req.query.date) ? req.query.date : new Date().toISOString().slice(0, 10);
+  const isToday = date === new Date().toISOString().slice(0, 10);
+  try {
+    const [atp, wta] = await Promise.all((['atp', 'wta'] as const).map((tour) =>
+      cached(`sports:tennis:day:${tour}:${date}`, isToday ? 60 : 900, () => fetchEspnTennisDay(tour, date).catch(() => []))));
+    const match = [...(atp ?? []), ...(wta ?? [])].find((m) => m.providerMatchId === id);
+    if (!match) { res.status(404).json({ success: false, error: 'Jogo não encontrado.' }); return; }
+    let live = null;
+    if (match.status === 'LIVE') {
+      const list = await cached('sports:tennis:livescore', 20, () => fetchLiveTennisPoints().catch(() => []));
+      live = findLivePoints(list, match.playerA, match.playerB);
+    }
+    res.json({ success: true, data: { ...match, live } });
+  } catch (err) {
+    logger.error('[sports] tennis match failed', { error: err instanceof Error ? err.message : String(err) });
+    res.status(502).json({ success: false, error: 'Não foi possível obter o jogo agora.' });
   }
 });
 

@@ -1181,9 +1181,11 @@ export default function BoletinDetailScreen() {
             match={itemMatches.data?.[item.id] ?? null}
             onPress={(() => {
               const m = itemMatches.data?.[item.id];
-              return m && m.sport === 'FOOTBALL' && m.league
-                ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: m.league!, item: item.id } })
-                : undefined;
+              if (!m) return undefined;
+              if (m.sport === 'FOOTBALL' && m.league) return () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: m.league!, item: item.id } });
+              if (m.sport === 'BASKETBALL') return () => router.push({ pathname: '/jogo/nba/[id]', params: { id: m.providerMatchId } });
+              if (m.sport === 'TENNIS') return () => router.push({ pathname: '/jogo/tenis/[id]', params: { id: m.providerMatchId, date: m.kickoffAt.slice(0, 10) } });
+              return undefined;
             })()}
           />
         ) : (
