@@ -1,44 +1,50 @@
-// Jogos — football (followed leagues, UEFA and national teams), NBA and ATP/WTA tennis from ESPN,
-// any day since 2020. Sofascore-like layout: sport tabs, date navigator with a calendar, swipe
-// left/right to change day, league cards with crest, status column, winner in bold.
+// Jogos — "Apostas" (every match the user bet on that day, any sport) plus football (followed
+// leagues, UEFA and national teams), NBA and ATP/WTA tennis from ESPN, any day since 2020.
+// Date navigator with a calendar, swipe left/right to change day, collapsible and sortable leagues,
+// one elevated card per match.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { PanResponder, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { LayoutAnimation, Modal, PanResponder, Platform, RefreshControl, ScrollView, StyleSheet, Text, UIManager, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Pressable } from '../../components/ui/Pressable';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInLeft, FadeInRight, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { ItemResult } from '@betintel/shared';
 import { AppText } from '../../components/ui/AppText';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { LiveDot } from '../../components/ui/Appear';
 import { useCardElevation } from '../../components/ui/ListCard';
 import { TeamBadge } from '../../components/ui/TeamBadge';
+import { MatchCard, isLive, isDone, type AnyMatch } from '../../components/fixtures/MatchCard';
+import { BetMatchCard } from '../../components/fixtures/BetMatchCard';
 import { getCountryFlagUrl, getLeagueLogoUrl } from '../../utils/sportAssets';
-import { useBasketballDay, useFootballDay, useTennisDay, type FootballMatch, type SimpleMatch, type SportKey } from '../../services/sportsService';
-import { useTheme } from '../../theme/useTheme';
-import { hapticLight } from '../../utils/haptics';
+import { useBasketballDay, useFootballDay, useTennisDay, type SportKey } from '../../services/sportsService';
 import { useBoletins } from '../../services/boletinService';
+import { useTheme } from '../../theme/useTheme';
+import { hapticLight, hapticSelection } from '../../utils/haptics';
 import { findMatchBet, indexBetsByDay, type MatchBet } from '../../utils/dayBets';
 import { formatCurrency } from '../../utils/formatters';
-import { ItemResult } from '@betintel/shared';
 
-type AnyMatch = FootballMatch | SimpleMatch;
+if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
+
+type Tab = 'bets' | SportKey;
 type AnyGroup = { league: string; slug: string; matches: AnyMatch[] };
+type SortMode = 'default' | 'bets' | 'az' | 'count';
 
 const DAY_MS = 24 * 3600e3;
-const SWITCH_PAD = 3;
 export const FIRST_DAY = new Date(2020, 0, 1);
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const COLLAPSED_KEY = 'jogos:collapsed';
+const SORT_KEY = 'jogos:sort';
+const SORT_LABEL: Record<SortMode, string> = { default: 'Recomendado', bets: 'Com apostas primeiro', az: 'A–Z', count: 'Mais jogos' };
 
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 const toIsoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-const isLive = (m: { status: string }) => m.status === 'LIVE' || m.status === 'HALFTIME';
-const isDone = (m: { status: string }) => m.status === 'FINISHED' || m.status === 'RETIRED' || m.status === 'WALKOVER';
 
-/** Country line under the league name (flag + name), Sofascore-style. */
 const LEAGUE_COUNTRY: Record<string, string> = {
   'Liga Portugal Betclic': 'Portugal', 'Premier League': 'Inglaterra', 'La Liga': 'Espanha', Bundesliga: 'Alemanha',
   'Serie A': 'Itália', 'Ligue 1': 'França', Eredivisie: 'Holanda', 'Süper Lig': 'Turquia',
@@ -58,36 +64,84 @@ export default function JogosScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const elevation = useCardElevation();
-  const [sport, setSport] = useState<SportKey>('football');
+  const [tab, setTab] = useState<Tab>('bets');
   const [day, setDay] = useState(() => startOfDay(new Date()));
   const [liveOnly, setLiveOnly] = useState(false);
-  const [betsOnly, setBetsOnly] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sort, setSort] = useState<SortMode>('default');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    AsyncStorage.multiGet([COLLAPSED_KEY, SORT_KEY]).then(([[, c], [, s]]) => {
+      if (c) setCollapsed(new Set(JSON.parse(c) as string[]));
+      if (s && s in SORT_LABEL) setSort(s as SortMode);
+    }).catch(() => undefined);
+  }, []);
+  const toggleLeague = (key: string) => {
+    hapticSelection();
+    LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      AsyncStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])).catch(() => undefined);
+      return next;
+    });
+  };
+  const chooseSort = (s: SortMode) => {
+    hapticSelection();
+    setSort(s); setSortOpen(false);
+    AsyncStorage.setItem(SORT_KEY, s).catch(() => undefined);
+  };
 
   const iso = toIsoDate(day);
-  const footballQuery = useFootballDay(iso, sport === 'football');
-  const basketballQuery = useBasketballDay(iso, sport === 'basketball');
-  const tennisQuery = useTennisDay(iso, sport === 'tennis');
-  const dayQuery = sport === 'football' ? footballQuery : sport === 'basketball' ? basketballQuery : tennisQuery;
-  const allGroups = (dayQuery.data?.groups ?? []) as AnyGroup[];
-  // The user's bets on listed matches, from the cached boletins (no extra request).
+  const bets = tab === 'bets';
+  const footballQuery = useFootballDay(iso, tab === 'football' || bets);
+  const basketballQuery = useBasketballDay(iso, tab === 'basketball' || bets);
+  const tennisQuery = useTennisDay(iso, tab === 'tennis' || bets);
+  const queries = { football: footballQuery, basketball: basketballQuery, tennis: tennisQuery } as const;
+  const dayQuery = bets ? footballQuery : queries[tab];
+
   const boletinsQuery = useBoletins();
   const betIndex = useMemo(() => indexBetsByDay(boletinsQuery.data ?? []), [boletinsQuery.data]);
   const betOf = useCallback(
     (m: AnyMatch): MatchBet | 'unknown' | null => findMatchBet(betIndex, m.kickoffAt, m.home.name, m.away.name) ?? (m.hasBet ? 'unknown' : null),
     [betIndex],
   );
-  const groups = useMemo(() => allGroups
-    .map((g) => ({ ...g, matches: g.matches.filter((m) => (!liveOnly || isLive(m)) && (!betsOnly || betOf(m) !== null)) }))
-    .filter((g) => g.matches.length > 0), [allGroups, liveOnly, betsOnly, betOf]);
-  const myMatches = useMemo(
-    () => allGroups.flatMap((g) => g.matches.filter((m) => betOf(m) !== null).map((m) => ({ m, slug: g.slug }))),
-    [allGroups, betOf],
-  );
-  const liveCount = allGroups.reduce((n, g) => n + g.matches.filter(isLive).length, 0);
 
-  /** Direction of the last change (sport or day), so new content slides in from that side. */
+  // ── Apostas: every match with a bet, all sports ──────────────────────────
+  const betMatches = useMemo(() => {
+    const out: Array<{ m: AnyMatch; sport: SportKey; league: string; slug: string; bet: MatchBet | 'unknown' }> = [];
+    (['football', 'basketball', 'tennis'] as const).forEach((sp) => {
+      for (const g of ((queries[sp].data?.groups ?? []) as AnyGroup[])) {
+        for (const m of g.matches) {
+          const b = betOf(m);
+          if (b) out.push({ m, sport: sp, league: g.league, slug: g.slug, bet: b });
+        }
+      }
+    });
+    const rank = (m: AnyMatch) => (isLive(m) ? 0 : isDone(m) ? 2 : 1);
+    return out.sort((a, b) => rank(a.m) - rank(b.m) || a.m.kickoffAt.localeCompare(b.m.kickoffAt));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [footballQuery.data, basketballQuery.data, tennisQuery.data, betOf]);
+  const betsLoading = footballQuery.isLoading || basketballQuery.isLoading || tennisQuery.isLoading;
+
+  // ── Sport tabs ────────────────────────────────────────────────────────────
+  const allGroups = (bets ? [] : (queries[tab].data?.groups ?? [])) as AnyGroup[];
+  const groups = useMemo(() => {
+    const list = allGroups
+      .map((g) => ({ ...g, matches: g.matches.filter((m) => !liveOnly || isLive(m)) }))
+      .filter((g) => g.matches.length > 0);
+    const withBets = (g: AnyGroup) => g.matches.some((m) => betOf(m) !== null);
+    if (sort === 'az') list.sort((a, b) => a.league.localeCompare(b.league));
+    else if (sort === 'count') list.sort((a, b) => b.matches.length - a.matches.length);
+    else if (sort === 'bets') list.sort((a, b) => Number(withBets(b)) - Number(withBets(a)));
+    return list;
+  }, [allGroups, liveOnly, sort, betOf]);
+  const tabBets = useMemo(() => allGroups.flatMap((g) => g.matches.filter((m) => betOf(m) !== null)), [allGroups, betOf]);
+  const liveCount = (bets ? betMatches.map((x) => x.m) : allGroups.flatMap((g) => g.matches)).filter(isLive).length;
+
+  /** Direction of the last change (tab or day), so new content slides in from that side. */
   const dirRef = useRef<1 | -1>(1);
   const today = startOfDay(new Date());
   const isToday = day.getTime() === today.getTime();
@@ -98,8 +152,6 @@ export default function JogosScreen() {
     dirRef.current = n > 0 ? 1 : -1;
     setDay(next);
   };
-  // Swipe left → next day, swipe right → previous day. Captured before the rows' presses once the
-  // movement is clearly horizontal, so a swipe never opens a match.
   const shiftRef = useRef(shift);
   shiftRef.current = shift;
   const swipe = useRef(PanResponder.create({
@@ -111,133 +163,124 @@ export default function JogosScreen() {
     onPanResponderTerminationRequest: () => false,
   })).current;
 
-  const tabs: SportTab[] = [
-    { value: 'football', label: 'Futebol', icon: (c) => <Ionicons color={c} name="football" size={18} /> },
-    { value: 'tennis', label: 'Ténis', icon: (c) => <MaterialCommunityIcons color={c} name="tennis" size={18} /> },
-    { value: 'basketball', label: 'Basquetebol', icon: (c) => <Ionicons color={c} name="basketball" size={18} /> },
+  const tabs: TabDef[] = [
+    { value: 'bets', label: 'Apostas', icon: (c) => <Ionicons color={c} name="receipt" size={20} />, badge: betMatches.length || undefined },
+    { value: 'football', label: 'Futebol', icon: (c) => <Ionicons color={c} name="football" size={20} /> },
+    { value: 'tennis', label: 'Ténis', icon: (c) => <MaterialCommunityIcons color={c} name="tennis" size={20} /> },
+    { value: 'basketball', label: 'Basquetebol', icon: (c) => <Ionicons color={c} name="basketball" size={20} /> },
   ];
+  const openMatch = (sp: SportKey, m: AnyMatch, slug: string) => () => {
+    if (sp === 'football') router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: slug } });
+    else if (sp === 'basketball') router.push({ pathname: '/jogo/nba/[id]', params: { id: m.providerMatchId } });
+    else router.push({ pathname: '/jogo/tenis/[id]', params: { id: m.providerMatchId, date: iso } });
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      {/* Header: sliding sport switcher + search */}
       <View style={styles.header}>
-        <SportSwitcher
+        <TabBar
           onChange={(v) => {
             hapticLight();
-            dirRef.current = tabs.findIndex((t) => t.value === v) > tabs.findIndex((t) => t.value === sport) ? 1 : -1;
-            setSport(v); setLiveOnly(false); setBetsOnly(false);
+            dirRef.current = tabs.findIndex((t) => t.value === v) > tabs.findIndex((t) => t.value === tab) ? 1 : -1;
+            setTab(v); setLiveOnly(false);
           }}
           tabs={tabs}
-          value={sport}
+          value={tab}
         />
-        <Pressable
-          accessibilityLabel="Pesquisar equipa"
-          accessibilityRole="button"
-          hitSlop={8}
-          onPress={() => router.push('/equipa/pesquisa')}
-          style={[styles.searchBtn, { backgroundColor: colors.surface }]}
-        >
-          <Ionicons color={colors.textPrimary} name="search" size={20} />
-        </Pressable>
       </View>
 
-      {/* Controls: live, with bet, date navigator */}
       <View style={styles.controls}>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ selected: liveOnly }}
           onPress={() => { hapticLight(); setLiveOnly((v) => !v); }}
-          style={[styles.pill, { borderColor: colors.live, backgroundColor: liveOnly ? `${colors.live}26` : 'transparent' }]}
+          style={[styles.ctrl, { backgroundColor: liveOnly ? `${colors.live}26` : colors.surface }]}
         >
-          <AppText style={{ color: colors.live, fontWeight: '700' }} variant="label">Ao vivo{liveCount ? ` ${liveCount}` : ''}</AppText>
-          <View style={[styles.liveRing, { borderColor: colors.live }]} />
-        </Pressable>
-        <Pressable
-          accessibilityLabel="Só jogos com aposta"
-          accessibilityRole="button"
-          accessibilityState={{ selected: betsOnly }}
-          onPress={() => { hapticLight(); setBetsOnly((v) => !v); }}
-          style={[styles.pill, styles.iconPill, { borderColor: betsOnly ? colors.primary : colors.surfaceRaised, backgroundColor: betsOnly ? `${colors.primary}26` : colors.surface }]}
-        >
-          <Ionicons color={betsOnly ? colors.primary : colors.textSecondary} name="receipt-outline" size={16} />
+          <View style={[styles.liveDot, { backgroundColor: colors.live }]} />
+          <Text style={[styles.ctrlText, { color: liveOnly ? colors.live : colors.textSecondary }]}>{liveCount || ''}</Text>
         </Pressable>
         <View style={[styles.dateNav, { backgroundColor: colors.surface }]}>
           <Pressable accessibilityLabel="Dia anterior" hitSlop={8} onPress={() => shift(-1)} style={styles.navArrow}>
-            <Ionicons color={colors.accentText} name="chevron-back" size={20} />
+            <Ionicons color={colors.textPrimary} name="chevron-back" size={18} />
           </Pressable>
           <Pressable accessibilityHint="Abre o calendário" accessibilityRole="button" onPress={() => setCalendarOpen(true)} style={styles.dateCenter}>
-            <AppText numberOfLines={1} style={isToday ? { color: colors.accentText } : undefined} variant="bodyStrong">{dayTitle(day)}</AppText>
+            <Ionicons color={colors.textMuted} name="calendar-outline" size={14} />
+            <Text numberOfLines={1} style={[styles.dateText, { color: isToday ? colors.primary : colors.textPrimary }]}>{dayTitle(day)}</Text>
           </Pressable>
           <Pressable accessibilityLabel="Dia seguinte" hitSlop={8} onPress={() => shift(1)} style={styles.navArrow}>
-            <Ionicons color={colors.accentText} name="chevron-forward" size={20} />
+            <Ionicons color={colors.textPrimary} name="chevron-forward" size={18} />
           </Pressable>
         </View>
+        {!bets ? (
+          <Pressable accessibilityLabel="Ordenar competições" accessibilityRole="button" onPress={() => setSortOpen(true)} style={[styles.ctrl, { backgroundColor: sort !== 'default' ? `${colors.primary}26` : colors.surface }]}>
+            <Ionicons color={sort !== 'default' ? colors.primary : colors.textSecondary} name="swap-vertical" size={18} />
+          </Pressable>
+        ) : (
+          <Pressable accessibilityLabel="Pesquisar equipa" accessibilityRole="button" onPress={() => router.push('/equipa/pesquisa')} style={[styles.ctrl, { backgroundColor: colors.surface }]}>
+            <Ionicons color={colors.textSecondary} name="search" size={18} />
+          </Pressable>
+        )}
       </View>
 
       <View style={styles.flex} {...swipe.panHandlers}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}
-          refreshControl={<RefreshControl onRefresh={() => void dayQuery.refetch()} refreshing={dayQuery.isRefetching} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl onRefresh={() => { void footballQuery.refetch(); if (bets || tab === 'basketball') void basketballQuery.refetch(); if (bets || tab === 'tennis') void tennisQuery.refetch(); }} refreshing={dayQuery.isRefetching} tintColor={colors.primary} />}
         >
-          <Animated.View
-            entering={(dirRef.current > 0 ? FadeInRight : FadeInLeft).duration(240)}
-            key={`${sport}-${iso}`}
-            style={styles.groups}
-          >
-            {dayQuery.isLoading ? (
-              [0, 1].map((i) => <View key={i} style={[styles.card, { backgroundColor: colors.surface }]}><Skeleton height={120} width="100%" /></View>)
+          <Animated.View entering={(dirRef.current > 0 ? FadeInRight : FadeInLeft).duration(240)} key={`${tab}-${iso}`} style={styles.groups}>
+            {bets ? (
+              betsLoading && betMatches.length === 0 ? (
+                [0, 1].map((i) => <Skeleton height={190} key={i} width="100%" />)
+              ) : (
+                <>
+                  <BetsSummary items={betMatches} />
+                  {(liveOnly ? betMatches.filter((x) => isLive(x.m)) : betMatches).map((x, i) => (
+                    <BetMatchCard bet={x.bet} index={i} key={`${x.sport}-${x.m.providerMatchId}`} league={x.league} match={x.m} onPress={openMatch(x.sport, x.m, x.slug)} sport={x.sport} />
+                  ))}
+                  {betMatches.length === 0 ? (
+                    <Empty
+                      action={() => router.push('/boletins/novo')}
+                      actionLabel="Registar aposta"
+                      icon="receipt-outline"
+                      sub="Os jogos em que apostas aparecem aqui, de todos os desportos, com o estado de cada aposta."
+                      title="Sem apostas neste dia"
+                    />
+                  ) : null}
+                </>
+              )
+            ) : dayQuery.isLoading ? (
+              [0, 1, 2].map((i) => <Skeleton height={76} key={i} width="100%" />)
             ) : dayQuery.isError ? (
-              <Pressable onPress={() => void dayQuery.refetch()} style={[styles.card, styles.row, { backgroundColor: colors.surface }]}>
+              <Pressable onPress={() => void dayQuery.refetch()} style={[styles.errorCard, { backgroundColor: colors.surface }]}>
                 <Ionicons color={colors.warning} name="cloud-offline-outline" size={22} />
                 <AppText style={styles.flex} variant="bodyStrong">Não foi possível carregar. Toca para tentar outra vez.</AppText>
               </Pressable>
             ) : groups.length === 0 ? (
-              <View style={styles.empty}>
-                <Ionicons color={colors.textMuted} name="calendar-outline" size={40} />
-                <AppText variant="heading">{liveOnly ? 'Nenhum jogo a decorrer' : betsOnly ? 'Sem jogos com aposta neste dia' : 'Sem jogos neste dia'}</AppText>
-                <AppText style={styles.center} variant="caption">
-                  {sport === 'football'
-                    ? 'Portugal, Inglaterra, Espanha, Alemanha, Itália, França, Países Baixos, Turquia, provas UEFA e seleções.'
-                    : sport === 'basketball' ? 'Jogos da NBA (horas de Portugal).' : 'Torneios ATP e WTA, singulares.'}
-                </AppText>
-                <AppText style={styles.center} variant="caption">Desliza para os lados para mudar de dia.</AppText>
-              </View>
+              <Empty
+                icon="calendar-outline"
+                sub={tab === 'football' ? 'Portugal, Inglaterra, Espanha, Alemanha, Itália, França, Países Baixos, Turquia, provas UEFA e seleções.' : tab === 'basketball' ? 'Jogos da NBA (horas de Portugal).' : 'Torneios ATP e WTA, singulares.'}
+                title={liveOnly ? 'Nenhum jogo a decorrer' : 'Sem jogos neste dia'}
+              />
             ) : (
               <>
-                {myMatches.length > 0 && !betsOnly ? (
-                  <View style={[styles.card, elevation, styles.myCard, { backgroundColor: colors.surface, borderColor: `${colors.primary}40` }]}>
-                    <View style={styles.myHead}>
-                      <View style={[styles.myIcon, { backgroundColor: colors.primary }]}><Ionicons color="#06110B" name="receipt" size={13} /></View>
-                      <AppText style={styles.flex} variant="bodyStrong">As tuas apostas</AppText>
-                      <MyBetsSummary bets={myMatches.map(({ m }) => betOf(m))} />
+                {tabBets.length > 0 ? <BetsBanner count={tabBets.length} items={tabBets.map(betOf)} onPress={() => { dirRef.current = -1; setTab('bets'); }} /> : null}
+                {groups.map((g) => {
+                  const key = `${tab}:${g.league}`;
+                  const isCollapsed = collapsed.has(key);
+                  const betCount = g.matches.filter((m) => betOf(m) !== null).length;
+                  return (
+                    <View key={g.slug} style={styles.section}>
+                      <LeagueHeader betCount={betCount} collapsed={isCollapsed} count={g.matches.length} league={g.league} live={g.matches.filter(isLive).length} onPress={() => toggleLeague(key)} sport={tab} />
+                      {!isCollapsed ? (
+                        <View style={styles.matches}>
+                          {g.matches.map((m, i) => (
+                            <MatchCard bet={betOf(m)} index={i} key={m.providerMatchId} match={m} onPress={openMatch(tab, m, g.slug)} sport={tab} />
+                          ))}
+                        </View>
+                      ) : null}
                     </View>
-                    {myMatches.map(({ m, slug }, i) => (
-                      <MatchRow
-                        bet={betOf(m)}
-                        index={i}
-                        key={`my-${m.providerMatchId}`}
-                        match={m}
-                        onPress={sport === 'football' ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: slug } }) : undefined}
-                        sport={sport}
-                      />
-                    ))}
-                  </View>
-                ) : null}
-                {groups.map((g) => (
-                  <View key={g.slug} style={[styles.card, elevation, { backgroundColor: colors.surface }]}>
-                    <LeagueHeader league={g.league} sport={sport} />
-                    {g.matches.map((m, i) => (
-                      <MatchRow
-                        bet={betOf(m)}
-                        index={i}
-                        key={m.providerMatchId}
-                        match={m}
-                        onPress={sport === 'football' ? () => router.push({ pathname: '/jogo/[id]', params: { id: m.providerMatchId, league: g.slug } }) : undefined}
-                        sport={sport}
-                      />
-                    ))}
-                  </View>
-                ))}
+                  );
+                })}
               </>
             )}
           </Animated.View>
@@ -256,6 +299,37 @@ export default function JogosScreen() {
         </Pressable>
       ) : null}
 
+      <Modal animationType="fade" onRequestClose={() => setSortOpen(false)} transparent visible={sortOpen}>
+        <Pressable feedback="none" onPress={() => setSortOpen(false)} style={styles.sheetBackdrop}>
+          <Animated.View entering={FadeInDown.duration(220)} style={[styles.sortSheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 16 }]}>
+            <Text style={[styles.sortTitle, { color: colors.textPrimary }]}>Ordenar competições</Text>
+            {(Object.keys(SORT_LABEL) as SortMode[]).map((s) => (
+              <Pressable key={s} onPress={() => chooseSort(s)} style={[styles.sortRow, { backgroundColor: sort === s ? `${colors.primary}1F` : 'transparent' }]}>
+                <Text style={[styles.sortLabel, { color: sort === s ? colors.primary : colors.textPrimary }]}>{SORT_LABEL[s]}</Text>
+                {sort === s ? <Ionicons color={colors.primary} name="checkmark" size={18} /> : null}
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => {
+                const keys = groups.map((g) => `${tab}:${g.league}`);
+                const allClosed = keys.every((k) => collapsed.has(k));
+                LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+                const next = new Set(collapsed);
+                keys.forEach((k) => (allClosed ? next.delete(k) : next.add(k)));
+                setCollapsed(next);
+                AsyncStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next])).catch(() => undefined);
+                setSortOpen(false);
+              }}
+              style={[styles.sortRow, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}
+            >
+              <Text style={[styles.sortLabel, { color: colors.textSecondary }]}>
+                {groups.every((g) => collapsed.has(`${tab}:${g.league}`)) ? 'Expandir todas' : 'Recolher todas'}
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
       <CalendarPicker
         maxDate={new Date(today.getTime() + 60 * DAY_MS)}
         minDate={FIRST_DAY}
@@ -268,13 +342,10 @@ export default function JogosScreen() {
   );
 }
 
-type SportTab = { value: SportKey; label: string; icon: (c: string) => React.ReactNode };
+type TabDef = { value: Tab; label: string; icon: (c: string) => React.ReactNode; badge?: number };
 
-/**
- * Segmented sport switcher: a tinted thumb springs under the selected sport, and the icon and
- * label colours cross-fade, instead of a static underline jumping between tabs.
- */
-function SportSwitcher({ tabs, value, onChange }: { tabs: SportTab[]; value: SportKey; onChange: (v: SportKey) => void }) {
+/** Tabs with the icon above the label; a tinted thumb springs under the selected one. */
+function TabBar({ tabs, value, onChange }: { tabs: TabDef[]; value: Tab; onChange: (v: Tab) => void }) {
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
   const index = Math.max(0, tabs.findIndex((t) => t.value === value));
@@ -283,33 +354,22 @@ function SportSwitcher({ tabs, value, onChange }: { tabs: SportTab[]; value: Spo
   const first = useRef(true);
   useEffect(() => {
     if (!slot) return;
-    // Jump into place on first layout, spring afterwards.
     x.value = first.current ? index * slot : withSpring(index * slot, { damping: 20, mass: 0.7, stiffness: 240 });
     first.current = false;
   }, [index, slot, x]);
   const thumb = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }], width: slot }));
-
   return (
-    <View
-      accessibilityRole="tablist"
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width - SWITCH_PAD * 2)}
-      style={[styles.switcher, { backgroundColor: colors.surface }]}
-    >
-      {slot ? <Animated.View pointerEvents="none" style={[styles.switchThumb, thumb, { backgroundColor: `${colors.primary}26`, borderColor: `${colors.primary}55` }]} /> : null}
+    <View accessibilityRole="tablist" onLayout={(e) => setWidth(e.nativeEvent.layout.width - 8)} style={[styles.tabBar, { backgroundColor: colors.surface }]}>
+      {slot ? <Animated.View pointerEvents="none" style={[styles.thumb, thumb, { backgroundColor: `${colors.primary}22`, borderColor: `${colors.primary}55` }]} /> : null}
       {tabs.map((t) => {
         const active = t.value === value;
-        const c = active ? colors.primary : colors.textMuted;
         return (
-          <Pressable
-            accessibilityLabel={t.label}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            key={t.value}
-            onPress={() => { if (!active) onChange(t.value); }}
-            style={styles.switchTab}
-          >
-            {t.icon(c)}
-            <AppText numberOfLines={1} style={[styles.switchLabel, { color: active ? colors.textPrimary : colors.textMuted }]}>{t.label}</AppText>
+          <Pressable accessibilityLabel={t.label} accessibilityRole="tab" accessibilityState={{ selected: active }} feedback="none" key={t.value} onPress={() => { if (!active) onChange(t.value); }} style={styles.tabItem}>
+            <View>
+              {t.icon(active ? colors.primary : colors.textMuted)}
+              {t.badge ? <View style={[styles.badge, { backgroundColor: colors.primary }]}><Text style={styles.badgeText}>{t.badge}</Text></View> : null}
+            </View>
+            <Text numberOfLines={1} style={[styles.tabLabel, { color: active ? colors.textPrimary : colors.textMuted }]}>{t.label}</Text>
           </Pressable>
         );
       })}
@@ -317,180 +377,164 @@ function SportSwitcher({ tabs, value, onChange }: { tabs: SportTab[]; value: Spo
   );
 }
 
-function LeagueHeader({ league, sport }: { league: string; sport: SportKey }) {
+/** Day summary at the top of "Apostas": counts by state and the settled profit. */
+function BetsSummary({ items }: { items: Array<{ m: AnyMatch; bet: MatchBet | 'unknown' }> }) {
   const { colors } = useTheme();
-  // Tennis groups come as "ATP · Tournament".
+  const elevation = useCardElevation();
+  if (items.length === 0) return null;
+  const known = items.map((x) => x.bet).filter((b): b is MatchBet => b !== 'unknown');
+  const won = known.filter((b) => b.result === ItemResult.WON).length;
+  const lost = known.filter((b) => b.result === ItemResult.LOST).length;
+  const live = items.filter((x) => isLive(x.m)).length;
+  const pending = items.length - won - lost;
+  // Each boletim counted once.
+  const seen = new Set<string>();
+  const profit = known.reduce((sum, b) => (b.profit === null || seen.has(b.boletinId) ? sum : (seen.add(b.boletinId), sum + b.profit)), 0);
+  const stat = (n: number, label: string, color: string) => (
+    <View style={styles.sumStat}>
+      <Text style={[styles.sumValue, { color }]}>{n}</Text>
+      <Text style={[styles.sumLabel, { color: colors.textMuted }]}>{label}</Text>
+    </View>
+  );
+  return (
+    <Animated.View entering={FadeIn.duration(300)} style={[styles.sumWrap, elevation]}>
+      <LinearGradient colors={[colors.heroFrom, colors.heroTo]} end={{ x: 1, y: 1 }} start={{ x: 0, y: 0 }} style={styles.sumCard}>
+        <View style={styles.sumTop}>
+          <Text style={[styles.sumTitle, { color: colors.heroText }]}>{items.length} jogo{items.length > 1 ? 's' : ''} com aposta</Text>
+          {seen.size > 0 ? <Text style={[styles.sumProfit, { color: profit >= 0 ? colors.heroPositive : colors.heroNegative }]}>{profit >= 0 ? '+' : '−'}{formatCurrency(Math.abs(profit))}</Text> : null}
+        </View>
+        <View style={styles.sumStats}>
+          {stat(won, 'certas', colors.heroPositive)}
+          {stat(lost, 'falhadas', colors.heroNegative)}
+          {stat(live, 'ao vivo', colors.live)}
+          {stat(Math.max(pending - live, 0), 'por jogar', colors.heroText)}
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+/** Compact link from a sport tab to "Apostas": crests of the bet matches and their states. */
+function BetsBanner({ count, items, onPress }: { count: number; items: Array<MatchBet | 'unknown' | null>; onPress: () => void }) {
+  const { colors } = useTheme();
+  const elevation = useCardElevation();
+  const won = items.filter((b) => b && b !== 'unknown' && b.result === ItemResult.WON).length;
+  const lost = items.filter((b) => b && b !== 'unknown' && b.result === ItemResult.LOST).length;
+  return (
+    <Pressable onPress={onPress} style={[styles.banner, elevation, { backgroundColor: colors.surface, borderColor: `${colors.primary}55` }]}>
+      <View style={[styles.bannerIcon, { backgroundColor: colors.primary }]}><Ionicons color="#06110B" name="receipt" size={16} /></View>
+      <View style={styles.flex}>
+        <Text style={[styles.bannerTitle, { color: colors.textPrimary }]}>As tuas apostas · {count}</Text>
+        <Text style={[styles.bannerSub, { color: colors.textMuted }]}>{[won ? `${won} certa${won > 1 ? 's' : ''}` : '', lost ? `${lost} falhada${lost > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || 'Ver o estado de cada uma'}</Text>
+      </View>
+      <Ionicons color={colors.textMuted} name="chevron-forward" size={18} />
+    </Pressable>
+  );
+}
+
+function LeagueHeader({ league, sport, count, live, betCount, collapsed, onPress }: { league: string; sport: SportKey; count: number; live: number; betCount: number; collapsed: boolean; onPress: () => void }) {
+  const { colors } = useTheme();
   const [tour, tournament] = sport === 'tennis' && league.includes(' · ') ? league.split(' · ') as [string, string] : [null, league];
   const title = tournament ?? league;
   const sub = sport === 'tennis' ? tour : sport === 'basketball' ? 'EUA' : LEAGUE_COUNTRY[league] ?? (/^UEFA|Europeu|Liga das Nações/.test(league) ? 'Europa' : 'Mundo');
   const logo = getLeagueLogoUrl(title) ?? getLeagueLogoUrl(league);
   const flag = sub ? getCountryFlagUrl(sub) : null;
+  const rot = useSharedValue(collapsed ? -90 : 0);
+  useEffect(() => { rot.value = withTiming(collapsed ? -90 : 0, { duration: 200 }); }, [collapsed, rot]);
+  const chevron = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }] }));
   return (
-    <View style={styles.leagueHead}>
+    <Pressable accessibilityRole="button" accessibilityState={{ expanded: !collapsed }} feedback="none" onPress={onPress} style={styles.leagueHead}>
       {logo ? <Image cachePolicy="memory-disk" contentFit="contain" source={{ uri: logo }} style={styles.leagueLogo} /> : (
-        <View style={[styles.leagueLogo, styles.leagueLogoFallback, { backgroundColor: colors.surfaceRaised }]}>
-          <Ionicons color={colors.textSecondary} name="trophy-outline" size={18} />
-        </View>
+        <View style={[styles.leagueLogo, styles.leagueLogoFallback, { backgroundColor: colors.surface }]}><Ionicons color={colors.textSecondary} name="trophy-outline" size={16} /></View>
       )}
       <View style={styles.flex}>
-        <AppText numberOfLines={1} variant="bodyStrong">{title}</AppText>
-        {sub ? (
-          <View style={styles.row}>
-            {flag ? <Image cachePolicy="memory-disk" contentFit="contain" source={{ uri: flag }} style={styles.flag} /> : null}
-            <AppText variant="caption">{sub}</AppText>
-          </View>
-        ) : null}
+        <Text numberOfLines={1} style={[styles.leagueName, { color: colors.textPrimary }]}>{title}</Text>
+        <View style={styles.leagueSub}>
+          {flag ? <Image cachePolicy="memory-disk" contentFit="contain" source={{ uri: flag }} style={styles.flag} /> : null}
+          <Text style={[styles.leagueMeta, { color: colors.textMuted }]}>{sub}</Text>
+        </View>
       </View>
+      {live > 0 ? <View style={[styles.countPill, { backgroundColor: `${colors.live}22` }]}><Text style={[styles.countText, { color: colors.live }]}>{live} ao vivo</Text></View> : null}
+      {betCount > 0 ? <View style={[styles.countPill, { backgroundColor: `${colors.primary}22` }]}><Ionicons color={colors.primary} name="receipt" size={11} /><Text style={[styles.countText, { color: colors.primary }]}>{betCount}</Text></View> : null}
+      <Text style={[styles.leagueMeta, { color: colors.textMuted }]}>{count}</Text>
+      <Animated.View style={chevron}><Ionicons color={colors.textMuted} name="chevron-down" size={18} /></Animated.View>
+    </Pressable>
+  );
+}
+
+function Empty({ icon, title, sub, action, actionLabel }: { icon: React.ComponentProps<typeof Ionicons>['name']; title: string; sub: string; action?: () => void; actionLabel?: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.empty}>
+      <Ionicons color={colors.textMuted} name={icon} size={40} />
+      <AppText variant="heading">{title}</AppText>
+      <AppText style={styles.center} variant="caption">{sub}</AppText>
+      {action ? (
+        <Pressable onPress={action} style={[styles.emptyBtn, { backgroundColor: colors.primary }]}>
+          <Text style={styles.emptyBtnText}>{actionLabel}</Text>
+        </Pressable>
+      ) : <AppText style={styles.center} variant="caption">Desliza para os lados para mudar de dia.</AppText>}
     </View>
   );
 }
 
-/** "2 certas · 1 em jogo" for the pinned card. */
-function MyBetsSummary({ bets }: { bets: Array<MatchBet | 'unknown' | null> }) {
-  const { colors } = useTheme();
-  const known = bets.filter((b): b is MatchBet => b !== null && b !== 'unknown');
-  const won = known.filter((b) => b.result === ItemResult.WON).length;
-  const lost = known.filter((b) => b.result === ItemResult.LOST).length;
-  const pending = known.filter((b) => b.result === ItemResult.PENDING).length;
-  const parts = [won ? `${won} certa${won > 1 ? 's' : ''}` : '', lost ? `${lost} falhada${lost > 1 ? 's' : ''}` : '', pending ? `${pending} em jogo` : ''].filter(Boolean);
-  return <AppText style={{ color: won > lost ? colors.positive : lost > won ? colors.negative : colors.textSecondary, fontWeight: '700' }} variant="caption">{parts.join(' · ') || `${bets.length}`}</AppText>;
-}
-
-function MatchRow({ match: m, onPress, sport, bet, index = 0 }: { match: AnyMatch; onPress?: () => void; sport: SportKey; bet: MatchBet | 'unknown' | null; index?: number }) {
-  const { colors } = useTheme();
-  const live = isLive(m);
-  const done = isDone(m);
-  const kick = new Date(m.kickoffAt);
-  const time = kick.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-  const date = `${String(kick.getDate()).padStart(2, '0')}/${String(kick.getMonth() + 1).padStart(2, '0')}/${String(kick.getFullYear()).slice(2)}`;
-  const status = live
-    ? (m.status === 'HALFTIME' ? 'Int.' : sport === 'tennis' ? 'Ao vivo' : m.statusDetail)
-    : done ? (m.status === 'RETIRED' ? 'Desist.' : m.status === 'WALKOVER' ? 'W.O.' : 'FT')
-      : m.status === 'POSTPONED' ? 'Adiado' : m.status === 'CANCELLED' ? 'Cancel.' : time;
-  const variant = sport === 'tennis' ? 'player' : 'team';
-  const red = 'redCards' in m ? m.redCards : null;
-  const line = 'line' in m ? m.line : null;
-  // NBA: away team first, "@ Home" second (US convention, like Sofascore).
-  const top = sport === 'basketball' ? { name: m.away.name, score: m.score?.away, other: m.score?.home, reds: 0 } : { name: m.home.name, score: m.score?.home, other: m.score?.away, reds: red?.home ?? 0 };
-  const bottom = sport === 'basketball' ? { name: m.home.name, score: m.score?.home, other: m.score?.away, reds: 0, at: true } : { name: m.away.name, score: m.score?.away, other: m.score?.home, reds: red?.away ?? 0, at: false };
-  const showScore = m.score && (live || done);
-
-  const side = (s: typeof top & { at?: boolean }) => {
-    const won = done && s.score !== undefined && s.other !== undefined && s.score > s.other;
-    const lost = done && s.score !== undefined && s.other !== undefined && s.score < s.other;
-    return (
-      <View style={styles.side}>
-        <TeamBadge name={s.name} size={22} variant={variant} />
-        <AppText numberOfLines={1} style={[styles.teamName, { color: lost ? colors.textSecondary : colors.textPrimary, fontWeight: won ? '700' : '500' }]}>
-          {s.at ? '@ ' : ''}{s.name}
-        </AppText>
-        {s.reds > 0 ? <View style={[styles.redCard, { backgroundColor: colors.live }]} /> : null}
-        {showScore ? (
-          <AppText style={[styles.score, { color: live ? colors.live : lost ? colors.textSecondary : colors.textPrimary, fontWeight: won || live ? '800' : '600' }]} variant="number">{s.score}</AppText>
-        ) : null}
-      </View>
-    );
-  };
-
-  const known = bet && bet !== 'unknown' ? bet : null;
-  const betTone = !bet ? 'transparent'
-    : known?.result === ItemResult.WON ? colors.positive
-    : known?.result === ItemResult.LOST ? colors.negative
-    : live ? colors.info : colors.warning;
-
-  return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 10) * 30).duration(240)}>
-    <Pressable
-      accessibilityLabel={`${m.home.name} ${showScore ? `${m.score!.home} - ${m.score!.away}` : 'contra'} ${m.away.name}, ${status}${bet ? ', tens aposta' : ''}`}
-      disabled={!onPress}
-      onPress={onPress}
-      style={({ pressed }) => [styles.matchRow, bet ? { backgroundColor: `${betTone}0F` } : null, pressed && { backgroundColor: colors.surfaceRaised }]}
-    >
-      {bet ? <View style={[styles.betBar, { backgroundColor: betTone }]} /> : null}
-      <View style={styles.statusCol}>
-        <AppText style={styles.dateText} variant="caption">{date}</AppText>
-        <View style={styles.row}>
-          {live ? <LiveDot color={colors.live} size={6} /> : null}
-          <AppText style={[styles.statusText, { color: live ? colors.live : m.status === 'POSTPONED' || m.status === 'CANCELLED' ? colors.negative : colors.textSecondary }]} variant="caption">{status}</AppText>
-        </View>
-      </View>
-      <View style={styles.teams}>
-        {side(top)}
-        {side(bottom)}
-        {sport === 'tennis' && line ? <AppText numberOfLines={1} variant="caption">{line}</AppText> : null}
-        {known ? (
-          <View style={[styles.betChip, { backgroundColor: colors.surfaceRaised }]}>
-            <View style={[styles.betDot, { backgroundColor: betTone }]} />
-            <AppText numberOfLines={1} style={styles.betChipText} variant="caption">{known.selection} · {known.odd.toFixed(2)}{known.legs > 1 ? ` · múltipla ${known.wonLegs}/${known.legs}` : ''}</AppText>
-          </View>
-        ) : null}
-      </View>
-      {bet ? (
-        <View style={styles.sealCol}>
-          <View style={[styles.seal, { backgroundColor: known?.result === ItemResult.PENDING || !known ? `${betTone}2E` : betTone }]}>
-            {known?.result === ItemResult.WON ? <Ionicons color="#06110B" name="checkmark" size={14} />
-              : known?.result === ItemResult.LOST ? <Ionicons color="#2A0E14" name="close" size={14} />
-              : <Ionicons color={betTone} name="receipt" size={12} />}
-          </View>
-          {known && known.profit !== null && known.legs === 1 ? (
-            <AppText style={[styles.sealText, { color: known.profit >= 0 ? colors.positive : colors.negative }]} variant="caption">
-              {known.profit >= 0 ? '+' : '−'}{formatCurrency(Math.abs(known.profit)).replace(/,00(?=\s?€)/, '')}
-            </AppText>
-          ) : null}
-        </View>
-      ) : null}
-    </Pressable>
-    </Animated.View>
-  );
-}
+// TeamBadge is used by the cards; kept imported for the crest cache warm-up on this screen.
+void TeamBadge;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   flex: { flex: 1 },
   center: { textAlign: 'center' },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  header: { alignItems: 'center', flexDirection: 'row', gap: 8, paddingBottom: 6, paddingHorizontal: 16, paddingTop: 8 },
-  switcher: { borderRadius: 14, flex: 1, flexDirection: 'row', height: 46, padding: SWITCH_PAD },
-  switchThumb: { borderRadius: 11, borderWidth: 1, bottom: SWITCH_PAD, left: SWITCH_PAD, position: 'absolute', top: SWITCH_PAD },
-  switchTab: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 4, justifyContent: 'center', paddingHorizontal: 2 },
-  switchLabel: { flexShrink: 1, fontFamily: 'Inter_600SemiBold', fontSize: 12 },
-  searchBtn: { alignItems: 'center', borderRadius: 14, height: 46, justifyContent: 'center', width: 46 },
-  controls: { alignItems: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
-  pill: { alignItems: 'center', borderRadius: 999, borderWidth: 1.5, flexDirection: 'row', gap: 6, height: 40, paddingHorizontal: 14 },
-  iconPill: { paddingHorizontal: 12 },
-  liveRing: { borderRadius: 6, borderWidth: 1.5, height: 11, width: 11 },
-  dateNav: { alignItems: 'center', borderRadius: 999, flex: 1, flexDirection: 'row', height: 40 },
-  navArrow: { alignItems: 'center', height: 40, justifyContent: 'center', width: 36 },
-  dateCenter: { alignItems: 'center', flex: 1, justifyContent: 'center' },
-  content: { paddingHorizontal: 12 },
-  groups: { gap: 12 },
-  card: { borderRadius: 22, overflow: 'hidden', paddingVertical: 6 },
-  leagueHead: { alignItems: 'center', flexDirection: 'row', gap: 14, paddingHorizontal: 16, paddingVertical: 12 },
-  leagueLogo: { height: 40, width: 40 },
-  leagueLogoFallback: { alignItems: 'center', borderRadius: 10, justifyContent: 'center' },
-  flag: { borderRadius: 3, height: 13, width: 18 },
-  matchRow: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 10 },
-  betBar: { bottom: 6, borderRadius: 2, left: 4, position: 'absolute', top: 6, width: 3 },
-  betChip: { alignItems: 'center', alignSelf: 'flex-start', borderRadius: 7, flexDirection: 'row', gap: 6, maxWidth: '100%', paddingHorizontal: 7, paddingVertical: 3 },
-  betDot: { borderRadius: 3, height: 6, width: 6 },
-  betChipText: { flexShrink: 1, fontSize: 11, fontWeight: '600' },
-  sealCol: { alignItems: 'center', gap: 3, width: 46 },
-  seal: { alignItems: 'center', borderRadius: 12, height: 24, justifyContent: 'center', width: 24 },
-  sealText: { fontSize: 10, fontWeight: '800' },
-  myCard: { borderWidth: 1 },
-  myHead: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 12 },
-  myIcon: { alignItems: 'center', borderRadius: 7, height: 24, justifyContent: 'center', width: 24 },
-  statusCol: { alignItems: 'center', gap: 6, width: 62 },
-  dateText: { fontSize: 11 },
-  statusText: { fontSize: 12, fontWeight: '600' },
-  teams: { flex: 1, gap: 8 },
-  side: { alignItems: 'center', flexDirection: 'row', gap: 10 },
-  teamName: { flexShrink: 1, fontSize: 15 },
-  redCard: { borderRadius: 2, height: 14, width: 10 },
-  score: { fontSize: 16, marginLeft: 'auto', marginRight: 14, minWidth: 22, textAlign: 'right' },
-  betCol: { alignItems: 'center', width: 34 },
-  betIcon: { alignItems: 'center', borderRadius: 17, borderWidth: 1.5, height: 32, justifyContent: 'center', width: 32 },
-  empty: { alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingVertical: 40 },
-  todayBtn: { alignItems: 'center', alignSelf: 'center', borderRadius: 999, flexDirection: 'row', gap: 4, paddingHorizontal: 22, paddingVertical: 12, position: 'absolute' },
+  header: { paddingBottom: 4, paddingHorizontal: 16, paddingTop: 8 },
+  tabBar: { borderRadius: 16, flexDirection: 'row', padding: 4 },
+  thumb: { borderRadius: 12, borderWidth: 1, bottom: 4, left: 4, position: 'absolute', top: 4 },
+  tabItem: { alignItems: 'center', flex: 1, gap: 3, justifyContent: 'center', paddingVertical: 8 },
+  tabLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  badge: { alignItems: 'center', borderRadius: 8, height: 16, justifyContent: 'center', minWidth: 16, paddingHorizontal: 3, position: 'absolute', right: -12, top: -6 },
+  badgeText: { color: '#06110B', fontFamily: 'Inter_700Bold', fontSize: 10 },
+  controls: { alignItems: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  ctrl: { alignItems: 'center', borderRadius: 14, flexDirection: 'row', gap: 5, height: 44, justifyContent: 'center', minWidth: 44, paddingHorizontal: 10 },
+  ctrlText: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  liveDot: { borderRadius: 4, height: 8, width: 8 },
+  dateNav: { alignItems: 'center', borderRadius: 14, flex: 1, flexDirection: 'row', height: 44 },
+  navArrow: { alignItems: 'center', height: 44, justifyContent: 'center', width: 40 },
+  dateCenter: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 6, justifyContent: 'center' },
+  dateText: { fontFamily: 'Inter_700Bold', fontSize: 15 },
+  content: { paddingHorizontal: 16 },
+  groups: { gap: 14 },
+  section: { gap: 8 },
+  matches: { gap: 8 },
+  errorCard: { alignItems: 'center', borderRadius: 18, flexDirection: 'row', gap: 10, padding: 16 },
+  leagueHead: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingHorizontal: 4, paddingVertical: 4 },
+  leagueLogo: { height: 30, width: 30 },
+  leagueLogoFallback: { alignItems: 'center', borderRadius: 8, justifyContent: 'center' },
+  leagueName: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  leagueSub: { alignItems: 'center', flexDirection: 'row', gap: 5, marginTop: 1 },
+  leagueMeta: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  flag: { borderRadius: 2, height: 10, width: 14 },
+  countPill: { alignItems: 'center', borderRadius: 7, flexDirection: 'row', gap: 3, paddingHorizontal: 6, paddingVertical: 2 },
+  countText: { fontFamily: 'Inter_700Bold', fontSize: 11 },
+  sumWrap: { borderRadius: 22 },
+  sumCard: { borderRadius: 22, gap: 14, padding: 16 },
+  sumTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  sumTitle: { fontFamily: 'Inter_700Bold', fontSize: 16 },
+  sumProfit: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 20 },
+  sumStats: { flexDirection: 'row', gap: 8 },
+  sumStat: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, flex: 1, gap: 1, paddingVertical: 8 },
+  sumValue: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 18 },
+  sumLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
+  banner: { alignItems: 'center', borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 12 },
+  bannerIcon: { alignItems: 'center', borderRadius: 10, height: 34, justifyContent: 'center', width: 34 },
+  bannerTitle: { fontFamily: 'Inter_700Bold', fontSize: 14 },
+  bannerSub: { fontFamily: 'Inter_500Medium', fontSize: 12 },
+  empty: { alignItems: 'center', gap: 10, paddingHorizontal: 24, paddingTop: 48 },
+  emptyBtn: { borderRadius: 14, marginTop: 6, paddingHorizontal: 18, paddingVertical: 12 },
+  emptyBtnText: { color: '#06110B', fontFamily: 'Inter_700Bold', fontSize: 14 },
+  todayBtn: { alignItems: 'center', alignSelf: 'center', borderRadius: 999, flexDirection: 'row', gap: 4, paddingHorizontal: 18, paddingVertical: 10, position: 'absolute' },
   todayText: { color: '#FFFFFF' },
+  sheetBackdrop: { backgroundColor: 'rgba(0,0,0,0.5)', flex: 1, justifyContent: 'flex-end' },
+  sortSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 4, padding: 16 },
+  sortTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, marginBottom: 8, paddingHorizontal: 8 },
+  sortRow: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', minHeight: 48, paddingHorizontal: 12 },
+  sortLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 15 },
 });
