@@ -64,7 +64,12 @@ betintelRouter.get('/:id/results', async (req, res) => {
   for (const it of boletin.items) {
     const m = data[it.id];
     if (!m || it.result !== 'PENDING') continue;
-    if (!it.kickoffAt) await prisma.boletinItem.update({ where: { id: it.id }, data: { kickoffAt: new Date(m.kickoffAt) } }).catch(() => undefined);
+    // Missing or wrong kickoff (more than 2 h off the real game): store the real one so the
+    // tracker follows and settles this selection.
+    const real = new Date(m.kickoffAt);
+    if (!it.kickoffAt || (m.status !== 'SCHEDULED' && Math.abs(it.kickoffAt.getTime() - real.getTime()) >= 2 * 3600e3)) {
+      await prisma.boletinItem.update({ where: { id: it.id }, data: { kickoffAt: real } }).catch(() => undefined);
+    }
     if (['FINISHED', 'RETIRED', 'WALKOVER'].includes(m.status)) stale = true;
   }
   if (stale) void settleSoon();
