@@ -101,7 +101,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const storeUser = useAuthStore((state) => state.user);
   const refreshUser = useAuthStore((state) => state.refreshUser);
   usePrefetchHomeData(isAuthenticated);
-  useSharedImage();
+  useSharedImage(isAuthenticated, isHydrating);
 
   // Logout: drop every cached response (memory and disk) so the next account starts clean.
   const wasAuthenticated = useRef(isAuthenticated);
