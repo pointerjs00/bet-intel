@@ -11,6 +11,7 @@ import { useCardElevation } from '../ui/ListCard';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency } from '../../utils/formatters';
 import type { MatchBet } from '../../utils/dayBets';
+import { parseSetLine, setWinner, setsWon } from '../../utils/tennisSets';
 
 export type AnyMatch = FootballMatch | SimpleMatch;
 
@@ -57,7 +58,6 @@ export const MatchCard = React.memo(function MatchCard({ match: m, sport, bet, i
   const known = bet && bet !== 'unknown' ? bet : null;
   const tone = betTone(bet, st.live, colors);
   const red = 'redCards' in m ? m.redCards : null;
-  const line = 'line' in m ? m.line : null;
   const nba = sport === 'basketball';
   const rows = nba
     ? [{ name: m.away.name, score: m.score?.away, other: m.score?.home, reds: 0, at: false }, { name: m.home.name, score: m.score?.home, other: m.score?.away, reds: 0, at: true }]
@@ -85,12 +85,12 @@ export const MatchCard = React.memo(function MatchCard({ match: m, sport, bet, i
         </View>
 
         <View style={styles.teams}>
-          {rows.map((r) => {
+          {sport === 'tennis' ? <TennisRows match={m} live={st.live} done={done} /> : rows.map((r) => {
             const won = done && r.score != null && r.other != null && r.score > r.other;
             const lost = done && r.score != null && r.other != null && r.score < r.other;
             return (
               <View key={`${r.name}-${r.at}`} style={styles.teamRow}>
-                <TeamBadge name={r.name} size={20} variant={sport === 'tennis' ? 'player' : 'team'} />
+                <TeamBadge name={r.name} size={20} variant="team" />
                 <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_500Medium' }]}>
                   {r.at ? '@ ' : ''}{r.name}
                 </Text>
@@ -101,7 +101,6 @@ export const MatchCard = React.memo(function MatchCard({ match: m, sport, bet, i
               </View>
             );
           })}
-          {sport === 'tennis' && line ? <Text numberOfLines={1} style={[styles.line, { color: colors.textMuted }]}>{line}</Text> : null}
           {known ? (
             <View style={[styles.chip, { backgroundColor: `${tone}1A` }]}>
               <View style={[styles.dot, { backgroundColor: tone }]} />
@@ -129,7 +128,60 @@ export const MatchCard = React.memo(function MatchCard({ match: m, sport, bet, i
   );
 });
 
+/**
+ * Tennis score in Sofascore style: per player, the server ball, sets won, the games of every set
+ * (set winner bright, current set highlighted) and the point score while live.
+ */
+export function TennisRows({ match: m, live, done, big = false }: { match: AnyMatch; live: boolean; done: boolean; big?: boolean }) {
+  const { colors } = useTheme();
+  const sm = m as SimpleMatch;
+  const sets = sm.sets?.length ? sm.sets : parseSetLine('line' in m ? m.line : null);
+  const won = setsWon(sets);
+  const started = sets.length > 0 && (live || done);
+  const winner = done ? (won.home > won.away ? 'home' : won.away > won.home ? 'away' : null) : null;
+  const points = live ? sm.points ?? null : null;
+  const sides = [
+    { key: 'home' as const, name: m.home.name, sw: won.home, games: (s: { a: number; b: number }) => s.a, mine: 'A' as const },
+    { key: 'away' as const, name: m.away.name, sw: won.away, games: (s: { a: number; b: number }) => s.b, mine: 'B' as const },
+  ];
+  return (
+    <>
+      {sides.map((p) => {
+        const lost = winner !== null && winner !== p.key;
+        return (
+          <View key={p.key} style={styles.teamRow}>
+            <TeamBadge name={p.name} size={big ? 28 : 20} variant="player" />
+            <Text numberOfLines={1} style={[styles.team, big && styles.teamBig, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: winner === p.key ? 'Inter_700Bold' : 'Inter_500Medium' }]}>{p.name}</Text>
+            {live && sm.server === p.key ? <View style={[styles.serve, { backgroundColor: colors.gold }]} /> : null}
+            {started ? (
+              <View style={styles.tScores}>
+                <Text style={[styles.tSets, big && styles.tSetsBig, { color: live ? colors.positive : lost ? colors.textSecondary : colors.textPrimary }]}>{p.sw}</Text>
+                {sets.map((s, i) => {
+                  const current = live && i === sets.length - 1 && setWinner(s) === null;
+                  const tookIt = setWinner(s) === p.mine;
+                  return (
+                    <Text key={i} style={[styles.tGames, big && styles.tGamesBig, current && { backgroundColor: `${colors.live}1F`, color: colors.live }, !current && { color: tookIt ? colors.textPrimary : colors.textMuted }]}>{p.games(s)}</Text>
+                  );
+                })}
+                {points ? <Text style={[styles.tPoints, { color: colors.positive }]}>{p.key === 'home' ? points.home : points.away}</Text> : null}
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
+  serve: { borderRadius: 3.5, height: 7, width: 7 },
+  teamBig: { fontSize: 16 },
+  tSetsBig: { fontSize: 20 },
+  tGamesBig: { fontSize: 15, minWidth: 22 },
+  tScores: { alignItems: 'center', flexDirection: 'row', gap: 2 },
+  tSets: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 15, marginRight: 4, minWidth: 14, textAlign: 'center' },
+  tGames: { borderRadius: 5, fontFamily: 'SpaceGrotesk_700Bold', fontSize: 13, minWidth: 18, paddingVertical: 1, textAlign: 'center' },
+  tPoints: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 13, marginLeft: 4, minWidth: 22, textAlign: 'center' },
   card: { alignItems: 'center', borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: 12, paddingHorizontal: 10, paddingVertical: 10 },
   tile: { alignItems: 'center', borderRadius: 12, gap: 3, justifyContent: 'center', minHeight: 56, width: 54 },
   time: { fontFamily: 'Inter_700Bold', fontSize: 13 },

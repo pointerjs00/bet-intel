@@ -13,6 +13,7 @@ import { ESPN_FOOTBALL_LEAGUES, NATIONAL_TEAM_LEAGUES, fetchEspnFootballDay, fet
 import { countryToPt } from '../utils/countryNames';
 import { fetchEspnNbaDay, fetchEspnNbaGame } from '../services/sportsData/espnBasketball';
 import { fetchLiveTennisPoints, findLivePoints } from '../services/sportsData/livescoreTennis';
+import { setWinner } from '../services/tennisMarketEngine';
 import { fetchEspnTennisDay } from '../services/sportsData/espnTennis';
 import type { NormalizedMatch } from '../services/sportsData/types';
 import { getAssets } from '../services/sportsData/assetRegistry';
@@ -124,6 +125,9 @@ interface SimpleMatch {
   away: { name: string };
   score: { home: number; away: number } | null;
   line: string | null;
+  sets?: Array<{ a: number; b: number }>;
+  points?: { home: string; away: string } | null;
+  server?: 'home' | 'away' | null;
   hasBet: boolean;
 }
 
@@ -172,6 +176,9 @@ sportsRouter.get('/tennis/day', async (req: Request, res: Response) => {
     const [atp, wta] = await Promise.all((['atp', 'wta'] as const).map((tour) =>
       cached(`sports:tennis:day:${tour}:${date}`, isToday ? 60 : 900, () => fetchEspnTennisDay(tour, date).catch(() => []))));
     const pending = await pendingNames(req.user!.sub, 'TENNIS', date);
+    // Point score and server for live matches (one shared LiveScore call, 20 s cache).
+    const anyLive = [...(atp ?? []), ...(wta ?? [])].some((m) => m.status === 'LIVE');
+    const livePoints = anyLive ? await cached('sports:tennis:livescore', 20, () => fetchLiveTennisPoints().catch(() => [])) : null;
     // ESPN returns a tournament's whole draw on each day; keep the matches of the requested day.
     const sameDay = (iso: string) => iso.slice(0, 10) === date;
     const groups = new Map<string, { league: string; slug: string; matches: SimpleMatch[] }>();
@@ -179,8 +186,9 @@ sportsRouter.get('/tennis/day', async (req: Request, res: Response) => {
       if (m.doubles || !sameDay(m.startAt) && m.status !== 'LIVE') continue;
       const slug = `${m.tour}-${m.tournament.providerId}`;
       const g = groups.get(slug) ?? { league: `${m.tour.toUpperCase()} · ${m.tournament.name}`, slug, matches: [] };
-      const setsA = m.sets.filter((s) => s.a > s.b).length;
-      const setsB = m.sets.filter((s) => s.b > s.a).length;
+      const setsA = m.sets.filter((s) => setWinner(s) === 'A').length;
+      const setsB = m.sets.filter((s) => setWinner(s) === 'B').length;
+      const lp = m.status === 'LIVE' && livePoints ? findLivePoints(livePoints, m.playerA, m.playerB) : null;
       g.matches.push({
         providerMatchId: m.providerMatchId,
         kickoffAt: m.startAt,
@@ -190,6 +198,9 @@ sportsRouter.get('/tennis/day', async (req: Request, res: Response) => {
         away: { name: m.playerB },
         score: m.sets.length ? { home: setsA, away: setsB } : null,
         line: m.sets.length ? m.sets.map((s) => `${s.a}-${s.b}`).join(' ') : null,
+        sets: lp?.sets.length ? lp.sets : m.sets,
+        points: lp && lp.pointsA != null && lp.pointsB != null ? { home: lp.pointsA, away: lp.pointsB } : null,
+        server: lp?.server === 'A' ? 'home' : lp?.server === 'B' ? 'away' : null,
         hasBet: hasBetOn(pending, m.playerA, m.playerB),
       });
       groups.set(slug, g);

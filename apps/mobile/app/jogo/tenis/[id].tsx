@@ -13,6 +13,7 @@ import { LiveDot } from '../../../components/ui/Appear';
 import { useCardElevation } from '../../../components/ui/ListCard';
 import { MatchBetsStrip } from '../../../components/fixtures/MatchBetsStrip';
 import { useTennisMatch } from '../../../services/sportsService';
+import { setsWon } from '../../../utils/tennisSets';
 import { useTheme } from '../../../theme/useTheme';
 
 export default function TennisMatchScreen() {
@@ -26,8 +27,7 @@ export default function TennisMatchScreen() {
   const live = m?.status === 'LIVE';
   const done = m ? ['FINISHED', 'RETIRED', 'WALKOVER'].includes(m.status) : false;
   const sets = m ? (live && m.live?.sets.length ? m.live.sets : m.sets) : [];
-  const setsA = sets.filter((s) => s.a > s.b).length;
-  const setsB = sets.filter((s) => s.b > s.a).length;
+  const { home: setsA, away: setsB } = setsWon(sets);
   const gamesA = sets.reduce((t, s) => t + s.a, 0);
   const gamesB = sets.reduce((t, s) => t + s.b, 0);
   const tight = sets.filter((s) => Math.abs(s.a - s.b) <= 2 && Math.max(s.a, s.b) >= 6).length;

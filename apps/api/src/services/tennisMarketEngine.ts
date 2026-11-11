@@ -30,7 +30,10 @@ function playerOf(text: string, ctx: TennisContext): 'A' | 'B' | null {
   return a ? 'A' : 'B';
 }
 
-function setWinner(s: TennisSet): 'A' | 'B' | null {
+/** Winner of a COMPLETED set (6+ games and 2 clear, 7-5/7-6, or a 10-point match tie-break); null while in play. */
+export function setWinner(s: TennisSet): 'A' | 'B' | null {
+  const done = (Math.max(s.a, s.b) >= 6 && Math.abs(s.a - s.b) >= 2) || (Math.max(s.a, s.b) === 7 && Math.min(s.a, s.b) >= 5);
+  if (!done) return null;
   return s.a > s.b ? 'A' : s.b > s.a ? 'B' : null;
 }
 
