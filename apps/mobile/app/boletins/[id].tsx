@@ -12,6 +12,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BoletinStatus, ItemResult, Sport, type BoletinDetail } from '@betintel/shared';
 import { BoletimResultHero } from '../../components/boletins/BoletimResultHero';
 import { LegCard } from '../../components/boletins/LegCard';
+import { ProvisionalLine } from '../../components/fixtures/ProvisionalLine';
 import { IconTile } from '../../components/stats/v3/StatCard';
 import { WinCelebration } from '../../components/boletins/WinCelebration';
 import { ShareCard } from '../../components/boletins/ShareCard';
@@ -232,6 +233,7 @@ export default function BoletinDetailScreen() {
   const header = (
     <View style={styles.headerWrap}>
       <BoletimResultHero boletin={boletin} />
+      <ProvisionalLine boletinId={boletin.id} />
       {canEdit ? (
         <View style={styles.actions}>
           <Button leftSlot={<Ionicons color={colors.textPrimary} name="create-outline" size={16} />} onPress={() => openEditor(0)} size="sm" style={styles.flex} title="Editar" variant="secondary" />

@@ -186,7 +186,12 @@ export function useFootballMatch(league: string, id: string) {
 }
 
 export interface BasketballTotals { points: number; rebounds: number; assists: number; threes: number; steals: number; blocks: number; turnovers: number }
-export interface BasketballPlayerLine extends BasketballTotals { name: string; side: 'home' | 'away'; played: boolean }
+export interface BasketballPlayerLine extends BasketballTotals {
+  name: string; side: 'home' | 'away'; played: boolean;
+  shortName?: string; headshot?: string | null; position?: string | null; jersey?: string | null; starter?: boolean;
+  minutes?: string; fg?: string; threePt?: string; ft?: string; offReb?: number; defReb?: number; fouls?: number; plusMinus?: string;
+}
+export interface BasketballScoringPlay { period: number; clock: number; side: 'home' | 'away'; points: number; home: number; away: number; text: string }
 export interface BasketballGame {
   providerMatchId: string;
   startAt: string;
@@ -198,6 +203,8 @@ export interface BasketballGame {
   periods: Array<{ home: number; away: number }>;
   players?: BasketballPlayerLine[] | null;
   totals: { home: BasketballTotals; away: BasketballTotals } | null;
+  teamStats?: { home: Record<string, string>; away: Record<string, string> } | null;
+  scoring?: BasketballScoringPlay[] | null;
 }
 
 /** One NBA game with box score; refreshes every 30 s while live. */

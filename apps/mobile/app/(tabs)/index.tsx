@@ -25,6 +25,7 @@ import { computeLimitStatus } from '../../utils/bettingLimits';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { hapticLight } from '../../utils/haptics';
+import { ProvisionalLine } from '../../components/fixtures/ProvisionalLine';
 
 const WEEKS = 8;
 
@@ -282,7 +283,7 @@ export default function HomeDashboard() {
                 <View style={styles.flex}>
                   <AppText numberOfLines={1} variant="bodyStrong">{titleOf(b)}</AppText>
                   {b.items.length === 1 && b.items[0] ? (
-                    <MarketSelection market={b.items[0].market} selection={b.items[0].selection} trailing={`@${formatOdds(b.totalOdds)}`} />
+                    <MarketSelection market={b.items[0].market} selection={b.items[0].selection} trailing={`${formatOdds(b.totalOdds)}`} />
                   ) : (
                     <AppText numberOfLines={1} variant="caption">{subtitleOf(b)}</AppText>
                   )}
@@ -327,6 +328,7 @@ function LiveRow({ item, onPress }: { item: LiveItem; onPress: () => void }) {
           <AppText numberOfLines={1} style={styles.flex} variant="bodyStrong">{item.away}</AppText>
         </View>
         <MarketSelection market={item.market} selection={item.selection} />
+        {inPlay ? <ProvisionalLine boletinId={item.boletinId} compact /> : null}
       </View>
       <AppText style={styles.liveScore} variant="number">{item.score ?? '–'}</AppText>
       {item.verdict ? (

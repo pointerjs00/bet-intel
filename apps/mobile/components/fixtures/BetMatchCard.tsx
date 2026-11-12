@@ -14,6 +14,7 @@ import { formatCurrency, formatOdds } from '../../utils/formatters';
 import type { MatchBet } from '../../utils/dayBets';
 import { betTone, isDone, matchStatus, TennisRows, type AnyMatch } from './MatchCard';
 import { setsWon } from '../../utils/tennisSets';
+import { ProvisionalLine } from './ProvisionalLine';
 
 function stateLabel(bet: MatchBet | 'unknown', live: boolean, done: boolean): string {
   if (bet === 'unknown') return live ? 'EM JOGO' : done ? 'A RESOLVER' : 'COM APOSTA';
@@ -80,6 +81,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
             {known ? <Text style={[styles.odd, { color: colors.gold }]}>{formatOdds(known.odd)}</Text> : null}
           </View>
 
+          {st.live && known && known.result === ItemResult.PENDING ? <ProvisionalLine boletinId={known.boletinId} compact /> : null}
           <View style={styles.foot}>
             <View style={[styles.state, { backgroundColor: `${tone}22` }]}>
               <Text style={[styles.stateText, { color: tone }]}>{stateLabel(bet, st.live, done)}</Text>

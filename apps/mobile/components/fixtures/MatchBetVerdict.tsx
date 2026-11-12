@@ -11,6 +11,7 @@ import { formatCurrency, formatOdds } from '../../utils/formatters';
 import { explainBet, parseMinute, type GoalEvent } from '../../utils/betTimeline';
 import type { MatchBet } from '../../utils/dayBets';
 import { betConditions } from '../../utils/betConditions';
+import { ProvisionalLine } from './ProvisionalLine';
 
 const GOALS = new Set(['GOAL', 'PENALTY_GOAL', 'OWN_GOAL']);
 
@@ -110,6 +111,7 @@ export function MatchBetVerdict({ match, bet, onOpenBoletim }: { match: Football
           )}
           <Text style={[styles.pick, { color: colors.textSecondary }]}>{bet.market} · odd {formatOdds(bet.odd)}</Text>
           {multiLine ? <Text style={[styles.pick, { color: colors.textSecondary }]}>{multiLine}</Text> : null}
+          {live ? <ProvisionalLine boletinId={bet.boletinId} /> : null}
         </PressableScale>
         {e.segments ? (
           <View style={[styles.timeline, { backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(15,23,42,0.04)' }]}>

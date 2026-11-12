@@ -283,7 +283,8 @@ async function sendViaFirebaseAdmin(
       ),
       android: {
         priority: 'high' as const,
-        notification: { channelId: 'default', sound: 'default' },
+        // A team crest (data.image) shows as the notification picture.
+        notification: { channelId: 'default', sound: 'default', ...(typeof delivery.notification.data?.image === 'string' ? { imageUrl: delivery.notification.data.image } : {}) },
       },
     }];
   });
@@ -450,6 +451,7 @@ interface ExpoPushMessage {
   title: string;
   body: string;
   data: Record<string, unknown>;
+  richContent?: { image: string };
 }
 
 interface ExpoPushTicket {
@@ -486,6 +488,7 @@ export function buildExpoPushMessages(
         type: delivery.notification.type,
         ...(delivery.notification.data ?? {}),
       },
+      ...(typeof delivery.notification.data?.image === 'string' ? { richContent: { image: delivery.notification.data.image } } : {}),
     }];
   });
 }
