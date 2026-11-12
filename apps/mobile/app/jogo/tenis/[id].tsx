@@ -116,7 +116,6 @@ export default function TennisMatchScreen() {
                   <View style={[styles.tile, { backgroundColor: colors.background }]}><Text style={[styles.tileVal, { color: colors.textPrimary }]}>{gamesA}–{gamesB}</Text><Text style={[styles.tileLabel, { color: colors.textMuted }]}>jogos ganhos</Text></View>
                   <View style={[styles.tile, { backgroundColor: colors.background }]}><Text style={[styles.tileVal, { color: colors.textPrimary }]}>{tight}</Text><Text style={[styles.tileLabel, { color: colors.textMuted }]}>sets renhidos</Text></View>
                 </View>
-                <Text style={[styles.note, { color: colors.textMuted }]}>Ases, duplas faltas e quebras não estão disponíveis numa fonte gratuita.</Text>
               </Animated.View>
             ) : <Text style={[styles.note, styles.centerText, { color: colors.textMuted }]}>Os sets aparecem quando o jogo começar.</Text>}
           </>

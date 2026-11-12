@@ -162,9 +162,9 @@ export default function BatchResolveScreen() {
   };
 
   const itemResultLabel = (result: ItemResult) => {
-    if (result === ItemResult.WON) return 'Ganhou';
-    if (result === ItemResult.VOID) return 'Void';
-    return 'Perdeu';
+    if (result === ItemResult.WON) return 'Certa';
+    if (result === ItemResult.VOID) return 'Anulada';
+    return 'Falhada';
   };
 
   const itemResultIcon = (result: ItemResult): keyof typeof Ionicons.glyphMap => {
@@ -205,7 +205,7 @@ export default function BatchResolveScreen() {
           <Animated.View key={current.id} entering={FadeInRight.duration(200).springify()} style={styles.cardSection}>
             <Card style={styles.mainCard}>
               <Text style={[styles.boletinName, { color: colors.textPrimary }]}>
-                {current.name || 'Boletim sem nome'}
+                {current.name || (current.items.length === 1 ? `${current.items[0]!.homeTeam} vs ${current.items[0]!.awayTeam}` : `Múltipla · ${current.items.length} seleções`)}
               </Text>
 
               <View style={styles.metaRow}>
@@ -279,7 +279,7 @@ export default function BatchResolveScreen() {
                     currentResolution === 'LOST' ? colors.danger :
                     currentResolution === 'VOID' ? colors.warning : colors.textMuted
                 }]}>
-                  {currentResolution === 'SKIP' ? 'Ignorado' : currentResolution === 'WON' ? 'Ganhou' : currentResolution === 'LOST' ? 'Perdeu' : 'Cancelado'}
+                  {currentResolution === 'SKIP' ? 'Ignorado' : currentResolution === 'WON' ? 'Ganhou' : currentResolution === 'LOST' ? 'Perdeu' : 'Anulado'}
                 </Text>
               )}
             </Card>
@@ -412,7 +412,7 @@ export default function BatchResolveScreen() {
               <PressableScale
                 scaleDown={0.93}
                 accessibilityRole="button"
-                accessibilityLabel="Cancelado"
+                accessibilityLabel="Anulado"
                 disabled={updateItemsMutation.isPending}
                 onPress={() => handleResolveWithUndo('VOID')}
                 style={[styles.actionBtn, { backgroundColor: colors.warning }]}

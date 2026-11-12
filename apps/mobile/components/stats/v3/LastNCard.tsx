@@ -7,7 +7,7 @@ import type { BoletinDetail } from '@betintel/shared';
 import { BoletinStatus } from '@betintel/shared';
 import { Pressable } from '../../ui/Pressable';
 import { useTheme } from '../../../theme/useTheme';
-import { formatCurrency } from '../../../utils/formatters';
+import { formatCurrency, formatPercentage } from '../../../utils/formatters';
 import { hapticSelection } from '../../../utils/haptics';
 import { StatCard } from './StatCard';
 
@@ -136,7 +136,7 @@ export function LastNCard({ boletins, periodRoi, index }: LastNCardProps) {
             <View style={styles.figure}>
               <Text style={[styles.figLabel, { color: colors.textMuted }]}>Retorno</Text>
               <Text style={[styles.figValue, { color: stats.roi >= 0 ? colors.positive : colors.negative }]}>
-                {stats.roi >= 0 ? '+' : '−'}{Math.abs(stats.roi).toFixed(0)}%
+                {formatPercentage(stats.roi, 0, true)}
               </Text>
             </View>
           </Animated.View>

@@ -14,12 +14,11 @@ export default function BoletinsLayout() {
       }}
     >
       <Stack.Screen name="[id]" />
-      <Stack.Screen name="agenda" options={{ title: 'Os Meus Jogos' }} />
-      <Stack.Screen name="create" />
+      <Stack.Screen name="agenda" options={{ title: 'Agenda' }} />
+      <Stack.Screen name="confirmar" options={{ title: 'Confirmar boletim' }} />
       <Stack.Screen name="journal" />
       <Stack.Screen name="import-review" />
       <Stack.Screen name="scan" />
-      <Stack.Screen name="quick-log" options={{ headerShown: false }} />
       <Stack.Screen name="batch-resolve" />
       <Stack.Screen name="fixtures" options={{ title: 'Jogos' }} />
       <Stack.Screen name="rever" options={{ title: 'A rever' }} />

@@ -25,6 +25,7 @@ import {
 import { useTheme } from '../theme/useTheme';
 import { getNotificationTarget } from '../utils/notificationNavigation';
 import { formatRelativeTime } from '../utils/formatters';
+import { TeamBadge } from '../components/ui/TeamBadge';
 
 const NOTIFICATION_ICONS: Record<string, { name: React.ComponentProps<typeof MaterialCommunityIcons>['name']; color: 'primary' | 'info' | 'gold' | 'danger' | 'warning' }> = {
   FRIEND_REQUEST: { name: 'account-plus-outline', color: 'info' },
@@ -44,8 +45,18 @@ function NotificationRow({
   onPress: () => void;
 }) {
   const { colors } = useTheme();
-  const iconConfig = NOTIFICATION_ICONS[notification.type] ?? NOTIFICATION_ICONS.SYSTEM;
+  // Results get their own icon and colour (won / lost / void) instead of one trophy for all.
+  const st = (notification.data as { status?: string } | null)?.status;
+  const iconConfig = notification.type === 'BOLETIN_RESULT'
+    ? st === 'WON' ? { name: 'check-circle-outline' as const, color: 'primary' as const }
+      : st === 'LOST' ? { name: 'close-circle-outline' as const, color: 'danger' as const }
+      : { name: 'minus-circle-outline' as const, color: 'info' as const }
+    : NOTIFICATION_ICONS[notification.type] ?? NOTIFICATION_ICONS.SYSTEM;
   const iconColor = colors[iconConfig.color];
+  // Live notifications carry the game (teams, crests, score) since 12/11/2026.
+  const game = (notification.data as { home?: string; away?: string; homeLogo?: string; awayLogo?: string; score?: string | null; sport?: string } | null)?.home
+    ? notification.data as { home: string; away: string; homeLogo?: string; awayLogo?: string; score?: string | null; sport?: string }
+    : null;
 
   return (
     <Pressable
@@ -64,7 +75,16 @@ function NotificationRow({
 
       <View style={notifStyles.content}>
         <Text style={[notifStyles.title, { color: colors.textPrimary }]}>{notification.title}</Text>
-        <Text numberOfLines={2} style={[notifStyles.body, { color: colors.textSecondary }]}>{notification.body}</Text>
+        {game ? (
+          <View style={[notifStyles.game, { backgroundColor: colors.background }]}>
+            <TeamBadge imageUrl={game.homeLogo ?? null} name={game.home} size={18} variant={game.sport === 'TENNIS' ? 'player' : 'auto'} />
+            <Text numberOfLines={1} style={[notifStyles.gameTeam, { color: colors.textPrimary }]}>{game.home}</Text>
+            <Text style={[notifStyles.gameScore, { color: colors.textPrimary }]}>{game.score ?? 'vs'}</Text>
+            <Text numberOfLines={1} style={[notifStyles.gameTeam, notifStyles.right, { color: colors.textPrimary }]}>{game.away}</Text>
+            <TeamBadge imageUrl={game.awayLogo ?? null} name={game.away} size={18} variant={game.sport === 'TENNIS' ? 'player' : 'auto'} />
+          </View>
+        ) : null}
+        <Text numberOfLines={4} style={[notifStyles.body, { color: colors.textSecondary }]}>{notification.body.split(' · ').filter((x) => !game || !x.startsWith(game.home)).join(" · ")}</Text>
         <Text style={[notifStyles.time, { color: colors.textMuted }]}>{formatRelativeTime(notification.createdAt)}</Text>
       </View>
 
@@ -78,6 +98,10 @@ function NotificationRow({
 }
 
 const notifStyles = StyleSheet.create({
+  game: { alignItems: 'center', borderRadius: 10, flexDirection: 'row', gap: 6, marginVertical: 4, paddingHorizontal: 8, paddingVertical: 6 },
+  gameTeam: { flex: 1, fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  gameScore: { fontFamily: 'SpaceGrotesk_700Bold', fontSize: 14 },
+  right: { textAlign: 'right' },
   card: { borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 14, marginBottom: 10 },
   iconWrap: { alignItems: 'center', borderRadius: 12, height: 40, justifyContent: 'center', width: 40 },
   content: { flex: 1, gap: 3 },
@@ -158,7 +182,10 @@ export default function NotificationsScreen() {
           }}
           refreshControl={<RefreshControl refreshing={notificationsQuery.isRefetching} onRefresh={() => void notificationsQuery.refetch()} />}
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(index * 20).duration(160).springify()}>
+            <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 20).duration(160).springify()}>
+              {index === 0 || dayGroup(items[index - 1]!.createdAt) !== dayGroup(item.createdAt) ? (
+                <Text style={[styles.dayLabel, { color: colors.textMuted }]}>{dayGroup(item.createdAt)}</Text>
+              ) : null}
               <NotificationRow
                 notification={item}
                 onMarkRead={() => markReadMutation.mutate(item.id)}
@@ -188,7 +215,22 @@ export default function NotificationsScreen() {
   );
 }
 
+/** "Hoje", "Ontem", "Esta semana", "Novembro", "Outubro de 2025". */
+function dayGroup(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const start = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((start(now) - start(d)) / 86400000);
+  if (days === 0) return 'Hoje';
+  if (days === 1) return 'Ontem';
+  if (days < 7) return 'Esta semana';
+  const month = d.toLocaleDateString('pt-PT', { month: 'long' });
+  const cap = month.charAt(0).toUpperCase() + month.slice(1);
+  return d.getFullYear() === now.getFullYear() ? cap : `${cap} de ${d.getFullYear()}`;
+}
+
 const styles = StyleSheet.create({
+  dayLabel: { fontFamily: 'Inter_700Bold', fontSize: 12, letterSpacing: 0.3, marginBottom: 8, marginTop: 10 },
   screen: { flex: 1 },
   loadingWrap: { gap: 10, paddingTop: 16 },
   unreadBanner: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 8, marginBottom: 14, paddingHorizontal: 14, paddingVertical: 10 },

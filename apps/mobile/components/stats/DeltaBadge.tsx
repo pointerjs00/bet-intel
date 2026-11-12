@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/useTheme';
+import { formatCurrency } from '../../utils/formatters';
 
 interface DeltaBadgeProps {
   /** Current period value */
@@ -18,7 +19,7 @@ function formatDeltaValue(delta: number, format: DeltaBadgeProps['format']): str
   const abs = Math.abs(delta);
   switch (format) {
     case 'currency':
-      return `€${abs.toFixed(2).replace('.', ',')}`;
+      return formatCurrency(abs);
     case 'percentage':
       return `${abs.toFixed(1).replace('.', ',')}%`;
     default:

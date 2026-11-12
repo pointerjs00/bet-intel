@@ -57,6 +57,7 @@ const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,
 export { espnLeagueFor } from '../services/sportsData/leagueMap';
 import { espnLeagueFor } from '../services/sportsData/leagueMap';
 import { findItemMatches } from '../services/sportsData/itemMatch';
+import { getAssets } from '../services/sportsData/assetRegistry';
 export async function liveBetTrackerJob(): Promise<void> {
   for (let i = 0; i < POLLS_PER_RUN; i++) {
     try {
@@ -196,16 +197,17 @@ async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[
   const score = m.score ? `${m.score.home}-${m.score.away}` : null;
   const asGroup = group as unknown as PendingItem[];
   const fakeMatch = { providerMatchId: id } as NormalizedMatch;
+  const bctx: GameCtx = { home: m.home.name, away: m.away.name, score, detail: m.statusDetail, sport: 'BASKETBALL' };
   const line = (its: PendingItem[]) => {
     const parts = (its as unknown as BasketballItem[]).map((it) => { const v = basketballVerdict(it, m); return v ? `${it.selection} (${v})` : null; }).filter(Boolean);
     return parts.length ? ` · ${parts.join(', ')}` : '';
   };
 
   if ((m.status === 'LIVE') && (!prev || prev === 'SCHEDULED') && await once(`notif:espn:b:${id}:start`)) {
-    await notify(asGroup, fakeMatch, NotificationType.MATCH_STARTING, 'GOALS', `🏀 Começou: ${m.home.name} vs ${m.away.name}`, () => 'NBA');
+    await notify(asGroup, fakeMatch, NotificationType.MATCH_STARTING, 'GOALS', `🏀 Começou: ${m.home.name} vs ${m.away.name}`, () => 'NBA', bctx);
   }
   if (m.status === 'HALFTIME' && prev !== 'HALFTIME' && await once(`notif:espn:b:${id}:ht`)) {
-    await notify(asGroup, fakeMatch, NotificationType.HALF_TIME, 'HALF_TIME', '🏀 Intervalo', (its) => `${m.home.name} ${score ?? ''} ${m.away.name}${line(its)}`);
+    await notify(asGroup, fakeMatch, NotificationType.HALF_TIME, 'HALF_TIME', '🏀 Intervalo', (its) => `${m.home.name} ${score ?? ''} ${m.away.name}${line(its)}`, bctx);
   }
 
   await writeLiveItems(group.map((it) => ({ id: it.id, verdict: basketballVerdict(it, m) })), {
@@ -225,7 +227,7 @@ async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[
     await prisma.boletinItem.updateMany({ where: { id: { in: group.map((g) => g.id) } }, data: { needsReview: true } });
   } else if (m.status === 'FINISHED' && m.score) {
     if (await once(`notif:espn:b:${id}:ft`)) {
-      await notify(asGroup, fakeMatch, NotificationType.MATCH_FINISHED, 'MATCH_END', '🏁 Fim do jogo', (its) => `${m.home.name} ${score} ${m.away.name}${line(its)}`);
+      await notify(asGroup, fakeMatch, NotificationType.MATCH_FINISHED, 'MATCH_END', '🏁 Fim do jogo', (its) => `${m.home.name} ${score} ${m.away.name}${line(its)}`, bctx);
     }
     for (const item of group) {
       const res = resolveBasketballMarket(item.market, item.selection, { ...m.score, periods: m.periods, players: m.players ?? null }, { home: m.home.name, away: m.away.name });
@@ -338,16 +340,17 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
   };
   const asGroup = group as unknown as PendingItem[];
   const fakeMatch = { providerMatchId: id } as NormalizedMatch;
+  const tctx: GameCtx = { home: m.playerA, away: m.playerB, score: score || null, detail: m.round || m.statusDetail, sport: 'TENNIS' };
 
   if (m.status === 'LIVE' && (!prev || prev.status === 'SCHEDULED') && await once(`notif:espn:t:${id}:start`)) {
     await notify(asGroup, fakeMatch, NotificationType.MATCH_STARTING, 'GOALS', `🎾 Começou: ${m.playerA} vs ${m.playerB}`,
-      () => `${m.tournament.name} · ${m.round}`);
+      () => `${m.tournament.name} · ${m.round}`, tctx);
   }
   if (m.status === 'LIVE' && prev && m.sets.length > prev.sets && prev.sets > 0 && await once(`notif:espn:t:${id}:set:${prev.sets}`)) {
     const done = m.sets[prev.sets - 1]!;
     const who = done.a > done.b ? m.playerA : m.playerB;
     await notify(asGroup, fakeMatch, NotificationType.HALF_TIME, 'HALF_TIME', `🎾 ${who} ganhou o ${prev.sets}.º set`,
-      (its) => `${m.playerA} ${score} ${m.playerB}${line(its as unknown as TennisItem[])}`);
+      (its) => `${m.playerA} ${score} ${m.playerB}${line(its as unknown as TennisItem[])}`, tctx);
   }
 
   // Plan #59: points of the game in progress and the server come from LiveScore (ESPN has sets only).
@@ -372,7 +375,7 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
   if (!result) return;
   if (m.status === 'FINISHED' && await once(`notif:espn:t:${id}:ft`)) {
     await notify(asGroup, fakeMatch, NotificationType.MATCH_FINISHED, 'MATCH_END', '🏁 Fim do encontro',
-      (its) => `${m.playerA} ${score} ${m.playerB}${line(its as unknown as TennisItem[])}`);
+      (its) => `${m.playerA} ${score} ${m.playerB}${line(its as unknown as TennisItem[])}`, tctx);
   }
 
   const touched = new Set<string>();
@@ -507,9 +510,9 @@ function liveVerdict(item: PendingItem, m: NormalizedMatch): Verdict | null {
 function verdictLine(items: PendingItem[], m: NormalizedMatch): string {
   const parts = items.map((it) => {
     const v = liveVerdict(it, m);
-    return v ? `${it.selection} (${v})` : null;
+    return v ? `${v === 'a ganhar' || v === 'ganha' ? '✅' : '❌'} ${it.selection}: ${v}` : null;
   }).filter(Boolean);
-  return parts.length ? ` · ${parts.join(', ')}` : '';
+  return parts.length ? ' · ' + parts.join(' · ') : '';
 }
 
 /**
@@ -544,6 +547,15 @@ async function notifyDecided<T extends { id: string; selection: string; boletinI
   if (inputs.length) await createNotifications(inputs);
 }
 
+/** Game data sent with every live notification: shown in the app list with the crests. */
+interface GameCtx { home: string; away: string; score: string | null; detail: string; sport: string }
+
+let crestCache: { at: number; teams: Record<string, string>; players: Record<string, string> } | null = null;
+async function crests(): Promise<{ teams: Record<string, string>; players: Record<string, string> }> {
+  if (!crestCache || Date.now() - crestCache.at > 10 * 60_000) crestCache = { at: Date.now(), ...(await getAssets().catch(() => ({ teams: {}, players: {} }))) };
+  return crestCache;
+}
+
 async function notify(
   group: PendingItem[],
   m: NormalizedMatch,
@@ -551,14 +563,19 @@ async function notify(
   pref: string,
   title: string,
   body: (userItems: PendingItem[]) => string,
+  ctx?: GameCtx,
 ): Promise<void> {
+  const game = ctx ?? (m.home ? { home: m.home.name, away: m.away.name, score: m.score ? `${m.score.home}-${m.score.away}` : null, detail: m.statusDetail, sport: 'FOOTBALL' } : null);
+  const a = game ? await crests() : null;
+  const logo = (n: string) => a?.teams[n] ?? a?.players[n] ?? null;
+  const gameData = game ? { ...game, homeLogo: logo(game.home), awayLogo: logo(game.away), image: logo(game.home) ?? logo(game.away) } : {};
   const byUser = new Map<string, PendingItem[]>();
   for (const it of group) byUser.set(it.boletin.userId, [...(byUser.get(it.boletin.userId) ?? []), it]);
   const inputs = [...byUser.entries()]
     .filter(([, its]) => (its[0]!.boletin.user.fixtureNotifPrefs ?? []).includes(pref))
     .map(([userId, its]) => ({
       userId, type, title, body: body(its),
-      data: { boletinId: its[0]!.boletinId, espnMatchId: m.providerMatchId, type: String(type) },
+      data: { boletinId: its[0]!.boletinId, espnMatchId: m.providerMatchId, type: String(type), ...Object.fromEntries(Object.entries(gameData).filter(([, v]) => v != null)) },
     }));
   if (inputs.length) await createNotifications(inputs);
 }
@@ -584,7 +601,7 @@ async function handleMatchUpdate(m: NormalizedMatch, group: PendingItem[]): Prom
     const scorer = next.home > prev.home ? m.home.name : m.away.name;
     const lastGoal = [...m.incidents].reverse().find((i) => /GOAL/.test(i.type) && i.type !== 'PENALTY_MISSED');
     await notify(group, m, NotificationType.GOAL_SCORED, 'GOALS', `⚽ Golo! ${scorer}${lastGoal?.minute ? ` (${lastGoal.minute})` : ''}`,
-      (its) => `${title}${verdictLine(its, m)}`);
+      (its) => `${title}${m.statusDetail ? ` · ${m.statusDetail}` : ''}${verdictLine(its, m)}`);
   }
 
   if (m.status === 'HALFTIME' && prev?.status !== 'HALFTIME' && await once(`notif:espn:${id}:ht`)) {

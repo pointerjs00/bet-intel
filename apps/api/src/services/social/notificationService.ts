@@ -283,7 +283,8 @@ async function sendViaFirebaseAdmin(
       ),
       android: {
         priority: 'high' as const,
-        notification: { channelId: 'default', sound: 'default' },
+        // A team crest (data.image) shows as the notification picture.
+        notification: { channelId: 'default', sound: 'default', ...(typeof delivery.notification.data?.image === 'string' ? { imageUrl: delivery.notification.data.image } : {}) },
       },
     }];
   });
@@ -427,13 +428,15 @@ export async function sendTestPushToUser(userId: string): Promise<{
     return { hasToken: false, tokenPrefix: null, notificationId: null };
   }
 
+  // Test pushes go to the phone only; they are not kept in the notifications list.
   const notification = await createNotification({
     userId,
     type: 'SYSTEM',
-    title: '🔔 Teste de notificação',
-    body: 'Push notifications estão a funcionar correctamente!',
+    title: 'Teste de notificação',
+    body: 'As notificações estão a funcionar.',
     data: { test: true },
   });
+  await prisma.notification.delete({ where: { id: notification.id } }).catch(() => undefined);
 
   return {
     hasToken: true,
@@ -448,6 +451,7 @@ interface ExpoPushMessage {
   title: string;
   body: string;
   data: Record<string, unknown>;
+  richContent?: { image: string };
 }
 
 interface ExpoPushTicket {
@@ -484,6 +488,7 @@ export function buildExpoPushMessages(
         type: delivery.notification.type,
         ...(delivery.notification.data ?? {}),
       },
+      ...(typeof delivery.notification.data?.image === 'string' ? { richContent: { image: delivery.notification.data.image } } : {}),
     }];
   });
 }

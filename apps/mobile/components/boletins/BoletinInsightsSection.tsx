@@ -7,7 +7,7 @@ import { usePersonalStats } from '../../services/statsService';
 import { useTheme } from '../../theme/useTheme';
 import { Skeleton } from '../ui/Skeleton';
 import { useCardElevation } from '../ui/ListCard';
-import { formatOdds } from '../../utils/formatters';
+import { formatOdds, formatPercentage, plural } from '../../utils/formatters';
 
 interface Props {
   boletin: BoletinDetail;
@@ -85,7 +85,7 @@ export function BoletinInsightsSection({ boletin }: Props) {
       insights.push({
         icon: better ? 'trending-up' : 'trending-down',
         color: better ? colors.primary : colors.warning,
-        text: `Com ${items.length} seleções, a tua taxa histórica é ${Math.round(legCountRow.winRate)}% (${legCountRow.totalBets} apostas). A odd implícita deste slip é ${slipImpliedProb.toFixed(1)}%.`,
+        text: `Com ${plural(items.length, 'seleção', 'seleções')}, a tua taxa histórica é ${Math.round(legCountRow.winRate)}% (${legCountRow.totalBets} apostas). As odds davam-lhe ${formatPercentage(slipImpliedProb)}.`,
       });
     } else if (items.length > 1) {
       insights.push({
@@ -226,7 +226,7 @@ export function BoletinInsightsSection({ boletin }: Props) {
                   {item.homeTeam} vs {item.awayTeam}
                 </Text>
                 <Text style={[styles.legProb, { color: prob >= 50 ? colors.primary : prob >= 30 ? colors.warning : colors.danger }]}>
-                  {prob.toFixed(0)}%
+                  {formatPercentage(prob, 0)}
                 </Text>
               </View>
             );

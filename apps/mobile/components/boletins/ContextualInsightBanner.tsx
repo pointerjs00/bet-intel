@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { BoletinDetail } from '@betintel/shared';
 import { BoletinStatus } from '@betintel/shared';
 import { useTheme } from '../../theme/useTheme';
+import { formatCurrency, formatSignedCurrency } from '../../utils/formatters';
 
 const STORAGE_KEY = 'contextual-banner-v1';
 
@@ -94,14 +95,14 @@ function deriveMessage(boletins: BoletinDetail[], pendingCount: number): Message
   if (recentSettled.length >= 3 && recentPL > 5) {
     return {
       icon: 'trending-up',
-      text: `Boa semana! +€${recentPL.toFixed(2)} de lucro nos últimos 7 dias.`,
+      text: `Boa semana! ${formatSignedCurrency(recentPL)} de lucro nos últimos 7 dias.`,
       colorKey: 'primary',
     };
   }
   if (recentSettled.length >= 3 && recentPL < -15) {
     return {
       icon: 'trending-down',
-      text: `Esta semana perdeste €${Math.abs(recentPL).toFixed(2)}. Vai com mais calma.`,
+      text: `Esta semana perdeste ${formatCurrency(Math.abs(recentPL))}. Vai com mais calma.`,
       colorKey: 'danger',
     };
   }

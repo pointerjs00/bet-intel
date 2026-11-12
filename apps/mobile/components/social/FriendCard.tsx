@@ -56,7 +56,7 @@ export function FriendCard({
       {(actionLabel || secondaryActionLabel) ? (
         <View style={styles.actions}>
           {actionLabel ? (
-            <Button loading={actionLoading} onPress={onAction} size="sm" title={actionLabel} />
+            <Button loading={actionLoading} onPress={onAction} size="sm" title={actionLabel} variant={actionLabel === 'Remover' ? 'ghost' : 'primary'} />
           ) : null}
           {secondaryActionLabel ? (
             <Button onPress={onSecondaryAction} size="sm" title={secondaryActionLabel} variant="ghost" />

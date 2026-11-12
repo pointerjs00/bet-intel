@@ -20,6 +20,8 @@ import { LastNCard } from './LastNCard';
 import { ProfitCurve } from './ProfitCurve';
 import { StatCard, TabHeadline } from './StatCard';
 import { AnalysisHero, FigureTiles, GoodBadCard, InsightsCard, VersusCard, pct } from './SummaryBlocks';
+import { SiteMark } from '../../ui/SiteMark';
+import { BETTING_SITES } from '../../../utils/sportAssets';
 
 if (Platform.OS === 'android') {
   // Expand/collapse of "Ver todos" and "Avançado" animate with LayoutAnimation.
@@ -56,6 +58,17 @@ function SportGlyph({ sport }: { sport: string }) {
   return (
     <View style={[styles.glyph, { backgroundColor: colors.background }]}>
       <MaterialCommunityIcons color={colors.textSecondary} name={(SPORT_ICON[sport] ?? 'trophy-outline') as React.ComponentProps<typeof MaterialCommunityIcons>['name']} size={15} />
+    </View>
+  );
+}
+
+/** One Lucro / Retorno switch per tab (it used to sit in every card header and cut the titles). */
+function ModeRow({ mode, onChange }: { mode: BarMode; onChange: (m: BarMode) => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.modeRow}>
+      <Text style={[styles.modeLabel, { color: colors.textMuted }]}>Mostrar</Text>
+      <BarModeToggle mode={mode} onChange={onChange} />
     </View>
   );
 }
@@ -105,9 +118,7 @@ export function SummaryTab({ ctx, footer }: { ctx: TabContext; footer?: React.Re
 export function SportsTab({ ctx }: { ctx: TabContext }) {
   const { stats, onInfo, onFilter, onOpenTeam } = ctx;
   const { colors } = useTheme();
-  const [sportMode, setSportMode] = useMode();
-  const [compMode, setCompMode] = useMode();
-  const [teamMode, setTeamMode] = useMode();
+  const [mode, setMode] = useMode();
   const b = best(stats.bySport);
   const w = worst(stats.bySport);
   // A sport where most picks hit but money is still lost: worth explaining.
@@ -115,6 +126,7 @@ export function SportsTab({ ctx }: { ctx: TabContext }) {
   const s = stats.summary;
   return (
     <View style={styles.stack}>
+      <ModeRow mode={mode} onChange={setMode} />
       {b ? (
         <TabHeadline
           parts={[
@@ -123,8 +135,8 @@ export function SportsTab({ ctx }: { ctx: TabContext }) {
           ]}
         />
       ) : null}
-      <StatCard icon={{ name: 'mci:trophy-variant', tone: 'green' }} index={1} onInfoPress={() => onInfo('by-sport')} right={<BarModeToggle mode={sportMode} onChange={setSportMode} />} title="Por desporto">
-        <DivergingBars mode={sportMode} onRowPress={(r) => onFilter({ filterSport: r.key })} renderLeft={(r) => <SportGlyph sport={r.sport} />} rows={stats.bySport} />
+      <StatCard icon={{ name: 'mci:trophy-variant', tone: 'green' }} index={1} onInfoPress={() => onInfo('by-sport')} title="Por desporto">
+        <DivergingBars mode={mode} onRowPress={(r) => onFilter({ filterSport: r.key })} renderLeft={(r) => <SportGlyph sport={r.sport} />} rows={stats.bySport} />
       </StatCard>
       {paradox ? (
         <StatCard index={2} tint={`${colors.info}14`}>
@@ -146,11 +158,11 @@ export function SportsTab({ ctx }: { ctx: TabContext }) {
           title="Casa vs fora"
         />
       ) : null}
-      <StatCard icon={{ name: 'mci:podium-gold', tone: 'amber' }} index={4} right={<BarModeToggle mode={compMode} onChange={setCompMode} />} subtitle={`${stats.byCompetition.length} competições`} title="Competições">
-        <DivergingBars mode={compMode} onRowPress={(r) => onFilter({ filterCompetition: r.label })} renderLeft={(r) => <CompetitionBadge name={r.label} size={18} />} rows={stats.byCompetition} />
+      <StatCard icon={{ name: 'mci:podium-gold', tone: 'amber' }} index={4} subtitle={`${stats.byCompetition.length} competições`} title="Competições">
+        <DivergingBars mode={mode} onRowPress={(r) => onFilter({ filterCompetition: r.label })} renderLeft={(r) => <CompetitionBadge name={r.label} size={18} />} rows={stats.byCompetition} />
       </StatCard>
-      <StatCard icon={{ name: 'mci:shield-half-full', tone: 'purple' }} index={5} right={<BarModeToggle mode={teamMode} onChange={setTeamMode} />} subtitle="Toca para ver o histórico da equipa" title="Equipas e jogadores">
-        <DivergingBars maxRows={6} mode={teamMode} onRowPress={(r) => onOpenTeam(r.label)} renderLeft={(r) => <TeamBadge name={r.label} size={20} />} rows={stats.byTeam} />
+      <StatCard icon={{ name: 'mci:shield-half-full', tone: 'purple' }} index={5} subtitle="Toca para ver o histórico da equipa" title="Equipas e jogadores">
+        <DivergingBars maxRows={6} mode={mode} onRowPress={(r) => onOpenTeam(r.label)} renderLeft={(r) => <TeamBadge name={r.label} size={20} />} rows={stats.byTeam} />
       </StatCard>
     </View>
   );
@@ -198,10 +210,7 @@ function Advanced({ stats, onInfo }: { stats: PersonalStats; onInfo: TabContext[
 export function BetsTab({ ctx }: { ctx: TabContext }) {
   const { stats, onInfo, onFilter } = ctx;
   const { colors } = useTheme();
-  const [legMode, setLegMode] = useMode();
-  const [mktMode, setMktMode] = useMode();
-  const [siteMode, setSiteMode] = useMode();
-  const [stakeMode, setStakeMode] = useMode();
+  const [mode, setMode] = useMode();
   const s = stats.summary;
   const legs = useMemo(() => [...stats.byLegCount].sort((a, b) => a.legCount - b.legCount), [stats.byLegCount]);
   const single = legs.find((r) => r.legCount === 1);
@@ -215,6 +224,7 @@ export function BetsTab({ ctx }: { ctx: TabContext }) {
   const fs = s.freebetSummary;
   return (
     <View style={styles.stack}>
+      <ModeRow mode={mode} onChange={setMode} />
       <TabHeadline
         parts={[
           ...(single && single.roi > 0 ? [{ text: 'Ganhas com ' }, { text: 'simples', tone: 'positive' as const }] : [{ text: 'As tuas apostas' }]),
@@ -223,8 +233,8 @@ export function BetsTab({ ctx }: { ctx: TabContext }) {
           ...(multi && multi.roi < 0 ? [{ text: ' Perdes nas ' }, { text: `múltiplas de ${multi.label}`, tone: 'negative' as const }, { text: '.' }] : []),
         ]}
       />
-      <StatCard icon={{ name: 'mci:layers-triple', tone: 'purple' }} index={1} onInfoPress={() => onInfo('by-leg-count')} right={<BarModeToggle mode={legMode} onChange={setLegMode} />} title="Simples vs múltiplas">
-        <DivergingBars keepOrder mode={legMode} onRowPress={(r) => onFilter({ filterLegCount: String(r.legCount) })} rows={legs} unit="boletins" />
+      <StatCard icon={{ name: 'mci:layers-triple', tone: 'purple' }} index={1} onInfoPress={() => onInfo('by-leg-count')} title="Simples vs múltiplas">
+        <DivergingBars keepOrder mode={mode} onRowPress={(r) => onFilter({ filterLegCount: String(r.legCount) })} rows={legs} unit="boletins" />
       </StatCard>
       {odds.length > 0 ? (
         <StatCard icon={{ name: 'mci:scale-balance', tone: 'blue' }} index={2} onInfoPress={() => onInfo('by-odds-range')} subtitle="Retorno por intervalo de odd · nº de seleções por baixo" title="Retorno por odd">
@@ -245,17 +255,17 @@ export function BetsTab({ ctx }: { ctx: TabContext }) {
           title="Favoritos vs underdogs"
         />
       ) : null}
-      <StatCard icon={{ name: 'mci:format-list-bulleted-type', tone: 'teal' }} index={4} right={<BarModeToggle mode={mktMode} onChange={setMktMode} />} subtitle={`${stats.byMarket.length} mercados`} title="Mercados">
-        <DivergingBars maxRows={5} mode={mktMode} onRowPress={(r) => onFilter({ filterMarket: r.label })} rows={stats.byMarket} />
+      <StatCard icon={{ name: 'mci:format-list-bulleted-type', tone: 'teal' }} index={4} subtitle={`${stats.byMarket.length} mercados`} title="Mercados">
+        <DivergingBars maxRows={5} mode={mode} onRowPress={(r) => onFilter({ filterMarket: r.label })} rows={stats.byMarket} />
       </StatCard>
       {stats.bySite.length > 0 ? (
-        <StatCard icon={{ name: 'mci:storefront-outline', tone: 'amber' }} index={5} right={<BarModeToggle mode={siteMode} onChange={setSiteMode} />} title="Casas de apostas">
-          <DivergingBars minBets={3} mode={siteMode} onRowPress={(r) => onFilter({ filterSite: r.siteSlug })} rows={stats.bySite} unit="boletins" />
+        <StatCard icon={{ name: 'mci:storefront-outline', tone: 'amber' }} index={5} title="Casas de apostas">
+          <DivergingBars minBets={3} mode={mode} onRowPress={(r) => onFilter({ filterSite: r.siteSlug })} renderLeft={(r) => <SiteMark size={16} slug={r.siteSlug} textStyle={{ display: 'none' }} />} rows={stats.bySite.map((r) => ({ ...r, label: BETTING_SITES.find((x) => x.slug === r.siteSlug)?.name ?? r.label }))} unit="boletins" />
         </StatCard>
       ) : null}
       {stats.byStakeBracket.length > 0 ? (
-        <StatCard icon={{ name: 'mci:cash-multiple', tone: 'green' }} index={6} right={<BarModeToggle mode={stakeMode} onChange={setStakeMode} />} title="Por valor apostado">
-          <DivergingBars keepOrder minBets={3} mode={stakeMode} rows={[...stats.byStakeBracket].sort((a, b) => a.minStake - b.minStake)} unit="boletins" />
+        <StatCard icon={{ name: 'mci:cash-multiple', tone: 'green' }} index={6} title="Por valor apostado">
+          <DivergingBars keepOrder minBets={3} mode={mode} rows={[...stats.byStakeBracket].sort((a, b) => a.minStake - b.minStake)} unit="boletins" />
         </StatCard>
       ) : null}
       {fs.totalFreebets > 0 ? (
@@ -286,11 +296,11 @@ const BLOCKS: Array<{ label: string; from: number; to: number }> = [
 export function HabitsTab({ ctx }: { ctx: TabContext }) {
   const { stats, onInfo } = ctx;
   const { colors } = useTheme();
-  const [dayMode, setDayMode] = useState<BarMode>('profit');
+  const [mode, setMode] = useMode();
   const s = stats.summary;
   // Monday first.
   const days = useMemo(() => [...stats.byWeekday].sort((a, b) => ((a.weekday + 6) % 7) - ((b.weekday + 6) % 7)), [stats.byWeekday]);
-  const dayItems = days.map((d) => ({ key: d.key, label: DAY_SHORT[d.weekday] ?? d.label.slice(0, 1), value: dayMode === 'profit' ? d.profitLoss : d.roi, sub: String(d.totalBets), few: d.totalBets < 5 }));
+  const dayItems = days.map((d) => ({ key: d.key, label: DAY_SHORT[d.weekday] ?? d.label.slice(0, 1), value: mode === 'profit' ? d.profitLoss : d.roi, sub: String(d.totalBets), few: d.totalBets < 5 }));
   const hourItems = useMemo<ColumnItem[]>(() => BLOCKS.map((blk) => {
     const rows = stats.byHour.filter((h) => h.hour >= blk.from && h.hour < blk.to);
     const profit = rows.reduce((a, r) => a + r.profitLoss, 0);
@@ -303,6 +313,7 @@ export function HabitsTab({ ctx }: { ctx: TabContext }) {
   const streak = s.streaks;
   return (
     <View style={styles.stack}>
+      <ModeRow mode={mode} onChange={setMode} />
       {bestDay ? (
         <TabHeadline
           parts={[
@@ -312,8 +323,8 @@ export function HabitsTab({ ctx }: { ctx: TabContext }) {
         />
       ) : null}
       {days.length > 0 ? (
-        <StatCard icon={{ name: 'calendar', tone: 'blue' }} index={1} onInfoPress={() => onInfo('by-weekday')} right={<BarModeToggle mode={dayMode} onChange={setDayMode} />} subtitle="Nº de boletins por baixo de cada dia" title="Por dia da semana">
-          <ColumnChart format={(v) => (dayMode === 'profit' ? euroShort(v) : pct(v, 0))} items={dayItems} />
+        <StatCard icon={{ name: 'calendar', tone: 'blue' }} index={1} onInfoPress={() => onInfo('by-weekday')} subtitle="Nº de boletins por baixo de cada dia" title="Por dia da semana">
+          <ColumnChart format={(v) => (mode === 'profit' ? euroShort(v) : pct(v, 0))} items={dayItems} />
         </StatCard>
       ) : null}
       {stats.byHour.length > 0 ? (
@@ -347,6 +358,8 @@ export function HabitsTab({ ctx }: { ctx: TabContext }) {
 }
 
 const styles = StyleSheet.create({
+  modeRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  modeLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   stack: { gap: 14 },
   flex: { flex: 1 },
   wrapCard: { borderRadius: 22 },

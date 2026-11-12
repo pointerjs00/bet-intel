@@ -4,6 +4,7 @@ import type { StatsBySportMarketCell } from '@betintel/shared';
 import { Card } from '../ui/Card';
 import { InfoButton } from '../ui/InfoButton';
 import { useTheme } from '../../theme/useTheme';
+import { formatPercentage } from '../../utils/formatters';
 
 interface SportMarketMatrixProps {
   cells: StatsBySportMarketCell[];
@@ -25,7 +26,7 @@ const SPORT_LABELS: Record<string, string> = {
 
 function formatROI(roi: number): string {
   const sign = roi >= 0 ? '+' : '';
-  return `${sign}${roi.toFixed(0)}%`;
+  return `${sign}${formatPercentage(roi, 0)}`;
 }
 
 export const SportMarketMatrix = React.memo(function SportMarketMatrix({ cells, onInfoPress }: SportMarketMatrixProps) {
@@ -119,7 +120,7 @@ export const SportMarketMatrix = React.memo(function SportMarketMatrix({ cells, 
                       {formatROI(cell.roi)}
                     </Text>
                     <Text style={[styles.countText, { color: colors.textMuted }]}>
-                      {cell.totalBets}ap · {cell.winRate.toFixed(0)}%
+                      {cell.totalBets}ap · {formatPercentage(cell.winRate, 0)}
                     </Text>
                   </View>
                 );

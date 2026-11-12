@@ -24,6 +24,21 @@ export interface BasketballMatch {
   periods: Array<{ home: number; away: number }>;
   /** Box score per player (only from the game summary). */
   players?: BasketballPlayer[] | null;
+  /** Team totals from the box score ("22-42", "52", "17"…), keyed by ESPN stat name. */
+  teamStats?: { home: Record<string, string>; away: Record<string, string> } | null;
+  /** Every scoring play, oldest first: who scored, how many, the score after it. */
+  scoring?: BasketballScoringPlay[] | null;
+}
+
+export interface BasketballScoringPlay {
+  period: number;
+  /** Seconds left in the period. */
+  clock: number;
+  side: 'home' | 'away';
+  points: number;
+  home: number;
+  away: number;
+  text: string;
 }
 
 export interface BasketballPlayer {
@@ -37,16 +52,35 @@ export interface BasketballPlayer {
   steals: number;
   blocks: number;
   turnovers: number;
+  shortName?: string;
+  headshot?: string | null;
+  position?: string | null;
+  jersey?: string | null;
+  starter?: boolean;
+  minutes?: string;
+  /** "made-attempted" */
+  fg?: string;
+  threePt?: string;
+  ft?: string;
+  offReb?: number;
+  defReb?: number;
+  fouls?: number;
+  plusMinus?: string;
 }
 
 interface RawBoxPlayers {
   team?: { id?: string };
-  statistics?: Array<{ labels?: string[]; athletes?: Array<{ athlete?: { displayName?: string }; stats?: string[]; didNotPlay?: boolean }> }>;
+  statistics?: Array<{ labels?: string[]; athletes?: Array<{ athlete?: { displayName?: string; shortName?: string; headshot?: { href?: string }; jersey?: string; position?: { abbreviation?: string } }; stats?: string[]; didNotPlay?: boolean; starter?: boolean }> }>;
+}
+interface RawPlay {
+  scoringPlay?: boolean; scoreValue?: number; homeScore?: number; awayScore?: number; text?: string;
+  period?: { number?: number }; clock?: { displayValue?: string }; team?: { id?: string };
 }
 type RawCompetition = NonNullable<RawEvent['competitions']>[number] & { date?: string };
 interface RawSummary {
   header?: { competitions?: RawCompetition[] };
-  boxscore?: { players?: RawBoxPlayers[] };
+  boxscore?: { players?: RawBoxPlayers[]; teams?: Array<{ team?: { id?: string }; homeAway?: string; statistics?: Array<{ name?: string; displayValue?: string }> }> };
+  plays?: RawPlay[];
 }
 
 /** Player lines of an ESPN NBA box score. */
@@ -74,6 +108,19 @@ export function mapNbaPlayers(players: RawBoxPlayers[] | undefined, homeTeamId: 
         steals: n(col(stats, 'STL')),
         blocks: n(col(stats, 'BLK')),
         turnovers: n(col(stats, 'TO')),
+        shortName: a.athlete?.shortName ?? name,
+        headshot: a.athlete?.headshot?.href ?? null,
+        position: a.athlete?.position?.abbreviation ?? null,
+        jersey: a.athlete?.jersey ?? null,
+        starter: Boolean(a.starter),
+        minutes: col(stats, 'MIN') || '0',
+        fg: col(stats, 'FG') || '0-0',
+        threePt: col(stats, '3PT') || '0-0',
+        ft: col(stats, 'FT') || '0-0',
+        offReb: n(col(stats, 'OREB')),
+        defReb: n(col(stats, 'DREB')),
+        fouls: n(col(stats, 'PF')),
+        plusMinus: col(stats, '+/-') || '0',
       });
     }
   }
@@ -155,7 +202,29 @@ export function mapEspnNbaSummary(json: RawSummary, eventId: string): Basketball
   const [m] = mapEspnBasketballScoreboard({ events: [{ id: eventId, date: comp.date, competitions: [comp] }] });
   if (!m) return null;
   const homeId = comp.competitors?.find((c) => c.homeAway === 'home')?.team?.id ?? comp.competitors?.find((c) => c.homeAway === 'home')?.id;
-  return { ...m, players: mapNbaPlayers(json.boxscore?.players, homeId) };
+  const teamStats = (() => {
+    const t = json.boxscore?.teams ?? [];
+    const of = (side: 'home' | 'away') => {
+      const row = t.find((x) => (x.team?.id && homeId ? (x.team.id === homeId) === (side === 'home') : x.homeAway === side));
+      return Object.fromEntries((row?.statistics ?? []).filter((s) => s.name).map((s) => [s.name!, s.displayValue ?? '']));
+    };
+    return t.length ? { home: of('home'), away: of('away') } : null;
+  })();
+  const clockSecs = (v?: string) => {
+    if (!v) return 0;
+    const [mm, ss] = v.includes(':') ? v.split(':') : ['0', v];
+    return Math.round(Number(mm) * 60 + Number(ss)) || 0;
+  };
+  const scoring = (json.plays ?? []).filter((p) => p.scoringPlay && (p.scoreValue ?? 0) > 0).map((p) => ({
+    period: p.period?.number ?? 1,
+    clock: clockSecs(p.clock?.displayValue),
+    side: (p.team?.id === homeId ? 'home' : 'away') as 'home' | 'away',
+    points: p.scoreValue ?? 0,
+    home: p.homeScore ?? 0,
+    away: p.awayScore ?? 0,
+    text: p.text ?? '',
+  }));
+  return { ...m, players: mapNbaPlayers(json.boxscore?.players, homeId), teamStats, scoring: scoring.length ? scoring : null };
 }
 
 /** NBA games of one US game day (YYYY-MM-DD). */

@@ -22,6 +22,7 @@ import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useAgenda } from '../../services/boletinService';
 import { useTheme } from '../../theme/useTheme';
 import { useLiveAgendaScores, makeLiveScoreKey, type LiveScore } from '../../hooks/useLiveAgendaScores';
+import { formatOdds } from '../../utils/formatters';
 
 // ─── Sport config ─────────────────────────────────────────────────────────────
 
@@ -293,7 +294,7 @@ function AgendaRow({
             </Text>
           </View>
           <View style={[styles.oddBadge, { backgroundColor: accent }]}>
-            <Text style={styles.oddText}>{parseFloat(item.oddValue).toFixed(2)}</Text>
+            <Text style={styles.oddText}>{formatOdds(item.oddValue)}</Text>
           </View>
           <Ionicons color={colors.textMuted} name="chevron-forward" size={14} style={{ marginLeft: 'auto' }} />
         </View>

@@ -29,10 +29,10 @@ interface ShareCardProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; emoji: string; bg: string }> = {
-  WON: { label: 'GANHOU!', emoji: '🎉', bg: '#00C851' },
-  LOST: { label: 'PERDEU', emoji: '💸', bg: '#FF3B30' },
+  WON: { label: 'GANHOU', emoji: '🎉', bg: '#0FB980' },
+  LOST: { label: 'PERDEU', emoji: '💸', bg: '#E5484D' },
   PENDING: { label: 'PENDENTE', emoji: '⏳', bg: '#FF9500' },
-  VOID: { label: 'CANCELADO', emoji: '🚫', bg: '#8E8E93' },
+  VOID: { label: 'ANULADO', emoji: '🚫', bg: '#8E8E93' },
   PARTIAL: { label: 'PARCIAL', emoji: '⚖️', bg: '#FF9500' },
   CASHOUT: { label: 'CASHOUT', emoji: '💰', bg: '#007AFF' },
 };
@@ -83,7 +83,6 @@ export function ShareCard({ boletin, onClose }: ShareCardProps) {
           <View style={styles.card}>
           {/* Status banner */}
           <View style={[styles.statusBanner, { backgroundColor: statusCfg.bg }]}>
-            <Text style={styles.statusEmoji}>{statusCfg.emoji}</Text>
             <Text style={styles.statusLabel}>{statusCfg.label}</Text>
           </View>
 

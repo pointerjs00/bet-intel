@@ -174,7 +174,7 @@ function BetRow({ bet: b, onPress, withTeams }: { bet: TeamBet; onPress: () => v
       <Ionicons color={r.color} name={r.icon} size={20} />
       <View style={styles.flex}>
         {withTeams ? <AppText numberOfLines={1} variant="bodyStrong">{b.homeTeam} vs {b.awayTeam}{date ? ` · ${date}` : ''}</AppText> : null}
-        <MarketSelection market={b.market} selection={b.selection} trailing={`@${formatOdds(b.odd)}`} />
+        <MarketSelection market={b.market} selection={b.selection} trailing={`${formatOdds(b.odd)}`} />
         <AppText numberOfLines={1} style={styles.small} variant="caption">
           {b.multiple > 1 ? `Múltipla de ${b.multiple}` : 'Simples'} · {formatCurrency(b.stake)}{b.boletinName ? ` · ${b.boletinName}` : ''}
         </AppText>

@@ -71,7 +71,7 @@ export default function ReviewQueueScreen() {
                   </View>
                   <View style={styles.flex}>
                   <AppText numberOfLines={1} variant="bodyStrong">{item.homeTeam} vs {item.awayTeam}</AppText>
-                  <MarketSelection market={item.market} selection={item.selection} style={styles.ms} trailing={`@${formatOdds(item.oddValue)}`} />
+                  <MarketSelection market={item.market} selection={item.selection} style={styles.ms} trailing={`${formatOdds(item.oddValue)}`} />
                   <AppText variant="label">
                     {item.competition}{item.kickoffAt ? ` · ${formatShortDateTime(item.kickoffAt)}` : ''}{item.boletinName ? ` · ${item.boletinName}` : ''}
                   </AppText>
@@ -79,8 +79,8 @@ export default function ReviewQueueScreen() {
                 </Pressable>
                 <View style={styles.actions}>
                   {([
-                    { result: ItemResult.WON, label: 'Ganhou', icon: 'checkmark' as const, color: colors.primary },
-                    { result: ItemResult.LOST, label: 'Perdeu', icon: 'close' as const, color: colors.danger },
+                    { result: ItemResult.WON, label: 'Certa', icon: 'checkmark' as const, color: colors.primary },
+                    { result: ItemResult.LOST, label: 'Falhada', icon: 'close' as const, color: colors.danger },
                     { result: ItemResult.VOID, label: 'Anulada', icon: 'remove-circle-outline' as const, color: colors.textSecondary },
                   ]).map((a) => (
                     <Pressable

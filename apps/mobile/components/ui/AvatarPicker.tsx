@@ -30,11 +30,14 @@ interface AvatarPickerProps {
   uploading?: boolean;
   onPick: (result: { base64: string; mimeType: string }) => void;
   onRemove?: () => void;
+  /** Hide the Alterar / Ajustar / Remover row until the photo is tapped. */
+  compact?: boolean;
 }
 
 const CROP_SIZE = Dimensions.get('window').width - 96;
 
-export function AvatarPicker({ currentUri, name, uploading, onPick, onRemove }: AvatarPickerProps) {
+export function AvatarPicker({ currentUri, name, uploading, onPick, onRemove, compact = false }: AvatarPickerProps) {
+  const [actionsOpen, setActionsOpen] = useState(!compact);
   const { colors } = useTheme();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [showCropModal, setShowCropModal] = useState(false);
@@ -132,7 +135,7 @@ export function AvatarPicker({ currentUri, name, uploading, onPick, onRemove }: 
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={handlePick} disabled={uploading} style={styles.avatarWrap}>
+      <Pressable onPress={compact ? () => setActionsOpen((v) => !v) : handlePick} disabled={uploading} style={styles.avatarWrap}>
         {displayUri ? (
           <Image
             source={{ uri: displayUri }}
@@ -152,7 +155,7 @@ export function AvatarPicker({ currentUri, name, uploading, onPick, onRemove }: 
         </View>
       </Pressable>
 
-      <View style={styles.actions}>
+      {actionsOpen ? <View style={styles.actions}>
         <Pressable onPress={handlePick} disabled={uploading} style={styles.actionBtn}>
           <MaterialCommunityIcons name="image-edit-outline" size={18} color={colors.primary} />
           <Text style={[styles.actionText, { color: colors.primary }]}>Alterar foto</Text>
@@ -169,7 +172,7 @@ export function AvatarPicker({ currentUri, name, uploading, onPick, onRemove }: 
             <Text style={[styles.actionText, { color: colors.danger }]}>Remover</Text>
           </Pressable>
         ) : null}
-      </View>
+      </View> : null}
 
       {showCropModal && cropSourceUri ? (
         <CropModal

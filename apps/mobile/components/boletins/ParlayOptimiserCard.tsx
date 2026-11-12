@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { PersonalStats } from '@betintel/shared';
 import { Card } from '../ui/Card';
 import { useTheme } from '../../theme/useTheme';
-import { formatOdds } from '../../utils/formatters';
+import { formatOdds, formatPercentage } from '../../utils/formatters';
 import type { BoletinBuilderItem } from '../../stores/boletinBuilderStore';
 
 interface LegAnalysis {
@@ -90,7 +90,7 @@ export function ParlayOptimiserCard({ items, stats }: Props) {
               <Text style={[styles.bannerText, { color: colors.textPrimary, flex: 1 }]}>
                 <Text style={{ fontWeight: '800' }}>Seleção {worstLeg.index + 1}</Text>
                 {' '}({formatOdds(worstLeg.oddValue)}) arrasta o acumulador — EV histórico{' '}
-                <Text style={{ color: colors.danger, fontWeight: '800' }}>{(worstLeg.ev! * 100).toFixed(1)}%</Text>
+                <Text style={{ color: colors.danger, fontWeight: '800' }}>{formatPercentage(worstLeg.ev! * 100)}</Text>
                 {worstLeg.oddsRangeLabel ? ` em odds ${worstLeg.oddsRangeLabel}` : ''}.
               </Text>
             </View>
@@ -123,7 +123,7 @@ export function ParlayOptimiserCard({ items, stats }: Props) {
                 <Text style={[styles.legOdds, { color: colors.gold }]}>{formatOdds(leg.oddValue)}</Text>
                 {hasEV ? (
                   <Text style={[styles.legEV, { color: evColor }]}>
-                    {leg.ev! >= 0 ? '+' : ''}{(leg.ev! * 100).toFixed(1)}% EV
+                    {leg.ev! >= 0 ? '+' : ''}{formatPercentage(leg.ev! * 100)} EV
                   </Text>
                 ) : (
                   <Text style={[styles.legEV, { color: colors.textMuted }]}>— EV</Text>

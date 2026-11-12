@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import Animated, { SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,10 @@ import { useCompetitions, useMarkets, useTeams } from '../../services/referenceS
 import { BETTING_SITES } from '../../utils/sportAssets';
 import type { ParsedBetclicBoletin, ParsedBetclicItem } from '../../services/importService';
 
-export type Leg = ParsedBetclicItem;
+/** A selection; `id` is set when it is already saved (editing a boletim). */
+export type Leg = ParsedBetclicItem & { id?: string };
+/** Boletim fields that only exist once saved (freebet, cashout, notes, public). */
+export interface SavedExtras { isFreebet: boolean; cashout: string; notes: string; isPublic: boolean }
 type Result = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 
 const SPORTS: Array<{ value: string; label: string }> = [
@@ -22,7 +25,7 @@ const SPORTS: Array<{ value: string; label: string }> = [
   { value: 'AMERICAN_FOOTBALL', label: 'F. Americano' }, { value: 'OTHER', label: 'Outro' },
 ];
 const RESULTS: Array<{ value: Result; label: string }> = [
-  { value: 'PENDING', label: 'Pendente' }, { value: 'WON', label: 'Ganhou' }, { value: 'LOST', label: 'Perdeu' }, { value: 'VOID', label: 'Anulada' },
+  { value: 'PENDING', label: 'Pendente' }, { value: 'WON', label: 'Certa' }, { value: 'LOST', label: 'Falhada' }, { value: 'VOID', label: 'Anulada' },
 ];
 const BOLETIM_STATUS: Array<{ value: string; label: string }> = [
   { value: 'PENDING', label: 'Pendente' }, { value: 'WON', label: 'Ganhou' }, { value: 'LOST', label: 'Perdeu' }, { value: 'VOID', label: 'Anulado' }, { value: 'CASHOUT', label: 'Cashout' },
@@ -47,6 +50,15 @@ interface Props {
   onSave: (boletin: ParsedBetclicBoletin) => void;
   onRemove: () => void;
   onNavigate: (index: number) => void;
+  /** Editing a saved boletim: shows freebet/cashout/notes/public instead of the status (derived). */
+  saved?: SavedExtras;
+  onSaveExtras?: (extras: SavedExtras) => void;
+  /** Adds an empty selection after the current ones (saved boletins). */
+  onAdd?: () => void;
+  /** The real game behind this selection ("Celtics 123–101 76ers · terminado"). */
+  matchLine?: string | null;
+  /** Only the selection fields (the boletim fields live on the screen, e.g. Confirmar boletim). */
+  legOnly?: boolean;
 }
 
 /**
@@ -54,7 +66,7 @@ interface Props {
  * kickoff, result) and about its boletim (site, stake, bet date and time, status). Fields the
  * reader was unsure about are highlighted.
  */
-export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemove, onNavigate }: Props) {
+export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemove, onNavigate, saved, onSaveExtras, onAdd, matchLine, legOnly }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const total = boletin.items.length;
@@ -70,6 +82,7 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
   const [betTime, setBetTime] = useState('');
   const [status, setStatus] = useState('PENDING');
   const [picker, setPicker] = useState<null | 'home' | 'away' | 'competition' | 'market'>(null);
+  const [extras, setExtras] = useState<SavedExtras>({ isFreebet: false, cashout: '', notes: '', isPublic: false });
 
   useEffect(() => {
     if (!visible || !src) return;
@@ -84,6 +97,7 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
     setBetDay(isNaN(b.getTime()) ? null : b);
     setBetTime(isNaN(b.getTime()) ? '' : toHHMM(b));
     setStatus(boletin.status || 'PENDING');
+    if (saved) setExtras(saved);
   }, [visible, index]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sport = leg?.sport ?? 'FOOTBALL';
@@ -109,6 +123,7 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
       totalOdds: items.length > 1 || boletin.totalOdds <= 0 ? Math.round(totalOdds * 100) / 100 : boletin.totalOdds,
       betDate: joinDateTime(betDay, betTime) ?? boletin.betDate,
     } as ParsedBetclicBoletin);
+    if (saved && onSaveExtras) onSaveExtras(extras);
     if (thenGo !== undefined) onNavigate(thenGo); else onClose();
   };
 
@@ -208,9 +223,17 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
                 </View>
                 {fieldN('HORA', unsure.has('eventDate'), input(kickTime, (v) => { setKickTime(v); set({}, 'eventDate'); }, { keyboard: 'numbers-and-punctuation', placeholder: '20:45' }))}
               </View>
-              <Text style={[styles.sub, { color: unsure.has('result') ? colors.warning : colors.textMuted }]}>Resultado desta seleção</Text>
-              {chips(RESULTS, leg.result ?? 'PENDING', (v) => set({ result: v }, 'result'), unsure.has('result'))}
+              {legOnly ? null : <Text style={[styles.sub, { color: unsure.has('result') ? colors.warning : colors.textMuted }]}>Resultado desta seleção</Text>}
+              {legOnly ? null : chips(RESULTS, leg.result ?? 'PENDING', (v) => set({ result: v }, 'result'), unsure.has('result'))}
+              {matchLine ? <Text style={[styles.sub, { color: colors.textSecondary }]}>Jogo real: {matchLine}</Text> : null}
+              {onAdd ? (
+                <Pressable onPress={() => { save(); onAdd(); }} style={[styles.addBtn, { borderColor: colors.border }]}>
+                  <Ionicons color={colors.primary} name="add" size={18} />
+                  <Text style={[styles.chipText, { color: colors.primary }]}>Adicionar seleção</Text>
+                </Pressable>
+              ) : null}
 
+              {legOnly ? null : (<>
               <Text style={[styles.section, { color: colors.textMuted }]}>BOLETIM</Text>
               <Text style={[styles.sub, { color: colors.textMuted }]}>Casa de apostas</Text>
               <ScrollView contentContainerStyle={styles.chips} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>
@@ -230,8 +253,27 @@ export function EditLegSheet({ visible, boletin, index, onClose, onSave, onRemov
                 </View>
                 {fieldN('HORA', false, input(betTime, setBetTime, { keyboard: 'numbers-and-punctuation', placeholder: '10:18' }))}
               </View>
-              <Text style={[styles.sub, { color: colors.textMuted }]}>Estado do boletim</Text>
-              {chips(BOLETIM_STATUS, status, setStatus)}
+              {saved ? (
+                <>
+                  <View style={[styles.switchRow, { backgroundColor: colors.background }]}>
+                    <Text style={[styles.value, { color: colors.textPrimary }]}>Aposta gratuita (freebet)</Text>
+                    <Switch onValueChange={(v) => setExtras((e) => ({ ...e, isFreebet: v }))} thumbColor="#FFFFFF" trackColor={{ false: colors.border, true: colors.primary }} value={extras.isFreebet} />
+                  </View>
+                  {field('CASHOUT RECEBIDO (VAZIO = SEM CASHOUT)', false, input(extras.cashout, (v) => setExtras((e) => ({ ...e, cashout: v })), { keyboard: 'decimal-pad', placeholder: '0,00' }))}
+                  {field('NOTAS', false, input(extras.notes, (v) => setExtras((e) => ({ ...e, notes: v })), { placeholder: 'Porque fizeste esta aposta' }))}
+                  <View style={[styles.switchRow, { backgroundColor: colors.background }]}>
+                    <Text style={[styles.value, { color: colors.textPrimary }]}>Visível para amigos</Text>
+                    <Switch onValueChange={(v) => setExtras((e) => ({ ...e, isPublic: v }))} thumbColor="#FFFFFF" trackColor={{ false: colors.border, true: colors.primary }} value={extras.isPublic} />
+                  </View>
+                  <Text style={[styles.sub, { color: colors.textMuted }]}>O estado do boletim vem dos resultados das seleções.</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.sub, { color: colors.textMuted }]}>Estado do boletim</Text>
+                  {chips(BOLETIM_STATUS, status, setStatus)}
+                </>
+              )}
+              </>)}
             </ScrollView>
 
             <View style={styles.footer}>
@@ -289,5 +331,7 @@ const styles = StyleSheet.create({
   footer: { flexDirection: 'row', gap: 8, paddingTop: 8 },
   remove: { alignItems: 'center', borderRadius: 14, height: 50, justifyContent: 'center', width: 54 },
   saveBtn: { alignItems: 'center', borderRadius: 14, flex: 1, height: 50, justifyContent: 'center' },
+  addBtn: { alignItems: 'center', borderRadius: 12, borderStyle: 'dashed', borderWidth: 1, flexDirection: 'row', gap: 6, justifyContent: 'center', minHeight: 42 },
+  switchRow: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 8, minHeight: 48, paddingHorizontal: 12 },
   saveText: { color: '#06110B', fontFamily: 'Inter_700Bold', fontSize: 15 },
 });

@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../theme/useTheme';
 import { useGlow } from '../../components/ui/ListCard';
 import { hapticLight } from '../../utils/haptics';
+import { ResultsRecap } from '../../components/boletins/ResultsRecap';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -176,6 +177,8 @@ export default function TabsLayout() {
   const renderTabBar = useCallback((props: BottomTabBarProps) => <FloatingTabBar {...props} />, []);
 
   return (
+    <>
+    <ResultsRecap />
     <Tabs
       tabBar={renderTabBar}
       screenOptions={{
@@ -226,6 +229,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="friends" options={{ title: 'Amigos', href: null }} />
       <Tabs.Screen name="profile" options={{ title: 'Perfil', href: null }} />
     </Tabs>
+    </>
   );
 }
 

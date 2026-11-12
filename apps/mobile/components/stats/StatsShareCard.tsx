@@ -1,9 +1,10 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import ReactNative, { Image, StyleSheet, Text, useWindowDimensions } from 'react-native';
 import type { PersonalStats, StatsBySportRow, StatsPeriod } from '@betintel/shared';
-import { formatCurrency, formatOdds } from '../../utils/formatters';
+import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { getLeagueLogoUrl } from '../../utils/sportAssets';
 import { TeamBadge } from '../ui/TeamBadge';
+import { SportIcon } from '../ui/SportIcon';
 
 // ── ViewShot lazy-require ────────────────────────────────────────────────────
 
@@ -36,13 +37,15 @@ const PERIOD_LABEL: Record<StatsPeriod, string> = {
   all: 'Estatísticas globais',
 };
 
-const SPORT_EMOJIS: Record<string, string> = {
-  FOOTBALL: '⚽', BASKETBALL: '🏀', TENNIS: '🎾', HANDBALL: '🤾',
-  VOLLEYBALL: '🏐', HOCKEY: '🏒', RUGBY: '🏉', AMERICAN_FOOTBALL: '🏈',
-  BASEBALL: '⚾', OTHER: '🎯',
-};
 
 const View = ReactNative.View;
+
+/** The boletim's own name, or the game ("Omonia vs SL Benfica") / "Múltipla · 3" when it has none. */
+function boletinTitle(b: { name: string | null; items: Array<{ homeTeam: string; awayTeam: string }> }): string {
+  if (b.name) return b.name;
+  if (b.items.length === 1) return `${b.items[0]!.homeTeam} vs ${b.items[0]!.awayTeam}`;
+  return b.items.length ? `Múltipla · ${b.items.length} seleções` : 'Boletim';
+}
 const ScrollView = ReactNative.ScrollView;
 
 const DETAILED_PAGE_COUNT = 4;
@@ -111,7 +114,7 @@ function BoletinList({ items, color }: { items: PersonalStats['bestBoletins']; c
         <View key={b.id} style={s.listRow}>
           <Text style={s.listRank}>{i + 1}</Text>
           <View style={s.listNameCol}>
-            <Text numberOfLines={1} style={s.listName}>{b.name ?? 'Boletim sem nome'}</Text>
+            <Text numberOfLines={1} style={s.listName}>{boletinTitle(b)}</Text>
             <Text style={s.listDate}>{fmtDate(b.createdAt)}</Text>
           </View>
           <Text style={[s.listValue, { color }]}>
@@ -138,13 +141,13 @@ function Page1({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; 
       <View style={s.roiSection}>
         <Text style={s.roiLabel}>ROI</Text>
         <Text style={[s.roiValue, { color: roiColor }]}>
-          {summary.roi >= 0 ? '+' : ''}{summary.roi.toFixed(1)}%
+          {formatPercentage(summary.roi, 1, true)}
         </Text>
       </View>
       <Divider />
       <View style={s.metricsRow}>
         <View style={s.metric}>
-          <Text style={s.metricValue}>{summary.winRate.toFixed(0)}%</Text>
+          <Text style={s.metricValue}>{formatPercentage(summary.winRate, 0)}</Text>
           <Text style={s.metricLabel}>Taxa vitória</Text>
         </View>
         <View style={s.metricSep} />
@@ -218,14 +221,14 @@ function Page3({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; 
       <CardHeader period={period} pageTitle="Desporto & Equipas" pageNum={3} />
       {topSports.length > 0 && (
         <View style={s.section}>
-          <SectionLabel>⚽  Por desporto</SectionLabel>
+          <SectionLabel>Por desporto</SectionLabel>
           {topSports.map((row) => (
             <View key={row.key} style={s.breakdownRow}>
-              <Text style={s.sportEmoji}>{SPORT_EMOJIS[(row as StatsBySportRow).sport] ?? '🎯'}</Text>
+              <View style={s.sportEmoji}><SportIcon sport={(row as StatsBySportRow).sport} size={13} /></View>
               <Text numberOfLines={1} style={s.breakdownLabel}>{row.label}</Text>
               <Text style={s.breakdownCount}>{row.totalBets} ap.</Text>
               <Text style={[s.breakdownROI, { color: row.roi >= 0 ? '#00C851' : '#FF3B30' }]}>
-                {row.roi >= 0 ? '+' : ''}{row.roi.toFixed(1)}%
+                {formatPercentage(row.roi, 1, true)}
               </Text>
             </View>
           ))}
@@ -242,7 +245,7 @@ function Page3({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; 
                 <Text numberOfLines={1} style={s.breakdownLabel}>{row.label}</Text>
                 <Text style={s.breakdownCount}>{row.totalBets} ap.</Text>
                 <Text style={[s.breakdownROI, { color: row.roi >= 0 ? '#00C851' : '#FF3B30' }]}>
-                  {row.roi >= 0 ? '+' : ''}{row.roi.toFixed(1)}%
+                  {formatPercentage(row.roi, 1, true)}
                 </Text>
               </View>
             ))}
@@ -260,7 +263,7 @@ function Page3({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; 
                 <Text numberOfLines={1} style={s.breakdownLabel}>{row.label}</Text>
                 <Text style={s.breakdownCount}>{row.totalBets} ap.</Text>
                 <Text style={[s.breakdownROI, { color: row.roi >= 0 ? '#00C851' : '#FF3B30' }]}>
-                  {row.roi >= 0 ? '+' : ''}{row.roi.toFixed(1)}%
+                  {formatPercentage(row.roi, 1, true)}
                 </Text>
               </View>
             ))}
@@ -293,7 +296,7 @@ function Page4({ stats, period, cardWidth, cardStyle }: { stats: PersonalStats; 
               <Text numberOfLines={1} style={s.breakdownLabel}>{row.label}</Text>
               <Text style={s.breakdownCount}>{row.totalBets} ap.</Text>
               <Text style={[s.breakdownROI, { color: row.roi >= 0 ? '#00C851' : '#FF3B30' }]}>
-                {row.roi >= 0 ? '+' : ''}{row.roi.toFixed(1)}%
+                {formatPercentage(row.roi, 1, true)}
               </Text>
             </View>
           ))}
@@ -399,13 +402,13 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
         <View style={s.roiSection}>
           <Text style={s.roiLabel}>ROI</Text>
           <Text style={[s.roiValue, { color: roiColor }]}>
-            {summary.roi >= 0 ? '+' : ''}{summary.roi.toFixed(1)}%
+            {formatPercentage(summary.roi, 1, true)}
           </Text>
         </View>
         <Divider />
         <View style={s.metricsRow}>
           <View style={s.metric}>
-            <Text style={s.metricValue}>{summary.winRate.toFixed(0)}%</Text>
+            <Text style={s.metricValue}>{formatPercentage(summary.winRate, 0)}</Text>
             <Text style={s.metricLabel}>Taxa vitória</Text>
           </View>
           <View style={s.metricSep} />
@@ -432,7 +435,7 @@ export const StatsShareCard = forwardRef<StatsShareCardHandle, StatsShareCardPro
         {stats.bestBoletins[0] && stats.bestBoletins[0].profitLoss > 0 && (
           <View style={s.simpleBest}>
             <Text style={s.sectionLabel}>🏆  Melhor boletim</Text>
-            <Text numberOfLines={1} style={s.simpleBestName}>{stats.bestBoletins[0].name ?? 'Boletim sem nome'}</Text>
+            <Text numberOfLines={1} style={s.simpleBestName}>{boletinTitle(stats.bestBoletins[0])}</Text>
             <Text style={s.simpleBestSub}>
               {fmtDate(stats.bestBoletins[0].createdAt)} · +{formatCurrency(stats.bestBoletins[0].profitLoss)} · Odds {formatOdds(stats.bestBoletins[0].totalOdds)}
             </Text>
@@ -597,7 +600,7 @@ const s = StyleSheet.create({
   listValue: { fontSize: 13, fontWeight: '900' },
 
   breakdownRow: { alignItems: 'center', flexDirection: 'row', gap: 7 },
-  sportEmoji: { fontSize: 14, textAlign: 'center', width: 18 },
+  sportEmoji: { alignItems: 'center', width: 18 },
   breakdownLabel: { color: '#ccc', flex: 1, fontSize: 12, fontWeight: '700' },
   breakdownCount: { color: '#555', fontSize: 11, fontWeight: '600', minWidth: 44, textAlign: 'right' },
   breakdownROI: { fontSize: 12, fontWeight: '900', minWidth: 52, textAlign: 'right' },

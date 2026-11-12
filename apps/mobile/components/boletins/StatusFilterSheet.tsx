@@ -35,7 +35,7 @@ export function StatusFilterSheet({ visible, onClose, selected, onChange, counts
     { key: BoletinStatus.WON, label: 'Ganhou', icon: 'checkmark-circle-outline', color: colors.positive },
     { key: BoletinStatus.LOST, label: 'Perdeu', icon: 'close-circle-outline', color: colors.negative },
     { key: BoletinStatus.CASHOUT, label: 'Cashout', icon: 'cash-outline', color: colors.gold },
-    { key: BoletinStatus.VOID, label: 'Cancelado', icon: 'remove-circle-outline', color: colors.info },
+    { key: BoletinStatus.VOID, label: 'Anulado', icon: 'remove-circle-outline', color: colors.info },
   ];
 
   const toggle = (k: BoletinStatus) => {

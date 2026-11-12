@@ -9,7 +9,7 @@ import { TeamBadge } from '../ui/TeamBadge';
 import { LiveDot } from '../ui/Appear';
 import { useCardElevation } from '../ui/ListCard';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatOdds } from '../../utils/formatters';
 import type { MatchBet } from '../../utils/dayBets';
 import { parseSetLine, setWinner, setsWon } from '../../utils/tennisSets';
 
@@ -92,7 +92,7 @@ export const MatchCard = React.memo(function MatchCard({ match: m, sport, bet, i
               <View key={`${r.name}-${r.at}`} style={styles.teamRow}>
                 <TeamBadge name={r.name} size={20} variant="team" />
                 <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_500Medium' }]}>
-                  {r.at ? '@ ' : ''}{r.name}
+                  {r.name}
                 </Text>
                 {r.reds > 0 ? <View style={[styles.redCard, { backgroundColor: colors.live }]} /> : null}
                 {showScore ? (
@@ -105,7 +105,7 @@ export const MatchCard = React.memo(function MatchCard({ match: m, sport, bet, i
             <View style={[styles.chip, { backgroundColor: `${tone}1A` }]}>
               <View style={[styles.dot, { backgroundColor: tone }]} />
               <Text numberOfLines={1} style={[styles.chipText, { color: colors.textPrimary }]}>{known.selection}</Text>
-              <Text style={[styles.chipOdd, { color: colors.textSecondary }]}>{known.odd.toFixed(2)}</Text>
+              <Text style={[styles.chipOdd, { color: colors.textSecondary }]}>{formatOdds(known.odd)}</Text>
               {known.legs > 1 ? <Text style={[styles.chipOdd, { color: colors.textSecondary }]}>· {known.wonLegs}/{known.legs}</Text> : null}
             </View>
           ) : null}

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, Animated as RNAnimated, Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated as RNAnimated, Image, Modal, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useToast } from '../../components/ui/Toast';
 import { Pressable } from '../../components/ui/Pressable';
 import { useSwipeToDismiss } from '../../hooks/useSwipeToDismiss';
 import { Stack, useRouter } from 'expo-router';
@@ -53,19 +54,6 @@ import { useTableSort } from '../../hooks/useTableSort';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
-
-const SPORT_EMOJIS: Record<string, string> = {
-  FOOTBALL: '⚽',
-  BASKETBALL: '🏀',
-  TENNIS: '🎾',
-  HANDBALL: '🤾',
-  VOLLEYBALL: '🏐',
-  HOCKEY: '🏒',
-  RUGBY: '🏉',
-  AMERICAN_FOOTBALL: '🏈',
-  BASEBALL: '⚾',
-  OTHER: '🎯',
-};
 
 const PERIOD_OPTIONS: Array<{ value: StatsPeriod; label: string }> = [
   { value: 'week', label: 'Semana' },
@@ -628,6 +616,7 @@ function FilteredBreakdownTable<TRow extends StatsBreakdownRow>({
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
   const router = useRouter();
   const { colors, tokens } = useTheme();
   const [period, setPeriod] = useState<StatsPeriod>('year');
@@ -752,36 +741,17 @@ export default function StatsScreen() {
     [boletinsQuery.data],
   );
 
-  const handleExport = useCallback(() => {
+  const [exportOpen, setExportOpen] = useState(false);
+  const handleExport = useCallback(() => setExportOpen(true), []);
+  const runExport = useCallback(async (kind: 'csv' | 'xlsx') => {
+    setExportOpen(false);
     const data = boletinsQuery.data ?? [];
-    Alert.alert(
-      'Exportar dados',
-      'Escolhe o formato de exportação:',
-      [
-        {
-          text: 'CSV',
-          onPress: async () => {
-            try {
-              await exportBoletinsToCsv(data);
-            } catch {
-              Alert.alert('Erro', 'Não foi possível exportar os dados.');
-            }
-          },
-        },
-        {
-          text: 'Excel (XLSX)',
-          onPress: async () => {
-            try {
-              await exportBoletinsToXlsx(data);
-            } catch {
-              Alert.alert('Erro', 'Não foi possível exportar os dados.');
-            }
-          },
-        },
-        { text: 'Cancelar', style: 'cancel' },
-      ],
-    );
-  }, [boletinsQuery.data]);
+    try {
+      if (kind === 'csv') await exportBoletinsToCsv(data); else await exportBoletinsToXlsx(data);
+    } catch {
+      showToast('Não foi possível exportar os dados.', 'error');
+    }
+  }, [boletinsQuery.data, showToast]);
 
   const pushInfo = useCallback(
     (metric: string, value?: number) =>
@@ -801,13 +771,13 @@ export default function StatsScreen() {
         <View style={styles.headerTopRow}>
           <AppText variant="title">Análise</AppText>
           <View style={{ flexDirection: 'row', gap: 4 }}>
-            <TouchableOpacity onPress={handleExport} hitSlop={8} style={styles.headerIconBtn}>
+            <Pressable accessibilityLabel="Exportar" onPress={handleExport} hitSlop={8} style={styles.headerIconBtn}>
               <Ionicons color={colors.textSecondary} name="download-outline" size={22} />
-            </TouchableOpacity>
+            </Pressable>
             {stats && (
-              <TouchableOpacity onPress={() => setShowShareCard(true)} hitSlop={8} style={styles.headerIconBtn}>
+              <Pressable accessibilityLabel="Partilhar estatísticas" onPress={() => setShowShareCard(true)} hitSlop={8} style={styles.headerIconBtn}>
                 <Ionicons color={colors.textSecondary} name="share-outline" size={22} />
-              </TouchableOpacity>
+              </Pressable>
             )}
           </View>
         </View>
@@ -1000,13 +970,12 @@ export default function StatsScreen() {
                 };
                 if (tab === 'sports') return <SportsTab ctx={ctx} />;
                 if (tab === 'bets') return <BetsTab ctx={ctx} />;
-                if (tab === 'habits') return <HabitsTab ctx={ctx} />;
+                if (tab === 'habits') return <><HabitsTab ctx={ctx} /><GoalProgressCard /></>;
                 return (
                   <SummaryTab
                     ctx={ctx}
                     footer={
                       <>
-                        <GoalProgressCard />
                         <AIReviewCard
                           data={aiReview.data}
                           error={aiReview.error as Error | null}
@@ -1045,6 +1014,22 @@ export default function StatsScreen() {
       </ScrollView>
 
       <StatsShareSheet visible={showShareCard} onClose={() => setShowShareCard(false)} />
+      <Modal animationType="slide" onRequestClose={() => setExportOpen(false)} transparent visible={exportOpen}>
+        <Pressable feedback="none" onPress={() => setExportOpen(false)} style={styles.exportBackdrop} />
+        <View style={[styles.exportSheet, { backgroundColor: colors.surface, paddingBottom: insets.bottom + 16 }]}>
+          <View style={[styles.exportGrab, { backgroundColor: colors.border }]} />
+          <AppText variant="heading">Exportar boletins</AppText>
+          <AppText variant="caption">Todos os boletins, para abrir numa folha de cálculo.</AppText>
+          <View style={styles.exportRow}>
+            <Pressable onPress={() => void runExport('xlsx')} style={[styles.exportBtn, { backgroundColor: colors.primary }]}>
+              <Text style={styles.exportBtnText}>Excel (XLSX)</Text>
+            </Pressable>
+            <Pressable onPress={() => void runExport('csv')} style={[styles.exportBtn, { backgroundColor: colors.background }]}>
+              <Text style={[styles.exportBtnText, { color: colors.textPrimary }]}>CSV</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
     </View>
   );
@@ -1089,6 +1074,12 @@ function MiniBoletinCard({
 }
 
 const styles = StyleSheet.create({
+  exportBackdrop: { backgroundColor: 'rgba(0,0,0,0.5)', flex: 1 },
+  exportSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, gap: 8, padding: 18 },
+  exportGrab: { alignSelf: 'center', borderRadius: 2, height: 4, marginBottom: 6, width: 40 },
+  exportRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  exportBtn: { alignItems: 'center', borderRadius: 14, flex: 1, height: 50, justifyContent: 'center' },
+  exportBtnText: { color: '#06110B', fontFamily: 'Inter_700Bold', fontSize: 15 },
   screen: { flex: 1 },
   fixedHeader: {
     paddingHorizontal: 16,
@@ -1101,7 +1092,6 @@ const styles = StyleSheet.create({
   },
   headerWrap: { gap: 8, marginBottom: 18 },
   headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  exportBtn: { padding: 4 },
   eyebrow: { fontSize: 13, fontWeight: '700' },
   title: { fontSize: 30, fontWeight: '900', lineHeight: 36 },
   periodTabs: { gap: 8, marginBottom: 12 },

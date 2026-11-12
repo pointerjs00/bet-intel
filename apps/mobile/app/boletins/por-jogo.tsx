@@ -104,7 +104,7 @@ export default function PorJogoScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const accentGlow = useGlow(colors.accent);
+  const accentGlow = useGlow(colors.primary);
   const items = useBoletinBuilderStore((s) => s.items);
   const [sport, setSport] = useState<SportKey>('football');
   const [offset, setOffset] = useState(0);
@@ -141,7 +141,7 @@ export default function PorJogoScreen() {
                 accessibilityState={{ selected: active }}
                 key={o}
                 onPress={() => { hapticLight(); setOffset(o); }}
-                style={[styles.day, { backgroundColor: active ? colors.accent : colors.surface }, active ? accentGlow : null]}
+                style={[styles.day, { backgroundColor: active ? colors.primary : colors.surface }, active ? accentGlow : null]}
               >
                 <AppText style={[styles.cap, active && styles.white]} tone={active ? undefined : 'secondary'} variant="label">{label.top}</AppText>
                 <AppText style={active ? styles.white : undefined} variant="number">{label.day}</AppText>
@@ -156,8 +156,8 @@ export default function PorJogoScreen() {
           <View style={styles.empty}>
             <Ionicons color={colors.textMuted} name="calendar-outline" size={40} />
             <AppText variant="heading">Sem jogos por começar neste dia</AppText>
-            <AppText style={styles.center} variant="caption">Para jogos de outras ligas ou desportos, usa o registo manual.</AppText>
-            <Button onPress={() => router.replace('/boletins/create')} title="Registo manual" variant="secondary" />
+            <AppText style={styles.center} variant="caption">Escolhe outro dia ou, para jogos de outras ligas ou desportos, escreve a seleção à mão.</AppText>
+            <Button onPress={() => router.push({ pathname: '/boletins/confirmar', params: { manual: '1' } })} title="Escrever à mão" variant="secondary" />
           </View>
         ) : (
           groups.map((g, gi) => (
@@ -189,14 +189,26 @@ export default function PorJogoScreen() {
             </Appear>
           ))
         )}
+        {groups.length > 0 ? (
+          <ListCard>
+            <ListRow accessibilityLabel="Escrever à mão" onPress={() => router.push({ pathname: '/boletins/confirmar', params: { manual: '1' } })}>
+              <View style={styles.flex}>
+                <AppText variant="bodyStrong">Não encontras o jogo?</AppText>
+                <AppText variant="caption">Outras ligas ou desportos: escreve a seleção à mão.</AppText>
+              </View>
+              <AppText style={{ color: colors.primary }} variant="bodyStrong">Escrever</AppText>
+            </ListRow>
+          </ListCard>
+        ) : null}
+        <View style={{ height: items.length ? 80 : 0 }} />
       </ScrollView>
 
       {/* Builder bar: what's already in the boletim, and the way to stake and save */}
       {items.length > 0 ? (
         <View style={[styles.bar, { bottom: insets.bottom + 12 }]}>
           <Button
-            onPress={() => router.push('/boletins/create')}
-            title={`Rever boletim · ${items.length} ${items.length === 1 ? 'seleção' : 'seleções'}`}
+            onPress={() => router.push('/boletins/confirmar')}
+            title={`Continuar · ${items.length} ${items.length === 1 ? 'seleção' : 'seleções'} · odd ${items.reduce((a, it) => a * it.oddValue, 1).toFixed(2).replace('.', ',')}`}
           />
         </View>
       ) : null}
@@ -320,7 +332,7 @@ function MarketSheet({ match, league, onClose, onPreview, sport }: {
                     accessibilityState={{ selected: on }}
                     key={s.value}
                     onPress={() => { hapticLight(); setSelection(s.value); }}
-                    style={[styles.sel, market.selections.length > 3 && styles.selHalf, { backgroundColor: on ? colors.accent : colors.surface }]}
+                    style={[styles.sel, market.selections.length > 3 && styles.selHalf, { backgroundColor: on ? colors.primary : colors.surface }]}
                   >
                     <AppText numberOfLines={2} style={[styles.center, on && styles.white]} variant="bodyStrong">{fill(s.label)}</AppText>
                   </Pressable>
@@ -368,7 +380,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   center: { textAlign: 'center' },
   cap: { textTransform: 'capitalize' },
-  white: { color: '#FFFFFF' },
+  white: { color: '#04140C' },
   days: { gap: 8, paddingVertical: 2 },
   day: { alignItems: 'center', borderRadius: 14, gap: 2, justifyContent: 'center', minHeight: 60, width: 56 },
   empty: { alignItems: 'center', gap: 10, paddingVertical: 40 },

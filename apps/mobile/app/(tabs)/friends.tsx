@@ -40,7 +40,7 @@ export default function FriendsScreen() {
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<FriendsTab>('feed');
+  const [activeTab, setActiveTab] = useState<FriendsTab>('friends');
   const [search, setSearch] = useState('');
 
   const feedQuery = useFriendFeed();

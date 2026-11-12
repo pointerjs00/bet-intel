@@ -9,15 +9,30 @@ export function formatCurrency(value: number | string): string {
   }).format(Number.isFinite(parsed) ? parsed : 0);
 }
 
-/** Formats a decimal odd to two places. */
+/** Formats a decimal odd to two places, pt-PT ("2,20"). */
 export function formatOdds(value: number | string): string {
   const parsed = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
+  return Number.isFinite(parsed) ? parsed.toFixed(2).replace('.', ',') : '0,00';
 }
 
-/** Formats a percentage with one decimal place. */
-export function formatPercentage(value: number): string {
-  return `${value.toFixed(1)}%`;
+/** Formats a percentage pt-PT: "8,6%", "−100%" (no trailing ",0"). `signed` adds "+" to positives. */
+export function formatPercentage(value: number, digits = 1, signed = false): string {
+  if (!Number.isFinite(value)) return '0%';
+  const abs = Math.abs(value);
+  const txt = abs.toFixed(digits).replace(/\.0+$/, '').replace('.', ',');
+  const sign = value < 0 && Number(txt.replace(',', '.')) !== 0 ? '−' : signed && value > 0 ? '+' : '';
+  return `${sign}${txt}%`;
+}
+
+/** Signed euro amount: "+12,00 €", "−10,00 €". */
+export function formatSignedCurrency(value: number): string {
+  const sign = value > 0 ? '+' : value < 0 ? '−' : '';
+  return `${sign}${formatCurrency(Math.abs(value))}`;
+}
+
+/** Portuguese plural: plural(1, 'seleção', 'seleções') → "1 seleção". */
+export function plural(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
 }
 
 /** Formats an ISO date as a compact relative time in pt-PT style. */

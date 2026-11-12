@@ -10,16 +10,17 @@ import { TeamBadge } from '../ui/TeamBadge';
 import { LiveDot } from '../ui/Appear';
 import { useCardElevation } from '../ui/ListCard';
 import { useTheme } from '../../theme/useTheme';
-import { formatCurrency } from '../../utils/formatters';
+import { formatCurrency, formatOdds } from '../../utils/formatters';
 import type { MatchBet } from '../../utils/dayBets';
 import { betTone, isDone, matchStatus, TennisRows, type AnyMatch } from './MatchCard';
 import { setsWon } from '../../utils/tennisSets';
+import { ProvisionalLine } from './ProvisionalLine';
 
 function stateLabel(bet: MatchBet | 'unknown', live: boolean, done: boolean): string {
   if (bet === 'unknown') return live ? 'EM JOGO' : done ? 'A RESOLVER' : 'COM APOSTA';
   if (done && bet.result === ItemResult.PENDING) return 'A RESOLVER';
-  if (bet.result === ItemResult.WON) return 'GANHOU';
-  if (bet.result === ItemResult.LOST) return 'PERDEU';
+  if (bet.result === ItemResult.WON) return 'CERTA';
+  if (bet.result === ItemResult.LOST) return 'FALHADA';
   if (bet.result === ItemResult.VOID) return 'ANULADA';
   return live ? 'EM JOGO' : 'POR COMEÇAR';
 }
@@ -54,7 +55,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
             <Text numberOfLines={1} style={[styles.league, { color: colors.textSecondary }]}>{league}</Text>
             <View style={[styles.statusPill, { backgroundColor: st.live ? `${colors.live}22` : colors.background }]}>
               {st.live ? <LiveDot color={colors.live} size={5} /> : null}
-              <Text style={[styles.statusText, { color: st.live ? colors.live : colors.textSecondary }]}>{st.label || st.time}</Text>
+              <Text style={[styles.statusText, { color: st.live ? colors.live : colors.textSecondary }]}>{st.label === 'FT' ? 'Terminado' : st.label || st.time}</Text>
             </View>
           </View>
 
@@ -65,7 +66,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
               return (
                 <View key={`${r.name}-${r.at}`} style={styles.teamRow}>
                   <TeamBadge name={r.name} size={28} variant="team" />
-                  <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_600SemiBold' }]}>{r.at ? '@ ' : ''}{r.name}</Text>
+                  <Text numberOfLines={1} style={[styles.team, { color: lost ? colors.textSecondary : colors.textPrimary, fontFamily: won ? 'Inter_700Bold' : 'Inter_600SemiBold' }]}>{r.name}</Text>
                   {showScore ? <Text style={[styles.score, { color: st.live ? colors.live : lost ? colors.textSecondary : colors.textPrimary }]}>{r.score}</Text> : null}
                 </View>
               );
@@ -77,9 +78,10 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
               <Text numberOfLines={1} style={[styles.market, { color: colors.textMuted }]}>{known ? known.market.toUpperCase() : 'APOSTA'}</Text>
               <Text numberOfLines={2} style={[styles.selection, { color: colors.textPrimary }]}>{known ? known.selection : 'Tens aposta neste jogo'}</Text>
             </View>
-            {known ? <Text style={[styles.odd, { color: colors.gold }]}>{known.odd.toFixed(2)}</Text> : null}
+            {known ? <Text style={[styles.odd, { color: colors.gold }]}>{formatOdds(known.odd)}</Text> : null}
           </View>
 
+          {st.live && known && known.result === ItemResult.PENDING ? <ProvisionalLine boletinId={known.boletinId} compact /> : null}
           <View style={styles.foot}>
             <View style={[styles.state, { backgroundColor: `${tone}22` }]}>
               <Text style={[styles.stateText, { color: tone }]}>{stateLabel(bet, st.live, done)}</Text>
@@ -89,7 +91,7 @@ export function BetMatchCard({ match: m, sport, league, bet, index = 0, onPress 
                 {Array.from({ length: known.legs }, (_, i) => (
                   <View key={i} style={[styles.leg, { backgroundColor: i < known.wonLegs ? colors.positive : colors.border }]} />
                 ))}
-                <Text style={[styles.legsText, { color: colors.textSecondary }]}>Múltipla {known.wonLegs}/{known.legs}</Text>
+                <Text style={[styles.legsText, { color: colors.textSecondary }]}>Múltipla {known.wonLegs}/{known.legs}{known.profit !== null ? (known.profit >= 0 ? ' · ganha' : ' · perdida') : ''}</Text>
               </View>
             ) : <View style={styles.flex} />}
             {known && known.profit !== null ? (

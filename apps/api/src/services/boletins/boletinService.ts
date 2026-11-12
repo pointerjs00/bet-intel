@@ -663,7 +663,7 @@ async function syncBoletinDerivedState(
 function emitResolvedBoletinResult(
   userId: string,
   previousBoletin: { status: BoletinStatus; actualReturn: Prisma.Decimal | null },
-  boletin: { id: string; name?: string | null; status: BoletinStatus; actualReturn: Prisma.Decimal | null },
+  boletin: ResultBoletin,
 ): void {
   if (!didResolvedOutcomeChange(previousBoletin, boletin)) {
     return;
@@ -678,7 +678,7 @@ function emitResolvedBoletinResult(
   void createNotification({
     userId,
     type: NotificationType.BOLETIN_RESULT,
-    title: buildBoletinResultNotificationTitle(boletin.status),
+    title: buildBoletinResultNotificationTitle(boletin),
     body: buildBoletinResultNotificationBody(boletin),
     data: {
       boletinId: boletin.id,
@@ -708,47 +708,57 @@ function didResolvedOutcomeChange(
   return previousBoletin.status !== nextBoletin.status || previousReturn !== nextReturn;
 }
 
-function buildBoletinResultNotificationTitle(status: BoletinStatus): string {
-  switch (status) {
-    case BoletinStatus.WON:
-      return 'Boletim ganho';
-    case BoletinStatus.LOST:
-      return 'Boletim perdido';
-    case BoletinStatus.VOID:
-      return 'Boletim anulado';
-    case BoletinStatus.PARTIAL:
-      return 'Boletim parcialmente ganho';
-    case BoletinStatus.CASHOUT:
-      return 'Boletim encerrado em cashout';
-    case BoletinStatus.PENDING:
-    default:
-      return 'Boletim atualizado';
-  }
-}
-
-function buildBoletinResultNotificationBody(boletin: {
+interface ResultBoletin {
+  id: string;
   name?: string | null;
   status: BoletinStatus;
   actualReturn: Prisma.Decimal | null;
-}): string {
-  const label = boletin.name?.trim() || 'O teu boletim';
-  const returnText = boletin.actualReturn ? ` Retorno: €${boletin.actualReturn.toFixed(2)}.` : '';
+  stake?: Prisma.Decimal | null;
+  isFreebet?: boolean;
+  items?: Array<{ homeTeam: string; awayTeam: string; selection: string; result: string }>;
+}
 
-  switch (boletin.status) {
-    case BoletinStatus.WON:
-      return `${label} foi resolvido como ganho.${returnText}`;
-    case BoletinStatus.LOST:
-      return `${label} foi resolvido como perdido.`;
-    case BoletinStatus.VOID:
-      return `${label} foi anulado.${returnText}`;
-    case BoletinStatus.PARTIAL:
-      return `${label} foi resolvido parcialmente.${returnText}`;
-    case BoletinStatus.CASHOUT:
-      return `${label} foi encerrado em cashout.${returnText}`;
-    case BoletinStatus.PENDING:
-    default:
-      return `${label} foi atualizado.`;
+/** "10,00 €" (pt-PT, as the app shows money). */
+function euroPt(v: number): string {
+  return `${Math.abs(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} €`;
+}
+
+/** Profit of a settled boletim (freebets don't count the stake as spent). */
+function resultProfit(b: ResultBoletin): number | null {
+  if (b.stake == null) return null;
+  const ret = b.actualReturn ? Number(b.actualReturn) : 0;
+  return b.isFreebet ? ret : ret - Number(b.stake);
+}
+
+/** Title with the money: "Boletim perdido · −10,00 €". */
+function buildBoletinResultNotificationTitle(b: ResultBoletin): string {
+  const p = resultProfit(b);
+  const money = p === null ? '' : ` · ${p > 0 ? '+' : p < 0 ? '−' : ''}${euroPt(p)}`;
+  switch (b.status) {
+    case BoletinStatus.WON: return `Boletim ganho${money}`;
+    case BoletinStatus.LOST: return `Boletim perdido${money}`;
+    case BoletinStatus.VOID: return 'Boletim anulado · aposta devolvida';
+    case BoletinStatus.PARTIAL: return `Boletim resolvido${money}`;
+    case BoletinStatus.CASHOUT: return `Cashout${money}`;
+    default: return 'Boletim atualizado';
   }
+}
+
+/** Which bet it was: "76ers −1,5 · Celtics vs 76ers" or "Múltipla 3 · falhou Casper Ruud". */
+function buildBoletinResultNotificationBody(b: ResultBoletin): string {
+  const items = b.items ?? [];
+  if (items.length === 1) {
+    const it = items[0]!;
+    return `${it.selection} · ${it.homeTeam} vs ${it.awayTeam}`;
+  }
+  if (items.length > 1) {
+    const lost = items.filter((i) => i.result === 'LOST').map((i) => i.selection);
+    const head = b.name?.trim() || `Múltipla ${items.length}`;
+    if (b.status === BoletinStatus.LOST && lost.length) return `${head} · falhou ${lost.slice(0, 2).join(' e ')}${lost.length > 2 ? ` e mais ${lost.length - 2}` : ''}`;
+    if (b.status === BoletinStatus.WON) return `${head} · todas as seleções certas`;
+    return head;
+  }
+  return b.name?.trim() || 'O teu boletim foi resolvido.';
 }
 
 function assertUniqueSelections(items: CreateBoletinInput['items']): void {

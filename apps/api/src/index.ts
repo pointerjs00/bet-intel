@@ -277,6 +277,8 @@ async function warmUp(): Promise<void> {
   };
 
   // Crests and player photos from consistent sources (ESPN, WTA, Wikipedia): now and daily.
+  // Old test pushes were stored in the notifications list; remove them (idempotent).
+  void prisma.notification.deleteMany({ where: { type: 'SYSTEM', title: { contains: 'Teste de notifica' } } }).catch(() => undefined);
   void sportAssetsJob();
   setInterval(() => void sportAssetsJob(), 24 * 60 * 60 * 1000);
 

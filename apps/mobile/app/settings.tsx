@@ -89,6 +89,17 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, tokens } = useTheme();
   const { showToast } = useToast();
+  const saveGoalsTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Goals save on change (debounced), with a short confirmation. */
+  const saveGoals = (next: typeof goals) => {
+    if (saveGoalsTimer.current) clearTimeout(saveGoalsTimer.current);
+    saveGoalsTimer.current = setTimeout(() => {
+      updateProfileMutation.mutate({ goals: next }, {
+        onSuccess: () => showToast('Objetivos guardados.', 'success'),
+        onError: (error) => showToast(getApiErrorMessage(error), 'error'),
+      });
+    }, 600);
+  };
   const router = useRouter();
   const storedAuthProvider = useAuthStore((state) => state.user?.authProvider);
   const logout = useAuthStore((state) => state.logout);
@@ -352,6 +363,8 @@ export default function SettingsScreen() {
                     onPress={() => {
                       setLocalThemePreference(option.key);
                       setThemePreference(option.key);
+                      // Saved straight away (no "Guardar" button).
+                      updateProfileMutation.mutate({ theme: mapThemeToApi(option.key) });
                     }}
                   />
                 ))}
@@ -363,40 +376,6 @@ export default function SettingsScreen() {
               )}
             </View>
 
-            <Input
-              autoCapitalize="characters"
-              icon={<MaterialCommunityIcons name="currency-eur" size={18} color={colors.textSecondary} />}
-              label="Moeda"
-              maxLength={3}
-              onChangeText={(v) => setCurrency(v.toUpperCase())}
-              value={currency}
-            />
-
-            <View style={[styles.toggleRow, { borderColor: colors.border }]}> 
-              <View style={styles.toggleCopy}>
-                <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>Boletins públicos por defeito</Text>
-                <Text style={[styles.toggleSubtitle, { color: colors.textSecondary }]}>Os novos boletins começam como públicos no construtor.</Text>
-              </View>
-              <Switch onValueChange={setDefaultBoletinsPublic} value={defaultBoletinsPublic} />
-            </View>
-
-            <Button
-              loading={updateProfileMutation.isPending}
-              onPress={async () => {
-                try {
-                  await updateProfileMutation.mutateAsync({
-                    currency: currency.trim().toUpperCase() || undefined,
-                    defaultBoletinsPublic,
-                    theme: mapThemeToApi(themePreference),
-                  });
-                  setDefaultPublicPreference(defaultBoletinsPublic);
-                  showToast('Preferências guardadas.', 'success');
-                } catch (error) {
-                  showToast(getApiErrorMessage(error), 'error');
-                }
-              }}
-              title="Guardar preferências"
-            />
           </Card>
         </Animated.View>
 
@@ -416,7 +395,11 @@ export default function SettingsScreen() {
                     <View style={styles.goalSettingTitleRow}>
                       <Switch
                         value={goal.enabled}
-                        onValueChange={(v) => setGoals((prev) => prev.map((g, i) => i === idx ? { ...g, enabled: v } : g))}
+                        onValueChange={(v) => {
+                          const next = goals.map((g, i) => i === idx ? { ...g, enabled: v } : g);
+                          setGoals(next);
+                          saveGoals(next);
+                        }}
                         trackColor={{ true: colors.primary }}
                       />
                       <Text style={[styles.goalSettingLabel, { color: goal.enabled ? colors.textPrimary : colors.textMuted }]}>
@@ -439,7 +422,9 @@ export default function SettingsScreen() {
                         if (draft === undefined) return;
                         const n = parseFloat(draft);
                         if (!isNaN(n) && n > 0) {
-                          setGoals((prev) => prev.map((g, i) => i === idx ? { ...g, target: n } : g));
+                          const next = goals.map((g, i) => i === idx ? { ...g, target: n } : g);
+                          setGoals(next);
+                          saveGoals(next);
                         }
                         // Clear the draft so value reverts to committed goal.target
                         setGoalDraftTargets((prev) => {
@@ -458,18 +443,6 @@ export default function SettingsScreen() {
               );
             })}
 
-            <Button
-              loading={updateProfileMutation.isPending}
-              onPress={async () => {
-                try {
-                  await updateProfileMutation.mutateAsync({ goals });
-                  showToast('Objetivos guardados.', 'success');
-                } catch (error) {
-                  showToast(getApiErrorMessage(error), 'error');
-                }
-              }}
-              title="Guardar objetivos"
-            />
           </Card>
         </Animated.View>
 
@@ -628,7 +601,8 @@ export default function SettingsScreen() {
               />
             </View>
 
-            {/* Push notification diagnostics */}
+            {/* Push notification diagnostics: development builds only */}
+            {__DEV__ ? (
             <View style={[styles.toggleRow, { borderColor: colors.border }]}>
               <View style={[styles.toggleCopy, { flex: 1 }]}>
                 <Text style={[styles.toggleTitle, { color: colors.textPrimary }]}>
@@ -657,6 +631,7 @@ export default function SettingsScreen() {
                 </Text>
               </PressableScale>
             </View>
+            ) : null}
 
             {/* Fixture event notifications */}
             <Text style={[styles.toggleTitle, { color: colors.textPrimary, marginTop: 4 }]}>Notificações de jogos</Text>
@@ -695,7 +670,7 @@ export default function SettingsScreen() {
         {/* ── Import ───────────────────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.delay(60).duration(160).springify()}>
           <Card style={styles.cardInner}>
-            <SectionHeader icon="file-import-outline" title="Dados & Importação" color={colors.primary} textColor={colors.textPrimary} />
+            <SectionHeader icon="file-import-outline" title="Importar" color={colors.primary} textColor={colors.textPrimary} />
             <PressableScale
               onPress={() => importSheetRef.current?.snapToIndex(0)}
               style={[styles.importRow, { borderColor: colors.border }]}
@@ -704,17 +679,6 @@ export default function SettingsScreen() {
               <View style={styles.importRowText}>
                 <Text style={[styles.importRowLabel, { color: colors.textPrimary }]}>Importar histórico Betclic</Text>
                 <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Importa apostas de um PDF exportado</Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
-            </PressableScale>
-            <PressableScale
-              onPress={() => router.push('/boletins/scan')}
-              style={[styles.importRow, { borderColor: colors.border }]}
-            >
-              <MaterialCommunityIcons name="cellphone-screenshot" size={22} color={colors.primary} />
-              <View style={styles.importRowText}>
-                <Text style={[styles.importRowLabel, { color: colors.textPrimary }]}>Importar por screenshot</Text>
-                <Text style={[styles.preferenceLabel, { color: colors.textSecondary }]}>Lê uma aposta a partir de um screenshot Betclic</Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
             </PressableScale>
