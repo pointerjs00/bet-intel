@@ -15,6 +15,15 @@ export const LINK_TTL_S = 48 * 3600;
 export const MARKETS_TTL_S = 60;
 export const INDEX_TTL_S = 48 * 3600;
 
+const CTX_FIELD = '_ctx';
+
+/** Canonical (home, away) order of a canonical event, plus its kickoff. */
+export interface EventCtx {
+  home: string;
+  away: string;
+  startsAt: string;
+}
+
 /** Cached full-market snapshot of one house event. */
 export interface MarketsSnapshot {
   fetchedAt: string;
@@ -54,7 +63,24 @@ export function createOddsStore(client: OddsRedis = redis as unknown as OddsRedi
 
     /** Canonical event key to { house: houseEventId } (TTL 48 h). */
     async getIndex(eventKey: string): Promise<Partial<Record<HouseId, string>>> {
-      return (await client.hgetall(`odds:index:${eventKey}`)) as Partial<Record<HouseId, string>>;
+      const all = { ...(await client.hgetall(`odds:index:${eventKey}`)) };
+      delete all[CTX_FIELD];
+      return all as Partial<Record<HouseId, string>>;
+    },
+    /** Canonical participants order of an event (stored in the index hash, field `_ctx`). */
+    async getCtx(eventKey: string): Promise<EventCtx | null> {
+      const raw = (await client.hgetall(`odds:index:${eventKey}`))[CTX_FIELD];
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw) as EventCtx;
+      } catch {
+        return null;
+      }
+    },
+    async setCtx(eventKey: string, ctx: EventCtx): Promise<void> {
+      const key = `odds:index:${eventKey}`;
+      await client.hset(key, CTX_FIELD, JSON.stringify(ctx));
+      await client.expire(key, INDEX_TTL_S);
     },
     async setIndex(eventKey: string, house: HouseId, houseEventId: string): Promise<void> {
       const key = `odds:index:${eventKey}`;

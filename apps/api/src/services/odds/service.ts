@@ -1,18 +1,20 @@
 // I/O glue of the odds comparator: catalogue refresh, per-event comparison, day listing.
 // Dependencies are injected so tests run without network or Redis.
 
-import { tracked, type Provider } from '../sportsData/providerHealth';
+import { DayCache } from '../sportsData/itemMatch';
+import { teamKey } from '../marketResolutionEngine';
+import { ProviderFormatError, tracked, type Provider } from '../sportsData/providerHealth';
 import { canonicalKey } from './canonical';
 import { mergeEvent, compareMultiple, type ComparedSelection, type HousePrice } from './compare';
 import { candidatesFor, eventKey, matchEvent, type Candidate } from './matcher';
-import { createOddsStore, type OddsStore } from './store';
+import { createOddsStore, type EventCtx, type OddsStore } from './store';
 import { getSources } from './registry';
 import type { CanonicalSelection, HouseId, OddsSource, OddsSport, SourceEvent, SourceMarket } from './types';
 
 export interface OddsServiceDeps {
   sources: OddsSource[];
   store: OddsStore;
-  candidates: (sport: OddsSport, dateIso: string) => Promise<Candidate[]>;
+  candidates: (sport: OddsSport, dateIso: string, cache?: DayCache) => Promise<Candidate[]>;
   now: () => number;
   /** Health wrapper; defaults to providerHealth.tracked. */
   track: <T>(provider: Provider, call: () => Promise<T>) => Promise<T>;
@@ -54,6 +56,12 @@ export function foldLine(label: string, line: number | null | undefined): string
   return label.includes(n) ? label : `${label} ${n}`;
 }
 
+const LISBON_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon', year: 'numeric', month: '2-digit', day: '2-digit' });
+/** YYYY-MM-DD of an instant in Europe/Lisbon. */
+function lisbonDay(ms: number): string {
+  return LISBON_DAY.format(new Date(ms));
+}
+
 function sportOfKey(key: string): OddsSport | null {
   const s = key.split(':')[1];
   return s === 'FOOTBALL' || s === 'BASKETBALL' || s === 'TENNIS' ? s : null;
@@ -64,23 +72,43 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
   const deps: OddsServiceDeps = {
     sources: partial.sources ?? getSources(),
     store: partial.store ?? createOddsStore(),
-    candidates: partial.candidates ?? ((sport, dateIso) => candidatesFor(sport, dateIso)),
+    candidates: partial.candidates ?? ((sport, dateIso, cache) => candidatesFor(sport, dateIso, cache)),
     now: partial.now ?? Date.now,
     track: partial.track ?? tracked,
   };
   const { store } = deps;
   const provider = (house: HouseId) => `odds-${house}` as Provider;
 
-  /** Lists the next 48 h of a house, stores them, matches them to ESPN and records links + index. */
-  async function refreshCatalogue(source: OddsSource, sport: OddsSport): Promise<number> {
+  /** Records a format problem of a house in its health (never throws). */
+  function recordFormat(house: HouseId, message: string): void {
+    void deps.track(provider(house), () => Promise.reject(new ProviderFormatError(message))).catch(() => undefined);
+  }
+
+  /** Canonical participants order: ESPN's for espn keys, sorted for tennis name keys, else the event's own. */
+  function canonicalCtx(ev: SourceEvent, key: string, match: Candidate | null): EventCtx {
+    if (match && key.startsWith('espn:')) return { home: match.home, away: match.away, startsAt: ev.startsAt };
+    if (ev.sport === 'TENNIS' && key.startsWith('n:')) {
+      const [h, a] = [ev.home, ev.away].sort((x, y) => teamKey(x).localeCompare(teamKey(y)));
+      return { home: h!, away: a!, startsAt: ev.startsAt };
+    }
+    return { home: ev.home, away: ev.away, startsAt: ev.startsAt };
+  }
+
+  /**
+   * Lists the next 48 h of a house, stores them, matches them to ESPN and records links, index and
+   * canonical participant order. `cache` is shared across houses within one refresh cycle.
+   */
+  async function refreshCatalogue(source: OddsSource, sport: OddsSport, cache: DayCache = new DayCache()): Promise<number> {
     const from = deps.now();
     const events = await deps.track(provider(source.house), () =>
       source.listEvents(sport, new Date(from).toISOString(), new Date(from + HORIZON_MS).toISOString()));
     await store.setEvents(source.house, sport, events);
+    // candidatesFor spans several days around its date; these anchors cover the 48 h window.
+    const anchors = sport === 'TENNIS' ? [0, 1] : [1];
     const candidates: Candidate[] = [];
-    for (let d = 0; d <= 2; d++) {
+    for (const d of anchors) {
       try {
-        candidates.push(...(await deps.candidates(sport, new Date(from + d * DAY_MS).toISOString())));
+        candidates.push(...(await deps.candidates(sport, new Date(from + d * DAY_MS).toISOString(), cache)));
       } catch {
         // ESPN down: events fall back to betradar/name keys.
       }
@@ -90,11 +118,18 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     const unique = candidates.filter((c) => (seen.has(`${c.sport}|${c.providerMatchId}`) ? false : (seen.add(`${c.sport}|${c.providerMatchId}`), true)));
     let linked = 0;
     for (const ev of events) {
-      const key = eventKey(ev, matchEvent(ev, unique));
-      if (!key) continue;
-      await store.setLink(source.house, ev.houseEventId, key);
-      await store.setIndex(key, source.house, ev.houseEventId);
-      linked++;
+      try {
+        const match = matchEvent(ev, unique);
+        const key = eventKey(ev, match);
+        if (!key) continue;
+        await store.setLink(source.house, ev.houseEventId, key);
+        await store.setIndex(key, source.house, ev.houseEventId);
+        // bet: keys have no external order: the first house to write decides.
+        if (!key.startsWith('bet:') || !(await store.getCtx(key))) await store.setCtx(key, canonicalCtx(ev, key, match));
+        linked++;
+      } catch {
+        recordFormat(source.house, 'evento do calendário com formato inesperado');
+      }
     }
     return linked;
   }
@@ -112,11 +147,28 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     return markets;
   }
 
+  /** Keys a house's markets; a selection that cannot be keyed is dropped and counted as a format problem. */
+  function canonicalise(sport: OddsSport, house: HouseId, markets: SourceMarket[], ctx: { home: string; away: string }): CanonicalSelection[] {
+    const out: CanonicalSelection[] = [];
+    let bad = 0;
+    for (const m of markets) {
+      try {
+        const label = foldLine(m.selectionLabel, m.line);
+        out.push({ key: canonicalKey(sport, m.marketLabel, label, ctx), house, marketLabel: m.marketLabel, selectionLabel: label, odds: m.odds, suspended: m.suspended });
+      } catch {
+        bad++;
+      }
+    }
+    if (bad > 0) recordFormat(house, `${bad} seleções com formato inesperado`);
+    return out;
+  }
+
   /** One canonical event compared across houses; null when unknown. A failing house is left out. */
   async function getEvent(key: string): Promise<EventView | null> {
     const sport = sportOfKey(key);
     if (!sport) return null;
     const index = await store.getIndex(key);
+    const stored = await store.getCtx(key);
     const perHouse: Partial<Record<HouseId, CanonicalSelection[]>> = {};
     let info: EventInfo | null = null;
     const houses: HouseId[] = [];
@@ -125,19 +177,18 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
       if (!houseEventId) continue;
       try {
         const se = await findSourceEvent(source.house, sport, houseEventId);
-        const ctx = { home: se?.home ?? '', away: se?.away ?? '' };
-        const markets = await marketsOf(source, houseEventId);
-        perHouse[source.house] = markets.map((m) => {
-          const label = foldLine(m.selectionLabel, m.line);
-          return {
-            key: canonicalKey(sport, m.marketLabel, label, ctx),
-            house: source.house,
-            marketLabel: m.marketLabel,
-            selectionLabel: label,
-            odds: m.odds,
-            suspended: m.suspended,
-          };
-        });
+        const ctx = stored ?? { home: se?.home ?? '', away: se?.away ?? '' };
+        // Left the stored calendar after kickoff: serve cache only, never count it as a failure.
+        const gone = !se && stored !== null && Date.parse(stored.startsAt) < deps.now();
+        let markets: SourceMarket[];
+        if (gone) {
+          const cached = await store.getMarkets(source.house, houseEventId);
+          if (!cached) continue;
+          markets = cached.markets;
+        } else {
+          markets = await marketsOf(source, houseEventId);
+        }
+        perHouse[source.house] = canonicalise(sport, source.house, markets, ctx);
         houses.push(source.house);
         if (!info && se) info = { home: se.home, away: se.away, startsAt: se.startsAt, competition: se.competition, live: se.live };
       } catch {
@@ -145,6 +196,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
       }
     }
     if (houses.length === 0) return null;
+    if (!info && stored) info = { home: stored.home, away: stored.away, startsAt: stored.startsAt, competition: '', live: false };
     return {
       eventKey: key,
       sport,
@@ -154,31 +206,36 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     };
   }
 
-  /** Canonical events of a UTC day; main market from the stored catalogue only (no per-event fetches). */
+  /** Canonical events of a Europe/Lisbon day; main market from the stored catalogue only (no per-event fetches). */
   async function listEvents(sport: OddsSport, dateIso: string): Promise<EventListItem[]> {
     const day = dateIso.slice(0, 10);
     const byKey = new Map<string, Array<{ house: HouseId; ev: SourceEvent }>>();
     for (const source of deps.sources) {
-      const events = (await store.getEvents(source.house, sport)) ?? [];
-      for (const ev of events) {
-        const t = Date.parse(ev.startsAt);
-        if (Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== day) continue;
-        const key = await store.getLink(source.house, ev.houseEventId);
-        if (!key) continue;
-        const list = byKey.get(key) ?? [];
-        list.push({ house: source.house, ev });
-        byKey.set(key, list);
+      try {
+        const events = (await store.getEvents(source.house, sport)) ?? [];
+        for (const ev of events) {
+          const t = Date.parse(ev.startsAt);
+          if (Number.isNaN(t) || lisbonDay(t) !== day) continue;
+          const key = await store.getLink(source.house, ev.houseEventId);
+          if (!key) continue;
+          const list = byKey.get(key) ?? [];
+          list.push({ house: source.house, ev });
+          byKey.set(key, list);
+        }
+      } catch {
+        recordFormat(source.house, 'calendário guardado ilegível');
       }
     }
     const out: EventListItem[] = [];
     for (const [key, entries] of byKey) {
+      const ctx = (await store.getCtx(key)) ?? { home: entries[0]!.ev.home, away: entries[0]!.ev.away };
       const perHouse: Partial<Record<HouseId, CanonicalSelection[]>> = {};
       for (const { house, ev } of entries) {
-        const ctx = { home: ev.home, away: ev.away };
-        perHouse[house] = (ev.mainMarkets ?? []).map((m) => {
-          const label = foldLine(m.selectionLabel, m.line);
-          return { key: canonicalKey(sport, m.marketLabel, label, ctx), house, marketLabel: m.marketLabel, selectionLabel: label, odds: m.odds, suspended: m.suspended };
-        }).filter((c) => c.key?.startsWith(MAIN_PREFIX[sport]));
+        try {
+          perHouse[house] = canonicalise(sport, house, ev.mainMarkets ?? [], ctx).filter((c) => c.key?.startsWith(MAIN_PREFIX[sport]));
+        } catch {
+          recordFormat(house, 'mercado principal com formato inesperado');
+        }
       }
       const first = entries[0]!.ev;
       out.push({

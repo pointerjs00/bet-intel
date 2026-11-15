@@ -29,8 +29,7 @@ export function createOddsRouter(
   }));
 
   r.get('/events/:key', asyncHandler(async (req, res) => {
-    let key: string;
-    try { key = decodeURIComponent(String(req.params.key)); } catch { res.status(400).json({ success: false, error: 'Chave inválida' }); return; }
+    const key = String(req.params.key); // Express already decodes route params
     const data = await service().getEvent(key);
     if (!data) { res.status(404).json({ success: false, error: 'Evento não encontrado' }); return; }
     res.json({ success: true, data });

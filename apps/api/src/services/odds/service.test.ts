@@ -168,3 +168,58 @@ test('routes: envelope, validation, URL-encoded key, health', async () => {
     server.close();
   }
 });
+
+const TS = '2026-11-16T14:00:00.000Z';
+const tev = (house: HouseId, id: string, a: string, b: string, main?: SourceMarket[]): SourceEvent =>
+  ({ house, houseEventId: id, sport: 'TENNIS', competition: 'ATP', home: a, away: b, startsAt: TS, live: false, mainMarkets: main });
+const win = (a: string, oa: number, b: string, ob: number): SourceMarket[] => [
+  { marketLabel: 'Vencedor', selectionLabel: a, odds: oa, suspended: false },
+  { marketLabel: 'Vencedor', selectionLabel: b, odds: ob, suspended: false },
+];
+const tennisCands = async () => [
+  { providerMatchId: 't1', league: 'atp', sport: 'TENNIS' as const, home: 'Jannik Sinner', away: 'Carlos Alcaraz', startsAt: TS },
+];
+
+test('tennis with swapped player order compares each player with himself', async () => {
+  const m1 = win('Jannik Sinner', 1.5, 'Carlos Alcaraz', 2.6);
+  const m2 = win('Carlos Alcaraz', 2.5, 'Jannik Sinner', 1.55);
+  const a = new FakeSource('betclic', [tev('betclic', 'b1', 'Jannik Sinner', 'Carlos Alcaraz', m1)], m1);
+  const b = new FakeSource('lebull', [tev('lebull', 'l1', 'Carlos Alcaraz', 'Jannik Sinner', m2)], m2);
+  const store = createOddsStore(createFakeRedis());
+  const svc = createOddsService({ sources: [a, b], store, candidates: tennisCands, now: () => NOW, track: (_p, fn) => fn() });
+  for (const s of [a, b]) await svc.refreshCatalogue(s, 'TENNIS');
+  const view = await svc.getEvent('espn:TENNIS:t1');
+  const wa = view!.rows.find((r) => r.key === 'T.WIN.A')!;
+  assert.equal(wa.prices.betclic?.odds, 1.5);
+  assert.equal(wa.prices.lebull?.odds, 1.55);
+  assert.equal(view!.rows.find((r) => r.key === 'T.WIN.B')!.prices.lebull?.odds, 2.5);
+  const list = await svc.listEvents('TENNIS', '2026-11-16');
+  const la = list[0]!.main.find((r) => r.key === 'T.WIN.A')!;
+  assert.equal(la.prices.lebull?.odds, 1.55);
+  assert.equal(la.prices.betclic?.odds, 1.5);
+});
+
+test('listEvents survives one house with a broken mainMarkets selection', async () => {
+  const bad = [{ marketLabel: 'Resultado Final', selectionLabel: null, odds: 2, suspended: false }] as unknown as SourceMarket[];
+  const a = new FakeSource('betclic', [withMain(ev('betclic', 'b1', 'Porto', 'Benfica'), m1x2(2.0, 3.3, 3.6))], []);
+  const b = new FakeSource('lebull', [withMain(ev('lebull', 'l1', 'Porto', 'Benfica'), bad)], []);
+  const { svc } = await setup([a, b]);
+  const list = await svc.listEvents('FOOTBALL', '2026-11-16');
+  assert.equal(list.length, 1);
+  assert.equal(list[0]!.main.length, 3);
+});
+
+test('refreshCatalogue skips a malformed event and shares one DayCache', async () => {
+  const broken = { ...ev('betclic', 'bx', 'x', 'y'), home: undefined } as unknown as SourceEvent;
+  const a = new FakeSource('betclic', [broken, ev('betclic', 'b1', 'Porto', 'Benfica')], []);
+  const store = createOddsStore(createFakeRedis());
+  const seen: unknown[] = [];
+  const svc = createOddsService({
+    sources: [a], store, now: () => NOW, track: (_p, fn) => fn(),
+    candidates: async (_s, _d, cache) => { seen.push(cache); return candidates(); },
+  });
+  const cache = new (await import('../sportsData/itemMatch')).DayCache();
+  assert.equal(await svc.refreshCatalogue(a, 'FOOTBALL', cache), 1);
+  assert.ok(seen.every((c) => c === cache));
+  assert.equal(seen.length, 1);
+});
