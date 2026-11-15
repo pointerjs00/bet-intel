@@ -61,6 +61,11 @@ export function isTrackerCandidate(
   return now - item.kickoffAt.getTime() < FINISHED_AFTER_MS[sport];
 }
 
+/** Live and leg-decided notifications are skipped for legs of a boletim that is already lost. */
+export function shouldNotifyLive(boletinStatus: string): boolean {
+  return boletinStatus !== 'LOST';
+}
+
 /** Prisma filter equivalent of the review half of {@link isTrackerCandidate}. */
 function reviewFilter(sport: keyof typeof FINISHED_AFTER_MS, now: number) {
   return { OR: [{ needsReview: false }, { kickoffAt: { gte: new Date(now - FINISHED_AFTER_MS[sport]) } }] };
@@ -76,7 +81,7 @@ type PendingItem = {
   selection: string;
   kickoffAt: Date | null;
   needsReview: boolean;
-  boletin: { userId: string; name: string | null; user: { fixtureNotifPrefs: string[] } };
+  boletin: { status: string; userId: string; name: string | null; user: { fixtureNotifPrefs: string[] } };
 };
 
 interface MatchState { status: NormalizedMatch['status']; home: number | null; away: number | null }
@@ -213,7 +218,7 @@ async function trackBasketball(): Promise<void> {
     },
     select: {
       id: true, boletinId: true, homeTeam: true, awayTeam: true, market: true, selection: true, kickoffAt: true, needsReview: true,
-      boletin: { select: { userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
+      boletin: { select: { status: true, userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
     },
   });
   const items = candidates.filter((it) => isTrackerCandidate(it, 'BASKETBALL', now));
@@ -336,7 +341,7 @@ async function trackTennis(): Promise<void> {
     },
     select: {
       id: true, boletinId: true, homeTeam: true, awayTeam: true, market: true, selection: true, kickoffAt: true, needsReview: true,
-      boletin: { select: { userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
+      boletin: { select: { status: true, userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
     },
   });
   const items = candidates.filter((it) => isTrackerCandidate(it, 'TENNIS', now));
@@ -490,7 +495,7 @@ async function trackFootball(): Promise<void> {
     },
     select: {
       id: true, boletinId: true, homeTeam: true, awayTeam: true, competition: true, market: true, selection: true, kickoffAt: true, needsReview: true,
-      boletin: { select: { userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
+      boletin: { select: { status: true, userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
     },
   });
   const items = candidates.filter((it) => isTrackerCandidate(it, 'FOOTBALL', now));
@@ -607,7 +612,7 @@ async function notifyDecided<T extends { id: string; selection: string; boletinI
   decidedOf: (it: T) => string | null,
 ): Promise<void> {
   const fresh: Array<{ it: T; won: boolean }> = [];
-  for (const it of group) {
+  for (const it of group.filter((g) => shouldNotifyLive(g.boletin.status))) {
     const d = decidedOf(it);
     if ((d === 'WON' || d === 'LOST') && await once(`notif:decided:${it.id}`)) fresh.push({ it, won: d === 'WON' });
   }
@@ -655,7 +660,7 @@ async function notify(
   const logo = (n: string) => a?.teams[n] ?? a?.players[n] ?? null;
   const gameData = game ? { ...game, homeLogo: logo(game.home), awayLogo: logo(game.away), image: logo(game.home) ?? logo(game.away) } : {};
   const byUser = new Map<string, PendingItem[]>();
-  for (const it of group) byUser.set(it.boletin.userId, [...(byUser.get(it.boletin.userId) ?? []), it]);
+  for (const it of group.filter((g) => shouldNotifyLive(g.boletin.status))) byUser.set(it.boletin.userId, [...(byUser.get(it.boletin.userId) ?? []), it]);
   const inputs = [...byUser.entries()]
     .filter(([, its]) => (its[0]!.boletin.user.fixtureNotifPrefs ?? []).includes(pref))
     .map(([userId, its]) => ({

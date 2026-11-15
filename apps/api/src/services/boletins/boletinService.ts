@@ -889,14 +889,19 @@ export interface LiveItemState {
 }
 
 /** Pending selections of the user that are in play or ended in the last hours, with live state when tracked. */
+/** Prisma filter for "A decorrer": legs of an already-lost boletim are never shown. */
+export function liveItemsWhere(userId: string, now: number) {
+  return {
+    boletin: { userId, status: { not: BoletinStatus.LOST } },
+    kickoffAt: { gte: new Date(now - 4 * 60 * 60 * 1000), lte: new Date(now + 5 * 60 * 1000) },
+    OR: [{ result: ItemResult.PENDING }, { boletin: { status: BoletinStatus.PENDING } }],
+  };
+}
+
 export async function getLiveItems(userId: string): Promise<LiveItemState[]> {
   const now = Date.now();
   const items = await prisma.boletinItem.findMany({
-    where: {
-      boletin: { userId },
-      kickoffAt: { gte: new Date(now - 4 * 60 * 60 * 1000), lte: new Date(now + 5 * 60 * 1000) },
-      OR: [{ result: ItemResult.PENDING }, { boletin: { status: BoletinStatus.PENDING } }],
-    },
+    where: liveItemsWhere(userId, now),
     select: { id: true, boletinId: true, sport: true, market: true, selection: true, kickoffAt: true, boletin: { select: { name: true } } },
     orderBy: { kickoffAt: 'asc' },
   });

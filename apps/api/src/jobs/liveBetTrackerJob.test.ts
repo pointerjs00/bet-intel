@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { espnLeagueFor, isTrackerCandidate, runPolls } from './liveBetTrackerJob';
+import { espnLeagueFor, isTrackerCandidate, runPolls, shouldNotifyLive } from './liveBetTrackerJob';
 import { teamNamesMatch } from '../services/marketResolutionEngine';
+import { liveItemsWhere } from '../services/boletins/boletinService';
 
 test('competition names stored on bets map to ESPN leagues', () => {
   assert.equal(espnLeagueFor('Liga Portugal Betclic'), 'por.1');
@@ -72,4 +73,14 @@ test('tracker run renews the lock before every poll and stops when it is lost', 
   renewals = 0; polls = 0;
   const stopped = await runPolls(async () => ++renewals < 2, async () => { polls++; }, async () => {});
   assert.deepEqual([stopped, polls], [1, 1]);
+});
+
+test('legs of a lost boletim get no live notifications', () => {
+  assert.equal(shouldNotifyLive('LOST'), false);
+  assert.equal(shouldNotifyLive('PENDING'), true);
+});
+
+test('"A decorrer" excludes legs of lost boletins', () => {
+  const where = liveItemsWhere('u1', Date.now());
+  assert.deepEqual(where.boletin, { userId: 'u1', status: { not: 'LOST' } });
 });
