@@ -21,6 +21,8 @@ import { favouritesRouter } from './routes/favouritesRoutes';
 import { defaultLimiter } from './middleware/rateLimiter';
 import { initializeSocketServer } from './sockets';
 import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
+import { scheduleOddsCatalogueJob } from './jobs/oddsCatalogueJob';
+import { getSources } from './services/odds/registry';
 import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankingsJob';
 import { scheduleFixtureRefreshJob, unscheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
 import { ensureFixturesFresh } from './services/apifootball/fixturesSync';
@@ -246,6 +248,16 @@ async function warmUp(): Promise<void> {
     logger.warn('WTA rankings job scheduling skipped — Redis unavailable', {
       error: err instanceof Error ? err.message : String(err),
     });
+  }
+
+  if (getSources().length > 0) {
+    try {
+      await scheduleOddsCatalogueJob();
+    } catch (err) {
+      logger.warn('Odds catalogue job scheduling skipped — Redis unavailable', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   if (API_FOOTBALL_ENABLED) {
