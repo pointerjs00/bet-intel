@@ -29,7 +29,7 @@ import { fixtureAlertRouter } from './routes/fixtureAlertRoutes';
 import { footballDataRouter } from './routes/footballDataRoutes';
 import { adminRouter } from './routes/adminRoutes';
 import { sportsRouter } from './routes/sportsRoutes';
-import { seed as seedReferenceData } from './prisma/seed';
+import { seedIfCatalogueChanged } from './prisma/seed';
 import { API_FOOTBALL_ENABLED, initFootballDataScheduler } from './scheduler';
 import { sportAssetsJob } from './jobs/sportAssetsJob';
 import { fixtureStatsSyncJob } from './jobs/fixtureStatsSyncJob';
@@ -178,8 +178,8 @@ async function start(): Promise<void> {
     // Already connected or will retry on first command — non-fatal at startup
   });
 
-  // Keep reference data in sync with the code-defined catalogue on every startup.
-  await seedReferenceData();
+  // Keep reference data in sync with the code-defined catalogue when it changes (FORCE_SEED=true forces it).
+  await seedIfCatalogueChanged(redis);
 
   // Plan #23: accept requests right away; rankings, fixture sync and schedulers warm up in
   // the background (each step already tolerates failure), instead of blocking the listen.
