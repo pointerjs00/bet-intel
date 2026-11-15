@@ -2,7 +2,7 @@
 
 Data: 15/11/2026.
 
-Este guia leva-te, passo a passo, do servidor alugado na Hetzner (na Alemanha) para o Raspberry Pi 5 que tens em casa. O Pi já corre o **Lubuntu** e o **Home Assistant**. No fim, as tuas 4 apps (BetIntel, Stream-Intel, Parlay League e Pricetracker) correm no Pi, continuam nos mesmos endereços de internet, e o Home Assistant e a Alexa continuam a funcionar como hoje.
+Este guia leva-te, passo a passo, do servidor alugado na Hetzner (na Alemanha) para o Raspberry Pi 5 que tens em casa. O Pi já corre o **Raspberry Pi OS (Debian 12)** e o **Home Assistant Supervised**. No fim, as tuas 4 apps (BetIntel, Stream-Intel, Parlay League e Pricetracker) correm no Pi, continuam nos mesmos endereços de internet, e o Home Assistant e a Alexa continuam a funcionar como hoje.
 
 Não precisas de perceber tudo de uma vez. Segue as secções por ordem e, em cada uma, faz a **verificação** no fim antes de avançar. Se algo não bater certo, para e pede ajuda (ao Claude ou a outra pessoa) com o texto do erro.
 
@@ -38,7 +38,7 @@ Vais usar três computadores. Cada bloco de comandos diz no topo onde se escreve
 - **Domínio / DNS:** o domínio é o nome do site (ex.: `stream-intel.online`). O DNS é a "lista telefónica" da internet: diz a que computador corresponde cada nome.
 - **Nameservers:** quem gere essa lista para o teu domínio. Vamos passar essa gestão para a Cloudflare.
 - **Cloudflare Tunnel:** ligação segura que o Pi abre **para fora**, até à Cloudflare. Quem visita os teus sites fala com a Cloudflare, e a Cloudflare passa o pedido ao Pi pelo túnel. Assim **não é preciso abrir portas novas no router** e o teu IP de casa não fica à vista.
-- **Porta:** "número de porta" de um programa num computador (ex.: 443 para sites seguros). As apps vão usar portas internas do Pi (3000, 8000, 8080, 8090) que só o próprio Pi vê.
+- **Porta:** "número de porta" de um programa num computador (ex.: 443 para sites seguros). As apps vão usar portas internas do Pi (3100, 8000, 8080, 8090) que só o próprio Pi vê.
 - **Tailscale:** rede privada entre os teus aparelhos (PC, telemóvel, Pi). Permite-te entrar no Pi por SSH de qualquer lado, sem abrir portas.
 - **GitHub Actions / runner:** o GitHub pode correr tarefas automáticas quando mudas o código (testar, publicar). O **runner** é um pequeno programa instalado no Pi que recebe essas tarefas e as executa lá. É assim que uma alteração ao código chega ao Pi sozinha.
 
@@ -138,55 +138,47 @@ Precisas de um leitor de cartões microSD no PC, de espaço igual ao tamanho do 
 
 **Restaurar** (se um dia for preciso): num cartão do mesmo tamanho ou maior, USBImager → escolhe o ficheiro → escolhe o cartão → **Write**.
 
-Nunca guardes esta imagem no SSD do Pi: o passo 2.3 formata-o.
+Guarda esta imagem no PC, não no Pi.
 
-### 2.2 Diagnóstico: saber como o Pi está montado
+### 2.2 Diagnóstico: o que o Pi tem (feito a 16/11/2026)
 
-🍓 **Pi**
-```bash
-lsb_release -d; uname -m; free -h; df -h /
-lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL
-sudo ss -tlnp | grep LISTEN
-docker ps 2>/dev/null; systemctl list-units --type=service | grep -iE 'home-?assistant|docker|nginx|caddy'
-```
-O `sudo` pede a palavra-passe do teu utilizador do Pi (não aparece nada enquanto escreves: é normal).
+O diagnóstico já foi feito. Isto é o que o Pi tem, e o que isso muda neste guia:
 
-O que cada linha diz:
-- `uname -m` tem de dizer **`aarch64`** (processador ARM de 64 bits).
-- `lsblk` mostra os discos:
-  - `mmcblk0` é o **cartão SD**;
-  - `nvme0n1` é o **SSD**;
-  - a linha que tem `/` na coluna MOUNTPOINT é o disco onde o sistema está.
-- `ss` mostra que programas estão a usar que portas. Deves ver a 443 e a 8123 (Home Assistant).
-- `docker ps` diz se o Docker já existe e se o Home Assistant corre nele.
+| O que se viu | O que significa |
+|---|---|
+| **Debian 12 (bookworm)**, `aarch64`, 8 GB de RAM (6,6 GB livres) | Raspberry Pi OS de 64 bits (não é Lubuntu). Há memória de sobra para as 4 apps. |
+| Sistema no **cartão SD** (`mmcblk0p2`, 116 GB, 16 GB usados) | As bases de dados **não** devem ficar no cartão (passo 2.3). |
+| Disco **`sda` de 465,8 GB, modelo HM500JI** (disco rígido Samsung de 500 GB), montado em `/usr/share/hassio/share/external` | Já está em uso pelo Home Assistant (pasta "share"). **Não se formata.** As apps passam a usar uma pasta própria dentro dele. Não há nenhum SSD NVMe ligado. |
+| **Home Assistant Supervised**: o Supervisor e os addons (Node-RED, eWeLink, Samba, SSH, DuckDNS…) correm no Docker do sistema | **Não se muda a configuração do Docker** (a pasta onde guarda os dados): isso afetava o Home Assistant. As apps usam o mesmo Docker, mas guardam os dados em pastas no disco, não em volumes. |
+| **Porta 3000 ocupada** pelo addon eWeLink | O BetIntel usa a porta **3100** no Pi (já configurado no repositório). |
+| Home Assistant na **8123**; nada a ouvir na 443 dentro do Pi | O router encaminha a 443 de fora para a 8123 (DuckDNS). **Não se mexe.** |
+| Também correm Transmission (9091), Samba, Squid (3028) e VNC (5900) | Nenhuma destas portas choca com as apps (8000, 8080, 8090, 3100, 3001). |
 
-✅ **Verificação:** cola o resultado ao Claude antes de continuar. Se o Home Assistant aparecer na lista do `docker ps`, os passos 2.3 e 2.5 têm de ser ajustados, para não o afetar.
+### 2.3 Pasta das apps no disco externo (sem formatar nada)
 
-### 2.3 Pôr o SSD a guardar os dados (só se o sistema estiver no cartão SD)
+**Porquê:** as bases de dados escrevem constantemente, e um cartão SD gasta-se. O disco externo de 500 GB aguenta muito mais. As apps ficam numa pasta própria dentro dele, e essa pasta aparece também como `/srv` para os comandos deste guia funcionarem tal como estão.
 
-**Porquê:** as bases de dados escrevem no disco constantemente, e um cartão SD gasta-se e pode estragar-se em meses. O sistema fica no SD, mas os dados das apps passam para o SSD, que aguenta muito mais.
-
-> ⚠️ **Os comandos seguintes apagam tudo o que estiver no SSD.** Confirma no `lsblk` que o SSD se chama `nvme0n1` e que não tem nada que queiras guardar. Se o nome for outro, troca-o em todos os comandos.
+> ⚠️ **Não formates o disco `sda`.** Ele já tem a pasta "share" do Home Assistant. Os comandos abaixo só criam uma pasta nova e não apagam nada.
 
 🍓 **Pi**
 ```bash
-# 1. Criar uma partição no SSD e formatá-la (APAGA O SSD)
-sudo parted /dev/nvme0n1 --script mklabel gpt mkpart srv ext4 0% 100%
-sudo mkfs.ext4 -L srv /dev/nvme0n1p1
+# 1. Pasta nova dentro do disco externo
+sudo mkdir -p /usr/share/hassio/share/external/servidor
 
-# 2. Criar a pasta /srv e dizer ao sistema para montar lá o SSD em cada arranque
+# 2. Fazer com que essa pasta apareça também como /srv (e continue assim depois de reiniciar)
 sudo mkdir -p /srv
-echo "UUID=$(sudo blkid -s UUID -o value /dev/nvme0n1p1) /srv ext4 defaults,noatime 0 2" | sudo tee -a /etc/fstab
+echo "/usr/share/hassio/share/external/servidor /srv none bind,nofail,x-systemd.requires-mounts-for=/usr/share/hassio/share/external 0 0" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload
+sudo mount /srv
 
-# 3. Montar agora e dar-te permissão para escrever lá
-sudo mount -a
+# 3. Dar-te permissão para escrever lá
 sudo chown "$USER":"$USER" /srv
 df -h /srv
 ```
 
-✅ **Verificação:** o `df -h /srv` mostra o tamanho do SSD (por exemplo `234G`). Reinicia o Pi (`sudo reboot`), volta a entrar e repete o `df -h /srv`: tem de continuar a aparecer.
+✅ **Verificação:** o `df -h /srv` mostra o disco de ~466 GB (e não o cartão de 116 GB). Reinicia o Pi (`sudo reboot`), volta a entrar e repete o `df -h /srv`: tem de continuar a mostrar o disco externo. Confirma também que o Home Assistant arrancou normalmente.
 
-Se o sistema já arranca do SSD, salta este passo: a pasta `/srv` já está no SSD.
+**Se um dia comprares um SSD:** liga-o, e o Claude ajuda a mudar a pasta `servidor` para lá. Basta copiar a pasta e mudar a linha do `/etc/fstab`.
 
 ### 2.4 Atualizações automáticas de segurança
 
@@ -201,33 +193,26 @@ sudo dpkg-reconfigure -plow unattended-upgrades     # responde "Sim/Yes"
 
 ✅ **Verificação:** o Home Assistant continua a abrir normalmente.
 
-### 2.5 Instalar o Docker e pô-lo a guardar tudo no SSD
+### 2.5 Docker: preparar sem tocar no Home Assistant
 
-> Se o diagnóstico (2.2) mostrou que **o Home Assistant corre no Docker**, não faças este passo sem rever com o Claude. Mudar o sítio onde o Docker guarda as coisas mexeria também no Home Assistant.
+O Docker já está instalado e é o Home Assistant Supervised que o gere. **Não mudes o `/etc/docker/daemon.json` nem reinicies o Docker** por causa deste guia: as apps guardam os dados em pastas dentro de `/srv` (no disco externo), por isso não é preciso mudar onde o Docker guarda as coisas.
 
 🍓 **Pi**
 ```bash
-# 1. Instalar o Docker (só se o "docker ps" do 2.2 deu erro)
-curl -fsSL https://get.docker.com | sh
-
-# 2. Deixar o teu utilizador usar o Docker sem "sudo"
+# 1. Deixar o teu utilizador usar o Docker sem "sudo"
 sudo usermod -aG docker "$USER"
 newgrp docker
 
-# 3. Guardar os dados do Docker no SSD e limitar o tamanho dos logs
-sudo mkdir -p /srv/docker
-echo '{"data-root":"/srv/docker","log-driver":"local","log-opts":{"max-size":"10m","max-file":"3"}}' | sudo tee /etc/docker/daemon.json
-sudo systemctl restart docker
-
-# 4. Rede interna partilhada pelas apps
+# 2. Rede interna partilhada pelas apps
 docker network create app_network
+
+# 3. Ver se o plugin "docker compose" existe (deve mostrar uma versão)
+docker compose version || sudo apt install -y docker-compose-plugin
 ```
 
-✅ **Verificação:**
-```bash
-docker run --rm hello-world                 # deve aparecer "Hello from Docker!"
-docker info | grep 'Docker Root Dir'        # deve dizer /srv/docker
-```
+✅ **Verificação:** `docker run --rm hello-world` mostra "Hello from Docker!", e o Home Assistant continua a funcionar.
+
+> **Nota sobre o Home Assistant Supervised:** o Supervisor pode marcar a instalação como "não suportada" (*unsupported*) por haver outros contentores no mesmo Docker. Isso não estraga nada e as atualizações continuam a funcionar. Já corres Transmission, Samba e Squid no sistema, por isso pode já estar assim. Depois de arrancares a primeira app, vê em **Definições → Sistema → Reparações**. Se aparecer *unhealthy* (não saudável), em vez de *unsupported*, para e mostra a mensagem ao Claude.
 
 ### 2.6 Tailscale: entrar no Pi de qualquer lado
 
@@ -244,7 +229,7 @@ Depois instala a app **Tailscale** no PC (tailscale.com/download) e no telemóve
 
 ### 2.7 (Opcional) Desligar o ambiente gráfico
 
-O Lubuntu tem ambiente gráfico (janelas, rato), que gasta cerca de 0,5–1 GB de memória. Se nunca usas o Pi com ecrã:
+O Pi tem ambiente gráfico (janelas, rato), que gasta cerca de 0,5–1 GB de memória. **Atenção:** o acesso remoto por VNC (`wayvnc`, porta 5900) depende dele. Se usas o VNC, salta este passo. Há memória de sobra mesmo sem o desligar. Se nunca usas o Pi com ecrã nem VNC:
 
 🍓 **Pi**
 ```bash
@@ -483,7 +468,7 @@ Guarda com **Ctrl+O → Enter → Ctrl+X**.
 2. Vai a **Actions → "Build & Deploy API" → Run workflow** (branch `main`) → **Run workflow**.
 3. Acompanha a execução. O passo `deploy-pi` corre no Pi; a primeira vez demora cerca de 5–10 minutos, porque constrói a app para o Pi.
 
-✅ **Verificação:** a execução acaba com um ✓ verde e o passo "Health check" diz **API OK**. 🍓 `curl http://127.0.0.1:3000/health` responde.
+✅ **Verificação:** a execução acaba com um ✓ verde e o passo "Health check" diz **API OK**. 🍓 `curl http://127.0.0.1:3100/health` responde.
 
 A partir deste momento, cada alteração ao código no GitHub atualiza o Pi automaticamente, e o Hetzner deixa de receber atualizações.
 
@@ -504,9 +489,9 @@ C="docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env"
 $C stop api
 $C exec -T betintel-db psql -U betintel_user -d postgres -c "DROP DATABASE betintel;" -c "CREATE DATABASE betintel OWNER betintel_user;"
 $C exec -T betintel-db pg_restore -U betintel_user -d betintel --no-owner < /tmp/betintel.dump
-docker run --rm -v betintel_uploads_data:/d -v /tmp:/b alpine sh -c "tar xzf /b/uploads.tgz -C /d"
+mkdir -p /srv/betintel/data/uploads && tar xzf /tmp/uploads.tgz -C /srv/betintel/data/uploads
 $C up -d api
-sleep 30 && curl -s http://127.0.0.1:3000/health
+sleep 30 && curl -s http://127.0.0.1:3100/health
 ```
 - O `pg_restore` pode mostrar avisos sobre "owner" ou "shadow_db": são normais.
 - O último comando tem de responder (algo com `ok`).
@@ -517,10 +502,10 @@ Acrescenta estas rotas ao túnel `pi-server`:
 
 | Subdomain | Domain | Path | Service |
 |---|---|---|---|
-| `betintel-api` | `stream-intel.online` | (vazio) | HTTP `localhost:3000` |
-| `api` | `stream-intel.online` | (vazio) | HTTP `localhost:3000` |
-| (vazio) | `stream-intel.online` | `^/health$` | HTTP `localhost:3000` |
-| (vazio) | `stream-intel.online` | `^/socket.io/` | HTTP `localhost:3000` |
+| `betintel-api` | `stream-intel.online` | (vazio) | HTTP `localhost:3100` |
+| `api` | `stream-intel.online` | (vazio) | HTTP `localhost:3100` |
+| (vazio) | `stream-intel.online` | `^/health$` | HTTP `localhost:3100` |
+| (vazio) | `stream-intel.online` | `^/socket.io/` | HTTP `localhost:3100` |
 
 As duas últimas têm de ficar **acima** da regra `^/api/` do Stream-Intel na lista; no painel podes arrastar para mudar a ordem. A Cloudflare usa a primeira regra que serve.
 
@@ -559,7 +544,7 @@ docker ps                                  # que contentores estão a correr
    Espera cerca de 30 segundos. Todas as linhas têm de dizer **OK**. Se alguma disser BLOQUEADO, guarda a tabela e mostra-a ao Claude.
 2. **Importante:** o comparador de odds **ainda não está construído**. Está planeado em `docs/analise-2026-11/PLANO_ODDS.md`. Este passo só confirma que, quando for construído, as casas vão responder a partir do Pi.
 3. **Quando o comparador for entrando:** não é preciso fazer nada no Pi. Ele vem dentro da app BetIntel e chega ao Pi sozinho, com cada atualização do código (secção 6.4 b). Só é preciso que `SCRAPER_HTTP_PROXY` continue vazio no `/srv/betintel/.env`.
-4. **Ver o estado das casas** (quando existir): 🍓 `curl http://127.0.0.1:3000/api/odds/health`. Se uma casa bloquear, chega um aviso ao telemóvel.
+4. **Ver o estado das casas** (quando existir): 🍓 `curl http://127.0.0.1:3100/api/odds/health`. Se uma casa bloquear, chega um aviso ao telemóvel.
 5. **Cuidado com o volume de pedidos:** o IP de casa é o mesmo que toda a família usa. O plano do comparador faz poucos pedidos de propósito, para não haver bloqueios.
 
 ---
@@ -650,9 +635,9 @@ docker run -d --name uptime-kuma --restart always -p 3001:3001 -v uptime_kuma:/a
 - [ ] 2.1 Cópia do Home Assistant descarregada para o PC
 - [ ] 2.1 b) Imagem do cartão microSD guardada no PC
 - [ ] 2.2 Diagnóstico revisto com o Claude
-- [ ] 2.3 SSD montado em `/srv` (continua lá depois de reiniciar)
+- [ ] 2.3 Pasta `servidor` do disco externo montada em `/srv` (continua lá depois de reiniciar)
 - [ ] 2.4 Atualizações automáticas ligadas
-- [ ] 2.5 Docker a funcionar, a guardar em `/srv/docker`; rede `app_network` criada
+- [ ] 2.5 Rede `app_network` criada; Home Assistant sem estado unhealthy
 - [ ] 2.6 Entrar no Pi por SSH fora de casa, pela Tailscale
 - [ ] 3 Três domínios ativos na Cloudflare e sites a funcionar
 - [ ] 4 Túnel `pi-server` HEALTHY

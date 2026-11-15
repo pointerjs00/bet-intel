@@ -12,7 +12,7 @@ echo "== backup $(date -Is) → $DEST"
 # BetIntel: Postgres + avatares
 if docker ps --format '{{.Names}}' | grep -q '^betintel-betintel-db-1$'; then
   docker exec betintel-betintel-db-1 pg_dump -U betintel_user -Fc betintel > "$DEST/betintel.dump"
-  docker run --rm -v betintel_uploads_data:/d -v "$DEST":/b alpine tar czf /b/betintel-uploads.tgz -C /d .
+  tar czf "$DEST/betintel-uploads.tgz" -C "${BETINTEL_DATA_DIR:-/srv/betintel/data}" uploads
 fi
 
 # Parlay League: Postgres em contentor
