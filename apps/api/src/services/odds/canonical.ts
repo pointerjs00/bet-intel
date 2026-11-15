@@ -251,7 +251,7 @@ export function tennisKey(
 
   if (/handicap/.test(m)) {
     if (isSets || !isGames || leftover(m, TENNIS_HCP_WORDS).length > 0) return null;
-    const hm = s.match(/^(.+?)\s*\(?\s*([+-]\d+(?:\.\d+)?)\s*\)?$/);
+    const hm = s.match(/^(.+?)(?:\s+|\s*\(\s*)([+-]\d+(?:\.\d+)?)\s*\)?$/);
     if (!hm) return null;
     const name = hm[1]!.trim();
     const h = name.match(/^handicap ([12])$/);
@@ -264,6 +264,8 @@ export function tennisKey(
     if (!sc) return null;
     const name = s.replace(sc[0], ' ').replace(/\b(vence|ganha|wins?)\b/g, ' ').replace(/\s+/g, ' ').trim();
     const [x, y] = [sc[1]!, sc[2]!];
+    const [hi, lo] = [Math.max(+x, +y), Math.min(+x, +y)];
+    if (hi < 2 || hi > 3 || lo >= hi) return null; // not a best-of-3/5 set score
     if (!name) return `T.SETS.${x}-${y}`;
     const p = playerOf(name, pc);
     return p ? (p === 'A' ? `T.SETS.${x}-${y}` : `T.SETS.${y}-${x}`) : null;
@@ -392,6 +394,8 @@ export function basketballKey(
   }
   if (scope) return null; // 2-way quarter/half winner (a tie is void) vs 3-way 1X2: indistinguishable here
   if (side === 'D' || leftover(m, BASKETBALL_WINNER_WORDS).length > 0) return null;
+  // Generic "Resultado"/"Resultado Final" may be the 3-way regulation market: only unambiguous labels are moneylines.
+  if (!(m === 'result' || /vencedor|winner|moneyline|money line|prolong|overtime|ot/.test(m))) return null;
   return `B.ML.${side}`;
 }
 

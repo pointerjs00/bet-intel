@@ -109,3 +109,15 @@ test('canonicalKey dispatches by sport', () => {
   assert.equal(canonicalKey('BASKETBALL', 'Result', 'Phoenix Suns', nba), 'B.ML.A');
   assert.equal(canonicalKey('HOCKEY', 'Result', 'Phoenix Suns', nba), null);
 });
+
+test('review round 1: ambiguous basketball result and implausible tennis scores give no key', () => {
+  assert.equal(basketballKey('Resultado Final', 'Los Angeles Lakers', nba), null);
+  assert.equal(basketballKey('Resultado', 'Phoenix Suns', nba), null);
+  assert.equal(basketballKey('Vencedor', 'Phoenix Suns', nba), 'B.ML.A');
+  assert.equal(basketballKey('Moneyline', 'Lakers', nba), 'B.ML.H');
+  assert.equal(basketballKey('Resultado (incl. prolongamento)', 'Lakers', nba), 'B.ML.H');
+  assert.equal(tennisKey('Resultado exato', '6-4', tn), null);
+  assert.equal(tennisKey('Resultado exato', '2-2', tn), null);
+  assert.equal(tennisKey('Resultado exato', '3-1', tn), 'T.SETS.3-1');
+  assert.equal(tennisKey('Handicap de jogos', 'Toby Samuel 2-1', tn), null);
+});
