@@ -223,3 +223,29 @@ Uma seleção normalizada é uma string. Lados e linhas:
    - pelo menos 5 mercados do detalhe têm chave canónica.
 2. Relatório com a taxa de cobertura: percentagem de seleções do detalhe com chave não nula, por grupo de mercado. Lista dos rótulos sem chave, para melhorar o `parseBet` numa fase seguinte.
 3. Acrescentar `ODDS_SOURCES=` ao `apps/api/.env.example` e ao `deploy/pi/.env.example`, com uma linha de explicação (ex.: `ODDS_SOURCES=betclic`).
+
+## Task 11: Corrigir o analisador de mercados (também afeta a liquidação) e auditar apostas já liquidadas
+
+**Problema (confirmado a 15/11/2026):** `parseBet` em `apps/api/src/services/marketResolutionEngine.ts` lê mal mercados restritos ou qualificados e devolve pernas do jogo inteiro. O motor de liquidação usa estas pernas. Uma aposta destas pode ter sido liquidada com o resultado errado. Exemplos com `ctx` Leixões–GD Chaves:
+- "Total de golos - 1ª Parte" / "Mais de 0,5" → `TOTAL period FT` (devia ser `1H`)
+- "Total de Golos Mais/Menos - 2ª Parte" / "Mais de 1,5" → `FT` (devia ser `2H`)
+- "Resultado - 1º Tempo" / "Leixões" → `RESULT FT` (devia ser `1H`)
+- "Resultado correto - 1ª Parte" / "1-0" → `SCORE`, avaliado no resultado final
+- "Cantos 1X2" / "1", "Cartões - Resultado" / "1", "Resultado nos primeiros 10 minutos" / "1" → `RESULT FT`
+- "Total de Golos da Equipa da Casa" / "Mais de 1,5" → total do jogo (devia ser o total da equipa da casa)
+
+**Fazer:**
+1. Corrigir o `parseBet`, mantendo o comportamento nos casos que hoje estão certos:
+   - períodos "1ª/2ª Parte", "1º/2º Tempo" e "Intervalo" (fora de "Intervalo/Final") → `1H`/`2H`;
+   - `SCORE`, `DNB`, `FIRST_GOAL` e `SCORER` restritos a uma parte → não suportados (`null`, vão para revisão), salvo se o motor já os souber liquidar por parte;
+   - mercados de cantos e de cartões com resultado (1X2) → `RESULT` com `stat` só se o motor o suportar; senão `null`;
+   - intervalos de minutos ("primeiros 10 minutos", "minutos") e "resto do jogo" → `null`;
+   - totais de equipa por "Equipa da casa/visitante" ou pelo prefixo "<equipa> -" → `team: 'H'|'A'`;
+   - totais asiáticos → `null`, salvo se o motor suportar meia-linha/quarto de linha.
+2. Testes no `marketResolutionEngine.test.ts` com todos os exemplos acima e os do relatório da Task 2. Os testes atuais continuam verdes (as 185 seleções reais do estudo de estatísticas não regridem).
+3. Simplificar as guardas do `canonical.ts` que deixem de ser precisas, sem enfraquecer nenhuma.
+4. **Auditoria (só leitura):** script `apps/api/src/scripts/auditMisparsedSettlements.ts`:
+   - procura `BoletinItem` liquidados automaticamente cujo `market`/`selection` corresponde aos padrões acima;
+   - volta a avaliar cada um com o `parseBet` corrigido;
+   - lista os que mudariam de resultado (id, boletim, mercado, seleção, resultado atual → resultado novo, ou "agora vai para revisão").
+   **Não altera dados.** O utilizador decide depois. Corre com `DATABASE_URL` apontado para a produção, à parte.
