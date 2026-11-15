@@ -40,8 +40,10 @@ jobs:
         run: npm test
         working-directory: apps/api
 
+  # Hetzner (antigo): corre enquanto a variável do repositório DEPLOY_TARGET não for "pi".
   build-and-push:
     needs: test
+    if: vars.DEPLOY_TARGET != 'pi'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,6 +69,7 @@ jobs:
 
   deploy:
     needs: build-and-push
+    if: vars.DEPLOY_TARGET != 'pi'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -170,3 +173,27 @@ jobs:
               docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --no-deps api
             fi
             docker image prune -f
+
+  # Raspberry Pi: runner self-hosted no próprio Pi; constrói a imagem ARM64 localmente e sobe a stack.
+  # Ativa-se definindo a variável do repositório DEPLOY_TARGET=pi (Settings → Secrets and variables → Actions → Variables).
+  deploy-pi:
+    needs: test
+    if: vars.DEPLOY_TARGET == 'pi'
+    runs-on: [self-hosted, linux, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and start the stack
+        run: |
+          docker network inspect app_network >/dev/null 2>&1 || docker network create app_network
+          docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env up -d --build
+          docker image prune -f
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/health >/dev/null; then echo "API OK"; exit 0; fi
+            sleep 5
+          done
+          docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env logs --tail 100 api
+          exit 1

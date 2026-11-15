@@ -1,0 +1,65 @@
+# BetIntel no Raspberry Pi 5 (ARM64): Postgres + Redis + API.
+# A imagem da API é construída no próprio Pi (nativa ARM64) a partir do repositório.
+# Os segredos ficam fora do repositório, em /srv/betintel/.env (modelo: deploy/pi/.env.example).
+#
+# Uso (a partir da raiz do repositório clonado no Pi, ou pelo workflow de deploy):
+#   docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env up -d --build
+name: betintel
+
+services:
+  betintel-db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: betintel
+      POSTGRES_USER: betintel_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD em /srv/betintel/.env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U betintel_user -d betintel']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [app_network]
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks: [app_network]
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    image: betintel-api:local
+    restart: always
+    env_file: ${BETINTEL_ENV_FILE:-/srv/betintel/.env}
+    environment:
+      DATABASE_URL: postgresql://betintel_user:${POSTGRES_PASSWORD}@betintel-db:5432/betintel
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+      PORT: 3000
+      TZ: UTC
+    ports:
+      # Só localmente: o acesso público é feito pelo Cloudflare Tunnel.
+      - '127.0.0.1:3000:3000'
+    volumes:
+      - uploads_data:/app/apps/api/uploads
+    depends_on:
+      betintel-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [app_network]
+
+volumes:
+  db_data:
+  redis_data:
+  uploads_data:
+
+networks:
+  app_network:
+    external: true
