@@ -10,7 +10,7 @@ Estudo por casa, só com pedidos normais (sem stealth, captchas, proxies nem cre
 | **Betano** | Viável com limitações | API JSON interna (`/danae-webapi/...`) | Ao vivo: 104 eventos (futebol 22, basquetebol 26, ténis 10), só ~5 mercados por jogo; pré-jogo só "em destaque" por liga; página do evento com 16 de ~148 mercados | Polling do overview ao vivo | M (ao vivo) / L (calendário completo) |
 | **Placard** | Não viável hoje | Deixou o Kambi; widget proprietário por Socket.IO (`sportswidget.placard.pt/vws`). Ligação aberta, sem anti-bot, mas o formato de subscrição não é conhecido | Não medida | Socket.IO | L/XL (a primeira das duas) |
 | **Solverde** | Não viável hoje | Mesmo widget que a Placard (`sportswidget.solverde.pt/vws`) | Não medida | Socket.IO | S depois da Placard |
-| **Lebull** | Por estudar | O pedido de estudo foi bloqueado pelo classificador de permissões (extrair a chave de integração da plataforma a partir da página) | — | — | — |
+| **Lebull** | **Viável** | Sportsbook próprio (iframe `lebullpt-ssr.boxwebcdn.work`); API JSON `betting-platform.prod.sbteam.xyz` com o header `X-Auth-Tenant-Id` lido da configuração pública do front (estudo autorizado pelo utilizador) | Futebol 654 eventos (~30 tipos de mercado, ~194 seleções por jogo da Primeira Liga; sem cantos, cartões nem marcadores nas amostras), NBA 8 (45 tipos, sem props), ténis 158 (3–13 tipos) | Polling HTTP a 1 s (como o site) | S–M |
 
 ## Riscos comuns
 
@@ -24,4 +24,8 @@ Estudo por casa, só com pedidos normais (sem stealth, captchas, proxies nem cre
 1. **Começar só com Betclic** (a casa onde apostas, a melhor cobertura e esforço M), em paralelo com o modelo canónico (O2). O ecrã do evento (O4) e as múltiplas (O5) funcionam já com uma casa e ganham colunas à medida que as outras entram.
 2. **Betano como segunda casa** se o teste a partir do VPS passar; senão, só a partir de um proxy residencial (decisão tua, tem custo).
 3. **Placard + Solverde:** precisa de capturar a subscrição Socket.IO numa sessão real do browser (podes fazê-lo tu nas DevTools, ou autorizas-me a usar o teu Chrome com a extensão). Um só adaptador serve as duas.
-4. **Lebull:** decidir se autorizas o estudo da plataforma (ver acima).
+4. **Lebull:** viável e simples; segunda casa a entrar (o campo `date` vem com 4 h de desfasamento; usar `timestamp`).
+
+## Placard/Solverde — tentativa de captura no browser (15/11/2026)
+
+Com autorização do utilizador, no Chrome dele: a página de evento é `https://www.placard.pt/apostas/sports/soccer/events/<id>` (ex. 34739366, Espanha–Inglaterra). Os sockets visíveis na página (`wss://oapi.placard.pt/socket.io/1/...`, Socket.IO 0.9) só trocam heartbeats e o keep-alive do chat. As odds chegaram sem pedidos XHR/fetch visíveis e sem mensagens em `WebSocket`, `Worker`, `MessagePort` ou `BroadcastChannel` do contexto principal (ganchos instalados depois do carregamento). Conclusão: o canal de odds foi aberto antes dos ganchos ou dentro de um worker. **Próximo passo:** captura manual nas DevTools (Network → filtro WS, que também mostra sockets de workers → abrir `vws` → separador Messages → abrir um jogo e copiar as primeiras mensagens enviadas e recebidas).
