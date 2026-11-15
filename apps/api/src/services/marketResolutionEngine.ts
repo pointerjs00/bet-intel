@@ -147,7 +147,7 @@ const PT_COUNTRY_KEYS: Record<string, string> = Object.fromEntries(
   Object.entries(COUNTRY_PT_TO_EN).map(([pt, en]) => [normaliseTeamName(pt), normaliseTeamName(en)]),
 );
 
-function teamKey(name: string): string {
+export function teamKey(name: string): string {
   // Hyphens as spaces: "Paris Saint-Germain" must equal "Paris Saint Germain" (and "Paris SG").
   const n = normaliseTeamName(name.replace(/[-–]/g, ' '));
   return resolveAlias(PT_TEAM_NAMES[n] ?? PT_COUNTRY_KEYS[n] ?? n);
