@@ -11,6 +11,7 @@ import { useTheme } from '../../theme/useTheme';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { useAuthStore } from '../../stores/authStore';
 import { useToast } from '../../components/ui/Toast';
 import { PasswordStrength } from '../../components/auth/PasswordStrength';
 import { isInvalidResetTokenError, resetPasswordRequest } from '../../services/passwordResetService';
@@ -48,7 +49,9 @@ export default function ResetPasswordScreen() {
     if (!token) return;
     try {
       setIsSubmitting(true);
-      await resetPasswordRequest(token, values.newPassword);
+      await resetPasswordRequest(token, values.newPassword, values.confirmPassword);
+      // The API revoked every refresh token; drop the local session so the AuthGate lets us reach login.
+      await useAuthStore.getState().clearLocalSession();
       showToast('Palavra-passe alterada. Já podes entrar.', 'success');
       router.replace('/(auth)/login');
     } catch (error) {
