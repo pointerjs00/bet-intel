@@ -38,7 +38,7 @@ test('team totals carry the team side', () => {
 });
 
 test('half-time total is never confused with full-time', () => {
-  assert.notEqual(footballKey('Total de Golos Mais/Menos - 1ª Parte', 'Mais de 0.5', ctx), 'FT.TOTAL.goals.O.0.5');
+  assert.equal(footballKey('Total de Golos Mais/Menos - 1ª Parte', 'Mais de 0.5', ctx), null);
 });
 
 test('both teams to score', () => {
@@ -104,4 +104,42 @@ test('legKey: periods, team totals, scorer variants, uncomparable legs', () => {
   assert.equal(legKey({ kind: 'FIRST_GOAL', side: 'A' }), 'FT.FIRSTGOAL.A');
   assert.equal(legKey({ kind: 'PLAYER_CARD', player: 'x' }), null);
   assert.equal(legKey({ kind: 'PLAYER_STAT', player: 'x', stat: 'goals', over: true, line: 0.5 }), null);
+});
+
+test('team totals: unresolved team qualifier gives null, never a match total', () => {
+  assert.equal(footballKey('Total de Golos da Equipa da Casa', 'Mais de 1.5', ctx), 'FT.TOTAL.goals.H.O.1.5');
+  assert.equal(footballKey('Total de golos - Equipa visitante', 'Acima de 0,5', ctx), 'FT.TOTAL.goals.A.O.0.5');
+  assert.equal(footballKey('Total de golos - Equipa X', 'Acima de 0,5', ctx), null);
+  assert.equal(footballKey('Qualquer Coisa - Total de golos', 'Acima de 1,5', ctx), null);
+  assert.equal(footballKey('Leixões e GD Chaves - Total de golos', 'Acima de 1,5', ctx), null);
+});
+
+test('half-restricted markets need explicit half legs', () => {
+  assert.equal(footballKey('Resultado correto - 1ª Parte', '1-0', ctx), null);
+  assert.equal(footballKey('Empate Anula Aposta - 1ª Parte', 'Leixões', ctx), null);
+  // parseBet does not read the "ª" ordinal as a half yet, so these stay null (safe).
+  assert.equal(footballKey('Resultado - 1ª Parte', 'Leixões', ctx), null);
+  assert.equal(footballKey('Total de golos - 1st Half', 'Over 0.5', ctx), '1H.TOTAL.goals.O.0.5');
+});
+
+test('qualified result markets are not full-time 1X2', () => {
+  for (const [m, s] of [
+    ['Cantos 1X2', '1'], ['Cantos - Resultado', 'Leixões'], ['Cartões - Resultado', '1'],
+    ['Resultado nos primeiros 10 minutos', '1'], ['1X2 - 15 minutos', 'X'], ['Resultado do resto do jogo', '1'],
+  ] as const) assert.equal(footballKey(m, s, ctx), null, `${m} / ${s}`);
+  assert.equal(footballKey('Vencedor (Tempo Regulamentar)', 'Leixões', ctx), 'FT.1X2.H');
+});
+
+test('"vence"/"golo" guard works with real word boundaries', () => {
+  assert.equal(footballKey('Resultado', 'Leixões vence por 2 golos de diferença', ctx), null);
+});
+
+test('team detection is by name, not substring; combos never lose a leg', () => {
+  const inter = { home: 'Inter', away: 'Milan' };
+  assert.equal(footballKey('Total de golos - Intervalo', 'Mais de 0.5', inter), '1H.TOTAL.goals.O.0.5');
+  assert.equal(footballKey('Leixões vence e Total de golos', 'Acima de 2,5', ctx), null);
+});
+
+test('Asian totals are not comparable in v1', () => {
+  assert.equal(footballKey('Total de Golos Asiático', 'Mais de 2.0', ctx), null);
 });

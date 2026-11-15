@@ -196,7 +196,7 @@ export function teamMatchScore(a: string, b: string): number {
 }
 
 /** Maps a team name found in a selection to the home or away side; null when ambiguous or unknown. */
-function sideOf(text: string, ctx?: MatchContext): 'H' | 'A' | null {
+export function sideOf(text: string, ctx?: MatchContext): 'H' | 'A' | null {
   if (!ctx || !text.trim()) return null;
   const key = teamKey(text);
   const exactHome = ctx.homeNames.some((n) => teamKey(n) === key);
