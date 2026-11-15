@@ -118,6 +118,9 @@ export interface ParsedBet { legs: Leg[]; mode: 'ALL' | 'ANY'; extraTimeIncluded
 function norm(s: string): string {
   return s
     .toLowerCase()
+    // Ordinals: "1ª Parte" / "2.º tempo" → "1a parte" / "2.o tempo" (NFD keeps ª and º as they are).
+    .replace(/ª/g, 'a')
+    .replace(/º/g, 'o')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/(\d),(\d)/g, '$1.$2')
@@ -225,12 +228,13 @@ function outcomeOf(raw: string, ctx?: MatchContext): Side | null {
 
 // Markets that need data we don't have (aggregate over two legs, goal minute, which half has more
 // goals, exact corner count, other sports' props). They go to review.
-const UNSUPPORTED = /\b(eliminatoria|qualifica|touchdown|ressaltos|minuto|intervalos|mais cantos|metade|exato de cantos|exacto|cabeca|fora da area|livre direto|substituto do)\b/;
+// Minute ranges ("primeiros 10 minutos", "1X2 - 15 minutos") and "resto do jogo" are not the match result either.
+const UNSUPPORTED = /\b(eliminatoria|qualifica|touchdown|ressaltos|minutos?|resto do jogo|intervalos|mais cantos|metade|exato de cantos|exacto|cabeca|fora da area|livre direto|substituto do)\b/;
 
 function periodOf(raw: string): Period {
   const text = raw.replace(/intervalo\/final|ht\/ft/g, ' ');
-  if (/\b(primeira parte|1a parte|1\.a parte|1st half|first half|intervalo)\b/.test(text)) return '1H';
-  if (/\b(segunda parte|2a parte|2\.a parte|2nd half|second half)\b/.test(text)) return '2H';
+  if (/\b(primeira parte|primeiro tempo|1\.?a parte|1\.?o tempo|1st half|first half|intervalo)\b/.test(text)) return '1H';
+  if (/\b(segunda parte|segundo tempo|2\.?a parte|2\.?o tempo|2nd half|second half)\b/.test(text)) return '2H';
   return 'FT';
 }
 
@@ -280,6 +284,8 @@ function parseTotal(text: string, market: string, ctx?: MatchContext): Leg | nul
 
 /** "Galatasaray (+4)", "Galatasaray +1.5", "FC Porto -1" in a handicap market. */
 function parseHandicap(text: string, market: string, ctx?: MatchContext): Leg | null {
+  // "Empate (Leixões -2)": the draw outcome of a 3-way handicap, not that team's handicap.
+  if (/^(empate|draw|x)\b/.test(text)) return null;
   const m = text.match(/^(.+?)\s*\(?\s*([+-]\d+(?:\.\d+)?)\s*\)?$/);
   if (!m) return null;
   const side = sideOf(m[1]!.replace(/\bvence\b/, '').trim(), ctx);
@@ -429,8 +435,71 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
   return null;
 }
 
-/** Splits a selection/market into leg texts. Returns null when the bet cannot be parsed. */
+// Words that make a "<x> - …" piece of a market label a market description, not a team name.
+const MARKET_WORDS = /\d|\b(total|golos?|resultado|mais|menos|acima|abaixo|over|under|cantos?|cart(ao|oes)|remates?|faltas?|foras?|jogo|parte|tempo|intervalo|handicap|asiatico|equipas?|ambas|marcam?|baliza|jogador|player|prolongamento|incluido|final|goals?|half)\b/;
+
+/**
+ * Team named by a team-total market label ("Total de Golos da Equipa da Casa", "Leixões - Total de golos",
+ * "Total de golos do GD Chaves"). undefined = the label names no team; null = it names one we can't map.
+ */
+function teamOfMarket(m: string, ctx?: MatchContext): 'H' | 'A' | null | undefined {
+  if (/\b(equipa da casa|equipa de casa|home team)\b/.test(m)) return 'H';
+  if (/\b(equipa visitante|equipa de fora|equipa fora|away team|visitante)\b/.test(m)) return 'A';
+  const after = m.match(/\bgolos\s+(?:da|do)\s+(.+)$/)?.[1]?.trim();
+  if (after) {
+    // Team names win over the generic "da casa" ("Total de golos da Casa Pia").
+    const side = sideOf(after, ctx);
+    if (side) return side;
+    if (/^(casa|home)$/.test(after)) return 'H';
+    if (/^(fora|away)$/.test(after)) return 'A';
+    return null;
+  }
+  const parts = m.split(' - ').map((p) => p.trim());
+  if (parts.length > 1) {
+    for (const piece of [parts[0]!, parts[parts.length - 1]!]) {
+      if (!piece || MARKET_WORDS.test(piece)) continue;
+      return sideOf(piece, ctx); // a team-like piece we cannot map: never the match total
+    }
+  }
+  return /\bequipa\b/.test(m) ? null : undefined;
+}
+
+// Kinds the engine settles on the full match only.
+const FULL_MATCH_ONLY = new Set<Leg['kind']>(['SCORE', 'DNB', 'FIRST_GOAL', 'SCORER', 'PLAYER_STAT', 'PLAYER_CARD']);
+// A result "with a margin", "to nil", "both halves"…: not the plain match result.
+const QUALIFIED_RESULT_MARKET = /\b(vantagem|margem|diferenca|sem sofrer|partes|qualquer parte)\b/;
+const QUALIFIED_RESULT_SELECTION = /\b(vantagem|margem|diferenca)\b|\bpor \d/;
+
+/**
+ * Checks parsed legs against what the market text restricts (half, team, stat, margin).
+ * Returns the legs (team totals completed from the market label) or null when the engine
+ * cannot settle that restriction, so the bet goes to review instead of a full-match reading.
+ */
+function refineLegs(legs: Leg[], m: string, s: string, ctx?: MatchContext): Leg[] | null {
+  if (periodOf(m) !== 'FT' && legs.some((l) => FULL_MATCH_ONLY.has(l.kind))) return null;
+  if (legs.some((l) => l.kind === 'RESULT')) {
+    if (QUALIFIED_RESULT_MARKET.test(m) || QUALIFIED_RESULT_SELECTION.test(s)) return null;
+    // "Cantos 1X2", "Cartões - Resultado": the engine's results are goals only.
+    if (legs.every((l) => l.kind === 'RESULT') && statOf(m) !== 'goals') return null;
+  }
+  // Quarter lines (2.25, 2.75) split the stake between two lines: not supported.
+  if (legs.some((l) => l.kind === 'TOTAL' && !Number.isInteger(l.line * 2))) return null;
+  if (!legs.some((l) => l.kind === 'TOTAL' && !l.team)) return legs;
+  const team = teamOfMarket(m, ctx);
+  if (team === undefined) return legs;
+  if (team === null) return null;
+  return legs.map((l) => (l.kind === 'TOTAL' && !l.team ? { ...l, team } : l));
+}
+
+/** Splits a selection/market into legs. Returns null when the bet cannot be parsed or settled as named. */
 export function parseBet(market: string, selection: string, ctx?: MatchContext): ParsedBet | null {
+  const bet = parseLegs(market, selection, ctx);
+  if (!bet) return null;
+  const legs = refineLegs(bet.legs, norm(market), norm(selection), ctx);
+  return legs ? { ...bet, legs } : null;
+}
+
+function parseLegs(market: string, selection: string, ctx?: MatchContext): ParsedBet | null {
   const m = norm(market);
   let s = norm(selection);
   if (UNSUPPORTED.test(m) || UNSUPPORTED.test(s)) return null;

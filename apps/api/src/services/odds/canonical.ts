@@ -80,7 +80,6 @@ function betKey(bet: ParsedBet): string | null {
   return bet.extraTimeIncluded ? `ET:${body}` : body;
 }
 
-const HALF_RE = /\b(1a parte|2a parte|1\.a parte|2\.a parte|primeira parte|segunda parte|1st half|2nd half|first half|second half|1o tempo|2o tempo|intervalo)\b/;
 const NOT_PLAIN_RESULT = /\b(cantos?|cart\w*|remates?|faltas?|minutos?|resto|prolongamento|penalt\w*|vantagem|vence|ganha|sem sofrer|a marcar|golos?)\b/;
 const NOT_PLAIN_RESULT_SELECTION = /\b(golos?|diferenca|margem|por)\b/;
 const PLAIN_RESULT_MARKET = /^(resultado|resultado duplo|resultado final|dupla hipotese|chance dupla|double chance|duplo|vencedor|match result|result|1x2|)$/;
@@ -119,10 +118,8 @@ function contradicts(bet: ParsedBet, market: string, selection: string): boolean
   const m = plain(market);
   const s = plain(selection);
   if (/asiatic|asian/.test(m)) return true;
-  // A half-restricted market needs every leg explicitly tied to that half.
-  if (HALF_RE.test(m) && !/intervalo\/final|ht\/ft/.test(m)) {
-    if (bet.legs.some((l) => l.kind !== 'HTFT' && (!('period' in l) || l.period === 'FT'))) return true;
-  }
+  // (Half-restricted markets: parseBet reads the half itself and returns null for kinds it can only
+  // settle on the full match, so no half guard is needed here.)
   if (/marcador|scorer|goalscorer/.test(m) && !bet.legs.every((l) => l.kind === 'SCORER')) return true;
   if (/dupla|duplo|double chance/.test(m) && !bet.legs.every((l) => l.kind === 'RESULT' && l.outcomes.length === 2)) return true;
   if (/corret|correct|exat|exact/.test(m) && !bet.legs.every((l) => l.kind === 'SCORE')) return true;
@@ -137,8 +134,7 @@ function contradicts(bet: ParsedBet, market: string, selection: string): boolean
   }
   // A combo market ("X vence e Total de golos") with a single parsed leg lost a leg.
   if (/\s(e|\+|&)\s/.test(m) && bet.legs.length === 1) return true;
-  // Draw leg of a 3-way handicap has no key in the format.
-  if (bet.legs.some((l) => l.kind === 'HANDICAP') && /^(empate|draw|x)\b/.test(s)) return true;
+  // (Draw leg of a 3-way handicap: parseBet returns null for it.)
   return false;
 }
 

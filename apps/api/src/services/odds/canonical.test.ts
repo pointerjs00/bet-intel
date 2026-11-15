@@ -38,7 +38,9 @@ test('team totals carry the team side', () => {
 });
 
 test('half-time total is never confused with full-time', () => {
-  assert.equal(footballKey('Total de Golos Mais/Menos - 1ª Parte', 'Mais de 0.5', ctx), null);
+  // parseBet now reads "1ª Parte" as the first half (it used to give FT, so this was null).
+  assert.equal(footballKey('Total de Golos Mais/Menos - 1ª Parte', 'Mais de 0.5', ctx), '1H.TOTAL.goals.O.0.5');
+  assert.equal(footballKey('Total de Golos Mais/Menos - 2ª Parte', 'Mais de 1.5', ctx), '2H.TOTAL.goals.O.1.5');
 });
 
 test('both teams to score', () => {
@@ -117,7 +119,7 @@ test('team totals: unresolved team qualifier gives null, never a match total', (
 test('half-restricted markets need explicit half legs', () => {
   assert.equal(footballKey('Resultado correto - 1ª Parte', '1-0', ctx), null);
   assert.equal(footballKey('Empate Anula Aposta - 1ª Parte', 'Leixões', ctx), null);
-  // parseBet does not read the "ª" ordinal as a half yet, so these stay null (safe).
+  // Half results stay out of the comparison: the plain-result allowlist only admits full-time results.
   assert.equal(footballKey('Resultado - 1ª Parte', 'Leixões', ctx), null);
   assert.equal(footballKey('Total de golos - 1st Half', 'Over 0.5', ctx), '1H.TOTAL.goals.O.0.5');
 });

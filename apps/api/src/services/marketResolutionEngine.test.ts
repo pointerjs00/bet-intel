@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveMarket, type FixtureResult, type MatchContext } from './marketResolutionEngine';
+import { assessLive, parseBet, resolveMarket, type FixtureResult, type MatchContext } from './marketResolutionEngine';
 
 // Benfica 2-1 Porto, 1-0 at half time (2nd half 1-1). 3 goals, both teams scored.
 const FT: FixtureResult = { homeScore: 2, awayScore: 1, htHomeScore: 1, htAwayScore: 0, statusShort: 'FT' };
@@ -119,4 +119,89 @@ test('match status: cancelled is void, abandoned/postponed need review, extra ti
   const aet = { ...FT, statusShort: 'AET', homeScore: 2, awayScore: 1 };
   assert.equal(r('1X2', 'X', aet), null);
   assert.equal(r('1X2', 'X', { ...aet, regularHomeScore: 1, regularAwayScore: 1 }), 'WON');
+});
+
+// ─── Half-restricted and qualified markets (real labels, Leixões v GD Chaves) ───
+// Leixões 2-1 GD Chaves, 0-1 at half time (2nd half 2-0): the 1H, 2H and FT readings all differ.
+const LX: FixtureResult = { homeScore: 2, awayScore: 1, htHomeScore: 0, htAwayScore: 1, statusShort: 'FT' };
+const LX_CTX: MatchContext = { homeNames: ['Leixões'], awayNames: ['GD Chaves'] };
+const lx = (market: string, selection: string, f: FixtureResult = LX) => resolveMarket(market, selection, f, LX_CTX);
+const legsOf = (market: string, selection: string, ctx: MatchContext = LX_CTX) => parseBet(market, selection, ctx)?.legs ?? null;
+
+test('halves written with ordinals (1ª/2ª Parte, 1º/2º Tempo, 1.ª parte) are read as halves', () => {
+  assert.deepEqual(legsOf('Total de golos - 1ª Parte', 'Mais de 0,5'), [{ kind: 'TOTAL', period: '1H', stat: 'goals', over: true, line: 0.5 }]);
+  assert.deepEqual(legsOf('Total de Golos Mais/Menos - 2ª Parte', 'Mais de 1,5'), [{ kind: 'TOTAL', period: '2H', stat: 'goals', over: true, line: 1.5 }]);
+  assert.deepEqual(legsOf('Resultado - 1º Tempo', 'Leixões'), [{ kind: 'RESULT', period: '1H', outcomes: ['H'] }]);
+  assert.deepEqual(legsOf('Resultado - 2.º tempo', 'X'), [{ kind: 'RESULT', period: '2H', outcomes: ['D'] }]);
+  assert.deepEqual(legsOf('Resultado - Primeiro Tempo', 'X'), [{ kind: 'RESULT', period: '1H', outcomes: ['D'] }]);
+  assert.deepEqual(legsOf('Ambas Marcam - 2ª Parte', 'Sim'), [{ kind: 'BTTS', period: '2H', yes: true }]);
+  assert.deepEqual(legsOf('Cantos - 1ª Parte', 'Mais de 4,5'), [{ kind: 'TOTAL', period: '1H', stat: 'corners', over: true, line: 4.5 }]);
+  assert.equal(lx('Total de golos - 1ª Parte', 'Mais de 1,5'), 'LOST'); // 1 goal at HT (3 at FT)
+  assert.equal(lx('Total de Golos Mais/Menos - 2ª Parte', 'Menos de 2,5'), 'WON'); // 2 in the 2nd half (3 at FT)
+  assert.equal(lx('Resultado - 1º Tempo', 'Leixões'), 'LOST'); // 0-1 at HT (Leixões won the match)
+  assert.equal(lx('Resultado - 1ª Parte', 'GD Chaves'), 'WON');
+  assert.equal(lx('Handicap asiático - 1ª Parte', 'Leixões +0.5'), 'LOST'); // 0-1 at HT
+  // "Intervalo/Final" stays HT/FT; "Intervalo" alone is the first half.
+  assert.deepEqual(legsOf('Intervalo/Final', 'GD Chaves/Leixões'), [{ kind: 'HTFT', ht: 'A', ft: 'H' }]);
+  assert.equal(lx('Total de golos - Intervalo', 'Mais de 0.5'), 'WON');
+});
+
+test('half-restricted markets the engine cannot settle by half go to review (null), never full time', () => {
+  for (const [m, s] of [
+    ['Resultado correto - 1ª Parte', '1-0'], ['Resultado exato - 2ª Parte', '2-0'], ['Empate Anula Aposta - 1ª Parte', 'Leixões'],
+    ['Primeira equipa a marcar - 1ª Parte', 'Leixões'], ['Marcador - 1ª Parte', 'Fulano'], ['Remates do jogador - 1ª Parte', 'Fulano Mais de 1,5'],
+  ] as const) {
+    assert.equal(legsOf(m, s), null, `${m} / ${s}`);
+    assert.equal(lx(m, s), null, `${m} / ${s}`);
+  }
+});
+
+test('qualified result markets (corners, cards, minutes, rest of match, margins) are not the match 1X2', () => {
+  for (const [m, s] of [
+    ['Cantos 1X2', '1'], ['Cantos - Resultado', 'Leixões'], ['Cartões - Resultado', '1'],
+    ['Resultado nos primeiros 10 minutos', '1'], ['1X2 - 15 minutos', 'X'], ['Resultado do resto do jogo', '1'],
+    ['Equipa tem 2 golos de vantagem ou vence (tempo reg.)', 'Leixões'], ['Resultado', 'Leixões vence por 2 golos de diferença'],
+    ['Vence sem sofrer golos', 'Leixões'], ['Vence ambas as partes', 'Leixões'],
+  ] as const) {
+    assert.equal(legsOf(m, s), null, `${m} / ${s}`);
+    assert.equal(lx(m, s), null, `${m} / ${s}`);
+  }
+  // Plain results are unchanged.
+  assert.equal(lx('Vencedor (Tempo Regulamentar)', 'Leixões'), 'WON');
+  assert.equal(lx('Resultado (Tempo Regulamentar)', 'Leixões'), 'WON');
+});
+
+test('team totals named by the market ("Equipa da Casa", "<equipa> - Total de golos") are team totals', () => {
+  assert.deepEqual(legsOf('Total de Golos da Equipa da Casa', 'Mais de 1,5'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'H' }]);
+  assert.equal(lx('Total de Golos da Equipa da Casa', 'Menos de 2,5'), 'WON'); // Leixões 2 (match total 3)
+  assert.equal(lx('Total de golos - Equipa visitante', 'Mais de 1,5'), 'LOST'); // GD Chaves 1
+  assert.equal(lx('Leixões - Total de golos', 'Menos de 2,5'), 'WON');
+  assert.equal(lx('GD Chaves - Total de golos', 'Mais de 1,5'), 'LOST');
+  assert.equal(lx('Total de golos do GD Chaves', 'Mais de 0,5'), 'WON');
+  const casaPia: MatchContext = { homeNames: ['Benfica'], awayNames: ['Casa Pia'] };
+  assert.deepEqual(legsOf('Total de golos da Casa Pia', 'Mais de 1.5', casaPia), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'A' }]);
+  assert.deepEqual(legsOf('Casa Pia - Total de golos', 'Mais de 1.5', casaPia), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'A' }]);
+  // A team qualifier that cannot be resolved is never read as the match total.
+  for (const m of ['Total de golos - Equipa X', 'Qualquer Coisa - Total de golos', 'Leixões e GD Chaves - Total de golos']) {
+    assert.equal(legsOf(m, 'Acima de 1,5'), null, m);
+  }
+  // Match totals are unchanged.
+  assert.equal(lx('Total de golos - acima/abaixo', 'Acima de 2,5'), 'WON');
+  assert.equal(lx('Golos - Mais de 2.5', 'Over 2.5'), 'WON');
+  assert.equal(lx('Cantos - Mais de 7.5', 'Over 7.5', { ...LX, homeCorners: 5, awayCorners: 4 }), 'WON');
+});
+
+test('Asian quarter lines and the draw leg of a 3-way handicap go to review', () => {
+  assert.equal(legsOf('Total de Golos Asiático', 'Mais de 2.25'), null);
+  assert.equal(legsOf('Total de golos', 'Mais de 2.75'), null);
+  assert.equal(lx('Total de Golos Asiático', 'Mais de 2.5'), 'WON'); // half line: same as a normal total
+  assert.equal(lx('Total de Golos Asiático', 'Mais de 3.0'), null); // whole line on the number: push, review
+  assert.equal(legsOf('Resultado handicap', 'Empate (Leixões -2)'), null);
+  assert.equal(lx('Resultado handicap', 'Leixões (-1)'), 'LOST'); // 2-1 → 1-1: the handicap draw wins, not Leixões
+});
+
+test('live: a first-half market is decided at half time, from the half-time score', () => {
+  const ht = { ...LX, homeScore: 0, awayScore: 1 };
+  assert.equal(assessLive('Total de golos - 1ª Parte', 'Mais de 1,5', ht, 'HALFTIME', LX_CTX).decided, 'LOST');
+  assert.equal(assessLive('Resultado - 1º Tempo', 'GD Chaves', ht, 'HALFTIME', LX_CTX).decided, 'WON');
 });
