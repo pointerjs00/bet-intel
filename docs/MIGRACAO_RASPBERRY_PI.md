@@ -119,6 +119,27 @@ Se algo correr mal, isto permite repor o Home Assistant.
 
 ✅ **Verificação:** tens um ficheiro `.tar` no PC com a data de hoje.
 
+### 2.1 b) Imagem completa do cartão microSD (recomendado)
+
+Guarda o cartão inteiro (sistema, Home Assistant e configurações) num ficheiro no PC. Se o cartão se estragar, gravas a imagem noutro cartão e o Pi volta a ficar exatamente como estava.
+
+Precisas de um leitor de cartões microSD no PC, de espaço igual ao tamanho do cartão e do programa gratuito **USBImager** (gitlab.com/bztsrc/usbimager, versão Windows).
+
+1. 🍓 **Pi:** `sudo shutdown -h now`. Espera que a luz verde pare de piscar e tira a ficha. O Home Assistant fica parado enquanto o cartão estiver fora.
+2. Tira o cartão e mete-o no leitor do PC.
+3. ⚠️ **O Windows vai perguntar se queres formatar o disco: carrega SEMPRE em Cancelar.** A parte Linux do cartão não é legível pelo Windows, e formatar apagava o Pi.
+4. No **USBImager**:
+   - escolhe o cartão na lista de baixo (confirma pelo tamanho);
+   - carrega em **Read**;
+   - grava como, por exemplo, `D:\Backups\pi-sd-2026-11-15.img.zst`. O `.zst` comprime enquanto lê.
+5. No fim (10–30 min), ejeta o cartão, volta a pô-lo no Pi e liga-o.
+
+✅ **Verificação:** o ficheiro existe, a leitura acabou sem erro e o Home Assistant voltou a arrancar.
+
+**Restaurar** (se um dia for preciso): num cartão do mesmo tamanho ou maior, USBImager → escolhe o ficheiro → escolhe o cartão → **Write**.
+
+Nunca guardes esta imagem no SSD do Pi: o passo 2.3 formata-o.
+
 ### 2.2 Diagnóstico: saber como o Pi está montado
 
 🍓 **Pi**
@@ -627,6 +648,7 @@ docker run -d --name uptime-kuma --restart always -p 3001:3001 -v uptime_kuma:/a
 ## 9. Lista para ir marcando
 
 - [ ] 2.1 Cópia do Home Assistant descarregada para o PC
+- [ ] 2.1 b) Imagem do cartão microSD guardada no PC
 - [ ] 2.2 Diagnóstico revisto com o Claude
 - [ ] 2.3 SSD montado em `/srv` (continua lá depois de reiniciar)
 - [ ] 2.4 Atualizações automáticas ligadas
