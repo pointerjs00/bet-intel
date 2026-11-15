@@ -1,5 +1,6 @@
 // Pure core of the read-only audit of settled items whose market the old parseBet misread
-// (half-restricted, corner/card results, minute ranges, team totals, quarter lines, margins…).
+// (half-restricted, corner/card results, minute ranges, team totals, quarter lines, margins,
+// combos reduced to one leg, "<equipa> marca" read as a scorer…).
 // No I/O: the script in scripts/auditMisparsedSettlements.ts loads the data and prints the table.
 
 import { parseBet, resolveMarket, type FixtureResult, type Resolution } from './marketResolutionEngine';
@@ -43,10 +44,20 @@ const SUSPECT = new RegExp([
   String.raw`\bequipa\b`, String.raw`golos (da|do) `, String.raw`\S - total`, 'asiatic', String.raw`empate \(`,
   'vantagem', 'margem', 'diferenca', 'vence por', 'sem sofrer', String.raw`\bpartes\b`, String.raw`\d\.(25|75)\b`,
 ].join('|'));
+// Selection-only patterns: draw leg of a 3-way handicap ("X (Leixões -1)"), a margin ("Leixões por 2"),
+// a result and BTTS joined by a slash ("Leixões / Sim").
+const SUSPECT_SELECTION = /^x \(|\bpor \d|\/ (sim|nao)$/;
+// A "Sim"/"Não" answer to a market naming a combination or a team scoring ("Leixões vence e ambas
+// marcam", "As duas equipas marcam/Total de golos", "Leixões marca"): read before as BTTS alone or
+// as a scorer named "sim".
+const COMBO_MARKET = /\s(e|\+)\s|&|\/|\bmarca\b/;
 
 /** True when the item's market/selection matches one of the patterns the old parser misread. */
 export function isSuspect(market: string, selection: string): boolean {
-  return SUSPECT.test(plain(market)) || SUSPECT.test(plain(selection).replace(/,/g, '.'));
+  const m = plain(market);
+  const s = plain(selection).replace(/,/g, '.');
+  if (/^(sim|nao|yes|no)$/.test(s) && COMBO_MARKET.test(m.replace(/intervalo\/final|ht\/ft/g, ' '))) return true;
+  return SUSPECT.test(m) || SUSPECT.test(s) || SUSPECT_SELECTION.test(s);
 }
 
 /**

@@ -32,3 +32,21 @@ test('unsupported markets and missing data are reported as going to review, not 
   assert.equal(reauditItem(item('Total de golos - 1ª Parte', 'Mais de 1,5', 'WON'), { ...FX, htHomeScore: null, htAwayScore: null }).kind, 'REVIEW');
   assert.equal(reauditItem(item('Total de golos - 1ª Parte', 'Mais de 1,5', 'WON'), { ...FX, status: 'LIVE' }).kind, 'REVIEW');
 });
+
+test('suspect patterns: 3-way handicap draw "X (…)", margins "por N", and combos misread before Task 12', () => {
+  for (const [m, s] of [
+    ['Resultado handicap', 'X (Leixões -1)'], ['Resultado', 'Leixões por 2'],
+    ['Leixões vence e ambas marcam', 'Sim'], ['Leixões marca', 'Não'], ['As duas equipas marcam/Total de golos', 'Sim'],
+    ['Resultado/Ambas marcam', 'Leixões / Sim'], ['Leixões marca em ambas as partes', 'Sim'],
+  ]) assert.equal(isSuspect(m!, s!), true, `${m} / ${s}`);
+  // Checked on the selection only: a market that merely contains "x (" or "por 2" is not flagged by these.
+  for (const [m, s] of [['Ambas Equipas Marcam', 'Sim'], ['Resultado (Tempo Regulamentar)', 'Empate']]) {
+    assert.equal(isSuspect(m!, s!), false, `${m} / ${s}`);
+  }
+});
+
+test('a "<team> vence e ambas marcam" item settled on BTTS alone is reported with its new result', () => {
+  // Old reading: BTTS only → WON. Correct: GD Chaves lost 2-1 → LOST.
+  assert.deepEqual(reauditItem(item('GD Chaves vence e ambas marcam', 'Sim', 'WON'), FX), { kind: 'CHANGED', now: 'LOST' });
+  assert.deepEqual(reauditItem(item('GD Chaves marca', 'Sim', 'WON'), FX), { kind: 'SAME' });
+});

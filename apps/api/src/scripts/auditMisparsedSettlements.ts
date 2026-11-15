@@ -1,5 +1,6 @@
 // Read-only audit: settled football items whose market the old parseBet misread (halves written
-// "1ª Parte"/"1º Tempo", corner/card results, minute ranges, team totals, quarter lines, margins…),
+// "1ª Parte"/"1º Tempo", corner/card results, minute ranges, team totals, quarter lines, margins,
+// combos answered "Sim" read as one leg, "<equipa> marca" read as a scorer…),
 // re-evaluated with the fixed parser. Prints the items whose result would change or that would now
 // go to review. CHANGES NOTHING (only findMany); the user decides what to correct.
 //
@@ -62,6 +63,7 @@ async function main(): Promise<void> {
   }
 
   console.log(`Itens de futebol liquidados: ${settled.length} · com mercado suspeito: ${suspects.length} · resultado mantém-se: ${same} · a ver: ${rows.length}`);
+  console.log('Nota: o resultado guardado do jogo inclui o prolongamento (se houve). Em jogos a eliminar, confirmar à mão os mercados de tempo regulamentar.');
   if (!rows.length) return;
   const head = ['item', 'boletim', 'jogo', 'resultado', 'mercado', 'seleção', 'atual → novo'];
   const widths = head.map((h, c) => Math.min(48, Math.max(h.length, ...rows.map((r) => r[c]!.length))));
