@@ -187,3 +187,13 @@ test('review round 1: negated team scoring and slash selections never give a pla
   assert.equal(footballKey('Resultado/Total de golos', 'Leixões/Mais de 2,5', ctx), null);
   assert.equal(footballKey('Marcador / Resultado', 'Fulano / Leixões', ctx), null);
 });
+
+test('team totals named with "de" and team-named correct scores get the right key, or none', () => {
+  assert.equal(footballKey('Total de golos de Leixões', 'Mais de 1,5', ctx), 'FT.TOTAL.goals.H.O.1.5');
+  assert.equal(footballKey('Golos de GD Chaves', 'Menos de 0,5', ctx), 'FT.TOTAL.goals.A.U.0.5');
+  assert.equal(footballKey('Total de golos de Fulano FC', 'Mais de 1,5', ctx), null);
+  assert.equal(footballKey('Resultado correto', 'Leixões 2-1', ctx), 'FT.SCORE.2-1');
+  assert.equal(footballKey('Resultado correto', '2-1 Leixões', ctx), 'FT.SCORE.2-1');
+  assert.equal(footballKey('Resultado exato', 'GD Chaves 1-2', ctx), null);
+  assert.equal(footballKey('Resultado', 'Leixões 2-1', ctx), null);
+});

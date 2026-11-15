@@ -361,6 +361,33 @@ function isResultMarket(market: string): boolean {
   return /\b(resultado|1x2|vencedor|dupla|hipotese|double chance|vence)\b/.test(market);
 }
 
+// (Betclic's "Resultado correcto" is left out on purpose: no sample shows how it writes its scores, so a
+// selection there goes to review; the score guard below keeps it from being read as the winner.)
+const CORRECT_SCORE_MARKET = /\b(resultado corret|resultado exat|marcador corret|correct score)/;
+const SCORE_IN_TEXT = /\b\d+\s*[-:]\s*\d+\b/;
+
+/**
+ * A correct-score selection. A team named before or after the score ("GD Chaves 1-2") may mean the
+ * home-away score or that team's goals first; no house sample shows which, so the score is taken only
+ * when both readings agree: the home team is named, or the score is a draw. Otherwise review (null).
+ */
+function parseScore(t: string, ctx?: MatchContext): Leg | null {
+  const m = t.match(/^(.*?)\s*\b(\d+)\s*[-:]\s*(\d+)\b(.*)$/);
+  if (!m) return null;
+  const home = parseInt(m[2]!, 10);
+  const away = parseInt(m[3]!, 10);
+  const clean = (x: string) => x.replace(/^[\s:-]+|[\s:-]+$/g, '');
+  const before = clean(m[1]!);
+  const after = clean(m[4]!);
+  if (before && after) return null;
+  const who = before || after;
+  const score: Leg = { kind: 'SCORE', home, away };
+  if (!who) return score;
+  if (/^(empate|draw|x)$/.test(who)) return home === away ? score : null;
+  const side = strictSideOf(who, ctx);
+  return side === 'H' || (side === 'A' && home === away) ? score : null;
+}
+
 /** Parses one leg of a selection, using the market text as context. */
 function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null {
   let t = text.replace(/\btempo reg(ulamentar)?\.?/g, '').trim();
@@ -421,11 +448,8 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
   if (/^(nao|no|n)$/.test(t) && isBttsMarket(market)) return { kind: 'BTTS', period: periodOf(market), yes: false };
   if (/^(ambas( as)?( equipas)?|as duas equipas) marcam$/.test(t)) return { kind: 'BTTS', period: periodOf(market), yes: true };
 
-  // Correct score
-  const sc = t.match(/^(\d+)\s*[-:]\s*(\d+)$/);
-  if (sc && /\b(resultado corret|resultado exat|marcador corret|correct score)/.test(market)) {
-    return { kind: 'SCORE', home: parseInt(sc[1]!, 10), away: parseInt(sc[2]!, 10) };
-  }
+  // Correct score ("2-1", "Leixões 2-1", "2-1 Leixões", "Empate 1-1"): a score or review, never the winner alone.
+  if (CORRECT_SCORE_MARKET.test(market)) return parseScore(t, ctx);
 
   // Draw no bet
   if (/\b(empate anula|draw no bet|sem empate)\b/.test(market)) {
@@ -459,6 +483,8 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
   if (isResultMarket(market) || /\bvence\b/.test(t)) {
     // "Leixões / Sim" (result/BTTS written with a slash): more than one outcome, never just the team.
     if (t.includes('/')) return null;
+    // "Leixões 2-1" names a score, not only the winner.
+    if (SCORE_IN_TEXT.test(t)) return null;
     const s = outcomeOf(t, ctx);
     return s ? { kind: 'RESULT', period, outcomes: [s] } : null;
   }
@@ -475,13 +501,17 @@ const MARKET_WORDS = /\d|\b(total|golos?|resultado|mais|menos|acima|abaixo|over|
 function teamOfMarket(m: string, ctx?: MatchContext): 'H' | 'A' | null | undefined {
   if (/\b(equipa da casa|equipa de casa|home team)\b/.test(m)) return 'H';
   if (/\b(equipa visitante|equipa de fora|equipa fora|away team|visitante)\b/.test(m)) return 'A';
-  const after = m.match(/\bgolos\s+(?:da|do)\s+(.+)$/)?.[1]?.trim();
-  // "Total de golos do jogo / da partida / do encontro": the match total.
-  if (after && /^(jogo|partida|encontro)$/.test(after)) return undefined;
-  if (after) {
-    // Team names win over the generic "da casa" ("Total de golos da Casa Pia").
-    const side = sideOf(after, ctx);
+  // "Total de golos de/do/da <equipa>", "Total de cantos do <equipa>" (a " - 1ª Parte" suffix is the period).
+  const named = m.match(/\b(?:golos|cantos|cartoes)\s+(?:de|da|do|dos|das)\s+(.+)$/)?.[1]?.split(' - ')[0]?.trim();
+  if (named !== undefined) {
+    // "do jogo / da partida / do encontro", "da 1ª parte": the match (or half) total.
+    const after = stripPeriod(named);
+    if (!after) return undefined;
+    // Team names win over the generic "da casa" ("Total de golos da Casa Pia"). The text must be the team
+    // itself: a text that only contains a team name ("Leixões Fulano") is not surely that team.
+    const side = strictSideOf(after, ctx);
     if (side) return side;
+    if (sideOf(after, ctx)) return null;
     if (/^(casa|home)$/.test(after)) return 'H';
     if (/^(fora|away)$/.test(after)) return 'A';
     return null;

@@ -327,3 +327,43 @@ test('review round 1: multi-part selections are never read as one team leg', () 
   assert.deepEqual(legsOf('Total de golos', 'Leixões Mais de 1,5'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'H' }]);
   assert.deepEqual(legsOf('Marcador a qualquer momento', 'Leixões'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 0.5, team: 'H' }]);
 });
+
+test('team totals named with "de" ("Total de golos de Leixões", "Golos de GD Chaves") are that team\'s total', () => {
+  const t = (team: 'H' | 'A', over: boolean, line: number, stat = 'goals', period = 'FT') => [{ kind: 'TOTAL', period, stat, over, line, team }];
+  assert.deepEqual(legsOf('Total de golos de Leixões', 'Mais de 1,5'), t('H', true, 1.5));
+  assert.equal(lx('Total de golos de Leixões', 'Mais de 1,5'), 'WON'); // Leixões 2
+  assert.deepEqual(legsOf('Total de golos do Leixões', 'Mais de 1,5'), t('H', true, 1.5));
+  assert.deepEqual(legsOf('Golos de GD Chaves', 'Mais de 1,5'), t('A', true, 1.5));
+  assert.equal(lx('Golos de GD Chaves', 'Mais de 1,5'), 'LOST'); // GD Chaves 1
+  assert.deepEqual(legsOf('Golos do GD Chaves', 'Menos de 1,5'), t('A', false, 1.5));
+  assert.deepEqual(legsOf('Total de golos de GD Chaves - 1ª Parte', 'Mais de 0,5'), t('A', true, 0.5, 'goals', '1H'));
+  assert.deepEqual(legsOf('Total de cantos de Leixões', 'Mais de 4,5'), t('H', true, 4.5, 'corners'));
+  assert.deepEqual(legsOf('Total de golos de casa', 'Mais de 1,5'), t('H', true, 1.5));
+  // Unknown or loosely matched team, or something that is not a team: review, never the match total.
+  for (const m of ['Total de golos de Fulano FC', 'Total de golos de vantagem', 'Total de golos de Leixões Fulano']) {
+    assert.equal(legsOf(m, 'Mais de 1,5'), null, m);
+  }
+  // The match itself: still the match total.
+  assert.deepEqual(legsOf('Total de golos de jogo', 'Mais de 2,5'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 2.5 }]);
+});
+
+test('correct score with a team name: home-away score when every reading agrees, otherwise review', () => {
+  const sc = (home: number, away: number) => [{ kind: 'SCORE', home, away }];
+  // Named home team (or a draw): "home-away" and "named team's goals first" give the same score.
+  assert.deepEqual(legsOf('Resultado correto', 'Leixões 2-1'), sc(2, 1));
+  assert.equal(lx('Resultado correto', 'Leixões 2-1'), 'WON');
+  assert.deepEqual(legsOf('Resultado correto', '2-1 Leixões'), sc(2, 1));
+  assert.deepEqual(legsOf('Resultado correto', 'Leixões 2:1'), sc(2, 1));
+  assert.deepEqual(legsOf('Resultado correto', 'Leixões - 2-1'), sc(2, 1));
+  assert.deepEqual(legsOf('Resultado correto', 'Leixões 1-2'), sc(1, 2));
+  assert.deepEqual(legsOf('Resultado correto', 'GD Chaves 1-1'), sc(1, 1));
+  assert.deepEqual(legsOf('Resultado correto', 'Empate 1-1'), sc(1, 1));
+  // Named away team, not a draw: "1-2" may be home-away (GD Chaves wins) or GD Chaves' goals first (Leixões wins).
+  for (const [m, s] of [
+    ['Resultado exato', 'GD Chaves 1-2'], ['Resultado correto', 'GD Chaves 2-1'], ['Resultado correto', '1-2 GD Chaves'],
+    ['Resultado correto', 'Empate 2-1'], ['Resultado correto', 'Fulano 2-1'], ['Resultado correto', 'Leixões vence 2-1'],
+    ['Resultado correto', 'Leixões 2-1 GD Chaves'], ['Resultado correto', 'Leixões'], ['Resultado correto - 1ª Parte', 'Leixões 1-0'],
+    // A score is never just the winner (Betclic's "Resultado correcto" is not read yet: no sample of its scores).
+    ['Resultado', 'Leixões 2-1'], ['Resultado correcto', 'Leixões 2-1'], ['Resultado correcto', 'Leixões 2:1'], ['Resultado (Tempo Regulamentar)', 'GD Chaves 1-2'],
+  ] as const) assert.equal(legsOf(m, s), null, `${m} / ${s}`);
+});
