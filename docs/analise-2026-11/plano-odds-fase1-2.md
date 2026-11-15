@@ -276,3 +276,19 @@ Uma seleção normalizada é uma string. Lados e linhas:
 - testes com estes rótulos e variações ("Total de golos do Leixões", "Golos de GD Chaves", "Resultado exato / GD Chaves 1-2", "Resultado correto / 2-1 Leixões");
 - verificação antes/depois no corpus de seleções reais (nenhuma mudança fora das pretendidas);
 - confirmar a chave canónica (`footballKey`) destes casos.
+
+## Task 14: Rótulos reais da Betclic mal lidos (comparador e liquidação)
+
+**Problema (encontrado ao passar o detalhe real da Betclic pelo `canonicalKey`):**
+- "As duas equipas marcam ou Acima de 2,5 golos" / "Não": significa "não marcam ambas **e** menos de 2,5". Hoje dá `FT.BTTS.N`, a mesma chave do "ambas marcam: Não".
+- "Primeira Parte - 1.ª equipa a marcar" / "Estónia" (e "Segunda parte"): dá `1H.TOTAL.goals.H.O.0.5`. Devia ser primeira equipa a marcar nessa parte, ou `null`.
+- "Estónia -Total de golos - par/ímpar" / "Impar"/"Par": é a paridade dos golos dessa equipa, mas dá `FT.PARITY.*` (paridade do jogo).
+
+**Fazer:**
+1. Corrigir no `parseBet` (serve a liquidação e o comparador):
+   - "Não" num mercado "A ou B" → todas as pernas negadas (com `mode ALL`), ou `null`;
+   - "1.ª equipa a marcar" restrita a uma parte → `null`, a não ser que o motor saiba liquidar o primeiro golo por parte;
+   - paridade de uma equipa → `null`, a não ser que o motor suporte paridade por equipa.
+2. Uniformizar "primeiro golo: nenhum": a chave deve ser `FT.FIRSTGOAL.NONE` (formato da especificação), e não `SCORER.FIRST.NONE`.
+3. Testes com os rótulos reais da Betclic, das fixtures em `apps/api/src/services/odds/__fixtures__/betclic/`. Verificação antes/depois no corpus de seleções reais (nenhuma mudança fora das pretendidas).
+4. Repetir a sonda de cobertura (`canonicalKey` sobre todas as seleções do detalhe da Betclic). Reportar a percentagem e confirmar que não há chaves erradas, revendo à mão todas as famílias de mercados com chave.
