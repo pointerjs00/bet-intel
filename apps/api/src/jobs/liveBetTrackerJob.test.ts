@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { espnLeagueFor } from './liveBetTrackerJob';
+import { espnLeagueFor, isTrackerCandidate } from './liveBetTrackerJob';
 import { teamNamesMatch } from '../services/marketResolutionEngine';
 
 test('competition names stored on bets map to ESPN leagues', () => {
@@ -47,4 +47,19 @@ test('Portuguese country names match ESPN English names', () => {
   assert.ok(teamNamesMatch('República Checa', 'Czechia'));
   assert.ok(teamNamesMatch('Irlanda', 'Republic of Ireland'));
   assert.ok(!teamNamesMatch('Portugal', 'Spain'));
+});
+
+test('tracker candidates: items under review are dropped once their game is over', () => {
+  const now = Date.parse('2026-05-10T20:00:00Z');
+  const ago = (h: number) => new Date(now - h * 3600e3);
+  // Never flagged: always a candidate.
+  assert.ok(isTrackerCandidate({ needsReview: false, kickoffAt: ago(30) }, 'FOOTBALL', now));
+  // Flagged and the game is over: excluded (no external request, no rewrite).
+  assert.ok(!isTrackerCandidate({ needsReview: true, kickoffAt: ago(5) }, 'FOOTBALL', now));
+  assert.ok(!isTrackerCandidate({ needsReview: true, kickoffAt: ago(9) }, 'TENNIS', now));
+  assert.ok(!isTrackerCandidate({ needsReview: true, kickoffAt: ago(5) }, 'BASKETBALL', now));
+  // Flagged but the game is still on: keeps getting live notifications.
+  assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: ago(1) }, 'FOOTBALL', now));
+  assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: ago(6) }, 'TENNIS', now));
+  assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: new Date(now + 600e3) }, 'BASKETBALL', now));
 });
