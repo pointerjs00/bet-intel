@@ -179,3 +179,11 @@ test('result legs that name their own half are not compared (plain results are f
   assert.equal(footballKey('Resultado', 'Leixões vence ao intervalo', ctx), null);
   assert.equal(footballKey('Resultado', 'Leixões', ctx), 'FT.1X2.H');
 });
+
+test('review round 1: negated team scoring and slash selections never give a plain team key', () => {
+  assert.equal(footballKey('Leixões não marca', 'Sim', ctx), 'FT.TOTAL.goals.H.U.0.5');
+  assert.equal(footballKey('Apenas Leixões marca', 'Sim', ctx), null);
+  assert.equal(footballKey('Leixões vence e GD Chaves não marca', 'Sim', ctx), null);
+  assert.equal(footballKey('Resultado/Total de golos', 'Leixões/Mais de 2,5', ctx), null);
+  assert.equal(footballKey('Marcador / Resultado', 'Fulano / Leixões', ctx), null);
+});

@@ -50,3 +50,9 @@ test('a "<team> vence e ambas marcam" item settled on BTTS alone is reported wit
   assert.deepEqual(reauditItem(item('GD Chaves vence e ambas marcam', 'Sim', 'WON'), FX), { kind: 'CHANGED', now: 'LOST' });
   assert.deepEqual(reauditItem(item('GD Chaves marca', 'Sim', 'WON'), FX), { kind: 'SAME' });
 });
+
+test('review round 1: a negated team-scoring combo is re-audited with the negation', () => {
+  // 2-1: GD Chaves scored, so "Leixões vence e GD Chaves não marca" is LOST.
+  assert.deepEqual(reauditItem(item('Leixões vence e GD Chaves não marca', 'Sim', 'WON'), FX), { kind: 'CHANGED', now: 'LOST' });
+  assert.equal(reauditItem(item('Apenas Leixões marca', 'Sim', 'WON'), FX).kind, 'REVIEW');
+});

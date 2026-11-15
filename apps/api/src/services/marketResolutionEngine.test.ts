@@ -281,3 +281,49 @@ test('a single answer to a market whose pieces name different periods, or a marg
   // A selection that names its own half is read with it.
   assert.deepEqual(legsOf('Resultado', 'Leixões vence ao intervalo'), [{ kind: 'RESULT', period: '1H', outcomes: ['H'] }]);
 });
+
+test('review round 1: negated or qualified "<equipa> marca" is never read as that team scoring', () => {
+  const tt = (team: 'H' | 'A', over: boolean) => [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over, line: 0.5, team }];
+  assert.deepEqual(legsOf('Leixões não marca', 'Sim'), tt('H', false));
+  assert.deepEqual(legsOf('Leixões - Não marca', 'Sim'), tt('H', false));
+  assert.deepEqual(legsOf('GD Chaves não marca', 'Sim'), tt('A', false));
+  assert.deepEqual(legsOf('Leixões não marca', 'Não'), tt('H', true));
+  assert.equal(lx('Leixões não marca', 'Sim'), 'LOST'); // Leixões scored 2
+  assert.deepEqual(legsOf('Marcador', 'Leixões não marca'), tt('H', false));
+  assert.equal(legsOf('Marcador', 'Apenas Leixões marca'), null);
+  for (const [m, s] of [
+    ['Apenas Leixões marca', 'Sim'], ['Só o Leixões marca', 'Sim'], ['Leixões sem marcar', 'Sim'], ['Leixões em branco', 'Sim'],
+    ['Leixões marca nenhum golo', 'Sim'], ['Nenhuma equipa marca', 'Sim'], ['Ambas não marcam', 'Sim'],
+    ['Marcador', 'Leixões Fulano'],
+  ] as const) assert.equal(legsOf(m, s), null, `${m} / ${s}`);
+});
+
+test('review round 1: combos with a negated team piece keep the negation, or go to review', () => {
+  assert.deepEqual(legsOf('Leixões vence e GD Chaves não marca', 'Sim'), [
+    { kind: 'RESULT', period: 'FT', outcomes: ['H'] }, { kind: 'TOTAL', period: 'FT', stat: 'goals', over: false, line: 0.5, team: 'A' },
+  ]);
+  assert.equal(lx('Leixões vence e GD Chaves não marca', 'Sim'), 'LOST'); // GD Chaves scored
+  assert.deepEqual(legsOf('Leixões marca e GD Chaves não marca', 'Sim'), [
+    { kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 0.5, team: 'H' }, { kind: 'TOTAL', period: 'FT', stat: 'goals', over: false, line: 0.5, team: 'A' },
+  ]);
+  assert.equal(legsOf('Apenas Leixões marca e vence', 'Sim'), null);
+  assert.deepEqual(legsOf('Leixões vence e GD Chaves marca', 'Sim'), [
+    { kind: 'RESULT', period: 'FT', outcomes: ['H'] }, { kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 0.5, team: 'A' },
+  ]);
+  // A bare "Empate" piece of a Sim-combo is the draw.
+  assert.deepEqual(legsOf('Empate e ambas marcam', 'Sim'), [{ kind: 'RESULT', period: 'FT', outcomes: ['D'] }, { kind: 'BTTS', period: 'FT', yes: true }]);
+});
+
+test('review round 1: multi-part selections are never read as one team leg', () => {
+  for (const [m, s] of [
+    ['Resultado/Total de golos', 'Leixões / Mais de 2,5'], ['Resultado/Total de golos', 'Leixões/Mais de 2,5'],
+    ['Resultado / Total de golos', 'Leixões / Mais de 2,5'], ['Marcador / Resultado', 'Fulano / Leixões'],
+    ['Marcador e Resultado', 'Fulano e Leixões'], ['Resultado/Ambas marcam', 'Empate / Sim'], ['1X2/Ambas marcam', '1/Sim'],
+    ['Marcador', 'Sim'],
+  ] as const) assert.equal(legsOf(m, s), null, `${m} / ${s}`);
+  // Unchanged: HT/FT, double chance and plain team totals.
+  assert.deepEqual(legsOf('Intervalo/Final', 'Leixões/Leixões'), [{ kind: 'HTFT', ht: 'H', ft: 'H' }]);
+  assert.deepEqual(legsOf('Resultado duplo/Golos - acima/abaixo', 'Leixões / Empate & Acima de 1,5')?.[0], { kind: 'RESULT', period: 'FT', outcomes: ['H', 'D'] });
+  assert.deepEqual(legsOf('Total de golos', 'Leixões Mais de 1,5'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'H' }]);
+  assert.deepEqual(legsOf('Marcador a qualquer momento', 'Leixões'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 0.5, team: 'H' }]);
+});
