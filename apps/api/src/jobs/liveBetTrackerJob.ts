@@ -97,7 +97,7 @@ export async function liveBetTrackerJob(): Promise<void> {
     return;
   }
   try {
-    await runPolls();
+    await runPolls(() => renewLock(runId));
   } finally {
     // Release only if the lock is still ours (it may have expired and been taken by another run).
     await redis.eval(
@@ -107,15 +107,39 @@ export async function liveBetTrackerJob(): Promise<void> {
   }
 }
 
-async function runPolls(): Promise<void> {
+/** Extends the lock TTL, only if it is still ours. False means another run may have taken over. */
+async function renewLock(runId: string): Promise<boolean> {
+  const r = await redis.eval(
+    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
+    1, LOCK_KEY, runId, String(LOCK_TTL_MS),
+  ).catch(() => 0);
+  return Number(r) === 1;
+}
+
+/**
+ * Runs the polls, calling `renew` before each one; if the lease was lost the run stops
+ * (another run may already be going, so continuing would overlap it).
+ */
+export async function runPolls(
+  renew: () => Promise<boolean>,
+  poll: () => Promise<void> = trackOnce,
+  wait: (ms: number) => Promise<unknown> = sleep,
+): Promise<number> {
+  let done = 0;
   for (let i = 0; i < POLLS_PER_RUN; i++) {
+    if (!(await renew())) {
+      logger.warn('[liveBetTracker] lock lost, stopping this run');
+      break;
+    }
     try {
-      await trackOnce();
+      await poll();
     } catch (err) {
       logger.warn('[liveBetTracker] poll failed', { error: err instanceof Error ? err.message : String(err) });
     }
-    if (i < POLLS_PER_RUN - 1) await sleep(POLL_INTERVAL_MS);
+    done++;
+    if (i < POLLS_PER_RUN - 1) await wait(POLL_INTERVAL_MS);
   }
+  return done;
 }
 
 /**

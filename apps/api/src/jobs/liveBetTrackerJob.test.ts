@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { espnLeagueFor, isTrackerCandidate } from './liveBetTrackerJob';
+import { espnLeagueFor, isTrackerCandidate, runPolls } from './liveBetTrackerJob';
 import { teamNamesMatch } from '../services/marketResolutionEngine';
 
 test('competition names stored on bets map to ESPN leagues', () => {
@@ -62,4 +62,14 @@ test('tracker candidates: items under review are dropped once their game is over
   assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: ago(1) }, 'FOOTBALL', now));
   assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: ago(6) }, 'TENNIS', now));
   assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: new Date(now + 600e3) }, 'BASKETBALL', now));
+});
+
+test('tracker run renews the lock before every poll and stops when it is lost', async () => {
+  let renewals = 0; let polls = 0;
+  const done = await runPolls(async () => { renewals++; return true; }, async () => { polls++; }, async () => {});
+  assert.deepEqual([done, renewals, polls], [3, 3, 3]);
+
+  renewals = 0; polls = 0;
+  const stopped = await runPolls(async () => ++renewals < 2, async () => { polls++; }, async () => {});
+  assert.deepEqual([stopped, polls], [1, 1]);
 });
