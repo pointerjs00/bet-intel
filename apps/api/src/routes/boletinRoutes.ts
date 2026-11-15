@@ -18,6 +18,7 @@ import {
   updateBoletinItemsHandler,
 } from '../controllers/boletinController';
 import { prisma } from '../prisma';
+import { asyncHandler } from '../utils/asyncHandler';
 import { coverageOf } from '../services/marketCoverage';
 import { findItemMatches } from '../services/sportsData/itemMatch';
 import { settleSoon } from '../jobs/liveBetTrackerJob';
@@ -34,13 +35,13 @@ boletinCollectionRouter.get('/agenda', getAgendaHandler);
 boletinCollectionRouter.get('/live', getLiveItemsHandler);
 boletinCollectionRouter.get('/review', getReviewItemsHandler);
 // Which of the user's markets settle automatically and which go to review (the Betclic catalogue as seen in real slips).
-boletinCollectionRouter.get('/market-coverage', async (req, res) => {
+boletinCollectionRouter.get('/market-coverage', asyncHandler(async (req, res) => {
   const items = await prisma.boletinItem.findMany({
     where: { boletin: { userId: req.user!.sub } },
     select: { sport: true, market: true, selection: true, homeTeam: true, awayTeam: true },
   });
   res.json({ success: true, data: coverageOf(items.map((i) => ({ ...i, sport: String(i.sport) }))) });
-});
+}));
 boletinCollectionRouter.get('/export', exportBoletinsHandler);
 boletinCollectionRouter.post('/', createBoletinHandler);
 boletinCollectionRouter.post('/import/pdf', json({ limit: '15mb' }), parsePdfHandler);
@@ -51,7 +52,7 @@ boletinCollectionRouter.post('/import/bulk', bulkImportHandler);
 
 betintelRouter.get('/shared', listSharedBoletinsHandler);
 /** Real score of each selection's match (ESPN), for the boletim detail. */
-betintelRouter.get('/:id/results', async (req, res) => {
+betintelRouter.get('/:id/results', asyncHandler(async (req, res) => {
   const boletin = await prisma.boletin.findFirst({
     where: { id: req.params.id, userId: req.user!.sub },
     select: { betDate: true, createdAt: true, items: { select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true, result: true } } },
@@ -74,7 +75,7 @@ betintelRouter.get('/:id/results', async (req, res) => {
   }
   if (stale) void settleSoon();
   res.json({ success: true, data });
-});
+}));
 betintelRouter.get('/:id', getBoletinHandler);
 betintelRouter.patch('/:id', updateBoletinHandler);
 betintelRouter.patch('/:id/items', updateBoletinItemsHandler);

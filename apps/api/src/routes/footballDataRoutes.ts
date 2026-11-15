@@ -17,6 +17,7 @@ import { topScorersSyncJob }        from '../jobs/topScorersSyncJob';
 import { logger }                   from '../utils/logger';
 import { authenticate }             from '../middleware/authenticate';
 import { requireInternalKey }       from '../middleware/requireInternalKey';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const footballDataRouter = Router();
 
@@ -31,7 +32,7 @@ footballDataRouter.get('/leagues/:leagueId/topscorers', topScorersController.get
 // ─── Sync triggers ────────────────────────────────────────────────────────────
 // /sync/fixtures/recent is called by the app (signed-in user); every other sync is admin-only.
 
-footballDataRouter.post('/sync/fixtures', requireInternalKey, async (_req: Request, res: Response) => {
+footballDataRouter.post('/sync/fixtures', requireInternalKey, asyncHandler(async (_req: Request, res: Response) => {
   try {
     const job = await triggerFixtureRefresh();
     res.json({ ok: true, jobId: job.id, message: 'Fixture sync enqueued' });
@@ -39,30 +40,30 @@ footballDataRouter.post('/sync/fixtures', requireInternalKey, async (_req: Reque
     logger.error('[sync/fixtures] trigger failed', { error: err.message });
     res.status(500).json({ ok: false, error: err.message });
   }
-});
+}));
 
-footballDataRouter.post('/sync/standings', requireInternalKey, async (_req: Request, res: Response) => {
+footballDataRouter.post('/sync/standings', requireInternalKey, asyncHandler(async (_req: Request, res: Response) => {
   res.json({ ok: true, message: 'Standings sync started' });
   standingsSyncJob().catch((err: any) =>
     logger.error('[sync/standings] job failed', { error: err.message })
   );
-});
+}));
 
-footballDataRouter.post('/sync/injuries', requireInternalKey, async (_req: Request, res: Response) => {
+footballDataRouter.post('/sync/injuries', requireInternalKey, asyncHandler(async (_req: Request, res: Response) => {
   res.json({ ok: true, message: 'Injuries sync started' });
   injuriesSyncJob().catch((err: any) =>
     logger.error('[sync/injuries] job failed', { error: err.message })
   );
-});
+}));
 
-footballDataRouter.post('/sync/topscorers', requireInternalKey, async (_req: Request, res: Response) => {
+footballDataRouter.post('/sync/topscorers', requireInternalKey, asyncHandler(async (_req: Request, res: Response) => {
   res.json({ ok: true, message: 'Top scorers sync started' });
   topScorersSyncJob().catch((err: any) =>
     logger.error('[sync/topscorers] job failed', { error: err.message })
   );
-});
+}));
 
-footballDataRouter.post('/sync/fixtures/recent', authenticate, async (_req: Request, res: Response) => {
+footballDataRouter.post('/sync/fixtures/recent', authenticate, asyncHandler(async (_req: Request, res: Response) => {
   try {
     const result = await syncRecentFixtures();
     res.json({ ok: true, ...result });
@@ -79,4 +80,4 @@ footballDataRouter.post('/sync/fixtures/recent', authenticate, async (_req: Requ
     logger.error('[sync/fixtures/recent] failed', { error: err.message });
     res.status(500).json({ ok: false, error: err.message });
   }
-});
+}));

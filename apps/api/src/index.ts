@@ -129,6 +129,20 @@ app.use((err: AppError, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ success: false, error: err.message ?? 'Pedido inválido' });
 });
 
+// ─── Process-level safety nets ─────────────────────────────────────────────────
+
+process.on('unhandledRejection', (reason: unknown) => {
+  logger.error('Unhandled promise rejection', {
+    error: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+
+process.on('uncaughtException', (err: Error) => {
+  logger.error('Uncaught exception — exiting so Docker restarts the container', { error: err.message, stack: err.stack });
+  process.exit(1);
+});
+
 // ─── Start ─────────────────────────────────────────────────────────────────────
 
 const PORT = Number(process.env.PORT ?? 3000);
