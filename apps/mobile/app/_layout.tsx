@@ -135,7 +135,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace('/(auth)/login');
     }
 
-    if (isAuthenticated && inAuthGroup) {
+    // The reset-password deep link must open even with an active session.
+    const inResetPassword = inAuthGroup && segments[1] === 'reset-password';
+
+    if (isAuthenticated && inAuthGroup && !inResetPassword) {
       void AsyncStorage.getItem(ONBOARDING_DONE_KEY).then((done) => {
         if (!done) {
           router.replace('/onboarding');
