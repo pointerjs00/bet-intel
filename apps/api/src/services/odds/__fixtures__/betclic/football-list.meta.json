@@ -1,0 +1,13 @@
+{
+  "method": "MatchService/GetMatchesBySportWithNotifications",
+  "request": {
+    "sport_code": "football",
+    "language": "pt",
+    "offset": 0,
+    "limit": 100
+  },
+  "capturedAt": "2026-11-15T23:27:11.008Z",
+  "frame": "first gRPC-web data frame (snapshot), protobuf bytes without the 5-byte frame header",
+  "bytes": 68016,
+  "note": "Asked for limit 100; the server returned 40 matches (totalCount 870). The page cap is 40 today; offset paging works (offset 40 returned 40 other matches)."
+}
