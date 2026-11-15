@@ -93,7 +93,9 @@ function teamOfMarket(m: string, ctx: MatchContext): { side: 'H' | 'A' | null; q
   const sep = m.indexOf(' - ');
   const prefix = sep > 0 ? m.slice(0, sep).trim() : '';
   const named = /^(total|golos|resultado|mais|menos)\b/.test(prefix) ? '' : prefix;
-  const after = m.match(/\bgolos\s+(?:da|do)\s+(.+)$/)?.[1]?.trim() ?? '';
+  const afterGolos = m.match(/\bgolos\s+(?:da|do)\s+(.+)$/)?.[1]?.trim() ?? '';
+  // "Total de golos do jogo / da partida / do encontro" is the match total.
+  const after = /^(jogo|partida|encontro)$/.test(afterGolos) ? '' : afterGolos;
   for (const candidate of [named, after]) {
     if (!candidate) continue;
     const side = sideOf(candidate, ctx);
@@ -125,6 +127,8 @@ function contradicts(bet: ParsedBet, market: string, selection: string): boolean
   if (/corret|correct|exat|exact/.test(m) && !bet.legs.every((l) => l.kind === 'SCORE')) return true;
   // Result legs: only plain full-time 1X2 / double-chance markets, not "Cantos 1X2", "resto do jogo"...
   if (bet.legs.some((l) => l.kind === 'RESULT')) {
+    // A selection can name its own half ("Leixões vence ao intervalo"): plain results are full time only.
+    if (bet.legs.some((l) => l.kind === 'RESULT' && l.period !== 'FT')) return true;
     if (NOT_PLAIN_RESULT.test(m) || NOT_PLAIN_RESULT_SELECTION.test(s)) return true;
     const stripped = m
       .replace(/tempo regulamentar|tempo reg\.?|1x2|do jogo|\bfinal\b|[()-]/g, ' ')

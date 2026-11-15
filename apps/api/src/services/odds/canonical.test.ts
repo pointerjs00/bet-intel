@@ -152,3 +152,30 @@ test('team names win over generic home/away words', () => {
   assert.equal(footballKey('Casa Pia - Total de golos', 'Mais de 1.5', casaPia), 'FT.TOTAL.goals.A.O.1.5');
   assert.equal(footballKey('Total de Golos da Equipa da Casa', 'Mais de 1.5', casaPia), 'FT.TOTAL.goals.H.O.1.5');
 });
+
+test('combos named by the market ("<team> vence e ambas marcam" / Sim) never become a single-leg key', () => {
+  for (const [m, s] of [
+    ['Leixões vence e ambas marcam', 'Sim'], ['Leixões vence e ambas marcam', 'Não'], ['Leixões vence e mais de 2,5 golos', 'Sim'],
+    ['Resultado/Ambas marcam', 'Leixões / Sim'], ['As duas equipas marcam/Total de golos', 'Sim'],
+    ['Resultado ao Intervalo & Total de golos', 'Leixões & Mais de 1,5'], ['Criar Aposta', 'Leixões vence & Mais de 2,5 - 1ª Parte'],
+  ] as const) assert.equal(footballKey(m, s, ctx), null, `${m} / ${s}`);
+  // BTTS + total named by the market keeps both legs.
+  assert.equal(footballKey('Ambas equipas marcam e Acima de 2,5 golos', 'Sim', ctx), 'FT.BTTS.Y+FT.TOTAL.goals.O.2.5');
+});
+
+test('"<team> marca" / Sim|Não is that team over/under 0.5 goals', () => {
+  assert.equal(footballKey('Leixões marca', 'Sim', ctx), 'FT.TOTAL.goals.H.O.0.5');
+  assert.equal(footballKey('GD Chaves marca', 'Não', ctx), 'FT.TOTAL.goals.A.U.0.5');
+  assert.equal(footballKey('Fulano marca', 'Sim', ctx), null);
+});
+
+test('"Total de golos do jogo / da partida / do encontro" is the match total', () => {
+  for (const m of ['Total de golos do jogo', 'Total de golos da partida', 'Total de golos do encontro']) {
+    assert.equal(footballKey(m, 'Mais de 2,5', ctx), 'FT.TOTAL.goals.O.2.5', m);
+  }
+});
+
+test('result legs that name their own half are not compared (plain results are full time only)', () => {
+  assert.equal(footballKey('Resultado', 'Leixões vence ao intervalo', ctx), null);
+  assert.equal(footballKey('Resultado', 'Leixões', ctx), 'FT.1X2.H');
+});

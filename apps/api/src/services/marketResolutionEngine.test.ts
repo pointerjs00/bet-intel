@@ -205,3 +205,79 @@ test('live: a first-half market is decided at half time, from the half-time scor
   assert.equal(assessLive('Total de golos - 1ª Parte', 'Mais de 1,5', ht, 'HALFTIME', LX_CTX).decided, 'LOST');
   assert.equal(assessLive('Resultado - 1º Tempo', 'GD Chaves', ht, 'HALFTIME', LX_CTX).decided, 'WON');
 });
+
+// ─── Combinations: every leg is read, or the bet goes to review (Task 12) ───
+
+test('combo named by the market with a "Sim" selection keeps every leg; "Não" goes to review', () => {
+  const winBtts = [{ kind: 'RESULT', period: 'FT', outcomes: ['H'] }, { kind: 'BTTS', period: 'FT', yes: true }];
+  assert.deepEqual(legsOf('Leixões vence e ambas marcam', 'Sim'), winBtts);
+  assert.deepEqual(legsOf('Leixões vence e ambas as equipas marcam', 'Sim'), winBtts);
+  assert.deepEqual(legsOf('Ambas marcam e Leixões vence', 'Sim'), [winBtts[1], winBtts[0]]);
+  assert.deepEqual(legsOf('Leixões vence e mais de 2,5 golos', 'Sim'), [
+    { kind: 'RESULT', period: 'FT', outcomes: ['H'] }, { kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 2.5 },
+  ]);
+  assert.equal(lx('Leixões vence e ambas marcam', 'Sim'), 'WON'); // 2-1
+  assert.equal(lx('GD Chaves vence e ambas marcam', 'Sim'), 'LOST'); // BTTS yes, but GD Chaves lost
+  // The negation of a combination is not a combination of negations.
+  for (const [m, s] of [
+    ['Leixões vence e ambas marcam', 'Não'], ['Ambas Equipas Marcam e Acima de 2,5 golos', 'Não'],
+    ['Resultado e ambas marcam', 'Sim'], ['Leixões vence e ambas marcam - 1ª Parte', 'Sim'],
+  ] as const) assert.equal(legsOf(m, s), null, `${m} / ${s}`);
+});
+
+test('"<equipa> marca" / Sim|Não is that team over/under 0.5 goals, never a scorer named "sim"', () => {
+  const tt = (team: 'H' | 'A', over: boolean, period = 'FT') => [{ kind: 'TOTAL', period, stat: 'goals', over, line: 0.5, team }];
+  assert.deepEqual(legsOf('Leixões marca', 'Sim'), tt('H', true));
+  assert.deepEqual(legsOf('Leixões marca', 'Não'), tt('H', false));
+  assert.deepEqual(legsOf('GD Chaves marca', 'Sim'), tt('A', true));
+  assert.deepEqual(legsOf('Leixões - Marca', 'Sim'), tt('H', true));
+  assert.deepEqual(legsOf('Equipa da casa marca', 'Sim'), tt('H', true));
+  assert.deepEqual(legsOf('Equipa visitante marca', 'Não'), tt('A', false));
+  assert.deepEqual(legsOf('Leixões marca - 1ª Parte', 'Sim'), tt('H', true, '1H'));
+  assert.equal(lx('GD Chaves marca', 'Não'), 'LOST');
+  assert.equal(lx('Leixões marca - 1ª Parte', 'Sim'), 'LOST'); // 0-1 at HT
+  // Not a known team (or not one team): review.
+  for (const m of ['Equipa X marca', 'Fulano marca', 'Leixões marca em ambas as partes']) {
+    assert.equal(legsOf(m, 'Sim'), null, m);
+  }
+});
+
+test('combos with different periods read each leg\'s own period, or go to review when the scope is ambiguous', () => {
+  const R = (period: string, side = 'H') => ({ kind: 'RESULT', period, outcomes: [side] });
+  const T = (period: string, line: number) => ({ kind: 'TOTAL', period, stat: 'goals', over: true, line });
+  assert.deepEqual(legsOf('Resultado ao Intervalo & Total de golos', 'Leixões & Mais de 1,5'), [R('1H'), T('FT', 1.5)]);
+  assert.deepEqual(legsOf('Resultado 1ª Parte e Resultado Final', 'GD Chaves e Leixões'), [R('1H', 'A'), R('FT')]);
+  assert.deepEqual(legsOf('Total de golos 1ª parte e Resultado', 'Mais de 0,5 e Leixões'), [T('1H', 0.5), R('FT')]);
+  assert.deepEqual(legsOf('Resultado ao intervalo e ambas marcam', 'X e Sim'), [R('1H', 'D'), { kind: 'BTTS', period: 'FT', yes: true }]);
+  assert.deepEqual(legsOf('Criar Aposta', 'Leixões vence - 1ª Parte & Mais de 2,5 - Jogo'), [R('1H'), T('FT', 2.5)]);
+  assert.equal(lx('Resultado ao Intervalo & Total de golos', 'GD Chaves & Mais de 2,5'), 'WON'); // 0-1 at HT, 3 goals
+  // One market for the whole combo: its period applies to every leg (unchanged).
+  assert.deepEqual(legsOf('Resultado - 1ª Parte', 'Leixões e Mais de 0,5'), [R('1H'), T('1H', 0.5)]);
+  // A period written only at the end (or start) could scope the whole combo: review.
+  for (const [m, s] of [
+    ['Criar Aposta', 'Leixões vence & Mais de 2,5 - 1ª Parte'], ['Resultado e Total de golos - 1ª Parte', 'Leixões e Mais de 0,5'],
+    ['Criar Aposta', 'Leixões vence - 1ª Parte & Mais de 2,5'],
+  ] as const) assert.equal(legsOf(m, s), null, `${m} / ${s}`);
+  // A single selection with its own period is read with it.
+  assert.deepEqual(legsOf('Criar Aposta', 'Leixões vence - 1ª Parte'), [R('1H')]);
+  assert.equal(legsOf('Resultado - 1ª Parte', 'Leixões vence - 2ª Parte'), null); // contradicts the market
+});
+
+test('a result+BTTS selection written with "/" is not reduced to the result leg', () => {
+  assert.equal(legsOf('Resultado/Ambas marcam', 'Leixões / Sim'), null);
+});
+
+test('"Total de golos do jogo / da partida / do encontro" is the match total', () => {
+  for (const m of ['Total de golos do jogo', 'Total de golos da partida', 'Total de golos do encontro', 'Total de Golos do Jogo']) {
+    assert.deepEqual(legsOf(m, 'Mais de 2,5'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 2.5 }], m);
+  }
+  assert.equal(lx('Total de golos do jogo', 'Mais de 2,5'), 'WON');
+});
+
+test('a single answer to a market whose pieces name different periods, or a margin inside a "Sim" combo, goes to review', () => {
+  assert.equal(legsOf('Resultado ao intervalo e Total de golos', 'Mais de 1,5'), null);
+  assert.equal(legsOf('Leixões vence por 2 e ambas marcam', 'Sim'), null);
+  assert.equal(legsOf('Leixões vence por 2 golos ou mais', 'Sim'), null);
+  // A selection that names its own half is read with it.
+  assert.deepEqual(legsOf('Resultado', 'Leixões vence ao intervalo'), [{ kind: 'RESULT', period: '1H', outcomes: ['H'] }]);
+});
