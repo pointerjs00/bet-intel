@@ -89,6 +89,6 @@ apps/api/src/routes/oddsRoutes.ts       /api/odds/...
 ## 6. Decisões que preciso de ti
 
 1. ~~Resultado do teste no servidor~~ **Feito:** Betclic, Lebull, Placard e Solverde correm diretamente no VPS; a Betano dá 403 (precisa de IP português).
-2. **Betano:** proxy com IP português (~5–15 €/mês, recomendado), VPS em Portugal, recolha em casa, ou deixar de fora?
-3. **Captura da Placard.** Consegues fazê-la nas DevTools? (Instruções no estudo.)
-4. **Mercados da primeira versão.** Proposta: todos os que o `parseBet` já reconhece (1X2, dupla hipótese, totais, ambas marcam, handicap, resultado exato, intervalo/final, marcadores, cantos, cartões; ténis e NBA como na liquidação). O resto aparece sem comparação.
+2. **Decidido — Betano:** recolha a partir do Raspberry Pi em casa (IP português), sem proxy.
+3. **Pendente, a cargo do utilizador — captura da Placard** nas DevTools (instruções no estudo).
+4. **Decidido — mercados da primeira versão:** os que o analisador reconhece, conforme a chave canónica de `plano-odds-fase1-2.md`. O que não se reconhece aparece sem comparação.
