@@ -88,7 +88,7 @@ apps/api/src/routes/oddsRoutes.ts       /api/odds/...
 
 ## 6. Decisões que preciso de ti
 
-1. **Resultado do teste no servidor.** Decide se a Betano (e a Betclic) correm diretamente no VPS.
-2. **Proxy residencial.** Se o servidor for bloqueado: pagar um proxy (~5–15 €/mês) ou deixar essa casa de fora?
+1. ~~Resultado do teste no servidor~~ **Feito:** Betclic, Lebull, Placard e Solverde correm diretamente no VPS; a Betano dá 403 (precisa de IP português).
+2. **Betano:** proxy com IP português (~5–15 €/mês, recomendado), VPS em Portugal, recolha em casa, ou deixar de fora?
 3. **Captura da Placard.** Consegues fazê-la nas DevTools? (Instruções no estudo.)
 4. **Mercados da primeira versão.** Proposta: todos os que o `parseBet` já reconhece (1X2, dupla hipótese, totais, ambas marcam, handicap, resultado exato, intervalo/final, marcadores, cantos, cartões; ténis e NBA como na liquidação). O resto aparece sem comparação.

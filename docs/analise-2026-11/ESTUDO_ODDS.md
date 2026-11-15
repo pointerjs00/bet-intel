@@ -21,9 +21,9 @@ Estudo por casa, só com pedidos normais (sem stealth, captchas, proxies nem cre
 | Betano JSON ao vivo e página de liga | **403**, nos dois |
 | Placard e Solverde, handshake Socket.IO | 200 OK |
 | Lebull, página `www.lebull.pt` | **451** "Unavailable For Legal Reasons", bloqueio geográfico (servidor na Alemanha) |
-| Lebull API `betting-platform.prod.sbteam.xyz` | por testar no servidor |
+| Lebull API `betting-platform.prod.sbteam.xyz` | **200 OK** (29 KB) — o bloqueio 451 é só do site, não da API |
 
-Leitura: o servidor está na Alemanha, e as casas com licença portuguesa bloqueiam IPs de fora de Portugal (451 explícito na Lebull; o 403 da Betano é provavelmente o mesmo, somado ao WAF já visto em abril). A Betclic (via gRPC), a Placard e a Solverde respondem.
+Leitura: o servidor está na Alemanha, e as casas com licença portuguesa bloqueiam IPs de fora de Portugal (451 explícito na Lebull; o 403 da Betano é provavelmente o mesmo, somado ao WAF já visto em abril). A Betclic (via gRPC), a Lebull (API), a Placard e a Solverde respondem do servidor. **Só a Betano precisa de sair por um IP português.**
 
 ## Riscos comuns
 
