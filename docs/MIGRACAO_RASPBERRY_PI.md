@@ -448,7 +448,7 @@ nano /srv/betintel/.env
 No editor:
 - `POSTGRES_PASSWORD=`: cola a palavra-passe **nova** (a antiga está escrita num ficheiro do projeto e deve ser trocada).
 - `JWT_SECRET=` e `JWT_REFRESH_SECRET=`: cola os dois valores longos. Isto obriga a fazer login de novo na app, mas é mais seguro.
-- Os restantes campos (Firebase, SMTP, Gemini, etc.): copia-os do `.env` do Hetzner.
+- Os restantes campos (Firebase, SMTP, Gemini, etc.): copia-os do `.env` do Hetzner. O **`FIREBASE_SERVICE_ACCOUNT_JSON` é obrigatório**: sem ele a API não arranca (aparece o erro `FIREBASE_SERVICE_ACCOUNT_JSON env var is missing`). É uma linha muito comprida; copia-a inteira.
 - **Não** acrescentes `DATABASE_URL` nem `REDIS_URL`: o Pi define-os sozinho.
 - `SCRAPER_HTTP_PROXY=` fica vazio.
 
