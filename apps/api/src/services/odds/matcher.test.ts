@@ -87,6 +87,42 @@ test('eventKey formats', () => {
   const e = ev({ home: 'Leixões', away: 'GD Chaves', startsAt: '2026-11-15T18:30:00Z' });
   assert.equal(eventKey(e, alverca), `espn:FOOTBALL:${alverca.providerMatchId}`);
   assert.equal(eventKey({ ...e, extraIds: { betRadarId: '123' } }, null), 'bet:FOOTBALL:123');
-  assert.match(eventKey(e, null), /^n:FOOTBALL:2026-11-15T18:[^:]+:[^:]+$/);
+  assert.match(eventKey(e, null)!, /^n:FOOTBALL:2026-11-15:[^:]+:[^:]+$/);
   assert.equal(eventKey(e, null), eventKey({ ...e, home: 'Leixoes', startsAt: '2026-11-15T18:55:00Z' }, null));
+});
+
+test('eventKey fallback is date-level; tennis ignores player order; invalid date gives null', () => {
+  const e = ev({ home: 'Leixões', away: 'GD Chaves', startsAt: '2026-11-15T19:59:00Z' });
+  assert.equal(eventKey(e, null), eventKey({ ...e, startsAt: '2026-11-15T20:00:00Z' }, null));
+  assert.notEqual(eventKey(e, null), eventKey({ ...e, startsAt: '2026-11-16T19:59:00Z' }, null));
+  const t = ev({ sport: 'TENNIS', home: 'Ilya Ivashka', away: 'Toby Samuel', startsAt: '2026-11-16T10:00:00Z' });
+  assert.equal(eventKey(t, null), eventKey({ ...t, home: t.away, away: t.home }, null));
+  assert.equal(eventKey({ ...e, startsAt: 'nope' }, null), null);
+});
+
+test('variants and other clubs never match', () => {
+  const pairs: Array<[string, string]> = [
+    ['Benfica', 'Benfica B'], ['Benfica', 'Benfica U23'], ['Porto', 'Porto B'], ['Barcelona', 'Barcelona B'],
+    ['Arsenal', 'Arsenal Women'], ['Real Madrid', 'Real Madrid Castilla'], ['Inter', 'Inter Miami'], ['Sporting CP', 'Sporting Braga'],
+    ['Sporting', 'Sporting Braga'], ['Benfica Sub-19', 'Benfica'],
+  ];
+  for (const [x, y] of pairs) {
+    for (const [h, c] of [[x, y], [y, x]]) {
+      const cand: Candidate = { providerMatchId: '1', league: null, sport: 'FOOTBALL', home: c!, away: 'Rival', startsAt: '2026-11-16T20:00:00Z' };
+      assert.equal(matchEvent(ev({ home: h!, away: 'Rival', startsAt: cand.startsAt }), [cand]), null, `${h} vs ${c}`);
+    }
+  }
+});
+
+test('legitimate aliases still match', () => {
+  const pairs: Array<[string, string]> = [['Sporting CP', 'Sporting'], ['SL Benfica', 'Benfica'], ['Spain', 'Espanha'], ['FC Porto', 'Porto'], ['Brighton', 'Brighton & Hove Albion']];
+  for (const [x, y] of pairs) {
+    const cand: Candidate = { providerMatchId: '1', league: null, sport: 'FOOTBALL', home: y, away: 'Rival', startsAt: '2026-11-16T20:00:00Z' };
+    assert.ok(matchEvent(ev({ home: x, away: 'Rival', startsAt: cand.startsAt }), [cand]), `${x} vs ${y}`);
+  }
+});
+
+test('candidatesFor tolerates an invalid date', async () => {
+  const { candidatesFor } = await import('./matcher');
+  assert.deepEqual(await candidatesFor('FOOTBALL', 'nope'), []);
 });
