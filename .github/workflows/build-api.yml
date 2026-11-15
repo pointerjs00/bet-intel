@@ -7,7 +7,42 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      # The postinstall of apps/api also runs `prisma generate`.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema src/prisma/schema.prisma
+        working-directory: apps/api
+
+      # apps/api imports @betintel/shared from its built dist.
+      - name: Build shared package
+        run: pnpm --filter @betintel/shared build
+
+      - name: Type-check API
+        run: npx tsc --noEmit
+        working-directory: apps/api
+
+      - name: Run API tests
+        run: npm test
+        working-directory: apps/api
+
   build-and-push:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
