@@ -1,0 +1,6 @@
+{
+  "_nota": "Handshake Engine.IO v4 (GET https://sportswidget.placard.pt/vws/?EIO=4&transport=polling), 2026-11-15. Sem odds: o servidor nao envia nada ate haver subscricoes (protocolo nao decifrado).",
+  "response": "0{\"sid\":\"<sid>\",\"upgrades\":[\"websocket\"],\"pingInterval\":25000,\"pingTimeout\":20000,\"maxPayload\":1000000}",
+  "widget_bootstrap": "https://sportswidget.placard.pt/sportsbook.js?assetsLocation=https://sportswidget-cdn.placard.pt&apiUrl=https://sportswidget.placard.pt -> 302 -> sportswidget-cdn.placard.pt/sportsbook.26.8.6.0-4bc2ef0.js (2.1 MB)",
+  "prefetch_antigo": "https://sportswidget-cdn.placard.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP -> 200 text/html (8615 B, fallback SPA, nao JSON)"
+}

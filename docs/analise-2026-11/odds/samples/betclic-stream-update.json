@@ -1,0 +1,32 @@
+{
+  "_nota": "GetMatchesBySportWithNotifications: frames de notificacao decodificados (campo 3 = nova odd, 5 = matchId, 2 = selectionId, 1 = marketId). Nomes de campo inferidos",
+  "frames": [
+    {
+      "matchId": "1277728693161984",
+      "marketId": "1277728697368578",
+      "updates": [
+        {
+          "selectionId": "1277728697356293",
+          "odds": 14.5
+        },
+        {
+          "selectionId": "1277728697356294",
+          "odds": 4.25
+        },
+        {
+          "selectionId": "1277728697356295",
+          "odds": 1.18
+        }
+      ]
+    },
+    {
+      "matchId": "1277728693161984",
+      "updates": [
+        {
+          "selectionId": "1277728697356293",
+          "odds": 13.5
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "_nota": "MatchService/GetMatchWithNotification (gRPC-web, sem cookies) para Leixoes - GD Chaves, decodificado sem schema; nomes de campo inferidos (2=nome mercado, 10=linhas de selecao, 12=odd)",
+  "matchId": "1276069290184704",
+  "name": "Leixões - GD Chaves",
+  "date": "2026-11-15T18:00:00.0000000Z",
+  "openMarketCount": "131",
+  "marketGroupsReturned": 16,
+  "marketGroups": [
+    "Resultado (Tempo Regulamentar)",
+    "Equipa tem 2 golos de vantagem ou vence (tempo reg.)",
+    "Total de golos - acima/abaixo",
+    "Resultado duplo",
+    "Marcador ou o seu substituto",
+    "Marcador",
+    "As duas equipas marcam",
+    "As duas equipas marcam ou Acima de 2,5 golos",
+    "Marcador + o seu substituto",
+    "Um dos jogadores marca",
+    "Leixões - Total de golos",
+    "GD Chaves - Total de golos",
+    "Resultado handicap",
+    "Resultado",
+    "Resultado correcto",
+    "Equipa a marcar o..."
+  ],
+  "totalGolos": [
+    {
+      "name": "Acima de 0,5",
+      "odds": 1.03
+    },
+    {
+      "name": "Abaixo de 0,5",
+      "odds": 9.5
+    },
+    {
+      "name": "Acima de 1,5",
+      "odds": 1.21
+    },
+    {
+      "name": "Abaixo de 1,5",
+      "odds": 2.82
+    },
+    {
+      "name": "Acima de 2,5",
+      "odds": 1.71
+    },
+    {
+      "name": "Abaixo de 2,5",
+      "odds": 1.68
+    },
+    {
+      "name": "Acima de 3,5",
+      "odds": 2.63
+    },
+    {
+      "name": "Abaixo de 3,5",
+      "odds": 1.25
+    },
+    {
+      "name": "Acima de 4,5",
+      "odds": 4.05
+    },
+    {
+      "name": "Abaixo de 4,5",
+      "odds": 1.07
+    }
+  ],
+  "resultadoHandicapSample": [
+    [
+      {
+        "name": "Leixões (-3)",
+        "odds": 13.75
+      },
+      {
+        "name": "Empate (Leixões -3)",
+        "odds": 7.75
+      },
+      {
+        "name": "GD Chaves (+3)",
+        "odds": 1.07
+      }
+    ],
+    [
+      {
+        "name": "Leixões (-2)",
+        "odds": 6.1
+      },
+      {
+        "name": "Empate (Leixões -2)",
+        "odds": 5.25
+      },
+      {
+        "name": "GD Chaves (+2)",
+        "odds": 1.24
+      }
+    ]
+  ]
+}
