@@ -63,7 +63,7 @@ function productOf(odds: Prisma.Decimal[]): Prisma.Decimal {
  * Recomputes a boletim's total odds from its legs, never by incremental division.
  * Imported boletins deliberately store the slip's (boosted) total odds, so the boost
  * (stored total / product of current legs) is measured before the change and reapplied
- * to the new product when it deviates from 1 by more than 1%. Rounded to 2 places at the end.
+ * to the new product when it deviates from 1 by more than 1%. Rounded to 4 places at the end, matching what createBoletin stores, so an edit never shifts potentialReturn.
  */
 export function recalculateTotalOdds(input: {
   currentTotalOdds: Prisma.Decimal;
@@ -74,5 +74,5 @@ export function recalculateTotalOdds(input: {
   const nextProduct = productOf(input.nextLegOdds);
   const boost = currentProduct.isZero() ? new Prisma.Decimal(1) : input.currentTotalOdds.div(currentProduct);
   const total = boost.minus(1).abs().gt(BOOST_TOLERANCE) ? nextProduct.mul(boost) : nextProduct;
-  return total.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  return total.toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
 }

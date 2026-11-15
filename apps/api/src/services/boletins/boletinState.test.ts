@@ -80,3 +80,10 @@ test('recalculateTotalOdds: tiny rounding drift (under 1%) is not treated as a b
   const r = recalculateTotalOdds({ currentTotalOdds: D(6.0033), currentLegOdds: odds(2, 3), nextLegOdds: odds(3) });
   assert.equal(r.toFixed(2), '3.00');
 });
+
+test('recalculateTotalOdds: a no-boost edit keeps 4 decimals so the return does not shift', () => {
+  const legs = odds(1.83, 1.91, 2.07);
+  const r = recalculateTotalOdds({ currentTotalOdds: D('7.2353'), currentLegOdds: legs, nextLegOdds: legs });
+  assert.equal(r.toFixed(4), '7.2353');
+  assert.equal(D(20).mul(r).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP).toFixed(2), '144.71');
+});
