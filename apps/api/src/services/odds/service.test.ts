@@ -302,3 +302,47 @@ test('tennis abbreviated house names: never a wrong player, orientation unknown 
   assert.equal(wa?.prices.betclic?.odds, 1.5);
   if (wa?.prices.lebull) assert.equal(wa.prices.lebull.odds, 1.55);
 });
+
+test('swapTennisKey only touches keys that start a leg', () => {
+  assert.equal(swapTennisKey('B.X:T.WIN.A'), 'B.X:T.WIN.A');
+  assert.equal(swapTennisKey('ANY(T.WIN.A)'), 'ANY(T.WIN.A)');
+  assert.equal(swapTennisKey('FT.1X2.H+T.WIN.A'), 'FT.1X2.H+T.WIN.B');
+});
+
+test('started tennis event: cached markets of a reversed house keep their orientation; dropped house is not counted', async () => {
+  let now = NOW;
+  const m1 = positional(1.8, 2.0, 3.0, 9.0);
+  const m2 = positional(3.0, 1.85, 7.0, 2.2, '+2.5', '-2.5');
+  const a = new FakeSource('betclic', [tev('betclic', 'b1', 'Jannik Sinner', 'Carlos Alcaraz', m1)], m1);
+  const b = new FakeSource('lebull', [tev('lebull', 'l1', 'Carlos Alcaraz', 'Jannik Sinner', m2)], m2);
+  const store = createOddsStore(createFakeRedis());
+  const cands = async () => [{ providerMatchId: 't1', league: 'atp', sport: 'TENNIS' as const, home: 'Carlos Alcaraz', away: 'Jannik Sinner', startsAt: TS }];
+  const svc = createOddsService({ sources: [a, b], store, candidates: cands, now: () => now, track: (_p, fn) => fn() });
+  for (const s of [a, b]) await svc.refreshCatalogue(s, 'TENNIS');
+  const before = await svc.getEvent('espn:TENNIS:t1');
+  const hb = before!.rows.find((r) => r.prices.betclic?.odds === 1.8)!;
+  assert.equal(hb.prices.lebull?.odds, 1.85);
+  // kickoff passed, calendars no longer list the event
+  now = Date.parse(TS) + 60_000;
+  await store.setEvents('betclic', 'TENNIS', []);
+  await store.setEvents('lebull', 'TENNIS', []);
+  const after = await svc.getEvent('espn:TENNIS:t1');
+  const ha = after!.rows.find((r) => r.prices.betclic?.odds === 1.8)!;
+  assert.equal(ha.key, hb.key);
+  assert.equal(ha.prices.lebull?.odds, 1.85);
+
+  // a house whose orientation cannot be determined is excluded from houses and houseCount
+  const odd = positional(2, 2, 2, 2);
+  const c = new FakeSource('placard', [tev('placard', 'p1', 'Zzz Qqq', 'Xxx Yyy', odd)], odd);
+  const store2 = createOddsStore(createFakeRedis());
+  const svc2 = createOddsService({ sources: [a, c], store: store2, candidates: cands, now: () => NOW, track: (_p, fn) => fn() });
+  await svc2.refreshCatalogue(a, 'TENNIS');
+  await store2.setLink('placard', 'p1', 'espn:TENNIS:t1');
+  await store2.setIndex('espn:TENNIS:t1', 'placard', 'p1');
+  await store2.setEvents('placard', 'TENNIS', [tev('placard', 'p1', 'Zzz Qqq', 'Xxx Yyy', odd)]);
+  const list = await svc2.listEvents('TENNIS', '2026-11-16');
+  assert.deepEqual(list[0]!.houses, ['betclic']);
+  assert.equal(list[0]!.houseCount, 1);
+  const view = await svc2.getEvent('espn:TENNIS:t1');
+  assert.deepEqual(view!.houses, ['betclic']);
+});

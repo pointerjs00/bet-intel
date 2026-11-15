@@ -28,6 +28,8 @@ export interface EventCtx {
 export interface MarketsSnapshot {
   fetchedAt: string;
   markets: SourceMarket[];
+  /** The house's own participant order when the markets were fetched (to orient cached markets later). */
+  own?: { home: string; away: string };
 }
 
 async function getJson<T>(client: OddsRedis, key: string): Promise<T | null> {

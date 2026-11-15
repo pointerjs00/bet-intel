@@ -432,8 +432,8 @@ export function canonicalKey(
  */
 export function swapTennisKey(key: string): string {
   return key
-    .replace(/T\.SET(\d+)\.WIN\.([AB])/g, (_m, n: string, p: string) => `T.SET${n}.WIN.${p === 'A' ? 'B' : 'A'}`)
-    .replace(/T\.WIN\.([AB])/g, (_m, p: string) => `T.WIN.${p === 'A' ? 'B' : 'A'}`)
-    .replace(/T\.GAMES\.HCP\.([AB])\./g, (_m, p: string) => `T.GAMES.HCP.${p === 'A' ? 'B' : 'A'}.`)
-    .replace(/T\.SETS\.(\d+)-(\d+)/g, (_m, x: string, y: string) => `T.SETS.${y}-${x}`);
+    .replace(/(?<![^+])T\.SET(\d+)\.WIN\.([AB])/g, (_m, n: string, p: string) => `T.SET${n}.WIN.${p === 'A' ? 'B' : 'A'}`)
+    .replace(/(?<![^+])T\.WIN\.([AB])/g, (_m, p: string) => `T.WIN.${p === 'A' ? 'B' : 'A'}`)
+    .replace(/(?<![^+])T\.GAMES\.HCP\.([AB])\./g, (_m, p: string) => `T.GAMES.HCP.${p === 'A' ? 'B' : 'A'}.`)
+    .replace(/(?<![^+])T\.SETS\.(\d+)-(\d+)/g, (_m, x: string, y: string) => `T.SETS.${y}-${x}`);
 }
