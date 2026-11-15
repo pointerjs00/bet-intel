@@ -29,6 +29,7 @@ import { fixtureAlertRouter } from './routes/fixtureAlertRoutes';
 import { footballDataRouter } from './routes/footballDataRoutes';
 import { adminRouter } from './routes/adminRoutes';
 import { sportsRouter } from './routes/sportsRoutes';
+import { oddsRouter } from './routes/oddsRoutes';
 import { seedIfCatalogueChanged } from './prisma/seed';
 import { API_FOOTBALL_ENABLED, initFootballDataScheduler } from './scheduler';
 import { sportAssetsJob } from './jobs/sportAssetsJob';
@@ -101,6 +102,7 @@ app.use('/api/favourites', favouritesRouter);
 app.use('/api/fixtures', fixtureRouter);
 app.use('/api/fixture-alerts', fixtureAlertRouter);
 app.use('/api/sports', sportsRouter);
+app.use('/api/odds', oddsRouter);
 app.use('/api', footballDataRouter);
 app.use('/api/admin', adminRouter);
 

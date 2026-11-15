@@ -6,7 +6,8 @@
 
 import { logger } from '../../utils/logger';
 
-export type Provider = 'espn-football' | 'espn-tennis' | 'espn-basketball' | 'espn-preview' | 'livescore';
+export type Provider = 'espn-football' | 'espn-tennis' | 'espn-basketball' | 'espn-preview' | 'livescore'
+  | 'odds-betclic' | 'odds-betano' | 'odds-lebull' | 'odds-placard' | 'odds-solverde';
 
 const FAIL_THRESHOLD = 10;
 const ALERT_COOLDOWN_S = 6 * 3600;
@@ -17,6 +18,11 @@ const LABEL: Record<Provider, string> = {
   'espn-basketball': 'ESPN (NBA)',
   'espn-preview': 'ESPN (antevisões)',
   livescore: 'LiveScore (pontos do ténis)',
+  'odds-betclic': 'Odds Betclic',
+  'odds-betano': 'Odds Betano',
+  'odds-lebull': 'Odds Lebull',
+  'odds-placard': 'Odds Placard',
+  'odds-solverde': 'Odds Solverde',
 };
 
 function redis(): typeof import('../../utils/redis').redis {
