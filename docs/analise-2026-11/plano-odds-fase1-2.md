@@ -265,3 +265,14 @@ Uma seleção normalizada é uma string. Lados e linhas:
    - "Total de golos do jogo / da partida / do encontro" volta a ser o total do jogo;
    - no `SUSPECT` do script de auditoria, acrescentar `^x \(` e `\bpor \d` (verificados na seleção);
    - acrescentar uma nota no output da auditoria: o resultado usado inclui o prolongamento.
+
+## Task 13: Mais duas leituras erradas do analisador (liquidação)
+
+**Problema (encontrado na revisão da Task 12, já existia antes):** com `ctx` Leixões–GD Chaves:
+- "Total de golos de Leixões" / "Mais de 1,5" é lido como total do jogo; a equipa no mercado é ignorada. Deve dar `TOTAL goals team H`.
+- "Resultado correto" / "Leixões 2-1" é lido como vitória do Leixões; devia ser `SCORE 2-1`, com o resultado na perspetiva certa (casa-fora), ou `null` se for ambíguo.
+
+**Fazer:** corrigir as duas leituras no `parseBet`. Mesmas regras das Tasks 11–12:
+- testes com estes rótulos e variações ("Total de golos do Leixões", "Golos de GD Chaves", "Resultado exato / GD Chaves 1-2", "Resultado correto / 2-1 Leixões");
+- verificação antes/depois no corpus de seleções reais (nenhuma mudança fora das pretendidas);
+- confirmar a chave canónica (`footballKey`) destes casos.
