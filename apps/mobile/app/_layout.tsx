@@ -38,6 +38,7 @@ import { useFonts } from 'expo-font';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import * as Sentry from '@sentry/react-native';
+import { notificationRoute } from '../utils/notificationRoute';
 
 // Dev only: /boletins/live returns 404 against an API that predates the live tracker endpoint.
 // Endpoints that exist only after the next API deploy; the screens already treat a 404 as "empty".
@@ -304,42 +305,12 @@ function NotificationLifecycleManager() {
       void queryClient.invalidateQueries({ queryKey: ['stats'] });
     });
 
-    const LIVE_MATCH_NOTIF_TYPES = new Set([
-      'GOAL_SCORED', 'HALF_TIME', 'SECOND_HALF_START', 'MATCH_FINISHED', 'RED_CARD', 'MATCH_STARTING',
-    ]);
-
     const unsubscribeResponse = addNotificationResponseListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown> | undefined;
       if (!data) return;
 
-      // Kickoff reminder: open the specific boletin detail so the user can resolve it
-      if (data.type === 'KICKOFF_REMINDER' && data.boletinId && typeof data.boletinId === 'string') {
-        router.push(`/boletins/${data.boletinId}`);
-        return;
-      }
-
-      // Live match notifications → open fixture detail on the fixtures screen
-      if (data.fixtureId && typeof data.fixtureId === 'string' && LIVE_MATCH_NOTIF_TYPES.has(data.type as string)) {
-        router.push({ pathname: '/(tabs)/fixtures', params: { openFixtureId: data.fixtureId } });
-        return;
-      }
-
-      // Boletin settled or shared → open boletin detail
-      if (data.boletinId && typeof data.boletinId === 'string') {
-        router.push(`/boletins/${data.boletinId}`);
-        return;
-      }
-
-      // Social notifications → open notification centre
-      if (data.type === 'FRIEND_REQUEST' || data.type === 'FRIEND_ACCEPTED') {
-        router.push('/notifications');
-        return;
-      }
-
-      // Generic fallback
-      if (data.notificationId) {
-        router.push('/notifications');
-      }
+      const route = notificationRoute(data);
+      if (route) router.push(route as Parameters<typeof router.push>[0]);
     });
 
     const unsubscribeForeground = addForegroundNotificationListener((notification) => {

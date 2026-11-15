@@ -417,7 +417,7 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
   };
   const asGroup = group as unknown as PendingItem[];
   const fakeMatch = { providerMatchId: id } as NormalizedMatch;
-  const tctx: GameCtx = { home: m.playerA, away: m.playerB, score: score || null, detail: m.round || m.statusDetail, sport: 'TENNIS' };
+  const tctx: GameCtx = { home: m.playerA, away: m.playerB, score: score || null, detail: m.round || m.statusDetail, sport: 'TENNIS', date: m.startAt.slice(0, 10) };
 
   if (m.status === 'LIVE' && (!prev || prev.status === 'SCHEDULED') && await once(`notif:espn:t:${id}:start`)) {
     await notify(asGroup, fakeMatch, NotificationType.MATCH_STARTING, 'GOALS', `🎾 Começou: ${m.playerA} vs ${m.playerB}`,
@@ -627,7 +627,11 @@ async function notifyDecided<T extends { id: string; selection: string; boletinI
 }
 
 /** Game data sent with every live notification: shown in the app list with the crests. */
-interface GameCtx { home: string; away: string; score: string | null; detail: string; sport: string }
+interface GameCtx {
+  home: string; away: string; score: string | null; detail: string; sport: string;
+  /** Routing for the app: ESPN league slug (football) or ISO day (tennis) the match screen needs. */
+  league?: string | null; date?: string | null;
+}
 
 let crestCache: { at: number; teams: Record<string, string>; players: Record<string, string> } | null = null;
 async function crests(): Promise<{ teams: Record<string, string>; players: Record<string, string> }> {
@@ -644,7 +648,7 @@ async function notify(
   body: (userItems: PendingItem[]) => string,
   ctx?: GameCtx,
 ): Promise<void> {
-  const game = ctx ?? (m.home ? { home: m.home.name, away: m.away.name, score: m.score ? `${m.score.home}-${m.score.away}` : null, detail: m.statusDetail, sport: 'FOOTBALL' } : null);
+  const game = ctx ?? (m.home ? { home: m.home.name, away: m.away.name, score: m.score ? `${m.score.home}-${m.score.away}` : null, detail: m.statusDetail, sport: 'FOOTBALL', league: m.competition?.slug ?? null } : null);
   const a = game ? await crests() : null;
   const logo = (n: string) => a?.teams[n] ?? a?.players[n] ?? null;
   const gameData = game ? { ...game, homeLogo: logo(game.home), awayLogo: logo(game.away), image: logo(game.home) ?? logo(game.away) } : {};
