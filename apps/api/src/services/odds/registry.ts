@@ -1,8 +1,11 @@
 import { logger } from '../../utils/logger';
+import { createBetclicSource } from './sources/betclic';
 import type { HouseId, OddsSource } from './types';
 
 /** Adapter factories, filled in as each house adapter lands. */
-const FACTORIES: Partial<Record<HouseId, () => OddsSource>> = {};
+const FACTORIES: Partial<Record<HouseId, () => OddsSource>> = {
+  betclic: () => createBetclicSource(),
+};
 
 /** Registers an adapter factory (used by the adapter modules). */
 export function registerSource(house: HouseId, factory: () => OddsSource): void {
