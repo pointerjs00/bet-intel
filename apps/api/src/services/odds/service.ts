@@ -154,30 +154,40 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     };
   }
 
-  /** Canonical events of a UTC day with the main market compared. */
+  /** Canonical events of a UTC day; main market from the stored catalogue only (no per-event fetches). */
   async function listEvents(sport: OddsSport, dateIso: string): Promise<EventListItem[]> {
     const day = dateIso.slice(0, 10);
-    const keys = new Set<string>();
+    const byKey = new Map<string, Array<{ house: HouseId; ev: SourceEvent }>>();
     for (const source of deps.sources) {
       const events = (await store.getEvents(source.house, sport)) ?? [];
       for (const ev of events) {
         const t = Date.parse(ev.startsAt);
         if (Number.isNaN(t) || new Date(t).toISOString().slice(0, 10) !== day) continue;
         const key = await store.getLink(source.house, ev.houseEventId);
-        if (key) keys.add(key);
+        if (!key) continue;
+        const list = byKey.get(key) ?? [];
+        list.push({ house: source.house, ev });
+        byKey.set(key, list);
       }
     }
     const out: EventListItem[] = [];
-    for (const key of keys) {
-      const view = await getEvent(key);
-      if (!view) continue;
+    for (const [key, entries] of byKey) {
+      const perHouse: Partial<Record<HouseId, CanonicalSelection[]>> = {};
+      for (const { house, ev } of entries) {
+        const ctx = { home: ev.home, away: ev.away };
+        perHouse[house] = (ev.mainMarkets ?? []).map((m) => {
+          const label = foldLine(m.selectionLabel, m.line);
+          return { key: canonicalKey(sport, m.marketLabel, label, ctx), house, marketLabel: m.marketLabel, selectionLabel: label, odds: m.odds, suspended: m.suspended };
+        }).filter((c) => c.key?.startsWith(MAIN_PREFIX[sport]));
+      }
+      const first = entries[0]!.ev;
       out.push({
         eventKey: key,
         sport,
-        event: view.event,
-        houses: view.houses,
-        houseCount: view.houses.length,
-        main: view.rows.filter((r) => r.key?.startsWith(MAIN_PREFIX[sport])),
+        event: { home: first.home, away: first.away, startsAt: first.startsAt, competition: first.competition, live: first.live },
+        houses: entries.map((e) => e.house),
+        houseCount: entries.length,
+        main: mergeEvent(perHouse),
       });
     }
     return out.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt));

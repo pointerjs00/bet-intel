@@ -16,6 +16,8 @@ export interface SourceEvent {
   startsAt: string;
   live: boolean;
   extraIds?: { betRadarId?: string };
+  /** Main market (1X2 / winner / moneyline) as carried by the house's calendar response, when it has one. */
+  mainMarkets?: SourceMarket[];
 }
 
 /** One selection of one market, with the house's own labels. */

@@ -30,6 +30,7 @@ class FakeSource implements OddsSource {
 
 const ev = (house: HouseId, id: string, home: string, away: string): SourceEvent =>
   ({ house, houseEventId: id, sport: 'FOOTBALL', competition: 'Liga', home, away, startsAt: START, live: false });
+const withMain = (e: SourceEvent, m: SourceMarket[]): SourceEvent => ({ ...e, mainMarkets: m });
 const m1x2 = (h: number, d: number, a: number): SourceMarket[] => [
   { marketLabel: 'Resultado Final', selectionLabel: '1', odds: h, suspended: false },
   { marketLabel: 'Resultado Final', selectionLabel: 'X', odds: d, suspended: false },
@@ -78,16 +79,28 @@ test('markets are cached for 60 s (getMarkets only on cache miss)', async () => 
   assert.equal(a.calls, 1);
 });
 
-test('listEvents returns the day with main market and house count', async () => {
-  const a = new FakeSource('betclic', [ev('betclic', 'b1', 'Porto', 'Benfica')], m1x2(2.0, 3.3, 3.6));
-  const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Porto', 'Benfica')], m1x2(2.1, 3.2, 3.5));
+test('listEvents uses only catalogue main markets and never calls getMarkets', async () => {
+  const a = new FakeSource('betclic', [withMain(ev('betclic', 'b1', 'Porto', 'Benfica'), m1x2(2.0, 3.3, 3.6))], m1x2(9, 9, 9));
+  const b = new FakeSource('lebull', [withMain(ev('lebull', 'l1', 'Porto', 'Benfica'), [...m1x2(2.1, 3.2, 3.5), { marketLabel: 'Ambas marcam', selectionLabel: 'Sim', odds: 1.8, suspended: false }])], m1x2(9, 9, 9));
   const { svc } = await setup([a, b]);
   const list = await svc.listEvents('FOOTBALL', '2026-11-16');
+  assert.equal(a.calls + b.calls, 0);
   assert.equal(list.length, 1);
   assert.equal(list[0]!.houseCount, 2);
   assert.deepEqual(list[0]!.main.map((r) => r.key), ['FT.1X2.H', 'FT.1X2.D', 'FT.1X2.A']);
+  assert.equal(list[0]!.main[0]!.best, 'lebull');
   assert.deepEqual(await svc.listEvents('FOOTBALL', '2026-11-17'), []);
   console.log('LIST', JSON.stringify(list));
+});
+
+test('event without mainMarkets is listed with an empty main market', async () => {
+  const a = new FakeSource('betclic', [ev('betclic', 'b1', 'Porto', 'Benfica')], m1x2(2.0, 3.3, 3.6));
+  const { svc } = await setup([a]);
+  const list = await svc.listEvents('FOOTBALL', '2026-11-16');
+  assert.equal(list.length, 1);
+  assert.equal(list[0]!.houseCount, 1);
+  assert.deepEqual(list[0]!.main, []);
+  assert.equal(a.calls, 0);
 });
 
 test('multiple computes like compareMultiple; unknown legs are missing everywhere', async () => {
@@ -129,6 +142,7 @@ test('routes: envelope, validation, URL-encoded key, health', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const get = async (p: string) => { const r = await fetch(base + p); return { status: r.status, body: (await r.json()) as any }; };
     const list = await get('/events?sport=FOOTBALL&date=2026-11-16');
+    console.log('LISTHTTP', JSON.stringify(list.body));
     assert.equal(list.body.success, true);
     assert.equal(list.body.data.length, 1);
     assert.equal((await get('/events?sport=HOCKEY&date=2026-11-16')).status, 400);
