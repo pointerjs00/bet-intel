@@ -37,28 +37,50 @@ Organização no Pi:
 /srv/backups/        dumps diários
 ```
 
-## 2. Preparar o Pi
+## 2. Preparar o Pi (já em uso: Lubuntu + Home Assistant na 443)
 
-1. SSD no M.2 HAT+, fonte oficial de 27 W, Active Cooler, cabo de rede.
-2. Raspberry Pi Imager → **Raspberry Pi OS Lite (64-bit)** gravado no SSD. Nas opções: hostname `pi-server`, o teu utilizador, SSH só com chave (cola `~/.ssh/id_ed25519.pub`).
-3. Primeiro arranque e configuração:
+**Regra: não reinstalar o sistema nem mexer no Home Assistant.** As apps vivem ao lado dele, em Docker. Só usam portas em `127.0.0.1` (3000, 8000, 8080, 8090), que não chocam com a 443 nem com a 8123. O túnel não precisa de portas abertas no router, por isso o reencaminhamento da 443 para o Home Assistant fica como está.
+
+0. **Backup do Home Assistant antes de tudo:** Definições → Sistema → Cópias de segurança → Criar, e descarrega-a para o PC.
+1. **Diagnóstico** (cola o resultado ao Claude):
+   ```bash
+   lsb_release -d; uname -m; free -h; df -h /
+   lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL        # o sistema arranca do SD ou do SSD? o SSD está ligado?
+   sudo ss -tlnp | grep LISTEN                     # portas ocupadas (443, 8123, …)
+   docker ps 2>/dev/null; systemctl list-units --type=service | grep -iE 'home-?assistant|docker|nginx|caddy'
+   ```
+2. **SSD:**
+   - **Se o sistema ainda arranca do SD:** não migres o sistema. Monta o SSD em `/srv` (partição ext4, entrada no `/etc/fstab` por UUID) e põe lá os dados do Docker. O Postgres e os backups passam a escrever no SSD, não no SD.
+     ```bash
+     sudo mkdir -p /srv/docker
+     echo '{"data-root":"/srv/docker","log-driver":"local","log-opts":{"max-size":"10m","max-file":"3"}}' | sudo tee /etc/docker/daemon.json
+     ```
+     Se o Home Assistant já corre em Docker, mudar o `data-root` move também os contentores dele. Nesse caso, o Claude adapta o passo. Opções: copiar `/var/lib/docker` para `/srv/docker` com o Docker parado, ou manter o `data-root` e montar só `/srv` para os dados das apps.
+   - **Se já arranca do SSD:** nada a fazer, usa `/srv` diretamente.
+3. **Pacotes e atualizações:**
    ```bash
    sudo apt update && sudo apt full-upgrade -y
-   sudo rpi-eeprom-update -a && sudo raspi-config     # Advanced → Boot Order → NVMe primeiro
-   sudo apt install -y unattended-upgrades ufw git sqlite3
+   sudo apt install -y unattended-upgrades git sqlite3
    sudo dpkg-reconfigure -plow unattended-upgrades
-   sudo ufw default deny incoming && sudo ufw allow from 192.168.1.0/24 to any port 22 && sudo ufw enable
    ```
-   No `ufw`, ajusta a rede à do teu router.
-4. No router da MEO: **reserva de DHCP** para o Pi.
-5. Docker e rotação de logs:
+   Firewall: se ativares o `ufw`, permite **antes** o que o Home Assistant usa. Exemplo para a rede 192.168.1.x (ajusta à tua):
+   ```bash
+   sudo ufw allow 443/tcp
+   sudo ufw allow from 192.168.1.0/24 to any port 8123
+   sudo ufw allow from 192.168.1.0/24 to any port 22
+   sudo ufw default deny incoming && sudo ufw enable
+   ```
+   Integrações do Home Assistant que usam descoberta na rede (mDNS 5353/udp, Chromecast, Hue, etc.) podem precisar de regras extra. Se tiveres dúvidas, deixa o `ufw` desligado: com o túnel, as apps não têm nenhuma porta exposta.
+4. **Sem ambiente gráfico (opcional, liberta ~0,5–1 GB de RAM):** `sudo systemctl set-default multi-user.target`. Reverter: `graphical.target`.
+5. No router da MEO: confirma que o Pi já tem **reserva de DHCP**, que é provável por causa do reencaminhamento da 443.
+6. **Docker,** se ainda não existir:
    ```bash
    curl -fsSL https://get.docker.com | sh && sudo usermod -aG docker $USER && newgrp docker
-   echo '{"log-driver":"local","log-opts":{"max-size":"10m","max-file":"3"}}' | sudo tee /etc/docker/daemon.json
    sudo systemctl restart docker
    docker network create app_network
    ```
-6. Tailscale: `curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --ssh`. Instala também a app no PC e no telemóvel.
+7. **Tailscale:** `curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up --ssh`. Instala também a app no PC e no telemóvel.
+8. **(Opcional) Home Assistant pelo túnel:** cria uma rota `casa.stream-intel.online` → `http://localhost:8123`, ativa `use_x_forwarded_for` e `trusted_proxies` no `configuration.yaml`, e depois fecha a 443 no router. Ganhas HTTPS sem certificados no Pi e deixas de expor o IP de casa. Este passo é independente da migração.
 
 ## 3. Domínios na Cloudflare (sem corte)
 
