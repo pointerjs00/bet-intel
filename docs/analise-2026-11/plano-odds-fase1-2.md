@@ -249,3 +249,19 @@ Uma seleção normalizada é uma string. Lados e linhas:
    - volta a avaliar cada um com o `parseBet` corrigido;
    - lista os que mudariam de resultado (id, boletim, mercado, seleção, resultado atual → resultado novo, ou "agora vai para revisão").
    **Não altera dados.** O utilizador decide depois. Corre com `DATABASE_URL` apontado para a produção, à parte.
+
+## Task 12: Combinações mal lidas pelo analisador (liquidação)
+
+**Problema (encontrado na revisão da Task 11):**
+- "Leixões vence e ambas marcam" / "Sim" dá uma só perna `BTTS`: a perna do resultado perde-se e a aposta é liquidada só como "ambas marcam".
+- "Leixões marca" / "Sim" dá um marcador chamado "sim".
+- Combinações com períodos diferentes (ex.: "1ª parte X e jogo Y") aplicam o período do mercado a todas as pernas.
+
+**Fazer:**
+1. Corrigir o `parseBet` para que cada perna destas combinações seja lida, ou o conjunto dê `null` (vai para revisão). Nunca uma combinação reduzida a uma só perna.
+2. "<equipa> marca" / "Sim|Não" → `TOTAL goals {H|A} O/U 0.5`, ou `null`.
+3. Testes com estes rótulos e a mesma verificação antes/depois sobre o corpus de seleções reais da Task 11 (nenhuma mudança fora das pretendidas).
+4. Pequenos ajustes deixados pela revisão da Task 11:
+   - "Total de golos do jogo / da partida / do encontro" volta a ser o total do jogo;
+   - no `SUSPECT` do script de auditoria, acrescentar `^x \(` e `\bpor \d` (verificados na seleção);
+   - acrescentar uma nota no output da auditoria: o resultado usado inclui o prolongamento.
