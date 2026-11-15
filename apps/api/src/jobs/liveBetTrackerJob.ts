@@ -343,17 +343,18 @@ async function trackTennis(): Promise<void> {
   if (!items.length) return;
 
   const dayCache = new Map<string, TennisMatch[]>();
-  const byMatch = new Map<string, { match: TennisMatch; items: TennisItem[] }>();
+  const byMatch = new Map<string, { match: TennisMatch; day: string; items: TennisItem[] }>();
   for (const item of items) {
-    const match = await findTennisMatch(item, dayCache);
-    if (!match) continue;
-    const entry = byMatch.get(match.providerMatchId) ?? { match, items: [] };
+    const hit = await findTennisMatch(item, dayCache);
+    if (!hit) continue;
+    const { match, day } = hit;
+    const entry = byMatch.get(match.providerMatchId) ?? { match, day, items: [] };
     entry.items.push(item);
     byMatch.set(match.providerMatchId, entry);
   }
 
-  for (const { match: m, items: group } of byMatch.values()) {
-    await handleTennisUpdate(m, group);
+  for (const { match: m, day, items: group } of byMatch.values()) {
+    await handleTennisUpdate(m, group, day);
   }
 }
 
@@ -363,7 +364,7 @@ async function tennisDay(tour: 'atp' | 'wta', day: string, cache: Map<string, Te
   return cache.get(key)!;
 }
 
-async function findTennisMatch(item: TennisItem, cache: Map<string, TennisMatch[]>): Promise<TennisMatch | null> {
+async function findTennisMatch(item: TennisItem, cache: Map<string, TennisMatch[]>): Promise<{ match: TennisMatch; day: string } | null> {
   const refKey = `espn:tref:${item.id}`;
   const cached = await redis.get(refKey).catch(() => null);
   const kickoff = item.kickoffAt!;
@@ -378,7 +379,7 @@ async function findTennisMatch(item: TennisItem, cache: Map<string, TennisMatch[
       });
       if (found) {
         if (!cached) await redis.set(refKey, found.providerMatchId, 'EX', REF_TTL_S).catch(() => {});
-        return found;
+        return { match: found, day };
       }
     }
   }
@@ -404,7 +405,8 @@ function tennisVerdict(item: TennisItem, m: TennisMatch): string | null {
   return verdictOf(assessTennis(item, m));
 }
 
-async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<void> {
+/** `day` is the ATP/WTA scoreboard day the match was found on (what /jogo/tenis/[id] must query). */
+async function handleTennisUpdate(m: TennisMatch, group: TennisItem[], day: string): Promise<void> {
   const key = `espn:tstate:${m.providerMatchId}`;
   const prevRaw = await redis.get(key).catch(() => null);
   const prev = prevRaw ? (JSON.parse(prevRaw) as { status: string; sets: number }) : null;
@@ -417,7 +419,7 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
   };
   const asGroup = group as unknown as PendingItem[];
   const fakeMatch = { providerMatchId: id } as NormalizedMatch;
-  const tctx: GameCtx = { home: m.playerA, away: m.playerB, score: score || null, detail: m.round || m.statusDetail, sport: 'TENNIS', date: m.startAt.slice(0, 10) };
+  const tctx: GameCtx = { home: m.playerA, away: m.playerB, score: score || null, detail: m.round || m.statusDetail, sport: 'TENNIS', date: day };
 
   if (m.status === 'LIVE' && (!prev || prev.status === 'SCHEDULED') && await once(`notif:espn:t:${id}:start`)) {
     await notify(asGroup, fakeMatch, NotificationType.MATCH_STARTING, 'GOALS', `🎾 Começou: ${m.playerA} vs ${m.playerB}`,
