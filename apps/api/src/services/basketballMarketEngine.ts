@@ -37,7 +37,7 @@ type PropStat = 'points' | 'rebounds' | 'assists' | 'threes' | 'steals' | 'block
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/(\d),(\d)/g, '$1.$2').trim();
 
 /** Which side a selection names: team name, "1"/"2", "casa"/"fora". */
-function sideOf(text: string, ctx: BasketballContext): 'H' | 'A' | null {
+export function sideOf(text: string, ctx: BasketballContext): 'H' | 'A' | null {
   const t = norm(text).replace(/\s*\(?[+-]\d+(?:\.\d+)?\)?\s*$/, '').replace(/^(mais|menos|over|under)\s+de\s+.*$/, '').trim();
   if (/^(1|casa|home)$/.test(t)) return 'H';
   if (/^(2|fora|away)$/.test(t)) return 'A';
@@ -48,12 +48,12 @@ function sideOf(text: string, ctx: BasketballContext): 'H' | 'A' | null {
   return h ? 'H' : 'A';
 }
 
-function lineIn(text: string): number | null {
+export function lineIn(text: string): number | null {
   const m = norm(text).match(/([+-]?\d+(?:\.\d+)?)\s*\)?\s*(pontos)?\s*$/);
   return m ? Number(m[1]) : null;
 }
 
-function overUnder(text: string): boolean | null {
+export function overUnder(text: string): boolean | null {
   const t = norm(text);
   if (/\b(mais|over|acima)\b|^\+/.test(t)) return true;
   if (/\b(menos|under|abaixo)\b|^-/.test(t)) return false;
@@ -83,7 +83,7 @@ function propStats(text: string): PropStat[] {
   return out;
 }
 
-const PLAYER_MARKET = /jogador|player|ressalto|assistenc|triplo|roubo|desarme|bloqueio|duplo|triplo-duplo|double|pra\b/;
+export const PLAYER_MARKET = /jogador|player|ressalto|assistenc|triplo|roubo|desarme|bloqueio|duplo|triplo-duplo|double|pra\b/;
 
 /** Player-prop settlement, or undefined when the selection isn't a player prop. */
 function resolvePlayerProp(market: string, selection: string, r: BasketballResult, ctx: BasketballContext): BasketballResolution | null | undefined {
@@ -115,7 +115,7 @@ function resolvePlayerProp(market: string, selection: string, r: BasketballResul
 }
 
 /** Quarter or half a market is about; null = the whole game. */
-function scopeOf(market: string): { quarter?: number; half?: 1 | 2 } | null {
+export function scopeOf(market: string): { quarter?: number; half?: 1 | 2 } | null {
   const m = norm(market);
   const q = m.match(/\b([1-4])\.?\s*[ºo°]?\s*(quarto|periodo)\b/) ?? m.match(/\b(primeiro|segundo|terceiro|quarto) (quarto|periodo)\b/);
   if (q) {
