@@ -246,6 +246,8 @@ function outcomeOf(raw: string, ctx?: MatchContext): Side | null {
 // "Marca em ambas as partes" is per-half scoring, not "ambas marcam".
 const UNSUPPORTED = /\b(eliminatoria|qualifica|touchdown|ressaltos|minutos?|resto do jogo|intervalos|mais cantos|metade|exato de cantos|exacto|cabeca|fora da area|livre direto|substituto do|ambas (as )?partes|nao marcam)\b/;
 
+const TEAM_GOAL_ORDER = /\b(ultima|segunda|terceira|quarta|quinta|[2-9]\.?a) equipa a marcar\b|\bequipa\b.*\b(ultimo|segundo|terceiro|quarto|quinto|[2-9]\.?o) golo\b|\b(last|second|third) team to score\b/;
+
 function periodOf(raw: string): Period {
   const text = raw.replace(/intervalo\/final|ht\/ft/g, ' ');
   if (/\b(primeira parte|primeiro tempo|1\.?a parte|1\.?o tempo|1st half|first half|intervalo)\b/.test(text)) return '1H';
@@ -394,9 +396,9 @@ function parseScore(t: string, ctx?: MatchContext): Leg | null {
  */
 function isMatchGoalsParity(market: string): boolean {
   const rest = market
-    .replace(/\b(par\/impar|impar\/par|odd\/even|even\/odd|par ou impar|impar ou par)\b/g, ' ')
+    .replace(/\b(par\/impar|impar\/par|odd\/even|even\/odd|par ou impar|impar ou par|prolongamento incluido|incl\.? prolongamento)\b/g, ' ')
     .replace(new RegExp(HALF_PHRASE.source, 'g'), ' ')
-    .replace(/\b(total|totais|numero|de|do|da|no|na|golos?|goals?|jogo|partida|encontro|par|impar|odd|even|prolongamento|incluido|incl|tempo reg(ulamentar)?\.?)\b/g, ' ')
+    .replace(/\b(total|totais|numero|de|do|da|no|na|golos?|goals?|jogo|partida|encontro|par|impar|odd|even|tempo reg(ulamentar)?\.?)\b/g, ' ')
     .replace(/[\s\-–:,/.]+/g, '');
   return rest === '';
 }
@@ -585,7 +587,14 @@ function parseLegs(market: string, selection: string, ctx?: MatchContext): Parse
   let s = norm(selection);
   if (UNSUPPORTED.test(m) || UNSUPPORTED.test(s)) return null;
 
-  const extraTimeIncluded = /prolongamento incluido|incl\.? prolongamento|extra time included/.test(`${m} ${s}`);
+  const ET_INCLUDED = /prolongamento incluido|incl\.? prolongamento|extra time included/g;
+  const extraTimeIncluded = new RegExp(ET_INCLUDED.source).test(`${m} ${s}`);
+  // Extra time on its own ("Total de golos no prolongamento", "incluindo prolongamento e penáltis"): the
+  // engine reads regular time (or regular + extra time when marked "incluído"), never extra time alone.
+  if (/\b(prolongamento|extra time|tempo extra)\b/.test(`${m} ${s}`.replace(ET_INCLUDED, ' '))) return null;
+  // Order of the scoring teams other than the first ("Última/Segunda equipa a marcar", "Equipa marca o Último golo"):
+  // not "that team scores", and the engine has no such leg.
+  if (TEAM_GOAL_ORDER.test(m)) return null;
   s = s.replace(/\b(prolongamento incluido|incl\.? prolongamento)\b/g, '').trim();
   // Keep HT/FT phrases intact before splitting on " e ".
   s = s.replace(/\s+vence ao intervalo e no final\b/, ' vence intervalo/final').replace(/\s+vence intervalo e final\b/, ' vence intervalo/final');

@@ -419,3 +419,30 @@ test('Betclic team odd/even ("Estónia -Total de golos - par/ímpar") is not the
   assert.deepEqual(parseBet('Total de golos - par/ímpar - Segunda parte', 'Impar', EB)?.legs, [{ kind: 'PARITY', period: '2H', even: false }]);
   assert.deepEqual(parseBet('Golos totais - Par ou Ímpar', 'Par', EB)?.legs, [{ kind: 'PARITY', period: 'FT', even: true }]);
 });
+
+test('review round 1: last / second team to score is not "that team scores": review', () => {
+  for (const [m, s] of [
+    ['Última equipa a marcar', 'Estónia'], ['Última equipa a marcar', 'Nenhum golo'], ['Segunda equipa a marcar', 'Bulgária'],
+    ['Terceira equipa a marcar', 'Estónia'], ['Última equipa a marcar - Primeira Parte', 'Estónia'],
+    ['Equipa a marcar o segundo golo', 'Bulgária'], ['Equipa a marcar o último golo', 'Bulgária'],
+    ['Equipa marca o Último golo', 'Estónia'], ['Equipa marca o Último golo', 'Nenhum golo'],
+  ] as const) assert.equal(parseBet(m, s, EB), null, `${m} / ${s}`);
+  // 1-1, away scored last: never settled as a home "scores" win.
+  const f: FixtureResult = { homeScore: 1, awayScore: 1, htHomeScore: 1, htAwayScore: 0, statusShort: 'FT' };
+  assert.equal(eb('Última equipa a marcar', 'Estónia', f), null);
+  // First team to score and last scorer markets are unchanged.
+  assert.deepEqual(parseBet('1.ª equipa a marcar', 'Estónia', EB)?.legs, [{ kind: 'FIRST_GOAL', side: 'H' }]);
+  assert.deepEqual(parseBet('Último marcador', 'Nenhum marcador', EB)?.legs, [{ kind: 'SCORER', mode: 'LAST', player: null, n: undefined }]);
+});
+
+test('review round 1: extra-time-only markets go to review; "prolongamento incluído" keeps the extra-time flag', () => {
+  for (const [m, s] of [
+    ['Total de golos no prolongamento - par/ímpar', 'Par'], ['Prolongamento - par/ímpar', 'Impar'],
+    ['Total de golos no prolongamento', 'Mais de 0,5'], ['Total de golos - prolongamento', 'Mais de 0,5'],
+    ['Prolongamento - Total de golos', 'Mais de 0,5'], ['Resultado - Prolongamento', 'Estónia'],
+    ['Ambas marcam no prolongamento', 'Sim'], ['Vencedor (incluindo prolongamento e penáltis)', 'Estónia'],
+  ] as const) assert.equal(parseBet(m, s, EB), null, `${m} / ${s}`);
+  assert.equal(parseBet('Total de golos (prolongamento incluído)', 'Mais de 2,5', EB)?.extraTimeIncluded, true);
+  assert.equal(parseBet('Total de golos - par/ímpar (prolongamento incluído)', 'Par', EB)?.extraTimeIncluded, true);
+  assert.equal(parseBet('Acima de 9,5 cantos (prolongamento incluído)', 'Acima de 9,5 cantos', EB)?.extraTimeIncluded, true);
+});

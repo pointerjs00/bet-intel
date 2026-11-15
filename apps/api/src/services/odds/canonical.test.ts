@@ -235,3 +235,14 @@ test('first goal "none" is FT.FIRSTGOAL.NONE; a team market never gets a scorer 
   // Scorer markets keep the scorer key (own goals do not count there).
   assert.equal(footballKey('Primeiro marcador', 'Nenhum marcador', eb), 'SCORER.FIRST.NONE');
 });
+
+test('review round 1: last/second team to score and extra-time-only markets get no key', () => {
+  assert.equal(footballKey('Última equipa a marcar', 'Estónia', eb), null);
+  assert.equal(footballKey('Segunda equipa a marcar', 'Estónia', eb), null);
+  assert.equal(footballKey('Equipa marca o Último golo', 'Nenhum golo', eb), null);
+  assert.equal(footballKey('Total de golos no prolongamento - par/ímpar', 'Par', eb), null);
+  assert.equal(footballKey('Prolongamento - par/ímpar', 'Impar', eb), null);
+  assert.equal(footballKey('Total de golos no prolongamento', 'Mais de 0,5', eb), null);
+  assert.equal(footballKey('Total de golos (prolongamento incluído)', 'Mais de 2,5', eb), 'ET:FT.TOTAL.goals.O.2.5');
+  assert.equal(footballKey('Total de golos - par/ímpar (prolongamento incluído)', 'Par', eb), 'ET:FT.PARITY.EVEN');
+});
