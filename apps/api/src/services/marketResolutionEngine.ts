@@ -87,14 +87,14 @@ export interface MatchContext {
   awayNames: string[];
 }
 
-type Side = 'H' | 'D' | 'A';
-type Period = 'FT' | '1H' | '2H';
+export type Side = 'H' | 'D' | 'A';
+export type Period = 'FT' | '1H' | '2H';
 
 type TeamStat = 'goals' | 'corners' | 'cards' | 'shots' | 'shotsOnTarget' | 'fouls' | 'offsides';
 type PlayerStat = 'goals' | 'assists' | 'shots' | 'shotsOnTarget' | 'fouls';
 type ScorerMode = 'ANY' | 'FIRST' | 'LAST' | 'NTH' | 'COUNT';
 
-type Leg =
+export type Leg =
   | { kind: 'RESULT'; period: Period; outcomes: Side[] }
   | { kind: 'TOTAL'; period: Period; stat: TeamStat; over: boolean; line: number; team?: 'H' | 'A' }
   | { kind: 'BTTS'; period: Period; yes: boolean }
@@ -111,7 +111,7 @@ type Leg =
   | { kind: 'FIRST_GOAL'; side: 'H' | 'A' | null }
   | { kind: 'PARITY'; period: Period; even: boolean };
 
-interface ParsedBet { legs: Leg[]; mode: 'ALL' | 'ANY'; extraTimeIncluded: boolean }
+export interface ParsedBet { legs: Leg[]; mode: 'ALL' | 'ANY'; extraTimeIncluded: boolean }
 
 // ─── Text helpers ────────────────────────────────────────────────────────────
 
