@@ -125,6 +125,9 @@ function contradicts(bet: ParsedBet, market: string, selection: string): boolean
   // (Half-restricted markets: parseBet reads the half itself and returns null for kinds it can only
   // settle on the full match, so no half guard is needed here.)
   if (/marcador|scorer|goalscorer/.test(m) && !bet.legs.every((l) => l.kind === 'SCORER')) return true;
+  // A team market read as a scorer leg ("Equipa marca o Último golo" / "Nenhum golo"): own goals count there,
+  // not in scorer markets, so it is not the same bet as "Último marcador" / "Nenhum".
+  if (/\b(equipa|team)\b/.test(m) && bet.legs.some((l) => l.kind === 'SCORER')) return true;
   if (/dupla|duplo|double chance/.test(m) && !bet.legs.every((l) => l.kind === 'RESULT' && l.outcomes.length === 2)) return true;
   if (/corret|correct|exat|exact/.test(m) && !bet.legs.every((l) => l.kind === 'SCORE')) return true;
   // Result legs: only plain full-time 1X2 / double-chance markets, not "Cantos 1X2", "resto do jogo"...

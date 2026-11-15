@@ -377,3 +377,45 @@ test('review round 1: only a period suffix is cut from a "golos de <equipa>" mar
     assert.equal(legsOf(m, 'Mais de 1,5'), null, m);
   }
 });
+
+// Real Betclic labels (Estónia–Bulgária detail, odds/__fixtures__/betclic/football-match-detail).
+const EB: MatchContext = { homeNames: ['Estónia'], awayNames: ['Bulgária'] };
+const eb = (market: string, selection: string, f: FixtureResult) => resolveMarket(market, selection, f, EB);
+
+test('Betclic "As duas equipas marcam ou Acima de 2,5 golos" / Não: neither BTTS nor over 2.5, never plain BTTS Não', () => {
+  assert.deepEqual(parseBet('As duas equipas marcam ou Acima de 2,5 golos', 'Não', EB), {
+    legs: [{ kind: 'BTTS', period: 'FT', yes: false }, { kind: 'TOTAL', period: 'FT', stat: 'goals', over: false, line: 2.5 }],
+    mode: 'ALL',
+    extraTimeIncluded: false,
+  });
+  const f = (h: number, a: number): FixtureResult => ({ homeScore: h, awayScore: a, htHomeScore: 0, htAwayScore: 0, statusShort: 'FT' });
+  assert.equal(eb('As duas equipas marcam ou Acima de 2,5 golos', 'Não', f(2, 0)), 'WON');
+  assert.equal(eb('As duas equipas marcam ou Acima de 2,5 golos', 'Não', f(1, 1)), 'LOST'); // both scored
+  assert.equal(eb('As duas equipas marcam ou Acima de 2,5 golos', 'Não', f(3, 0)), 'LOST'); // BTTS no, but 3 goals
+  // A whole line has a push on the negated side: review.
+  assert.equal(parseBet('As duas equipas marcam ou Acima de 2 golos', 'Não', EB), null);
+});
+
+test('Betclic "1.ª equipa a marcar" restricted to a half is not a team total (no first goal per half): review', () => {
+  for (const m of ['Primeira Parte - 1.ª equipa a marcar', 'Segunda parte - 1.ª equipa a marcar']) {
+    for (const s of ['Estónia', 'Bulgária', 'Nenhum golo']) assert.equal(parseBet(m, s, EB), null, `${m} / ${s}`);
+  }
+  // On the full match it is the first team to score.
+  assert.deepEqual(parseBet('1.ª equipa a marcar', 'Bulgária', EB)?.legs, [{ kind: 'FIRST_GOAL', side: 'A' }]);
+});
+
+test('Betclic "Equipa marca o Primeiro golo" is the first team to score', () => {
+  assert.deepEqual(parseBet('Equipa marca o Primeiro golo', 'Estónia', EB)?.legs, [{ kind: 'FIRST_GOAL', side: 'H' }]);
+  assert.deepEqual(parseBet('Equipa marca o Primeiro golo', 'Bulgária', EB)?.legs, [{ kind: 'FIRST_GOAL', side: 'A' }]);
+  assert.deepEqual(parseBet('Equipa marca o Primeiro golo', 'Nenhum golo', EB)?.legs, [{ kind: 'FIRST_GOAL', side: null }]);
+});
+
+test('Betclic team odd/even ("Estónia -Total de golos - par/ímpar") is not the match parity: review', () => {
+  for (const m of ['Estónia -Total de golos - par/ímpar', 'Bulgária -Total de golos - par/ímpar', 'Total de cantos - par/ímpar']) {
+    for (const s of ['Impar', 'Par']) assert.equal(parseBet(m, s, EB), null, `${m} / ${s}`);
+  }
+  assert.deepEqual(parseBet('Total de golos - par/ímpar', 'Impar', EB)?.legs, [{ kind: 'PARITY', period: 'FT', even: false }]);
+  assert.deepEqual(parseBet('Total de golos - par/ímpar - Primeira Parte', 'Par', EB)?.legs, [{ kind: 'PARITY', period: '1H', even: true }]);
+  assert.deepEqual(parseBet('Total de golos - par/ímpar - Segunda parte', 'Impar', EB)?.legs, [{ kind: 'PARITY', period: '2H', even: false }]);
+  assert.deepEqual(parseBet('Golos totais - Par ou Ímpar', 'Par', EB)?.legs, [{ kind: 'PARITY', period: 'FT', even: true }]);
+});

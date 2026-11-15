@@ -388,6 +388,19 @@ function parseScore(t: string, ctx?: MatchContext): Leg | null {
   return side === 'H' || (side === 'A' && home === away) ? score : null;
 }
 
+/**
+ * True when an odd/even market is about the match's goals ("Par/Ímpar", "Total de golos - par/ímpar - 1ª Parte").
+ * Whatever is left after the parity, goals, match and half words (a team, "cantos") makes it another market.
+ */
+function isMatchGoalsParity(market: string): boolean {
+  const rest = market
+    .replace(/\b(par\/impar|impar\/par|odd\/even|even\/odd|par ou impar|impar ou par)\b/g, ' ')
+    .replace(new RegExp(HALF_PHRASE.source, 'g'), ' ')
+    .replace(/\b(total|totais|numero|de|do|da|no|na|golos?|goals?|jogo|partida|encontro|par|impar|odd|even|prolongamento|incluido|incl|tempo reg(ulamentar)?\.?)\b/g, ' ')
+    .replace(/[\s\-–:,/.]+/g, '');
+  return rest === '';
+}
+
 /** Parses one leg of a selection, using the market text as context. */
 function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null {
   let t = text.replace(/\btempo reg(ulamentar)?\.?/g, '').trim();
@@ -422,8 +435,9 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
     return name && !sideOf(name, ctx) ? { kind: 'PLAYER_CARD', player: name } : null;
   }
 
-  // First team to score
-  if (/primeira equipa a marcar|equipa a marcar primeiro|marca primeiro|first team to score/.test(market)) {
+  // First team to score (Betclic: "1.ª equipa a marcar", "Equipa marca o Primeiro golo"). Restricted to a
+  // half ("Primeira Parte - 1.ª equipa a marcar") it is still this leg; refineLegs sends it to review.
+  if (/primeira equipa a marcar|\b1\.?a equipa a marcar|equipa marca o primeiro golo|equipa a marcar primeiro|marca primeiro|first team to score/.test(market)) {
     if (NO_GOAL.test(t) || /^(nenhuma|nenhum golo|sem golos)$/.test(t)) return { kind: 'FIRST_GOAL', side: null };
     const s = sideOf(t.replace(/\b(marca primeiro|vence)\b/g, '').trim(), ctx);
     return s ? { kind: 'FIRST_GOAL', side: s } : null;
@@ -431,7 +445,8 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
 
   // Odd / even goals
   if (/\bimpar\b|odd\/even|par\/|\/par\b/.test(market) && /^(par|impar|even|odd)$/.test(t)) {
-    return { kind: 'PARITY', period: periodOf(market), even: /^(par|even)$/.test(t) };
+    // Match goals only: a market naming anything else ("Estónia -Total de golos - par/ímpar", corners) → review.
+    return isMatchGoalsParity(market) ? { kind: 'PARITY', period: periodOf(market), even: /^(par|even)$/.test(t) } : null;
   }
 
   if (TOTAL_RE.test(t) || /^(mais|acima|over|menos|abaixo|under)$/.test(t)) return parseTotal(t, market, ctx);
@@ -576,10 +591,13 @@ function parseLegs(market: string, selection: string, ctx?: MatchContext): Parse
   s = s.replace(/\s+vence ao intervalo e no final\b/, ' vence intervalo/final').replace(/\s+vence intervalo e final\b/, ' vence intervalo/final');
 
   // "X ou Y" combinations of two different markets (e.g. "As duas equipas marcam ou Acima de 2,5")
-  if (/marcam ou (mais|acima)/.test(m) && /^(sim|yes)$/.test(s)) {
+  // "Não" negates both: no BTTS and the total under the line (only a half line has no push to negate).
+  if (/marcam ou (mais|acima)/.test(m) && /^(sim|yes|nao|no)$/.test(s)) {
     const total = parseTotal(m.slice(m.search(/(mais|acima) de/)), m, ctx);
-    if (!total) return null;
-    return { legs: [{ kind: 'BTTS', period: periodOf(m), yes: true }, total], mode: 'ANY', extraTimeIncluded };
+    if (!total || total.kind !== 'TOTAL') return null;
+    if (/^(sim|yes)$/.test(s)) return { legs: [{ kind: 'BTTS', period: periodOf(m), yes: true }, total], mode: 'ANY', extraTimeIncluded };
+    if (Number.isInteger(total.line) || !total.over) return null;
+    return { legs: [{ kind: 'BTTS', period: periodOf(m), yes: false }, { ...total, over: false }], mode: 'ALL', extraTimeIncluded };
   }
 
   // "Leixões / Mais de 2,5", "Fulano / Leixões": parts joined by a slash outside HT/FT and double-chance

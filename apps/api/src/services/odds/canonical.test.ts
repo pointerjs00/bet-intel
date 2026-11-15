@@ -203,3 +203,35 @@ test('review round 1: a non-period suffix after "golos de <equipa>" gives no key
   assert.equal(footballKey('Total de golos de Leixões - Margem', 'Mais de 1,5', ctx), null);
   assert.equal(footballKey('Total de golos de GD Chaves - 1ª Parte', 'Mais de 0,5', ctx), '1H.TOTAL.goals.A.O.0.5');
 });
+
+// Real Betclic detail labels (odds/__fixtures__/betclic/football-match-detail, Estónia–Bulgária).
+const eb = { home: 'Estónia', away: 'Bulgária' };
+
+test('Betclic misreads: "ou" market answered Não, first team per half, team parity', () => {
+  // "Não" to "BTTS or over 2.5" = no BTTS and under 2.5: the same bet as "Não e Abaixo de 2,5".
+  assert.equal(footballKey('As duas equipas marcam ou Acima de 2,5 golos', 'Não', eb), 'FT.BTTS.N+FT.TOTAL.goals.U.2.5');
+  assert.equal(footballKey('As duas equipas marcam/Total de golos', 'Não e Abaixo de 2,5', eb), 'FT.BTTS.N+FT.TOTAL.goals.U.2.5');
+  assert.equal(footballKey('As duas equipas marcam ou Acima de 2,5 golos', 'Sim', eb), 'ANY(FT.BTTS.Y+FT.TOTAL.goals.O.2.5)');
+  assert.equal(footballKey('As duas equipas marcam', 'Não', eb), 'FT.BTTS.N');
+  for (const s of ['Estónia', 'Bulgária', 'Nenhum golo']) {
+    assert.equal(footballKey('Primeira Parte - 1.ª equipa a marcar', s, eb), null);
+    assert.equal(footballKey('Segunda parte - 1.ª equipa a marcar', s, eb), null);
+  }
+  for (const s of ['Impar', 'Par']) {
+    assert.equal(footballKey('Estónia -Total de golos - par/ímpar', s, eb), null);
+    assert.equal(footballKey('Bulgária -Total de golos - par/ímpar', s, eb), null);
+  }
+  assert.equal(footballKey('Total de golos - par/ímpar', 'Impar', eb), 'FT.PARITY.ODD');
+  assert.equal(footballKey('Total de golos - par/ímpar - Primeira Parte', 'Par', eb), '1H.PARITY.EVEN');
+});
+
+test('first goal "none" is FT.FIRSTGOAL.NONE; a team market never gets a scorer key', () => {
+  assert.equal(footballKey('Equipa marca o Primeiro golo', 'Nenhum golo', eb), 'FT.FIRSTGOAL.NONE');
+  assert.equal(footballKey('Equipa marca o Primeiro golo', 'Estónia', eb), 'FT.FIRSTGOAL.H');
+  assert.equal(footballKey('Equipa marca o Primeiro golo', 'Bulgária', eb), 'FT.FIRSTGOAL.A');
+  assert.equal(footballKey('Primeira equipa a marcar', 'Nenhuma', eb), 'FT.FIRSTGOAL.NONE');
+  // "Last team to score: none" is not "last scorer: no goalscorer" (own-goal rules differ): no key.
+  assert.equal(footballKey('Equipa marca o Último golo', 'Nenhum golo', eb), null);
+  // Scorer markets keep the scorer key (own goals do not count there).
+  assert.equal(footballKey('Primeiro marcador', 'Nenhum marcador', eb), 'SCORER.FIRST.NONE');
+});
