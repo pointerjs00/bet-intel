@@ -118,7 +118,8 @@ interface AppError extends Error {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: AppError, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: AppError, _req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) return next(err);
   const status = err.statusCode ?? err.status ?? 500;
   if (status >= 500) {
     logger.error('Unhandled express error', { error: err.message, stack: err.stack });

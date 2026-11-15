@@ -888,7 +888,6 @@ export interface LiveItemState {
   updatedAt: string;
 }
 
-/** Pending selections of the user that are in play or ended in the last hours, with live state when tracked. */
 /** Prisma filter for "A decorrer": legs of an already-lost boletim are never shown. */
 export function liveItemsWhere(userId: string, now: number) {
   return {
@@ -898,6 +897,7 @@ export function liveItemsWhere(userId: string, now: number) {
   };
 }
 
+/** Pending selections of the user that are in play or ended in the last hours, with live state when tracked. */
 export async function getLiveItems(userId: string): Promise<LiveItemState[]> {
   const now = Date.now();
   const items = await prisma.boletinItem.findMany({
