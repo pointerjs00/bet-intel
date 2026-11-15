@@ -31,7 +31,7 @@ probe() {
   read -r code size time <<<"$meta"
   if [ $rc -ne 0 ] && [ "${size:-0}" = "0" ]; then
     verdict="ERRO ($(head -c 80 "$TMP/err"))"
-  elif [ "$code" = "403" ] || [ "$code" = "429" ]; then
+  elif [ "$code" = "403" ] || [ "$code" = "429" ] || [ "$code" = "451" ]; then
     verdict="BLOQUEADO (HTTP $code)"
   elif grep -qaE "$expect" "$out"; then
     verdict="OK"
@@ -75,6 +75,9 @@ probe "Solverde Socket.IO handshake" '"sid"' 'https://sportswidget.solverde.pt/v
 
 # Lebull — página de desporto (a API própria é acrescentada depois do estudo)
 probe "Lebull página de desporto" '<html' 'https://www.lebull.pt/'
+
+# Lebull — API do sportsbook (tenant id público lido da config do próprio site)
+probe "Lebull API desportos" '"id"' -H 'Accept: application/json'   -H 'X-Auth-Tenant-Id: 126dc7bf-288b-4f72-9536-3aa54648c0f4'   'https://betting-platform.prod.sbteam.xyz/sports?lang=pt&currency=EUR'
 
 echo
 echo "Copia esta tabela e envia-a ao Claude."

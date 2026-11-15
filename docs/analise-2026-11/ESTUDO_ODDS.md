@@ -12,6 +12,19 @@ Estudo por casa, só com pedidos normais (sem stealth, captchas, proxies nem cre
 | **Solverde** | Não viável hoje | Mesmo widget que a Placard (`sportswidget.solverde.pt/vws`) | Não medida | Socket.IO | S depois da Placard |
 | **Lebull** | **Viável** | Sportsbook próprio (iframe `lebullpt-ssr.boxwebcdn.work`); API JSON `betting-platform.prod.sbteam.xyz` com o header `X-Auth-Tenant-Id` lido da configuração pública do front (estudo autorizado pelo utilizador) | Futebol 654 eventos (~30 tipos de mercado, ~194 seleções por jogo da Primeira Liga; sem cantos, cartões nem marcadores nas amostras), NBA 8 (45 tipos, sem props), ténis 158 (3–13 tipos) | Polling HTTP a 1 s (como o site) | S–M |
 
+## Teste a partir do servidor (Hetzner, Nuremberga, 15/11/2026 20:08 UTC)
+
+| Pedido | Resultado |
+|---|---|
+| Betclic gRPC-web (`offering.begmedia.com`) | **200 OK** (a via que o adaptador usa) |
+| Betclic HTML SSR | 403 (não é precisa) |
+| Betano JSON ao vivo e página de liga | **403**, nos dois |
+| Placard e Solverde, handshake Socket.IO | 200 OK |
+| Lebull, página `www.lebull.pt` | **451** "Unavailable For Legal Reasons", bloqueio geográfico (servidor na Alemanha) |
+| Lebull API `betting-platform.prod.sbteam.xyz` | por testar no servidor |
+
+Leitura: o servidor está na Alemanha, e as casas com licença portuguesa bloqueiam IPs de fora de Portugal (451 explícito na Lebull; o 403 da Betano é provavelmente o mesmo, somado ao WAF já visto em abril). A Betclic (via gRPC), a Placard e a Solverde respondem.
+
 ## Riscos comuns
 
 - **APIs internas sem documentação:** podem mudar sem aviso (Betano já mudou desde abril; o Kambi da Placard/Solverde desapareceu).
