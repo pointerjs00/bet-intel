@@ -143,3 +143,10 @@ test('team detection is by name, not substring; combos never lose a leg', () => 
 test('Asian totals are not comparable in v1', () => {
   assert.equal(footballKey('Total de Golos Asiático', 'Mais de 2.0', ctx), null);
 });
+
+test('team names win over generic home/away words', () => {
+  const casaPia = { home: 'Benfica', away: 'Casa Pia' };
+  assert.equal(footballKey('Total de golos da Casa Pia', 'Mais de 1.5', casaPia), 'FT.TOTAL.goals.A.O.1.5');
+  assert.equal(footballKey('Casa Pia - Total de golos', 'Mais de 1.5', casaPia), 'FT.TOTAL.goals.A.O.1.5');
+  assert.equal(footballKey('Total de Golos da Equipa da Casa', 'Mais de 1.5', casaPia), 'FT.TOTAL.goals.H.O.1.5');
+});

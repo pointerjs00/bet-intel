@@ -87,15 +87,27 @@ const PLAIN_RESULT_MARKET = /^(resultado|resultado duplo|resultado final|dupla h
 
 /** Side named by a team-total market label, or null when not resolvable; `qualified` = label talks about a team. */
 function teamOfMarket(m: string, ctx: MatchContext): { side: 'H' | 'A' | null; qualified: boolean } {
-  if (/\b(equipa da casa|da casa|home team|home)\b/.test(m)) return { side: 'H', qualified: true };
-  if (/\b(visitante|equipa de fora|equipa fora|away team|away|visitor)\b/.test(m)) return { side: 'A', qualified: true };
+  // 1. Explicit "equipa da casa / visitante" phrasing.
+  if (/\b(equipa da casa|equipa de casa|home team)\b/.test(m)) return { side: 'H', qualified: true };
+  if (/\b(equipa visitante|equipa de fora|equipa fora|away team|visitante|visitor)\b/.test(m)) return { side: 'A', qualified: true };
+  // 2. Team names win over generic words ("Total de golos da Casa Pia" is not "da casa").
   const sep = m.indexOf(' - ');
-  if (sep > 0) {
-    const prefix = m.slice(0, sep).trim();
-    if (!/^(total|golos|resultado|mais|menos)\b/.test(prefix)) {
-      return { side: sideOf(prefix, ctx), qualified: true };
-    }
+  const prefix = sep > 0 ? m.slice(0, sep).trim() : '';
+  const named = /^(total|golos|resultado|mais|menos)\b/.test(prefix) ? '' : prefix;
+  const after = m.match(/\bgolos\s+(?:da|do)\s+(.+)$/)?.[1]?.trim() ?? '';
+  for (const candidate of [named, after]) {
+    if (!candidate) continue;
+    const side = sideOf(candidate, ctx);
+    if (side) return { side, qualified: true };
+    if (candidate === named) return { side: null, qualified: true };
   }
+  if (after) {
+    // "da casa" / "de fora" only when nothing else follows.
+    if (/^(casa|home)$/.test(after)) return { side: 'H', qualified: true };
+    if (/^(fora|away)$/.test(after)) return { side: 'A', qualified: true };
+    return { side: null, qualified: true };
+  }
+  if (/\b(home|away)\b/.test(m)) return { side: /\bhome\b/.test(m) ? 'H' : 'A', qualified: true };
   return { side: null, qualified: /\b(equipa|team|casa|fora)\b/.test(m) };
 }
 
