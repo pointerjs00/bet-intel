@@ -52,3 +52,27 @@ export function deriveBoletinState(input: {
     actualReturn: input.potentialReturn,
   };
 }
+
+const BOOST_TOLERANCE = new Prisma.Decimal('0.01');
+
+function productOf(odds: Prisma.Decimal[]): Prisma.Decimal {
+  return odds.reduce((acc, odd) => acc.mul(odd), new Prisma.Decimal(1));
+}
+
+/**
+ * Recomputes a boletim's total odds from its legs, never by incremental division.
+ * Imported boletins deliberately store the slip's (boosted) total odds, so the boost
+ * (stored total / product of current legs) is measured before the change and reapplied
+ * to the new product when it deviates from 1 by more than 1%. Rounded to 2 places at the end.
+ */
+export function recalculateTotalOdds(input: {
+  currentTotalOdds: Prisma.Decimal;
+  currentLegOdds: Prisma.Decimal[];
+  nextLegOdds: Prisma.Decimal[];
+}): Prisma.Decimal {
+  const currentProduct = productOf(input.currentLegOdds);
+  const nextProduct = productOf(input.nextLegOdds);
+  const boost = currentProduct.isZero() ? new Prisma.Decimal(1) : input.currentTotalOdds.div(currentProduct);
+  const total = boost.minus(1).abs().gt(BOOST_TOLERANCE) ? nextProduct.mul(boost) : nextProduct;
+  return total.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+}

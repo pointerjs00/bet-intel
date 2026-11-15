@@ -21,7 +21,7 @@ import { deleteKeysByPattern, redis } from '../../utils/redis';
 import { logger } from '../../utils/logger';
 import { emitBoletinResult, emitFriendActivity } from '../../sockets';
 import { createNotification, dispatchStoredNotifications } from '../social/notificationService';
-import { deriveBoletinState } from './boletinState';
+import { deriveBoletinState, recalculateTotalOdds } from './boletinState';
 
 /** Invalidates all cached stats entries for a user after boletin changes. */
 async function invalidateStatsCache(userId: string): Promise<void> {
@@ -190,21 +190,25 @@ export async function updateBoletin(
       : new Prisma.Decimal(input.cashoutAmount).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
   }
 
-  if (Object.keys(metadataData).length > 0) {
-    await prisma.boletin.update({
-      where: { id: boletinId },
-      data: metadataData,
-    });
-  }
-
   const nextStake = input.stake !== undefined
     ? new Prisma.Decimal(input.stake).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
     : undefined;
 
-  const updated = await syncBoletinDerivedState(
-    boletinId,
-    nextStake !== undefined ? { stake: nextStake } : undefined,
-  );
+  // Metadata write + derived-state recalculation commit together; notifications fire only afterwards.
+  const updated = await prisma.$transaction(async (tx) => {
+    if (Object.keys(metadataData).length > 0) {
+      await tx.boletin.update({
+        where: { id: boletinId },
+        data: metadataData,
+      });
+    }
+
+    return syncBoletinDerivedState(
+      boletinId,
+      nextStake !== undefined ? { stake: nextStake } : undefined,
+      tx,
+    );
+  });
 
   emitResolvedBoletinResult(userId, existing, updated);
 
@@ -234,17 +238,17 @@ export async function updateBoletinItems(
     throw Object.assign(new Error('Um ou mais itens não pertencem a este boletim'), { statusCode: 400 });
   }
 
-  await prisma.$transaction(
-    input.items.map((item) =>
-      prisma.boletinItem.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    for (const item of input.items) {
+      await tx.boletinItem.update({
         where: { id: item.id },
         // A manual result settles any pending review flag from auto-settlement.
         data: { result: item.result as ItemResult, needsReview: false },
-      }),
-    ),
-  );
+      });
+    }
 
-  const updated = await syncBoletinDerivedState(boletinId);
+    return syncBoletinDerivedState(boletinId, undefined, tx);
+  });
 
   emitResolvedBoletinResult(userId, existing, updated);
 
@@ -420,29 +424,35 @@ export async function addBoletinItem(
   }
 
   const newOddValue = new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-  const newTotalOdds = existing.totalOdds.mul(newOddValue).toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
-  const newPotentialReturn = existing.stake.mul(newTotalOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-
-  await prisma.boletin.update({
-    where: { id: boletinId },
-    data: {
-      items: {
-        create: {
-          homeTeam: input.homeTeam.trim(),
-          awayTeam: input.awayTeam.trim(),
-          competition: input.competition.trim(),
-          sport: (input.sport ?? 'FOOTBALL') as Sport,
-          market: input.market.trim(),
-          selection: input.selection.trim(),
-          oddValue: newOddValue,
-          result: ItemResult.PENDING,
-          kickoffAt: input.kickoffAt ? new Date(input.kickoffAt) : null,
-        },
-      },
-    },
+  const currentLegOdds = existing.items.map((i) => i.oddValue);
+  const newTotalOdds = recalculateTotalOdds({
+    currentTotalOdds: existing.totalOdds,
+    currentLegOdds,
+    nextLegOdds: [...currentLegOdds, newOddValue],
   });
 
-  const updated = await syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds });
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.boletin.update({
+      where: { id: boletinId },
+      data: {
+        items: {
+          create: {
+            homeTeam: input.homeTeam.trim(),
+            awayTeam: input.awayTeam.trim(),
+            competition: input.competition.trim(),
+            sport: (input.sport ?? 'FOOTBALL') as Sport,
+            market: input.market.trim(),
+            selection: input.selection.trim(),
+            oddValue: newOddValue,
+            result: ItemResult.PENDING,
+            kickoffAt: input.kickoffAt ? new Date(input.kickoffAt) : null,
+          },
+        },
+      },
+    });
+
+    return syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds }, tx);
+  });
 
   emitResolvedBoletinResult(userId, existing, updated);
   void invalidateStatsCache(userId);
@@ -474,13 +484,17 @@ export async function deleteBoletinItem(
     throw Object.assign(new Error('O boletim deve ter pelo menos uma seleção'), { statusCode: 400 });
   }
 
-  // Recalculate totalOdds by dividing out the removed item's oddValue
-  const newTotalOdds = existing.totalOdds
-    .div(item.oddValue)
-    .toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
-  await prisma.boletinItem.delete({ where: { id: itemId } });
+  // Recompute from the remaining legs (never divide the stored total), preserving any boost.
+  const newTotalOdds = recalculateTotalOdds({
+    currentTotalOdds: existing.totalOdds,
+    currentLegOdds: existing.items.map((i) => i.oddValue),
+    nextLegOdds: existing.items.filter((i) => i.id !== itemId).map((i) => i.oddValue),
+  });
 
-  const updated = await syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds });
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.boletinItem.delete({ where: { id: itemId } });
+    return syncBoletinDerivedState(boletinId, { totalOdds: newTotalOdds }, tx);
+  });
 
   emitResolvedBoletinResult(userId, existing, updated);
   void invalidateStatsCache(userId);
@@ -514,36 +528,40 @@ export async function updateBoletinItem(
 
   if (input.oddValue !== undefined) {
     const newOddDecimal = new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
-    newTotalOdds = existing.totalOdds
-      .div(item.oddValue)
-      .mul(newOddDecimal)
-      .toDecimalPlaces(4, Prisma.Decimal.ROUND_HALF_UP);
+    newTotalOdds = recalculateTotalOdds({
+      currentTotalOdds: existing.totalOdds,
+      currentLegOdds: existing.items.map((i) => i.oddValue),
+      nextLegOdds: existing.items.map((i) => (i.id === itemId ? newOddDecimal : i.oddValue)),
+    });
   }
 
-  await prisma.boletinItem.update({
-    where: { id: itemId },
-    data: {
-      homeTeam: input.homeTeam !== undefined ? input.homeTeam.trim() : undefined,
-      awayTeam: input.awayTeam !== undefined ? input.awayTeam.trim() : undefined,
-      competition: input.competition !== undefined ? input.competition.trim() : undefined,
-      sport: input.sport !== undefined ? (input.sport as Sport) : undefined,
-      market: input.market !== undefined ? input.market.trim() : undefined,
-      selection: input.selection !== undefined ? input.selection.trim() : undefined,
-      oddValue: input.oddValue !== undefined
-        ? new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
-        : undefined,
-      result: input.result !== undefined ? (input.result as ItemResult) : undefined,
-      needsReview: input.result !== undefined ? false : undefined,
-      kickoffAt: input.kickoffAt !== undefined
-        ? (input.kickoffAt ? new Date(input.kickoffAt) : null)
-        : undefined,
-    },
-  });
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.boletinItem.update({
+      where: { id: itemId },
+      data: {
+        homeTeam: input.homeTeam !== undefined ? input.homeTeam.trim() : undefined,
+        awayTeam: input.awayTeam !== undefined ? input.awayTeam.trim() : undefined,
+        competition: input.competition !== undefined ? input.competition.trim() : undefined,
+        sport: input.sport !== undefined ? (input.sport as Sport) : undefined,
+        market: input.market !== undefined ? input.market.trim() : undefined,
+        selection: input.selection !== undefined ? input.selection.trim() : undefined,
+        oddValue: input.oddValue !== undefined
+          ? new Prisma.Decimal(input.oddValue).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP)
+          : undefined,
+        result: input.result !== undefined ? (input.result as ItemResult) : undefined,
+        needsReview: input.result !== undefined ? false : undefined,
+        kickoffAt: input.kickoffAt !== undefined
+          ? (input.kickoffAt ? new Date(input.kickoffAt) : null)
+          : undefined,
+      },
+    });
 
-  const updated = await syncBoletinDerivedState(
-    boletinId,
-    newTotalOdds !== undefined ? { totalOdds: newTotalOdds } : undefined,
-  );
+    return syncBoletinDerivedState(
+      boletinId,
+      newTotalOdds !== undefined ? { totalOdds: newTotalOdds } : undefined,
+      tx,
+    );
+  });
 
   emitResolvedBoletinResult(userId, existing, updated);
   void invalidateStatsCache(userId);
@@ -570,8 +588,9 @@ export async function recomputeBoletinAfterItemChange(boletinId: string): Promis
 async function syncBoletinDerivedState(
   boletinId: string,
   overrides?: { stake?: Prisma.Decimal; totalOdds?: Prisma.Decimal },
+  client: Prisma.TransactionClient | typeof prisma = prisma,
 ) {
-  const boletin = await prisma.boletin.findUnique({
+  const boletin = await client.boletin.findUnique({
     where: { id: boletinId },
     select: {
       id: true,
@@ -605,7 +624,7 @@ async function syncBoletinDerivedState(
       items: boletin.items,
     });
 
-  return prisma.boletin.update({
+  return client.boletin.update({
     where: { id: boletinId },
     data: {
       stake: overrides?.stake,
