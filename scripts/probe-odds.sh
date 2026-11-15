@@ -77,7 +77,7 @@ probe "Solverde Socket.IO handshake" '"sid"' 'https://sportswidget.solverde.pt/v
 probe "Lebull página de desporto" '<html' 'https://www.lebull.pt/'
 
 # Lebull — API do sportsbook (tenant id público lido da config do próprio site)
-probe "Lebull API desportos" '"id"' -H 'Accept: application/json'   -H 'X-Auth-Tenant-Id: 126dc7bf-288b-4f72-9536-3aa54648c0f4'   'https://betting-platform.prod.sbteam.xyz/sports?lang=pt&currency=EUR'
+probe "Lebull API desportos" '"sports"' -H 'Accept: application/json'   -H 'X-Auth-Tenant-Id: 126dc7bf-288b-4f72-9536-3aa54648c0f4'   'https://betting-platform.prod.sbteam.xyz/sports?lang=pt&currency=EUR'
 
 echo
 echo "Copia esta tabela e envia-a ao Claude."
