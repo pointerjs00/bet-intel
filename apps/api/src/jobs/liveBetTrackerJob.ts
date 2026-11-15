@@ -82,7 +82,7 @@ async function backfillKickoffs(): Promise<void> {
       // No kickoff, or a kickoff still ahead (it may be wrong: e.g. a day off the real game).
       OR: [{ kickoffAt: null }, { kickoffAt: { gt: new Date(Date.now() + 15 * 60 * 1000), lt: new Date(Date.now() + 4 * 24 * 3600e3) } }],
       sport: { in: ['FOOTBALL', 'BASKETBALL', 'TENNIS'] },
-      boletin: { status: 'PENDING', createdAt: { gte: new Date(Date.now() - 10 * 24 * 3600e3) } },
+      boletin: { status: { in: ['PENDING', 'LOST'] }, createdAt: { gte: new Date(Date.now() - 10 * 24 * 3600e3) } },
     },
     select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true, boletin: { select: { betDate: true, createdAt: true } } },
     take: 100,
@@ -134,7 +134,7 @@ async function trackBasketball(): Promise<void> {
     where: {
       result: 'PENDING',
       sport: 'BASKETBALL',
-      boletin: { status: 'PENDING' },
+      boletin: { status: { in: ['PENDING', 'LOST'] } },
       kickoffAt: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) },
     },
     select: {
@@ -255,7 +255,7 @@ async function trackTennis(): Promise<void> {
     where: {
       result: 'PENDING',
       sport: 'TENNIS',
-      boletin: { status: 'PENDING' },
+      boletin: { status: { in: ['PENDING', 'LOST'] } },
       kickoffAt: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) },
     },
     select: {
@@ -405,7 +405,7 @@ async function trackFootball(): Promise<void> {
     where: {
       result: 'PENDING',
       sport: 'FOOTBALL',
-      boletin: { status: 'PENDING' },
+      boletin: { status: { in: ['PENDING', 'LOST'] } },
       kickoffAt: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) },
     },
     select: {

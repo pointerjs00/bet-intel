@@ -21,6 +21,7 @@ import { deleteKeysByPattern, redis } from '../../utils/redis';
 import { logger } from '../../utils/logger';
 import { emitBoletinResult, emitFriendActivity } from '../../sockets';
 import { createNotification, dispatchStoredNotifications } from '../social/notificationService';
+import { deriveBoletinState } from './boletinState';
 
 /** Invalidates all cached stats entries for a user after boletin changes. */
 async function invalidateStatsCache(userId: string): Promise<void> {
@@ -564,48 +565,6 @@ export async function recomputeBoletinAfterItemChange(boletinId: string): Promis
   const updated = await syncBoletinDerivedState(boletinId);
   emitResolvedBoletinResult(existing.userId, existing, updated);
   void invalidateStatsCache(existing.userId);
-}
-
-function deriveBoletinState(input: {
-  stake: Prisma.Decimal;
-  potentialReturn: Prisma.Decimal;
-  isFreebet: boolean;
-  items: Array<{ result: ItemResult; oddValue: Prisma.Decimal }>;
-}): { status: BoletinStatus; actualReturn: Prisma.Decimal | null } {
-  if (input.items.length === 0 || input.items.some((item) => item.result === ItemResult.PENDING)) {
-    return { status: BoletinStatus.PENDING, actualReturn: null };
-  }
-
-  const hasLost = input.items.some((item) => item.result === ItemResult.LOST);
-  const hasVoid = input.items.some((item) => item.result === ItemResult.VOID);
-  const hasWon = input.items.some((item) => item.result === ItemResult.WON);
-
-  if (hasLost) {
-    return { status: BoletinStatus.LOST, actualReturn: new Prisma.Decimal(0) };
-  }
-
-  if (hasVoid && hasWon) {
-    const winningOdds = input.items
-      .filter((item) => item.result === ItemResult.WON)
-      .reduce((acc, item) => acc.mul(item.oddValue), new Prisma.Decimal(1));
-
-    return {
-      status: BoletinStatus.PARTIAL,
-      actualReturn: input.stake.mul(winningOdds).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP),
-    };
-  }
-
-  if (hasVoid) {
-    return {
-      status: BoletinStatus.VOID,
-      actualReturn: input.isFreebet ? new Prisma.Decimal(0) : input.stake,
-    };
-  }
-
-  return {
-    status: BoletinStatus.WON,
-    actualReturn: input.potentialReturn,
-  };
 }
 
 async function syncBoletinDerivedState(

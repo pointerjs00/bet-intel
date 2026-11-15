@@ -41,7 +41,7 @@ export async function autoSettlementJob(): Promise<void> {
     where: {
       result: 'PENDING',
       sport: 'FOOTBALL',
-      boletin: { status: 'PENDING' },
+      boletin: { status: { in: ['PENDING', 'LOST'] } },
       OR: [{ kickoffAt: { gte: new Date(since.getTime() - 2 * 60 * 60 * 1000) } }, { eventExternalId: { not: null } }],
     },
   });
