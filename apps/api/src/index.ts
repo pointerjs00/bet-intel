@@ -29,7 +29,7 @@ import { fixtureAlertRouter } from './routes/fixtureAlertRoutes';
 import { footballDataRouter } from './routes/footballDataRoutes';
 import { adminRouter } from './routes/adminRoutes';
 import { sportsRouter } from './routes/sportsRoutes';
-import { seed as seedReferenceData } from './prisma/seed';
+import { seedIfCatalogueChanged } from './prisma/seed';
 import { API_FOOTBALL_ENABLED, initFootballDataScheduler } from './scheduler';
 import { sportAssetsJob } from './jobs/sportAssetsJob';
 import { fixtureStatsSyncJob } from './jobs/fixtureStatsSyncJob';
@@ -118,7 +118,8 @@ interface AppError extends Error {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-app.use((err: AppError, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: AppError, _req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) return next(err);
   const status = err.statusCode ?? err.status ?? 500;
   if (status >= 500) {
     logger.error('Unhandled express error', { error: err.message, stack: err.stack });
@@ -127,6 +128,20 @@ app.use((err: AppError, _req: Request, res: Response, _next: NextFunction) => {
     return;
   }
   res.status(status).json({ success: false, error: err.message ?? 'Pedido inválido' });
+});
+
+// ─── Process-level safety nets ─────────────────────────────────────────────────
+
+process.on('unhandledRejection', (reason: unknown) => {
+  logger.error('Unhandled promise rejection', {
+    error: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+
+process.on('uncaughtException', (err: Error) => {
+  logger.error('Uncaught exception — exiting so Docker restarts the container', { error: err.message, stack: err.stack });
+  process.exit(1);
 });
 
 // ─── Start ─────────────────────────────────────────────────────────────────────
@@ -164,8 +179,8 @@ async function start(): Promise<void> {
     // Already connected or will retry on first command — non-fatal at startup
   });
 
-  // Keep reference data in sync with the code-defined catalogue on every startup.
-  await seedReferenceData();
+  // Keep reference data in sync with the code-defined catalogue when it changes (FORCE_SEED=true forces it).
+  await seedIfCatalogueChanged(redis);
 
   // Plan #23: accept requests right away; rankings, fixture sync and schedulers warm up in
   // the background (each step already tolerates failure), instead of blocking the listen.

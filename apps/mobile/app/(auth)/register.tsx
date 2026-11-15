@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useRouter } from 'expo-router';
@@ -22,6 +22,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Divider } from '../../components/ui/Divider';
 import { useToast } from '../../components/ui/Toast';
+import { PasswordStrength } from '../../components/auth/PasswordStrength';
 import { signInWithGoogle } from '../../services/auth/googleAuth';
 
 export default function RegisterScreen() {
@@ -72,24 +73,6 @@ export default function RegisterScreen() {
 
     return () => clearTimeout(timer);
   }, [username]);
-
-  const passwordStrength = useMemo(() => {
-    let score = 0;
-    if (password.length >= 8) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-    if (score <= 1) return { label: 'Fraca', color: colors.danger, width: '33%' as const };
-    if (score <= 3) return { label: 'Média', color: colors.warning, width: '66%' as const };
-    return { label: 'Forte', color: colors.primary, width: '100%' as const };
-  }, [colors.danger, colors.primary, colors.warning, password]);
-
-  const passwordChecks = useMemo(() => [
-    { label: 'Mínimo 8 caracteres', met: password.length >= 8 },
-    { label: 'Uma letra maiúscula', met: /[A-Z]/.test(password) },
-    { label: 'Um número', met: /[0-9]/.test(password) },
-    { label: 'Um carácter especial', met: /[^A-Za-z0-9]/.test(password) },
-  ], [password]);
 
   const onSubmit = handleSubmit(async (values) => {
     try {
@@ -218,41 +201,7 @@ export default function RegisterScreen() {
                 )}
               />
 
-              <View style={styles.passwordMeterWrap}>
-                <View style={[styles.passwordMeterTrack, { backgroundColor: colors.border }]}>
-                  <Animated.View
-                    style={[
-                      styles.passwordMeterFill,
-                      { backgroundColor: passwordStrength.color, width: passwordStrength.width },
-                    ]}
-                  />
-                </View>
-                <Text style={[styles.passwordMeterLabel, { color: colors.textMuted }]}>
-                  {passwordStrength.label}
-                </Text>
-              </View>
-
-              {password.length > 0 ? (
-                <View style={styles.passwordChecks}>
-                  {passwordChecks.map((check) => (
-                    <View key={check.label} style={styles.passwordCheckRow}>
-                      <Ionicons
-                        color={check.met ? colors.primary : colors.textMuted}
-                        name={check.met ? 'checkmark-circle' : 'ellipse-outline'}
-                        size={15}
-                      />
-                      <Text
-                        style={[
-                          styles.passwordCheckText,
-                          { color: check.met ? colors.textSecondary : colors.textMuted },
-                        ]}
-                      >
-                        {check.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
+              <PasswordStrength password={password} />
 
               <Controller
                 control={control}
@@ -364,39 +313,6 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: 16,
-  },
-  passwordMeterWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: -8,
-  },
-  passwordMeterTrack: {
-    borderRadius: 999,
-    flex: 1,
-    height: 6,
-    overflow: 'hidden',
-  },
-  passwordMeterFill: {
-    borderRadius: 999,
-    height: 6,
-  },
-  passwordMeterLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  passwordChecks: {
-    gap: 6,
-    marginTop: -4,
-  },
-  passwordCheckRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  passwordCheckText: {
-    fontSize: 12,
-    fontWeight: '500',
   },
   termsRow: {
     alignItems: 'center',

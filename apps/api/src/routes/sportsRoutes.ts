@@ -20,6 +20,7 @@ import { getAssets } from '../services/sportsData/assetRegistry';
 import { fetchEspnPreview } from '../services/sportsData/espnPreview';
 import { getProviderHealth } from '../services/sportsData/providerHealth';
 import { searchTeams, teamHistory } from '../services/sportsData/teamHistory';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const sportsRouter: Router = Router();
 sportsRouter.use(authenticate);
@@ -38,28 +39,28 @@ async function cached<T>(key: string, ttlSeconds: number, load: () => Promise<T>
 }
 
 /** Teams (and names from the user's bets) matching ?q=. */
-sportsRouter.get('/teams/search', async (req: Request, res: Response) => {
+sportsRouter.get('/teams/search', asyncHandler(async (req: Request, res: Response) => {
   const q = typeof req.query.q === 'string' ? req.query.q.slice(0, 60) : '';
   res.json({ success: true, data: await searchTeams(req.user!.sub, q) });
-});
+}));
 
 /** A team's matches since 2020 with the user's bets on them: ?sport=&id= or ?name=. */
-sportsRouter.get('/teams/history', async (req: Request, res: Response) => {
+sportsRouter.get('/teams/history', asyncHandler(async (req: Request, res: Response) => {
   const str = (v: unknown) => (typeof v === 'string' && v ? v.slice(0, 80) : undefined);
   const data = await teamHistory(req.user!.sub, { sport: str(req.query.sport), id: str(req.query.id), name: str(req.query.name) });
   if (!data) { res.status(404).json({ success: false, error: 'Equipa não encontrada' }); return; }
   res.json({ success: true, data });
-});
+}));
 
 /** Last result per data provider (plan #61). */
-sportsRouter.get('/health', async (_req: Request, res: Response) => {
+sportsRouter.get('/health', asyncHandler(async (_req: Request, res: Response) => {
   res.json({ success: true, data: await getProviderHealth() });
-});
+}));
 
 /** Crest and player-photo URLs by display name, collected from ESPN (see assetRegistry). */
-sportsRouter.get('/assets', async (_req: Request, res: Response) => {
+sportsRouter.get('/assets', asyncHandler(async (_req: Request, res: Response) => {
   res.json({ success: true, data: await getAssets() });
-});
+}));
 
 /** National teams: ESPN's English names → Portuguese (what the app and bookmakers use). */
 function toPtNames(m: NormalizedMatch): NormalizedMatch {
@@ -70,7 +71,7 @@ function isValidDate(d: unknown): d is string {
   return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d));
 }
 
-sportsRouter.get('/football/day', async (req: Request, res: Response) => {
+sportsRouter.get('/football/day', asyncHandler(async (req: Request, res: Response) => {
   const date = isValidDate(req.query.date) ? req.query.date : new Date().toISOString().slice(0, 10);
   const isToday = date === new Date().toISOString().slice(0, 10);
   try {
@@ -110,7 +111,7 @@ sportsRouter.get('/football/day', async (req: Request, res: Response) => {
     logger.error('[sports] day failed', { error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter os jogos agora.' });
   }
-});
+}));
 
 /**
  * Simple match shape for basketball and tennis on the Jogos screen (football keeps its richer one).
@@ -145,7 +146,7 @@ async function pendingNames(userId: string, sport: 'BASKETBALL' | 'TENNIS', date
 const hasBetOn = (pending: Array<{ homeTeam: string; awayTeam: string }>, a: string, b: string) =>
   pending.some((p) => (teamNamesMatch(p.homeTeam, a) && teamNamesMatch(p.awayTeam, b)) || (teamNamesMatch(p.homeTeam, b) && teamNamesMatch(p.awayTeam, a)));
 
-sportsRouter.get('/basketball/day', async (req: Request, res: Response) => {
+sportsRouter.get('/basketball/day', asyncHandler(async (req: Request, res: Response) => {
   const date = isValidDate(req.query.date) ? req.query.date : new Date().toISOString().slice(0, 10);
   const isToday = date === new Date().toISOString().slice(0, 10);
   try {
@@ -167,9 +168,9 @@ sportsRouter.get('/basketball/day', async (req: Request, res: Response) => {
     logger.error('[sports] nba day failed', { error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter os jogos agora.' });
   }
-});
+}));
 
-sportsRouter.get('/tennis/day', async (req: Request, res: Response) => {
+sportsRouter.get('/tennis/day', asyncHandler(async (req: Request, res: Response) => {
   const date = isValidDate(req.query.date) ? req.query.date : new Date().toISOString().slice(0, 10);
   const isToday = date === new Date().toISOString().slice(0, 10);
   try {
@@ -211,10 +212,10 @@ sportsRouter.get('/tennis/day', async (req: Request, res: Response) => {
     logger.error('[sports] tennis day failed', { error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter os jogos agora.' });
   }
-});
+}));
 
 /** One NBA game: score per quarter, box score per player and team totals from it. */
-sportsRouter.get('/basketball/game/:id', async (req: Request, res: Response) => {
+sportsRouter.get('/basketball/game/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = String(req.params.id ?? '');
   if (!/^\d{5,12}$/.test(id)) { res.status(400).json({ success: false, error: 'Jogo inválido.' }); return; }
   try {
@@ -230,10 +231,10 @@ sportsRouter.get('/basketball/game/:id', async (req: Request, res: Response) => 
     logger.error('[sports] nba game failed', { error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter o jogo agora.' });
   }
-});
+}));
 
 /** One tennis match from the day's draw (sets), plus the point score and server while live. */
-sportsRouter.get('/tennis/match/:id', async (req: Request, res: Response) => {
+sportsRouter.get('/tennis/match/:id', asyncHandler(async (req: Request, res: Response) => {
   const id = String(req.params.id ?? '');
   const date = isValidDate(req.query.date) ? req.query.date : new Date().toISOString().slice(0, 10);
   const isToday = date === new Date().toISOString().slice(0, 10);
@@ -252,10 +253,10 @@ sportsRouter.get('/tennis/match/:id', async (req: Request, res: Response) => {
     logger.error('[sports] tennis match failed', { error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter o jogo agora.' });
   }
-});
+}));
 
 /** Standings, last-5 form and head-to-head for one match (replaces the API-Football insights). */
-sportsRouter.get('/football/preview/:league/:id', async (req: Request, res: Response) => {
+sportsRouter.get('/football/preview/:league/:id', asyncHandler(async (req: Request, res: Response) => {
   const { league, id } = req.params;
   if (!Object.values(ESPN_FOOTBALL_LEAGUES).includes(league!) || !/^\d+$/.test(id!)) {
     res.status(400).json({ success: false, error: 'Jogo inválido' });
@@ -275,9 +276,9 @@ sportsRouter.get('/football/preview/:league/:id', async (req: Request, res: Resp
     logger.error('[sports] preview failed', { league, id, error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter a antevisão agora.' });
   }
-});
+}));
 
-sportsRouter.get('/football/match/:league/:id', async (req: Request, res: Response) => {
+sportsRouter.get('/football/match/:league/:id', asyncHandler(async (req: Request, res: Response) => {
   const { league, id } = req.params;
   if (!Object.values(ESPN_FOOTBALL_LEAGUES).includes(league!) || !/^\d+$/.test(id!)) {
     res.status(400).json({ success: false, error: 'Jogo inválido' });
@@ -304,4 +305,4 @@ sportsRouter.get('/football/match/:league/:id', async (req: Request, res: Respon
     logger.error('[sports] match failed', { league, id, error: err instanceof Error ? err.message : String(err) });
     res.status(502).json({ success: false, error: 'Não foi possível obter o jogo agora.' });
   }
-});
+}));

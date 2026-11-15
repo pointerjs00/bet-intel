@@ -37,6 +37,40 @@ const LOOKBACK_MS = 5 * 24 * 60 * 60 * 1000;
 const LOOKAHEAD_MS = 15 * 60 * 1000;
 const REF_TTL_S = 7 * 24 * 60 * 60;
 
+// A game is over this long after kickoff (extra time/penalties, long tennis matches included).
+const FINISHED_AFTER_MS: Record<'FOOTBALL' | 'TENNIS' | 'BASKETBALL', number> = {
+  FOOTBALL: 4 * 60 * 60 * 1000,
+  TENNIS: 8 * 60 * 60 * 1000,
+  BASKETBALL: 4 * 60 * 60 * 1000,
+};
+const LOCK_KEY = 'liveBetTracker:lock';
+const LOCK_TTL_MS = 55_000;
+
+/**
+ * Whether the tracker should still look at a pending item. An item already flagged for review whose
+ * game must be over by now is left alone (no external request, no rewrite); one whose game is still
+ * on keeps receiving live notifications.
+ */
+export function isTrackerCandidate(
+  item: { needsReview: boolean; kickoffAt: Date | null },
+  sport: keyof typeof FINISHED_AFTER_MS,
+  now: number,
+): boolean {
+  if (!item.needsReview) return true;
+  if (!item.kickoffAt) return false;
+  return now - item.kickoffAt.getTime() < FINISHED_AFTER_MS[sport];
+}
+
+/** Live and leg-decided notifications are skipped for legs of a boletim that is already lost. */
+export function shouldNotifyLive(boletinStatus: string): boolean {
+  return boletinStatus !== 'LOST';
+}
+
+/** Prisma filter equivalent of the review half of {@link isTrackerCandidate}. */
+function reviewFilter(sport: keyof typeof FINISHED_AFTER_MS, now: number) {
+  return { OR: [{ needsReview: false }, { kickoffAt: { gte: new Date(now - FINISHED_AFTER_MS[sport]) } }] };
+}
+
 type PendingItem = {
   id: string;
   boletinId: string;
@@ -46,7 +80,8 @@ type PendingItem = {
   market: string;
   selection: string;
   kickoffAt: Date | null;
-  boletin: { userId: string; name: string | null; user: { fixtureNotifPrefs: string[] } };
+  needsReview: boolean;
+  boletin: { status: string; userId: string; name: string | null; user: { fixtureNotifPrefs: string[] } };
 };
 
 interface MatchState { status: NormalizedMatch['status']; home: number | null; away: number | null }
@@ -59,14 +94,57 @@ import { espnLeagueFor } from '../services/sportsData/leagueMap';
 import { findItemMatches } from '../services/sportsData/itemMatch';
 import { getAssets } from '../services/sportsData/assetRegistry';
 export async function liveBetTrackerJob(): Promise<void> {
+  // One run at a time: a slow run must not overlap the next minute's.
+  const runId = `${process.pid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  const locked = await redis.set(LOCK_KEY, runId, 'PX', LOCK_TTL_MS, 'NX').catch(() => null);
+  if (locked !== 'OK') {
+    logger.debug('[liveBetTracker] previous run still in progress, skipping');
+    return;
+  }
+  try {
+    await runPolls(() => renewLock(runId));
+  } finally {
+    // Release only if the lock is still ours (it may have expired and been taken by another run).
+    await redis.eval(
+      "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+      1, LOCK_KEY, runId,
+    ).catch(() => undefined);
+  }
+}
+
+/** Extends the lock TTL, only if it is still ours. False means another run may have taken over. */
+async function renewLock(runId: string): Promise<boolean> {
+  const r = await redis.eval(
+    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('pexpire', KEYS[1], ARGV[2]) else return 0 end",
+    1, LOCK_KEY, runId, String(LOCK_TTL_MS),
+  ).catch(() => 0);
+  return Number(r) === 1;
+}
+
+/**
+ * Runs the polls, calling `renew` before each one; if the lease was lost the run stops
+ * (another run may already be going, so continuing would overlap it).
+ */
+export async function runPolls(
+  renew: () => Promise<boolean>,
+  poll: () => Promise<void> = trackOnce,
+  wait: (ms: number) => Promise<unknown> = sleep,
+): Promise<number> {
+  let done = 0;
   for (let i = 0; i < POLLS_PER_RUN; i++) {
+    if (!(await renew())) {
+      logger.warn('[liveBetTracker] lock lost, stopping this run');
+      break;
+    }
     try {
-      await trackOnce();
+      await poll();
     } catch (err) {
       logger.warn('[liveBetTracker] poll failed', { error: err instanceof Error ? err.message : String(err) });
     }
-    if (i < POLLS_PER_RUN - 1) await sleep(POLL_INTERVAL_MS);
+    done++;
+    if (i < POLLS_PER_RUN - 1) await wait(POLL_INTERVAL_MS);
   }
+  return done;
 }
 
 /**
@@ -82,7 +160,7 @@ async function backfillKickoffs(): Promise<void> {
       // No kickoff, or a kickoff still ahead (it may be wrong: e.g. a day off the real game).
       OR: [{ kickoffAt: null }, { kickoffAt: { gt: new Date(Date.now() + 15 * 60 * 1000), lt: new Date(Date.now() + 4 * 24 * 3600e3) } }],
       sport: { in: ['FOOTBALL', 'BASKETBALL', 'TENNIS'] },
-      boletin: { status: 'PENDING', createdAt: { gte: new Date(Date.now() - 10 * 24 * 3600e3) } },
+      boletin: { status: { in: ['PENDING', 'LOST'] }, createdAt: { gte: new Date(Date.now() - 10 * 24 * 3600e3) } },
     },
     select: { id: true, sport: true, competition: true, homeTeam: true, awayTeam: true, kickoffAt: true, boletin: { select: { betDate: true, createdAt: true } } },
     take: 100,
@@ -130,18 +208,20 @@ type BasketballItem = Omit<PendingItem, 'competition'>;
 
 async function trackBasketball(): Promise<void> {
   const now = Date.now();
-  const items: BasketballItem[] = await prisma.boletinItem.findMany({
+  const candidates: BasketballItem[] = await prisma.boletinItem.findMany({
     where: {
       result: 'PENDING',
       sport: 'BASKETBALL',
-      boletin: { status: 'PENDING' },
+      boletin: { status: { in: ['PENDING', 'LOST'] } },
       kickoffAt: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) },
+      ...reviewFilter('BASKETBALL', now),
     },
     select: {
-      id: true, boletinId: true, homeTeam: true, awayTeam: true, market: true, selection: true, kickoffAt: true,
-      boletin: { select: { userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
+      id: true, boletinId: true, homeTeam: true, awayTeam: true, market: true, selection: true, kickoffAt: true, needsReview: true,
+      boletin: { select: { status: true, userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
     },
   });
+  const items = candidates.filter((it) => isTrackerCandidate(it, 'BASKETBALL', now));
   if (!items.length) return;
 
   const dayCache = new Map<string, BasketballMatch[]>();
@@ -224,7 +304,7 @@ async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[
       if (u.count) touched.add(item.boletinId);
     }
   } else if (m.status === 'POSTPONED') {
-    await prisma.boletinItem.updateMany({ where: { id: { in: group.map((g) => g.id) } }, data: { needsReview: true } });
+    await prisma.boletinItem.updateMany({ where: { id: { in: group.map((g) => g.id) }, needsReview: false }, data: { needsReview: true } });
   } else if (m.status === 'FINISHED' && m.score) {
     if (await once(`notif:espn:b:${id}:ft`)) {
       await notify(asGroup, fakeMatch, NotificationType.MATCH_FINISHED, 'MATCH_END', '🏁 Fim do jogo', (its) => `${m.home.name} ${score} ${m.away.name}${line(its)}`, bctx);
@@ -232,7 +312,7 @@ async function handleBasketballUpdate(m: BasketballMatch, group: BasketballItem[
     for (const item of group) {
       const res = resolveBasketballMarket(item.market, item.selection, { ...m.score, periods: m.periods, players: m.players ?? null }, { home: m.home.name, away: m.away.name });
       if (res === null) {
-        await prisma.boletinItem.update({ where: { id: item.id }, data: { needsReview: true } });
+        await prisma.boletinItem.updateMany({ where: { id: item.id, needsReview: false }, data: { needsReview: true } });
         continue;
       }
       const u = await prisma.boletinItem.updateMany({ where: { id: item.id, result: 'PENDING' }, data: { result: res as ItemResult, needsReview: false } });
@@ -251,32 +331,35 @@ type TennisItem = Omit<PendingItem, 'competition'>;
 
 async function trackTennis(): Promise<void> {
   const now = Date.now();
-  const items: TennisItem[] = await prisma.boletinItem.findMany({
+  const candidates: TennisItem[] = await prisma.boletinItem.findMany({
     where: {
       result: 'PENDING',
       sport: 'TENNIS',
-      boletin: { status: 'PENDING' },
+      boletin: { status: { in: ['PENDING', 'LOST'] } },
       kickoffAt: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) },
+      ...reviewFilter('TENNIS', now),
     },
     select: {
-      id: true, boletinId: true, homeTeam: true, awayTeam: true, market: true, selection: true, kickoffAt: true,
-      boletin: { select: { userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
+      id: true, boletinId: true, homeTeam: true, awayTeam: true, market: true, selection: true, kickoffAt: true, needsReview: true,
+      boletin: { select: { status: true, userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
     },
   });
+  const items = candidates.filter((it) => isTrackerCandidate(it, 'TENNIS', now));
   if (!items.length) return;
 
   const dayCache = new Map<string, TennisMatch[]>();
-  const byMatch = new Map<string, { match: TennisMatch; items: TennisItem[] }>();
+  const byMatch = new Map<string, { match: TennisMatch; day: string; items: TennisItem[] }>();
   for (const item of items) {
-    const match = await findTennisMatch(item, dayCache);
-    if (!match) continue;
-    const entry = byMatch.get(match.providerMatchId) ?? { match, items: [] };
+    const hit = await findTennisMatch(item, dayCache);
+    if (!hit) continue;
+    const { match, day } = hit;
+    const entry = byMatch.get(match.providerMatchId) ?? { match, day, items: [] };
     entry.items.push(item);
     byMatch.set(match.providerMatchId, entry);
   }
 
-  for (const { match: m, items: group } of byMatch.values()) {
-    await handleTennisUpdate(m, group);
+  for (const { match: m, day, items: group } of byMatch.values()) {
+    await handleTennisUpdate(m, group, day);
   }
 }
 
@@ -286,7 +369,7 @@ async function tennisDay(tour: 'atp' | 'wta', day: string, cache: Map<string, Te
   return cache.get(key)!;
 }
 
-async function findTennisMatch(item: TennisItem, cache: Map<string, TennisMatch[]>): Promise<TennisMatch | null> {
+async function findTennisMatch(item: TennisItem, cache: Map<string, TennisMatch[]>): Promise<{ match: TennisMatch; day: string } | null> {
   const refKey = `espn:tref:${item.id}`;
   const cached = await redis.get(refKey).catch(() => null);
   const kickoff = item.kickoffAt!;
@@ -301,7 +384,7 @@ async function findTennisMatch(item: TennisItem, cache: Map<string, TennisMatch[
       });
       if (found) {
         if (!cached) await redis.set(refKey, found.providerMatchId, 'EX', REF_TTL_S).catch(() => {});
-        return found;
+        return { match: found, day };
       }
     }
   }
@@ -327,7 +410,8 @@ function tennisVerdict(item: TennisItem, m: TennisMatch): string | null {
   return verdictOf(assessTennis(item, m));
 }
 
-async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<void> {
+/** `day` is the ATP/WTA scoreboard day the match was found on (what /jogo/tenis/[id] must query). */
+async function handleTennisUpdate(m: TennisMatch, group: TennisItem[], day: string): Promise<void> {
   const key = `espn:tstate:${m.providerMatchId}`;
   const prevRaw = await redis.get(key).catch(() => null);
   const prev = prevRaw ? (JSON.parse(prevRaw) as { status: string; sets: number }) : null;
@@ -340,7 +424,7 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
   };
   const asGroup = group as unknown as PendingItem[];
   const fakeMatch = { providerMatchId: id } as NormalizedMatch;
-  const tctx: GameCtx = { home: m.playerA, away: m.playerB, score: score || null, detail: m.round || m.statusDetail, sport: 'TENNIS' };
+  const tctx: GameCtx = { home: m.playerA, away: m.playerB, score: score || null, detail: m.round || m.statusDetail, sport: 'TENNIS', date: day };
 
   if (m.status === 'LIVE' && (!prev || prev.status === 'SCHEDULED') && await once(`notif:espn:t:${id}:start`)) {
     await notify(asGroup, fakeMatch, NotificationType.MATCH_STARTING, 'GOALS', `🎾 Começou: ${m.playerA} vs ${m.playerB}`,
@@ -382,7 +466,7 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
   for (const item of group) {
     const resolution = resolveTennisMarket(item.market, item.selection, result, tennisCtx(item, m));
     if (resolution === null) {
-      await prisma.boletinItem.update({ where: { id: item.id }, data: { needsReview: true } });
+      await prisma.boletinItem.updateMany({ where: { id: item.id, needsReview: false }, data: { needsReview: true } });
       continue;
     }
     const updated = await prisma.boletinItem.updateMany({
@@ -401,18 +485,20 @@ async function handleTennisUpdate(m: TennisMatch, group: TennisItem[]): Promise<
 
 async function trackFootball(): Promise<void> {
   const now = Date.now();
-  const items: PendingItem[] = await prisma.boletinItem.findMany({
+  const candidates: PendingItem[] = await prisma.boletinItem.findMany({
     where: {
       result: 'PENDING',
       sport: 'FOOTBALL',
-      boletin: { status: 'PENDING' },
+      boletin: { status: { in: ['PENDING', 'LOST'] } },
       kickoffAt: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) },
+      ...reviewFilter('FOOTBALL', now),
     },
     select: {
-      id: true, boletinId: true, homeTeam: true, awayTeam: true, competition: true, market: true, selection: true, kickoffAt: true,
-      boletin: { select: { userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
+      id: true, boletinId: true, homeTeam: true, awayTeam: true, competition: true, market: true, selection: true, kickoffAt: true, needsReview: true,
+      boletin: { select: { status: true, userId: true, name: true, user: { select: { fixtureNotifPrefs: true } } } },
     },
   });
+  const items = candidates.filter((it) => isTrackerCandidate(it, 'FOOTBALL', now));
   if (!items.length) return;
 
   // Group selections by match.
@@ -526,7 +612,7 @@ async function notifyDecided<T extends { id: string; selection: string; boletinI
   decidedOf: (it: T) => string | null,
 ): Promise<void> {
   const fresh: Array<{ it: T; won: boolean }> = [];
-  for (const it of group) {
+  for (const it of group.filter((g) => shouldNotifyLive(g.boletin.status))) {
     const d = decidedOf(it);
     if ((d === 'WON' || d === 'LOST') && await once(`notif:decided:${it.id}`)) fresh.push({ it, won: d === 'WON' });
   }
@@ -548,7 +634,11 @@ async function notifyDecided<T extends { id: string; selection: string; boletinI
 }
 
 /** Game data sent with every live notification: shown in the app list with the crests. */
-interface GameCtx { home: string; away: string; score: string | null; detail: string; sport: string }
+interface GameCtx {
+  home: string; away: string; score: string | null; detail: string; sport: string;
+  /** Routing for the app: ESPN league slug (football) or ISO day (tennis) the match screen needs. */
+  league?: string | null; date?: string | null;
+}
 
 let crestCache: { at: number; teams: Record<string, string>; players: Record<string, string> } | null = null;
 async function crests(): Promise<{ teams: Record<string, string>; players: Record<string, string> }> {
@@ -565,12 +655,12 @@ async function notify(
   body: (userItems: PendingItem[]) => string,
   ctx?: GameCtx,
 ): Promise<void> {
-  const game = ctx ?? (m.home ? { home: m.home.name, away: m.away.name, score: m.score ? `${m.score.home}-${m.score.away}` : null, detail: m.statusDetail, sport: 'FOOTBALL' } : null);
+  const game = ctx ?? (m.home ? { home: m.home.name, away: m.away.name, score: m.score ? `${m.score.home}-${m.score.away}` : null, detail: m.statusDetail, sport: 'FOOTBALL', league: m.competition?.slug ?? null } : null);
   const a = game ? await crests() : null;
   const logo = (n: string) => a?.teams[n] ?? a?.players[n] ?? null;
   const gameData = game ? { ...game, homeLogo: logo(game.home), awayLogo: logo(game.away), image: logo(game.home) ?? logo(game.away) } : {};
   const byUser = new Map<string, PendingItem[]>();
-  for (const it of group) byUser.set(it.boletin.userId, [...(byUser.get(it.boletin.userId) ?? []), it]);
+  for (const it of group.filter((g) => shouldNotifyLive(g.boletin.status))) byUser.set(it.boletin.userId, [...(byUser.get(it.boletin.userId) ?? []), it]);
   const inputs = [...byUser.entries()]
     .filter(([, its]) => (its[0]!.boletin.user.fixtureNotifPrefs ?? []).includes(pref))
     .map(([userId, its]) => ({
@@ -643,7 +733,7 @@ async function settleGroup(group: PendingItem[], m: NormalizedMatch, fixture: Fi
       homeNames: [item.homeTeam, m.home.name], awayNames: [item.awayTeam, m.away.name],
     });
     if (resolution === null) {
-      await prisma.boletinItem.update({ where: { id: item.id }, data: { needsReview: true } });
+      await prisma.boletinItem.updateMany({ where: { id: item.id, needsReview: false }, data: { needsReview: true } });
       continue;
     }
     // Only settle if still pending (another job may have done it meanwhile).

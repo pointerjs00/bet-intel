@@ -17,6 +17,7 @@ services:
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       NODE_ENV: ${NODE_ENV}
       TZ: UTC
+      FORCE_SEED: ${FORCE_SEED:-}
       LOG_LEVEL: ${LOG_LEVEL}
       API_FOOTBALL_KEY: ${API_FOOTBALL_KEY}
       SCRAPER_HTTP_PROXY: ${SCRAPER_HTTP_PROXY}
@@ -29,7 +30,7 @@ services:
     ports:
       - '3000:3000'
     volumes:
-      - uploads_data:/app/uploads
+      - uploads_data:/app/apps/api/uploads
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     depends_on:

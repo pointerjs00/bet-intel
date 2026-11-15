@@ -1,0 +1,11 @@
+POST https://offering.begmedia.com/web/offering.access.api/offering.access.api.MatchService/GetMatchesBySportWithNotifications
+content-type: application/grpc-web+proto
+x-grpc-web: 1
+x-bg-ref-brand: BETCLIC
+x-bg-ref-platform: DESKTOP
+x-bg-ref-regulator-zone: PT
+x-bg-regulation: PT
+origin: https://www.betclic.pt   referer: https://www.betclic.pt/
+body: 5-byte gRPC frame header (0x00 + uint32 BE length) + protobuf { 1:string sport_code ("football"|"basketball"|"tennis"), 2:string market_type_code (opt), 3:string language ("pt"), 4:int32 offset, 5:int32 limit (servidor limita a 100) }
+GetMatchWithNotification: body protobuf { 1:int64 matchId, 2:string language "pt" }
+Resposta: frame 1 = snapshot (~67 KB para 100 jogos, ~170 ms); frames seguintes = notificacoes de odds; trailer grpc-status 14 "A task was canceled" ao fechar.

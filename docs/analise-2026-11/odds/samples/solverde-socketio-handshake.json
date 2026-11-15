@@ -1,0 +1,6 @@
+{
+  "_nota": "Handshake Engine.IO v4 (GET https://sportswidget.solverde.pt/vws/?EIO=4&transport=polling), 2026-11-15. Sem odds: o servidor nao envia nada ate haver subscricoes (protocolo nao decifrado).",
+  "response": "0{\"sid\":\"<sid>\",\"upgrades\":[\"websocket\"],\"pingInterval\":25000,\"pingTimeout\":20000,\"maxPayload\":1000000}",
+  "widget_bootstrap": "https://sportswidget.solverde.pt/sportsbook.js?assetsLocation=https://sportswidget-cdn.solverde.pt&apiUrl=https://sportswidget.solverde.pt -> 302 -> sportswidget-cdn.solverde.pt/sportsbook.26.6.9.0-455fdff.js (1.7 MB)",
+  "prefetch_antigo": "https://sportswidget-cdn.solverde.pt/pre-fetch?locale=pt_PT&page=soccer&type=DESKTOP -> 200 text/html (12191 B, fallback SPA, nao JSON)"
+}

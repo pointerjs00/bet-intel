@@ -1,5 +1,6 @@
 import { PrismaClient, Sport } from '@prisma/client';
 import { COUNTRY_EN_TO_PT } from '../utils/countryNames';
+import { SEED_HASH_KEY, computeCatalogueHash, shouldSkipSeed } from './seedGuard';
 
 const prisma = new PrismaClient();
 
@@ -1869,14 +1870,56 @@ const NATIONAL_TEAM_COMPETITIONS = [
 
 // ─── Seed function ────────────────────────────────────────────────────────────
 
+/** Hash of everything the seed writes; changes only when the code-defined catalogue changes. */
+export function getCatalogueHash(): string {
+  return computeCatalogueHash({
+    competitions: ALL_COMPETITIONS,
+    markets: MARKETS,
+    nationalTeams: NATIONAL_TEAMS,
+    nationalCompetitions: NATIONAL_TEAM_COMPETITIONS,
+    countryNames: COUNTRY_EN_TO_PT,
+    version: 2, // bump when the seed logic itself changes
+  });
+}
+
+/** Minimal key-value store (ioredis-compatible) used to remember the last seeded catalogue. */
+export interface SeedHashStore {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<unknown>;
+}
+
+/**
+ * Startup entry point: runs the seed only when the catalogue changed since the last
+ * successful run. `FORCE_SEED=true` always runs; a Redis failure falls back to running.
+ */
+export async function seedIfCatalogueChanged(store: SeedHashStore): Promise<void> {
+  const hash = getCatalogueHash();
+  const force = process.env.FORCE_SEED === 'true';
+  let stored: string | null = null;
+  try {
+    stored = await store.get(SEED_HASH_KEY);
+  } catch (err) {
+    console.warn('Seed hash lookup failed, running seed:', (err as Error).message);
+  }
+  if (shouldSkipSeed(hash, stored, force)) {
+    console.log('seed skipped: catalogue unchanged');
+    return;
+  }
+  await seed();
+  try {
+    await store.set(SEED_HASH_KEY, hash);
+  } catch (err) {
+    console.warn('Could not store seed hash:', (err as Error).message);
+  }
+}
+
+/**
+ * Upserts the catalogue, then prunes what is no longer in it. Additive writes come first and
+ * pruning is scoped (only competitions / links absent from the catalogue), so a failure midway
+ * never leaves the database without active competitions.
+ */
 export async function seed(): Promise<void> {
   console.log('🌱 Seeding reference data...');
-
-  // Clear team-competition links for non-tennis sports to remove stale associations (e.g. relegated teams).
-  // Tennis player-competition links are managed by ATP/WTA ranking jobs — preserve them.
-  await prisma.teamCompetition.deleteMany({
-    where: { team: { sport: { not: Sport.TENNIS } } },
-  });
 
   // Remove duplicate tennis players created by scraper runs with slightly different name formatting.
   const allTennisTeams = await prisma.team.findMany({
@@ -1894,13 +1937,17 @@ export async function seed(): Promise<void> {
     }
   }
   if (duplicateTennisIds.length > 0) {
-    // Delete TeamCompetition links for duplicates first (FK constraint), then delete the teams.
-    await prisma.teamCompetition.deleteMany({ where: { teamId: { in: duplicateTennisIds } } });
-    await prisma.team.deleteMany({ where: { id: { in: duplicateTennisIds } } });
+    // Links first (FK constraint), then the teams — atomically.
+    await prisma.$transaction([
+      prisma.teamCompetition.deleteMany({ where: { teamId: { in: duplicateTennisIds } } }),
+      prisma.team.deleteMany({ where: { id: { in: duplicateTennisIds } } }),
+    ]);
     console.log(`🧹 Removed ${duplicateTennisIds.length} duplicate tennis player entries`);
   }
-  // Mark all competitions inactive first so renamed countries/tournaments don't leave stale active rows behind.
-  await prisma.competition.updateMany({ data: { isActive: false } });
+
+  // Ids and links that the catalogue defines; everything else is pruned at the end.
+  const keptCompetitionIds = new Set<string>();
+  const wantedLinks = new Set<string>();
 
   // 1. Seed competitions and teams
   let competitionsCreated = 0;
@@ -1921,6 +1968,7 @@ export async function seed(): Promise<void> {
       },
     });
     competitionsCreated++;
+    keptCompetitionIds.add(competition.id);
 
     for (const teamName of comp.teams) {
       const team = await prisma.team.upsert({
@@ -1929,6 +1977,7 @@ export async function seed(): Promise<void> {
         create: { name: teamName, sport: comp.sport, country: comp.country },
       });
 
+      wantedLinks.add(`${team.id}:${competition.id}`);
       await prisma.teamCompetition.createMany({
         data: [{ teamId: team.id, competitionId: competition.id }],
         skipDuplicates: true,
@@ -1952,6 +2001,7 @@ export async function seed(): Promise<void> {
       create: { name, sport: Sport.FOOTBALL, country: name },
     });
     if (nationalComps.length) {
+      for (const c of nationalComps) wantedLinks.add(`${team.id}:${c.id}`);
       await prisma.teamCompetition.createMany({
         data: nationalComps.map((c) => ({ teamId: team.id, competitionId: c.id })),
         skipDuplicates: true,
@@ -1959,6 +2009,22 @@ export async function seed(): Promise<void> {
     }
     teamsCreated++;
   }
+
+  // Prune what the catalogue no longer contains (renamed/removed competitions, relegated teams).
+  // Tennis player-competition links are managed by ATP/WTA ranking jobs — preserve them.
+  const deactivated = await prisma.competition.updateMany({
+    where: { isActive: true, id: { notIn: [...keptCompetitionIds] } },
+    data: { isActive: false },
+  });
+  const existingLinks = await prisma.teamCompetition.findMany({
+    where: { team: { sport: { not: Sport.TENNIS } } },
+    select: { teamId: true, competitionId: true },
+  });
+  const staleLinks = existingLinks.filter((l) => !wantedLinks.has(`${l.teamId}:${l.competitionId}`));
+  for (let i = 0; i < staleLinks.length; i += 500) {
+    await prisma.teamCompetition.deleteMany({ where: { OR: staleLinks.slice(i, i + 500) } });
+  }
+  console.log(`🧹 Deactivated ${deactivated.count} stale competitions, removed ${staleLinks.length} stale team links`);
 
   // 3. Seed markets
   let marketsCreated = 0;

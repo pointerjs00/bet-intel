@@ -13,6 +13,7 @@ import { predictionsSyncJob } from '../jobs/predictionsSyncJob';
 import { playerStatsSyncJob } from '../jobs/playerStatsSyncJob';
 import { venueSyncJob } from '../jobs/venueSyncJob';
 import { coachSyncJob } from '../jobs/coachSyncJob';
+import { asyncHandler } from '../utils/asyncHandler';
 
 export const adminRouter = Router();
 
@@ -38,7 +39,7 @@ adminRouter.post('/backfill-fixtures', (_req: Request, res: Response) => {
 // API-Football backfill (identified by apiFootballId IS NULL AND homeTeamApiId IS NULL),
 // then wipes the corresponding TeamStat rows and rebuilds them from clean data.
 // Run once after the historical backfill to eliminate duplicate teams in standings.
-adminRouter.post('/cleanup-csv-fixtures', async (_req: Request, res: Response) => {
+adminRouter.post('/cleanup-csv-fixtures', asyncHandler(async (_req: Request, res: Response) => {
   try {
     const competitionNames = LEAGUE_MANIFEST.map(l => l.name);
     // Seasons covered by the backfill (API season 2022-2025 → canonical names)
@@ -82,12 +83,12 @@ adminRouter.post('/cleanup-csv-fixtures', async (_req: Request, res: Response) =
     logger.error('[admin] CSV fixture cleanup failed', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
-});
+}));
 
 // GET /api/admin/team-names
 // Returns all distinct teamName values from TeamStat, grouped by competition.
 // Use this to build FIXTURE_TEAM_ALIASES in the mobile app.
-adminRouter.get('/team-names', async (_req: Request, res: Response) => {
+adminRouter.get('/team-names', asyncHandler(async (_req: Request, res: Response) => {
   try {
     const rows = await prisma.teamStat.findMany({
       select: { teamName: true, team: true, competition: true },
@@ -107,7 +108,7 @@ adminRouter.get('/team-names', async (_req: Request, res: Response) => {
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
-});
+}));
 
 // POST /api/admin/jobs/run/:jobName
 // Manually triggers any insight sync job. Returns immediately; job runs in background.
@@ -134,7 +135,7 @@ adminRouter.post('/jobs/run/:jobName', (req: Request, res: Response) => {
 
 // DELETE /api/admin/fixtures-cache
 // Flushes all Redis fixture cache keys so the next request re-runs dedup logic.
-adminRouter.delete('/fixtures-cache', async (_req: Request, res: Response) => {
+adminRouter.delete('/fixtures-cache', asyncHandler(async (_req: Request, res: Response) => {
   try {
     const flushed = await deleteKeysByPattern('fixtures:*');
     logger.info(`[admin] Flushed ${flushed} fixture cache keys`);
@@ -143,4 +144,4 @@ adminRouter.delete('/fixtures-cache', async (_req: Request, res: Response) => {
     logger.error('[admin] Cache flush failed', { error: err.message });
     res.status(500).json({ success: false, error: err.message });
   }
-});
+}));

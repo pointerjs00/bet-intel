@@ -1,0 +1,23 @@
+{
+  "_nota": "Excerto do estado SSR (script ng-state) de https://www.betclic.pt/futebol-sfootball, 2026-11-15",
+  "totalCount": 896,
+  "match": {
+    "matchId": "1276069290184704",
+    "name": "Leixões - GD Chaves",
+    "matchDateUtc": "2026-11-15T18:00:00.0000000Z",
+    "isLive": false,
+    "competition": { "id": "939", "name": "Liga Portugal 2 Meu Super", "sport": { "code": "football", "name": "Futebol", "type": 1 },
+      "countryCode": "PT"
+    },
+    "openMarketCount": 131,
+    "contestants": [
+      { "contestantId": "543842993267031", "name": "Leixões" },
+      { "contestantId": "543841509532324", "name": "GD Chaves" }
+    ],
+    "market": { "id": "1276069295431751", "name": "Resultado (Tempo Regulamentar)", "mainSelections": [ { "id": "1276069297537261", "name": "Leixões", "odds": 1.81, "status": 1 },
+        { "id": "1276069297537262", "name": "Empate", "odds": 3.2, "status": 1 },
+        { "id": "1276069297537263", "name": "GD Chaves", "odds": 3.63, "status": 1 }
+      ]
+    }
+  }
+}

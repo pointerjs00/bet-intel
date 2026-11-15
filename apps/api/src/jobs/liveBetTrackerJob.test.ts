@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { espnLeagueFor } from './liveBetTrackerJob';
+import { espnLeagueFor, isTrackerCandidate, runPolls, shouldNotifyLive } from './liveBetTrackerJob';
 import { teamNamesMatch } from '../services/marketResolutionEngine';
+import { liveItemsWhere } from '../services/boletins/boletinService';
 
 test('competition names stored on bets map to ESPN leagues', () => {
   assert.equal(espnLeagueFor('Liga Portugal Betclic'), 'por.1');
@@ -47,4 +48,39 @@ test('Portuguese country names match ESPN English names', () => {
   assert.ok(teamNamesMatch('República Checa', 'Czechia'));
   assert.ok(teamNamesMatch('Irlanda', 'Republic of Ireland'));
   assert.ok(!teamNamesMatch('Portugal', 'Spain'));
+});
+
+test('tracker candidates: items under review are dropped once their game is over', () => {
+  const now = Date.parse('2026-05-10T20:00:00Z');
+  const ago = (h: number) => new Date(now - h * 3600e3);
+  // Never flagged: always a candidate.
+  assert.ok(isTrackerCandidate({ needsReview: false, kickoffAt: ago(30) }, 'FOOTBALL', now));
+  // Flagged and the game is over: excluded (no external request, no rewrite).
+  assert.ok(!isTrackerCandidate({ needsReview: true, kickoffAt: ago(5) }, 'FOOTBALL', now));
+  assert.ok(!isTrackerCandidate({ needsReview: true, kickoffAt: ago(9) }, 'TENNIS', now));
+  assert.ok(!isTrackerCandidate({ needsReview: true, kickoffAt: ago(5) }, 'BASKETBALL', now));
+  // Flagged but the game is still on: keeps getting live notifications.
+  assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: ago(1) }, 'FOOTBALL', now));
+  assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: ago(6) }, 'TENNIS', now));
+  assert.ok(isTrackerCandidate({ needsReview: true, kickoffAt: new Date(now + 600e3) }, 'BASKETBALL', now));
+});
+
+test('tracker run renews the lock before every poll and stops when it is lost', async () => {
+  let renewals = 0; let polls = 0;
+  const done = await runPolls(async () => { renewals++; return true; }, async () => { polls++; }, async () => {});
+  assert.deepEqual([done, renewals, polls], [3, 3, 3]);
+
+  renewals = 0; polls = 0;
+  const stopped = await runPolls(async () => ++renewals < 2, async () => { polls++; }, async () => {});
+  assert.deepEqual([stopped, polls], [1, 1]);
+});
+
+test('legs of a lost boletim get no live notifications', () => {
+  assert.equal(shouldNotifyLive('LOST'), false);
+  assert.equal(shouldNotifyLive('PENDING'), true);
+});
+
+test('"A decorrer" excludes legs of lost boletins', () => {
+  const where = liveItemsWhere('u1', Date.now());
+  assert.deepEqual(where.boletin, { userId: 'u1', status: { not: 'LOST' } });
 });
