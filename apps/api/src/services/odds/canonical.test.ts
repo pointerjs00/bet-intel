@@ -197,3 +197,9 @@ test('team totals named with "de" and team-named correct scores get the right ke
   assert.equal(footballKey('Resultado exato', 'GD Chaves 1-2', ctx), null);
   assert.equal(footballKey('Resultado', 'Leixões 2-1', ctx), null);
 });
+
+test('review round 1: a non-period suffix after "golos de <equipa>" gives no key', () => {
+  assert.equal(footballKey('Total de golos de Leixões - GD Chaves', 'Mais de 2,5', ctx), null);
+  assert.equal(footballKey('Total de golos de Leixões - Margem', 'Mais de 1,5', ctx), null);
+  assert.equal(footballKey('Total de golos de GD Chaves - 1ª Parte', 'Mais de 0,5', ctx), '1H.TOTAL.goals.A.O.0.5');
+});

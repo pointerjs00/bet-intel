@@ -367,3 +367,13 @@ test('correct score with a team name: home-away score when every reading agrees,
     ['Resultado', 'Leixões 2-1'], ['Resultado correcto', 'Leixões 2-1'], ['Resultado correcto', 'Leixões 2:1'], ['Resultado (Tempo Regulamentar)', 'GD Chaves 1-2'],
   ] as const) assert.equal(legsOf(m, s), null, `${m} / ${s}`);
 });
+
+test('review round 1: only a period suffix is cut from a "golos de <equipa>" market', () => {
+  const t = (team: 'H' | 'A', period: string) => [{ kind: 'TOTAL', period, stat: 'goals', over: true, line: 0.5, team }];
+  assert.deepEqual(legsOf('Total de golos de GD Chaves - 1ª Parte', 'Mais de 0,5'), t('A', '1H'));
+  assert.deepEqual(legsOf('Total de golos de Leixões - 2º tempo', 'Mais de 0,5'), t('H', '2H'));
+  assert.deepEqual(legsOf('Total de golos do Leixões - Jogo', 'Mais de 0,5'), t('H', 'FT'));
+  for (const m of ['Total de golos de Leixões - GD Chaves', 'Total de golos de Leixões - Margem', 'Golos de GD Chaves - Fulano']) {
+    assert.equal(legsOf(m, 'Mais de 1,5'), null, m);
+  }
+});

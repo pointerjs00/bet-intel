@@ -502,8 +502,11 @@ function teamOfMarket(m: string, ctx?: MatchContext): 'H' | 'A' | null | undefin
   if (/\b(equipa da casa|equipa de casa|home team)\b/.test(m)) return 'H';
   if (/\b(equipa visitante|equipa de fora|equipa fora|away team|visitante)\b/.test(m)) return 'A';
   // "Total de golos de/do/da <equipa>", "Total de cantos do <equipa>" (a " - 1ª Parte" suffix is the period).
-  const named = m.match(/\b(?:golos|cantos|cartoes)\s+(?:de|da|do|dos|das)\s+(.+)$/)?.[1]?.split(' - ')[0]?.trim();
-  if (named !== undefined) {
+  const tail = m.match(/\b(?:golos|cantos|cartoes)\s+(?:de|da|do|dos|das)\s+(.+)$/)?.[1];
+  if (tail !== undefined) {
+    // Only a period or extra-time suffix is cut; "Leixões - GD Chaves", "Leixões - Margem": review.
+    const [named, ...suffixes] = tail.split(' - ').map((p) => p.trim());
+    if (suffixes.some((p) => stripPeriod(p) && !/^(prolongamento incluido|incl\.? prolongamento|tempo reg(ulamentar)?\.?)$/.test(p))) return null;
     // "do jogo / da partida / do encontro", "da 1ª parte": the match (or half) total.
     const after = stripPeriod(named);
     if (!after) return undefined;
