@@ -2,9 +2,9 @@
 // Dependencies are injected so tests run without network or Redis.
 
 import { DayCache } from '../sportsData/itemMatch';
-import { teamKey } from '../marketResolutionEngine';
+import { teamKey, teamNamesMatch } from '../marketResolutionEngine';
 import { ProviderFormatError, tracked, type Provider } from '../sportsData/providerHealth';
-import { canonicalKey } from './canonical';
+import { canonicalKey, swapTennisKey } from './canonical';
 import { mergeEvent, compareMultiple, type ComparedSelection, type HousePrice } from './compare';
 import { candidatesFor, eventKey, matchEvent, type Candidate } from './matcher';
 import { createOddsStore, type EventCtx, type OddsStore } from './store';
@@ -147,14 +147,36 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     return markets;
   }
 
-  /** Keys a house's markets; a selection that cannot be keyed is dropped and counted as a format problem. */
-  function canonicalise(sport: OddsSport, house: HouseId, markets: SourceMarket[], ctx: { home: string; away: string }): CanonicalSelection[] {
+  /**
+   * Keys a house's markets in that house's own participant order, then orients tennis/other keys to
+   * the canonical order. Undeterminable tennis orientation drops the house's selections; an
+   * unexpected reversal outside tennis (the matcher never produces one) also drops them.
+   * A selection that cannot be keyed is dropped and counted as a format problem (once per call).
+   */
+  function canonicalise(
+    sport: OddsSport, house: HouseId, markets: SourceMarket[],
+    own: { home: string; away: string }, canon: { home: string; away: string } | null,
+  ): CanonicalSelection[] {
+    let swap = false;
+    if (canon) {
+      const straight = teamNamesMatch(own.home, canon.home) && teamNamesMatch(own.away, canon.away);
+      const crossed = teamNamesMatch(own.home, canon.away) && teamNamesMatch(own.away, canon.home);
+      if (straight || !crossed) {
+        if (!straight && sport === 'TENNIS') return [];
+      } else if (sport === 'TENNIS') {
+        swap = true;
+      } else {
+        return [];
+      }
+    }
     const out: CanonicalSelection[] = [];
     let bad = 0;
     for (const m of markets) {
       try {
         const label = foldLine(m.selectionLabel, m.line);
-        out.push({ key: canonicalKey(sport, m.marketLabel, label, ctx), house, marketLabel: m.marketLabel, selectionLabel: label, odds: m.odds, suspended: m.suspended });
+        let key = canonicalKey(sport, m.marketLabel, label, own);
+        if (key && swap) key = swapTennisKey(key);
+        out.push({ key, house, marketLabel: m.marketLabel, selectionLabel: label, odds: m.odds, suspended: m.suspended });
       } catch {
         bad++;
       }
@@ -177,7 +199,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
       if (!houseEventId) continue;
       try {
         const se = await findSourceEvent(source.house, sport, houseEventId);
-        const ctx = stored ?? { home: se?.home ?? '', away: se?.away ?? '' };
+        const own = se ? { home: se.home, away: se.away } : (stored ?? { home: '', away: '' });
         // Left the stored calendar after kickoff: serve cache only, never count it as a failure.
         const gone = !se && stored !== null && Date.parse(stored.startsAt) < deps.now();
         let markets: SourceMarket[];
@@ -188,7 +210,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
         } else {
           markets = await marketsOf(source, houseEventId);
         }
-        perHouse[source.house] = canonicalise(sport, source.house, markets, ctx);
+        perHouse[source.house] = canonicalise(sport, source.house, markets, own, se ? stored : null);
         houses.push(source.house);
         if (!info && se) info = { home: se.home, away: se.away, startsAt: se.startsAt, competition: se.competition, live: se.live };
       } catch {
@@ -228,11 +250,11 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     }
     const out: EventListItem[] = [];
     for (const [key, entries] of byKey) {
-      const ctx = (await store.getCtx(key)) ?? { home: entries[0]!.ev.home, away: entries[0]!.ev.away };
+      const canon = await store.getCtx(key);
       const perHouse: Partial<Record<HouseId, CanonicalSelection[]>> = {};
       for (const { house, ev } of entries) {
         try {
-          perHouse[house] = canonicalise(sport, house, ev.mainMarkets ?? [], ctx).filter((c) => c.key?.startsWith(MAIN_PREFIX[sport]));
+          perHouse[house] = canonicalise(sport, house, ev.mainMarkets ?? [], { home: ev.home, away: ev.away }, canon).filter((c) => c.key?.startsWith(MAIN_PREFIX[sport]));
         } catch {
           recordFormat(house, 'mercado principal com formato inesperado');
         }

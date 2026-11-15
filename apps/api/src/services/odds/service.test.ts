@@ -223,3 +223,82 @@ test('refreshCatalogue skips a malformed event and shares one DayCache', async (
   assert.ok(seen.every((c) => c === cache));
   assert.equal(seen.length, 1);
 });
+
+import { swapTennisKey } from './canonical';
+
+test('swapTennisKey swaps sides only', () => {
+  assert.equal(swapTennisKey('T.WIN.A'), 'T.WIN.B');
+  assert.equal(swapTennisKey('T.SET2.WIN.B'), 'T.SET2.WIN.A');
+  assert.equal(swapTennisKey('T.GAMES.HCP.A.-2.5'), 'T.GAMES.HCP.B.-2.5');
+  assert.equal(swapTennisKey('T.SETS.2-0'), 'T.SETS.0-2');
+  assert.equal(swapTennisKey('T.GAMES.O.22.5'), 'T.GAMES.O.22.5');
+  assert.equal(swapTennisKey('T.WIN.A+T.SETS.2-1'), 'T.WIN.B+T.SETS.1-2');
+});
+
+function positional(h1: number, h2: number, s20: number, s02: number, l1 = '-2.5', l2 = '+2.5'): SourceMarket[] {
+  return [
+    { marketLabel: 'Handicap de jogos', selectionLabel: `Handicap 1 ${l1}`, odds: h1, suspended: false },
+    { marketLabel: 'Handicap de jogos', selectionLabel: `Handicap 2 ${l2}`, odds: h2, suspended: false },
+    { marketLabel: 'Resultado em Sets', selectionLabel: '2-0', odds: s20, suspended: false },
+    { marketLabel: 'Resultado em Sets', selectionLabel: '0-2', odds: s02, suspended: false },
+  ];
+}
+
+async function swappedTennis(opts: { candidate: boolean; radar?: string; second?: [string, string] }) {
+  const [x, y] = ['Jannik Sinner', 'Carlos Alcaraz'];
+  const second = opts.second ?? [y, x];
+  const mk = (house: HouseId, id: string, a: string, b: string, m: SourceMarket[]): SourceEvent => ({
+    ...tev(house, id, a, b, m), extraIds: opts.radar ? { betRadarId: opts.radar } : undefined,
+  });
+  const m1 = positional(1.8, 2.0, 3.0, 9.0);
+  const m2 = positional(3.0, 1.3, 7.0, 2.2, '+2.5', '-2.5');
+  const a = new FakeSource('betclic', [mk('betclic', 'b1', x, y, m1)], m1);
+  const b = new FakeSource('lebull', [mk('lebull', 'l1', second[0], second[1], m2)], m2);
+  const store = createOddsStore(createFakeRedis());
+  const cands = async () => (opts.candidate
+    ? [{ providerMatchId: 't1', league: 'atp', sport: 'TENNIS' as const, home: y, away: x, startsAt: TS }] : []);
+  const svc = createOddsService({ sources: [a, b], store, candidates: cands, now: () => NOW, track: (_p, fn) => fn() });
+  for (const s of [a, b]) await svc.refreshCatalogue(s, 'TENNIS');
+  return svc;
+}
+
+async function checkPositional(svc: Awaited<ReturnType<typeof swappedTennis>>, key: string) {
+  const view = await svc.getEvent(key);
+  const rows = view!.rows;
+  // Sinner is betclic "Handicap 1" (1.8) and lebull "Handicap 2" (1.3): same player, same row.
+  const hcp = rows.filter((r) => r.key?.startsWith('T.GAMES.HCP.') && r.prices.betclic?.odds === 1.8)[0]!;
+  assert.equal(hcp.prices.lebull?.odds, 1.3, 'Sinner handicap: betclic 1.8 vs lebull 1.3');
+  const sets = rows.find((r) => r.prices.betclic?.odds === 3.0 && r.key?.startsWith('T.SETS.'))!;
+  assert.equal(sets.prices.lebull?.odds, 2.2, 'Sinner 2-0');
+}
+
+test('tennis positional labels in swapped order: espn: key', async () => {
+  const svc = await swappedTennis({ candidate: true });
+  await checkPositional(svc, 'espn:TENNIS:t1');
+});
+
+test('tennis positional labels in swapped order: bet: key', async () => {
+  const svc = await swappedTennis({ candidate: false, radar: '77' });
+  await checkPositional(svc, 'bet:TENNIS:77');
+});
+
+test('tennis positional labels in swapped order: n: key', async () => {
+  const svc = await swappedTennis({ candidate: false });
+  const list = await svc.listEvents('TENNIS', '2026-11-16');
+  await checkPositional(svc, list[0]!.eventKey);
+});
+
+test('tennis abbreviated house names: never a wrong player, orientation unknown drops the house', async () => {
+  const mb = win('Jannik Sinner', 1.5, 'Carlos Alcaraz', 2.6);
+  const ml = win('Alcaraz Garfia C.', 2.5, 'Sinner J.', 1.55);
+  const mk = (h: HouseId, id: string, a: string, b: string, m: SourceMarket[]) => ({ ...tev(h, id, a, b, m), extraIds: { betRadarId: '88' } });
+  const a = new FakeSource('betclic', [mk('betclic', 'b1', 'Jannik Sinner', 'Carlos Alcaraz', mb)], mb);
+  const b = new FakeSource('lebull', [mk('lebull', 'l1', 'Alcaraz Garfia C.', 'Sinner J.', ml)], ml);
+  const store = createOddsStore(createFakeRedis());
+  const svc = createOddsService({ sources: [a, b], store, candidates: async () => [], now: () => NOW, track: (_p, fn) => fn() });
+  for (const s of [a, b]) await svc.refreshCatalogue(s, 'TENNIS');
+  const view = await svc.getEvent('bet:TENNIS:88');
+  const wa = view!.rows.find((r) => r.key === 'T.WIN.A');
+  assert.equal(wa?.prices.betclic?.odds, 1.5);
+  if (wa?.prices.lebull) assert.equal(wa.prices.lebull.odds, 1.55);
+});
