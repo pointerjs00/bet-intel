@@ -12,7 +12,7 @@ const listQuery = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((d) => !Number.isNaN(Date.parse(d))),
 });
 const multipleBody = z.object({
-  selections: z.array(z.object({ eventKey: z.string().min(1), selectionKey: z.string().min(1) })).min(1).max(30),
+  selections: z.array(z.object({ eventKey: z.string().min(1), selectionKey: z.string().min(1) })).min(1).max(10),
 });
 
 /** Router without authentication, so tests can inject a service; production mounts oddsRouter. */
