@@ -42,3 +42,15 @@ Leitura: o servidor está na Alemanha, e as casas com licença portuguesa bloque
 ## Placard/Solverde — tentativa de captura no browser (15/11/2026)
 
 Com autorização do utilizador, no Chrome dele: a página de evento é `https://www.placard.pt/apostas/sports/soccer/events/<id>` (ex. 34739366, Espanha–Inglaterra). Os sockets visíveis na página (`wss://oapi.placard.pt/socket.io/1/...`, Socket.IO 0.9) só trocam heartbeats e o keep-alive do chat. As odds chegaram sem pedidos XHR/fetch visíveis e sem mensagens em `WebSocket`, `Worker`, `MessagePort` ou `BroadcastChannel` do contexto principal (ganchos instalados depois do carregamento). Conclusão: o canal de odds foi aberto antes dos ganchos ou dentro de um worker. **Próximo passo:** captura manual nas DevTools (Network → filtro WS, que também mostra sockets de workers → abrir `vws` → separador Messages → abrir um jogo e copiar as primeiras mensagens enviadas e recebidas).
+
+## Teste a partir do Raspberry Pi em casa (16/11/2026 03:10 UTC)
+
+| Pedido | Pi (Linux, OpenSSL) | PC na mesma rede (Windows, Schannel) |
+|---|---|---|
+| Betclic SSR e gRPC-web | 200 OK | 200 OK |
+| Betano JSON ao vivo e página de liga | **403** (IPv4; o Pi não tem IPv6) | **200** |
+| Solverde handshake | 200 OK | — |
+| Placard handshake | erro de DNS no Pi (por confirmar) | — |
+| Lebull site e API | 200 OK | — |
+
+**Leitura:** o PC e o Pi saem pelo mesmo IP português de casa, mas só o Pi é bloqueado. A Betano bloqueia pela assinatura do cliente (TLS/HTTP), não pelo IP. Contornar isso (imitar a assinatura de um browser) é exatamente o tipo de contorno de proteção anti-bot que as regras do comparador excluem. **Por isso a Betano fica de fora**, a não ser que surja uma via oficial. As outras quatro casas mantêm-se.
