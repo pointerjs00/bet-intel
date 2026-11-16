@@ -114,7 +114,7 @@ test('getMarkets absolutises a relative pageUrl and fetches it with navigation h
 
 test('getMarkets through createBetanoSource passes the hint', async () => {
   const { deps } = fake({ [PAGE]: { status: 200, text: html(stateOk) } });
-  const source = createBetanoSource(deps) as { getMarkets(id: string, hint?: { pageUrl?: string }): ReturnType<ReturnType<typeof createBetanoSource>['getMarkets']> }; // Task 6 widens OddsSource
+  const source = createBetanoSource(deps);
   const out = await source.getMarkets('5', { pageUrl: PAGE });
   assert.equal(out.length, 2);
 });

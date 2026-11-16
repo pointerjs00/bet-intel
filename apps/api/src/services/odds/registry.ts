@@ -1,10 +1,12 @@
 import { logger } from '../../utils/logger';
 import { createBetclicSource } from './sources/betclic';
+import { betanoSourceFactory } from './sources/betano';
 import type { HouseId, OddsSource } from './types';
 
 /** Adapter factories, filled in as each house adapter lands. */
 const FACTORIES: Partial<Record<HouseId, () => OddsSource>> = {
   betclic: () => createBetclicSource(),
+  betano: betanoSourceFactory,
 };
 
 /** Registers an adapter factory (used by the adapter modules). */

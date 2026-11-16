@@ -138,7 +138,7 @@ export function createBetanoSource(deps: BetanoDeps): OddsSource {
   return {
     house: 'betano',
     listEvents: (sport, fromIso, toIso) => listBetanoEvents(sport, fromIso, toIso, deps),
-    getMarkets: (houseEventId, hint?: { pageUrl?: string }) => getBetanoMarkets(houseEventId, hint, deps),
+    getMarkets: (houseEventId, hint) => getBetanoMarkets(houseEventId, hint, deps),
   };
 }
 
