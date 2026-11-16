@@ -34,7 +34,8 @@ s.listEvents('FOOTBALL', new Date(t).toISOString(), new Date(t + 7.2e6).toISOStr
   .then(e => console.log('eventos:', e.length, e[0]));"
 
 # Parte I
-# Challenge: correr `pnpm --filter api betano:solve` (PC de casa, mesmo IP), depois
+# Challenge: correr `pnpm --filter api betano:solve` (PC de casa, mesmo IP; escreve apps/api/betano-jar.json, ou usar --out),
+# copiar o ficheiro para o Pi e, a partir da raiz do repo, usar o caminho do ficheiro:
 $DC exec -T redis redis-cli -x SET betano:jar < betano-jar.json
 $DC exec -T redis redis-cli EXPIRE betano:jar 43200
 $DC exec -T redis redis-cli DEL betano:challenge
