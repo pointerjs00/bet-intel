@@ -1,0 +1,11 @@
+{
+  "method": "MatchService/GetMatchWithNotification",
+  "request": {
+    "match_id": "1280435240828928",
+    "language": "pt"
+  },
+  "capturedAt": "2026-11-15T23:27:53.833Z",
+  "frame": "first gRPC-web data frame (snapshot), protobuf bytes without the 5-byte frame header",
+  "bytes": 45863,
+  "note": "Estónia - Bulgária (Liga das Nações), openMarketCount 170. Without category_id the server returns only the Top sub-category (16 markets)."
+}

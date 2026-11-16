@@ -1,0 +1,3 @@
+{"eventId": 42244382, "teamA": "SL Benfica", "teamB": "Famalicao", "sportName": "Football", "leagueId": 4565, "leagueName": "Portugal. Primeira League", "timestamp": 1796069700000, "isLive": false, "oddsCount": 224, "stakeTypes": [
+ {"stakeTypeId": 1, "stakeTypeName": "Result", "stakes": [{"stakeName": "SL Benfica", "stakeArgument": null, "betFactor": 1.13}, {"stakeName": "X", "stakeArgument": null, "betFactor": 6.97}, {"stakeName": "Famalicao", "stakeArgument": null, "betFactor": 13.18}]},
+ {"stakeTypeId": 3, "stakeTypeName": "Total", "stakes": [{"stakeName": "Over", "stakeArgument": 1.5, "betFactor": 1.05}, {"stakeName": "Under", "stakeArgument": 1.5, "betFactor": 6.21}, {"stakeName": "Over", "stakeArgument": 2.5, "betFactor": 1.34}]}]}

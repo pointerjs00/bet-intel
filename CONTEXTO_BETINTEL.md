@@ -237,6 +237,8 @@ Endpoints a conhecer:
 | Minificação R8 no APK | Apagava classes do `expo-modules-core` → app fechava ao abrir. |
 | Tab Amigos e tab Perfil na barra | Uso pessoal; ficaram atrás do avatar (D4). |
 
+**Nota (15/11/2026):** o utilizador pediu o comparador de odds de volta (Betclic, Betano, Lebull, Placard, Solverde), segundo `docs/analise-2026-11/PLANO_ODDS.md`. A regra "não contornar proteções anti-bot" mantém-se. A Betano deixa de precisar de proxy: a recolha faz-se a partir do Raspberry Pi em casa, com IP português (`docs/MIGRACAO_RASPBERRY_PI.md`).
+
 ---
 
 ## 9. Princípios de design e preferências do utilizador

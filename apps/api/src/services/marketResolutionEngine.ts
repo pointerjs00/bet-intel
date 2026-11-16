@@ -87,14 +87,14 @@ export interface MatchContext {
   awayNames: string[];
 }
 
-type Side = 'H' | 'D' | 'A';
-type Period = 'FT' | '1H' | '2H';
+export type Side = 'H' | 'D' | 'A';
+export type Period = 'FT' | '1H' | '2H';
 
 type TeamStat = 'goals' | 'corners' | 'cards' | 'shots' | 'shotsOnTarget' | 'fouls' | 'offsides';
 type PlayerStat = 'goals' | 'assists' | 'shots' | 'shotsOnTarget' | 'fouls';
 type ScorerMode = 'ANY' | 'FIRST' | 'LAST' | 'NTH' | 'COUNT';
 
-type Leg =
+export type Leg =
   | { kind: 'RESULT'; period: Period; outcomes: Side[] }
   | { kind: 'TOTAL'; period: Period; stat: TeamStat; over: boolean; line: number; team?: 'H' | 'A' }
   | { kind: 'BTTS'; period: Period; yes: boolean }
@@ -111,13 +111,16 @@ type Leg =
   | { kind: 'FIRST_GOAL'; side: 'H' | 'A' | null }
   | { kind: 'PARITY'; period: Period; even: boolean };
 
-interface ParsedBet { legs: Leg[]; mode: 'ALL' | 'ANY'; extraTimeIncluded: boolean }
+export interface ParsedBet { legs: Leg[]; mode: 'ALL' | 'ANY'; extraTimeIncluded: boolean }
 
 // ─── Text helpers ────────────────────────────────────────────────────────────
 
 function norm(s: string): string {
   return s
     .toLowerCase()
+    // Ordinals: "1ª Parte" / "2.º tempo" → "1a parte" / "2.o tempo" (NFD keeps ª and º as they are).
+    .replace(/ª/g, 'a')
+    .replace(/º/g, 'o')
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/(\d),(\d)/g, '$1.$2')
@@ -144,7 +147,7 @@ const PT_COUNTRY_KEYS: Record<string, string> = Object.fromEntries(
   Object.entries(COUNTRY_PT_TO_EN).map(([pt, en]) => [normaliseTeamName(pt), normaliseTeamName(en)]),
 );
 
-function teamKey(name: string): string {
+export function teamKey(name: string): string {
   // Hyphens as spaces: "Paris Saint-Germain" must equal "Paris Saint Germain" (and "Paris SG").
   const n = normaliseTeamName(name.replace(/[-–]/g, ' '));
   return resolveAlias(PT_TEAM_NAMES[n] ?? PT_COUNTRY_KEYS[n] ?? n);
@@ -196,7 +199,7 @@ export function teamMatchScore(a: string, b: string): number {
 }
 
 /** Maps a team name found in a selection to the home or away side; null when ambiguous or unknown. */
-function sideOf(text: string, ctx?: MatchContext): 'H' | 'A' | null {
+export function sideOf(text: string, ctx?: MatchContext): 'H' | 'A' | null {
   if (!ctx || !text.trim()) return null;
   const key = teamKey(text);
   const exactHome = ctx.homeNames.some((n) => teamKey(n) === key);
@@ -207,6 +210,20 @@ function sideOf(text: string, ctx?: MatchContext): 'H' | 'A' | null {
   if (home === away) return null;
   return home ? 'H' : 'A';
 }
+
+/**
+ * Like sideOf, but the text must BE a team name (same name after aliases, or the same significant
+ * words), not merely contain one: "leixoes nao", "apenas leixoes", "leixoes/mais de 2.5" → null.
+ */
+function strictSideOf(text: string, ctx?: MatchContext): 'H' | 'A' | null {
+  if (!ctx || !text.trim()) return null;
+  const home = ctx.homeNames.some((n) => teamMatchScore(text, n) >= 2);
+  const away = ctx.awayNames.some((n) => teamMatchScore(text, n) >= 2);
+  return home === away ? null : home ? 'H' : 'A';
+}
+
+// Words that negate or qualify "<equipa> marca" ("não marca", "apenas Leixões marca", "sem marcar").
+const SCORE_QUALIFIER = /\b(nao|sem|apenas|so|somente|nenhum|nenhuma|ninguem|unica|unico|exclusivamente|branco)\b/;
 
 const DRAW_WORDS = new Set(['x', 'empate', 'draw']);
 const HOME_WORDS = new Set(['1', 'casa', 'home']);
@@ -225,12 +242,16 @@ function outcomeOf(raw: string, ctx?: MatchContext): Side | null {
 
 // Markets that need data we don't have (aggregate over two legs, goal minute, which half has more
 // goals, exact corner count, other sports' props). They go to review.
-const UNSUPPORTED = /\b(eliminatoria|qualifica|touchdown|ressaltos|minuto|intervalos|mais cantos|metade|exato de cantos|exacto|cabeca|fora da area|livre direto|substituto do)\b/;
+// Minute ranges ("primeiros 10 minutos", "1X2 - 15 minutos") and "resto do jogo" are not the match result either.
+// "Marca em ambas as partes" is per-half scoring, not "ambas marcam".
+const UNSUPPORTED = /\b(eliminatoria|qualifica|touchdown|ressaltos|minutos?|resto do jogo|intervalos|mais cantos|metade|exato de cantos|exacto|cabeca|fora da area|livre direto|substituto do|ambas (as )?partes|nao marcam)\b/;
+
+const TEAM_GOAL_ORDER = /\b(ultima|segunda|terceira|quarta|quinta|[2-9]\.?a) equipa a marcar\b|\bequipa\b.*\b(ultimo|segundo|terceiro|quarto|quinto|[2-9]\.?o) golo\b|\b(last|second|third) team to score\b/;
 
 function periodOf(raw: string): Period {
   const text = raw.replace(/intervalo\/final|ht\/ft/g, ' ');
-  if (/\b(primeira parte|1a parte|1\.a parte|1st half|first half|intervalo)\b/.test(text)) return '1H';
-  if (/\b(segunda parte|2a parte|2\.a parte|2nd half|second half)\b/.test(text)) return '2H';
+  if (/\b(primeira parte|primeiro tempo|1\.?a parte|1\.?o tempo|1st half|first half|intervalo|ht|1h|1t|1p)\b/.test(text)) return '1H';
+  if (/\b(segunda parte|segundo tempo|2\.?a parte|2\.?o tempo|2nd half|second half|2h|2t|2p)\b/.test(text)) return '2H';
   return 'FT';
 }
 
@@ -251,6 +272,16 @@ function playerStatOf(text: string): PlayerStat {
   return s === 'shots' || s === 'shotsOnTarget' || s === 'fouls' ? s : 'goals';
 }
 
+// Words that may follow a total's line ("Acima de 9,5 cantos", "Mais de 2,5 golos (tempo reg.) - 1ª Parte").
+const TOTAL_UNIT_WORDS = /\b(golos?|gols?|goals?|pontos?|points?|cantos?|corners?|cart(ao|oes)|cards?|jogos?|games?|sets?|remates?|shots?|a baliza|na baliza|enquadrados?|on target|faltas?|fouls?|foras? de jogo|offsides?|assistencias?|assists?|tempo reg(ulamentar)?\.?|prolongamento incluido|incl\.? prolongamento)\b/g;
+
+function onlyUnitWords(rest: string): boolean {
+  return rest
+    .replace(new RegExp(PERIOD_WITH_LINK.source, 'g'), ' ')
+    .replace(TOTAL_UNIT_WORDS, ' ')
+    .replace(/[\s\-–:,.]+/g, '') === '';
+}
+
 const TOTAL_RE = /\b(mais de|acima de|over|menos de|abaixo de|under)\s*(\d+(?:\.\d+)?)/;
 
 function parseTotal(text: string, market: string, ctx?: MatchContext): Leg | null {
@@ -266,10 +297,14 @@ function parseTotal(text: string, market: string, ctx?: MatchContext): Leg | nul
     line = parseFloat(mm[1]!);
   }
   if (line === null || dir === null) return null;
+  // Only unit, stat and period words may follow the line: "Mais de 2,5 Fulano" is not the match total.
+  if (m && !onlyUnitWords(text.slice(m.index! + m[0].length))) return null;
   const over = /mais|acima|over/.test(dir);
   const context = `${market} ${text}`;
   const before = m ? text.slice(0, m.index).replace(/[-–:]\s*$/, '').replace(/\b(marca|faz|tem|regista)$/, '').trim() : '';
-  const team = before ? sideOf(before, ctx) : null;
+  // The words before the line must be a team itself ("Leixões/Mais de 2,5" is a result + total, not a team total).
+  const team = before ? strictSideOf(before, ctx) : null;
+  if (before && !team && sideOf(before, ctx)) return null;
   if (before && !team) {
     // "Gyökeres Mais de 1,5" in a player market: a player stat, never a team total.
     if (!/jogador|player|remate|assistenc|marcador|faltas? cometidas/.test(context)) return null;
@@ -280,6 +315,8 @@ function parseTotal(text: string, market: string, ctx?: MatchContext): Leg | nul
 
 /** "Galatasaray (+4)", "Galatasaray +1.5", "FC Porto -1" in a handicap market. */
 function parseHandicap(text: string, market: string, ctx?: MatchContext): Leg | null {
+  // "Empate (Leixões -2)": the draw outcome of a 3-way handicap, not that team's handicap.
+  if (/^(empate|draw|x)\b/.test(text)) return null;
   const m = text.match(/^(.+?)\s*\(?\s*([+-]\d+(?:\.\d+)?)\s*\)?$/);
   if (!m) return null;
   const side = sideOf(m[1]!.replace(/\bvence\b/, '').trim(), ctx);
@@ -312,9 +349,20 @@ function parseScorer(text: string, market: string, ctx?: MatchContext): Leg | nu
     return mode === 'ANY' || mode === 'COUNT' ? null : { kind: 'SCORER', mode, player: null, n };
   }
   if (!name) return null;
-  // "Benfica marca": a team to score, not a player.
-  const team = sideOf(name, ctx);
-  if (team) return mode === 'ANY' ? { kind: 'TOTAL', period: periodOf(market), stat: 'goals', over: true, line: 0.5, team } : null;
+  // "Benfica não marca" → that team under 0.5; any other qualifier ("apenas", "sem"…) → review.
+  const negated = /^(.+?)\s+nao$/.exec(name);
+  if (negated && !SCORE_QUALIFIER.test(negated[1]!)) {
+    const team = strictSideOf(negated[1]!, ctx);
+    return team && mode === 'ANY' ? { kind: 'TOTAL', period: periodOf(market), stat: 'goals', over: false, line: 0.5, team } : null;
+  }
+  if (SCORE_QUALIFIER.test(name)) return null;
+  // "Benfica marca": a team to score, not a player. The text must be the team itself; a text that only
+  // contains a team name ("Leixões Fulano") is neither the team nor surely a player: review.
+  // In a market that also names a result, a bare team (no "marca") may be the result leg: review.
+  const team = strictSideOf(name, ctx);
+  const bareTeamInResultMarket = !/\bmarca\b/.test(text) && isResultMarket(market);
+  if (team) return mode === 'ANY' && !bareTeamInResultMarket ?{ kind: 'TOTAL', period: periodOf(market), stat: 'goals', over: true, line: 0.5, team } : null;
+  if (sideOf(name, ctx)) return null;
   name = name.replace(/\bvence$/, '').trim();
   return { kind: 'SCORER', mode, player: name, n, orAssist, orSub };
 }
@@ -325,6 +373,46 @@ function isBttsMarket(market: string): boolean {
 
 function isResultMarket(market: string): boolean {
   return /\b(resultado|1x2|vencedor|dupla|hipotese|double chance|vence)\b/.test(market);
+}
+
+// (Betclic's "Resultado correcto" is left out on purpose: no sample shows how it writes its scores, so a
+// selection there goes to review; the score guard below keeps it from being read as the winner.)
+const CORRECT_SCORE_MARKET = /\b(resultado corret|resultado exat|marcador corret|correct score)/;
+const SCORE_IN_TEXT = /\b\d+\s*[-:]\s*\d+\b/;
+
+/**
+ * A correct-score selection. A team named before or after the score ("GD Chaves 1-2") may mean the
+ * home-away score or that team's goals first; no house sample shows which, so the score is taken only
+ * when both readings agree: the home team is named, or the score is a draw. Otherwise review (null).
+ */
+function parseScore(t: string, ctx?: MatchContext): Leg | null {
+  const m = t.match(/^(.*?)\s*\b(\d+)\s*[-:]\s*(\d+)\b(.*)$/);
+  if (!m) return null;
+  const home = parseInt(m[2]!, 10);
+  const away = parseInt(m[3]!, 10);
+  const clean = (x: string) => x.replace(/^[\s:-]+|[\s:-]+$/g, '');
+  const before = clean(m[1]!);
+  const after = clean(m[4]!);
+  if (before && after) return null;
+  const who = before || after;
+  const score: Leg = { kind: 'SCORE', home, away };
+  if (!who) return score;
+  if (/^(empate|draw|x)$/.test(who)) return home === away ? score : null;
+  const side = strictSideOf(who, ctx);
+  return side === 'H' || (side === 'A' && home === away) ? score : null;
+}
+
+/**
+ * True when an odd/even market is about the match's goals ("Par/Ímpar", "Total de golos - par/ímpar - 1ª Parte").
+ * Whatever is left after the parity, goals, match and half words (a team, "cantos") makes it another market.
+ */
+function isMatchGoalsParity(market: string): boolean {
+  const rest = market
+    .replace(/\b(par\/impar|impar\/par|odd\/even|even\/odd|par ou impar|impar ou par|prolongamento incluido|incl\.? prolongamento)\b/g, ' ')
+    .replace(new RegExp(HALF_PHRASE.source, 'g'), ' ')
+    .replace(/\b(total|totais|numero|de|do|da|no|na|golos?|goals?|jogo|partida|encontro|par|impar|odd|even|tempo reg(ulamentar)?\.?)\b/g, ' ')
+    .replace(/[\s\-–:,/.]+/g, '');
+  return rest === '';
 }
 
 /** Parses one leg of a selection, using the market text as context. */
@@ -361,8 +449,9 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
     return name && !sideOf(name, ctx) ? { kind: 'PLAYER_CARD', player: name } : null;
   }
 
-  // First team to score
-  if (/primeira equipa a marcar|equipa a marcar primeiro|marca primeiro|first team to score/.test(market)) {
+  // First team to score (Betclic: "1.ª equipa a marcar", "Equipa marca o Primeiro golo"). Restricted to a
+  // half ("Primeira Parte - 1.ª equipa a marcar") it is still this leg; refineLegs sends it to review.
+  if (/primeira equipa a marcar|\b1\.?a equipa a marcar|equipa marca o primeiro golo|equipa a marcar primeiro|marca primeiro|first team to score/.test(market)) {
     if (NO_GOAL.test(t) || /^(nenhuma|nenhum golo|sem golos)$/.test(t)) return { kind: 'FIRST_GOAL', side: null };
     const s = sideOf(t.replace(/\b(marca primeiro|vence)\b/g, '').trim(), ctx);
     return s ? { kind: 'FIRST_GOAL', side: s } : null;
@@ -370,7 +459,8 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
 
   // Odd / even goals
   if (/\bimpar\b|odd\/even|par\/|\/par\b/.test(market) && /^(par|impar|even|odd)$/.test(t)) {
-    return { kind: 'PARITY', period: periodOf(market), even: /^(par|even)$/.test(t) };
+    // Match goals only: a market naming anything else ("Estónia -Total de golos - par/ímpar", corners) → review.
+    return isMatchGoalsParity(market) ? { kind: 'PARITY', period: periodOf(market), even: /^(par|even)$/.test(t) } : null;
   }
 
   if (TOTAL_RE.test(t) || /^(mais|acima|over|menos|abaixo|under)$/.test(t)) return parseTotal(t, market, ctx);
@@ -385,13 +475,10 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
   // Both teams to score
   if (/^(sim|yes|s)$/.test(t) && isBttsMarket(market)) return { kind: 'BTTS', period: periodOf(market), yes: true };
   if (/^(nao|no|n)$/.test(t) && isBttsMarket(market)) return { kind: 'BTTS', period: periodOf(market), yes: false };
-  if (/^(ambas|as duas equipas) marcam$/.test(t)) return { kind: 'BTTS', period: periodOf(market), yes: true };
+  if (/^(ambas( as)?( equipas)?|as duas equipas) marcam$/.test(t)) return { kind: 'BTTS', period: periodOf(market), yes: true };
 
-  // Correct score
-  const sc = t.match(/^(\d+)\s*[-:]\s*(\d+)$/);
-  if (sc && /\b(resultado corret|resultado exat|marcador corret|correct score)/.test(market)) {
-    return { kind: 'SCORE', home: parseInt(sc[1]!, 10), away: parseInt(sc[2]!, 10) };
-  }
+  // Correct score ("2-1", "Leixões 2-1", "2-1 Leixões", "Empate 1-1"): a score or review, never the winner alone.
+  if (CORRECT_SCORE_MARKET.test(market)) return parseScore(t, ctx);
 
   // Draw no bet
   if (/\b(empate anula|draw no bet|sem empate)\b/.test(market)) {
@@ -423,45 +510,262 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
 
   // Single outcome: "1", "X", "Empate", "SL Benfica", "SL Benfica vence"
   if (isResultMarket(market) || /\bvence\b/.test(t)) {
+    // "Leixões / Sim" (result/BTTS written with a slash): more than one outcome, never just the team.
+    if (t.includes('/')) return null;
+    // "Leixões 2-1" names a score, not only the winner.
+    if (SCORE_IN_TEXT.test(t)) return null;
     const s = outcomeOf(t, ctx);
     return s ? { kind: 'RESULT', period, outcomes: [s] } : null;
   }
   return null;
 }
 
-/** Splits a selection/market into leg texts. Returns null when the bet cannot be parsed. */
+// "<x> - <y>" in a market label, also with the space missing on one side ("Leixões -Total de golos").
+// A hyphen inside a name ("Saint-Germain") has no space on either side.
+const LABEL_SEPARATOR = /\s+[-–]\s*|\s*[-–]\s+/;
+
+// Words that make a "<x> - …" piece of a market label a market description, not a team name.
+const MARKET_TEXT = /\b(total|golos?|resultado|mais|menos|acima|abaixo|over|under|cantos?|cart(ao|oes)|remates?|faltas?|foras?|jogo|parte|tempo|intervalo|handicap|asiatico|equipas?|ambas|marcam?|baliza|jogador|player|prolongamento|incluido|final|goals?|half|ht|ft|1h|2h|1t|2t|1p|2p)\b/;
+
+/**
+ * Team named by a team-total market label ("Total de Golos da Equipa da Casa", "Leixões - Total de golos",
+ * "Total de golos do GD Chaves"). undefined = the label names no team; null = it names one we can't map.
+ */
+function teamOfMarket(m: string, ctx?: MatchContext): 'H' | 'A' | null | undefined {
+  if (/\b(equipa da casa|equipa de casa|home team)\b/.test(m)) return 'H';
+  if (/\b(equipa visitante|equipa de fora|equipa fora|away team|visitante)\b/.test(m)) return 'A';
+  // "Total de golos de/do/da <equipa>", "Total de cantos do <equipa>" (a " - 1ª Parte" suffix is the period).
+  const tail = m.match(/\b(?:golos|cantos|cartoes)\s+(?:de|da|do|dos|das)\s+(.+)$/)?.[1];
+  if (tail !== undefined) {
+    // Only a period or extra-time suffix is cut; "Leixões - GD Chaves", "Leixões - Margem": review.
+    const [named, ...suffixes] = tail.split(LABEL_SEPARATOR).map((p) => p.trim());
+    if (suffixes.some((p) => stripPeriod(p) && !/^(prolongamento incluido|incl\.? prolongamento|tempo reg(ulamentar)?\.?)$/.test(p))) return null;
+    // "do jogo / da partida / do encontro", "da 1ª parte": the match (or half) total.
+    const after = stripPeriod(named);
+    if (!after) return undefined;
+    // Team names win over the generic "da casa" ("Total de golos da Casa Pia"). The text must be the team
+    // itself: a text that only contains a team name ("Leixões Fulano") is not surely that team.
+    const side = strictSideOf(after, ctx);
+    if (side) return side;
+    if (sideOf(after, ctx)) return null;
+    if (/^(casa|home)$/.test(after)) return 'H';
+    if (/^(fora|away)$/.test(after)) return 'A';
+    return null;
+  }
+  const parts = m.split(LABEL_SEPARATOR).map((p) => p.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    // Each piece is checked as a team first: names hold digits too ("Schalke 04", "1. FC Köln").
+    const sides = new Set<'H' | 'A' | null>();
+    for (const piece of parts) {
+      const strict = strictSideOf(piece, ctx);
+      if (strict) sides.add(strict);
+      // Market words, or no word at all ("1x2", "2.5"): a market description. A digit alone no longer makes
+      // one ("Mainz 05" with the event's name written otherwise).
+      // Short words count only when they are periods ("HT", "1H"): "ET" (extra time) is unmapped → review.
+      else if (MARKET_TEXT.test(piece) || (/\d/.test(piece) && !/[a-z]{3,}/.test(piece))) continue;
+      else sides.add(sideOf(piece, ctx)); // a team-like piece we cannot map: never the match total
+    }
+    if (sides.size === 1) return [...sides][0]!;
+    if (sides.size > 1) return null; // "Leixões - GD Chaves - Total de golos": which team?
+  }
+  return /\bequipa\b/.test(m) ? null : undefined;
+}
+
+// Kinds the engine settles on the full match only.
+const FULL_MATCH_ONLY = new Set<Leg['kind']>(['SCORE', 'DNB', 'FIRST_GOAL', 'SCORER', 'PLAYER_STAT', 'PLAYER_CARD']);
+// A result "with a margin", "to nil", "both halves"…: not the plain match result.
+const QUALIFIED_RESULT_MARKET = /\b(vantagem|margem|diferenca|sem sofrer|partes|qualquer parte)\b/;
+const QUALIFIED_RESULT_SELECTION = /\b(vantagem|margem|diferenca)\b|\bpor \d/;
+
+/**
+ * Checks parsed legs against what the market text restricts (half, team, stat, margin).
+ * Returns the legs (team totals completed from the market label) or null when the engine
+ * cannot settle that restriction, so the bet goes to review instead of a full-match reading.
+ */
+function refineLegs(legs: Leg[], m: string, s: string, ctx?: MatchContext): Leg[] | null {
+  if (periodOf(m) !== 'FT' && legs.some((l) => FULL_MATCH_ONLY.has(l.kind))) return null;
+  if (legs.some((l) => l.kind === 'RESULT')) {
+    // (Selection words are checked on the market too: "Leixões vence por 2 e ambas marcam" / "Sim".)
+    if (QUALIFIED_RESULT_MARKET.test(m) || QUALIFIED_RESULT_SELECTION.test(s) || QUALIFIED_RESULT_SELECTION.test(m)) return null;
+    // "Cantos 1X2", "Cartões - Resultado": the engine's results are goals only.
+    if (legs.every((l) => l.kind === 'RESULT') && statOf(m) !== 'goals') return null;
+  }
+  // Quarter lines (2.25, 2.75) split the stake between two lines: not supported.
+  if (legs.some((l) => l.kind === 'TOTAL' && !Number.isInteger(l.line * 2))) return null;
+  if (!legs.some((l) => l.kind === 'TOTAL' && !l.team)) return legs;
+  const team = teamOfMarket(m, ctx);
+  if (team === undefined) return legs;
+  if (team === null) return null;
+  return legs.map((l) => (l.kind === 'TOTAL' && !l.team ? { ...l, team } : l));
+}
+
+/** Splits a selection/market into legs. Returns null when the bet cannot be parsed or settled as named. */
 export function parseBet(market: string, selection: string, ctx?: MatchContext): ParsedBet | null {
+  const bet = parseLegs(market, selection, ctx);
+  if (!bet) return null;
+  const legs = refineLegs(bet.legs, norm(market), norm(selection), ctx);
+  return legs ? { ...bet, legs } : null;
+}
+
+function parseLegs(market: string, selection: string, ctx?: MatchContext): ParsedBet | null {
   const m = norm(market);
   let s = norm(selection);
   if (UNSUPPORTED.test(m) || UNSUPPORTED.test(s)) return null;
 
-  const extraTimeIncluded = /prolongamento incluido|incl\.? prolongamento|extra time included/.test(`${m} ${s}`);
+  const ET_INCLUDED = /prolongamento incluido|incl\.? prolongamento|extra time included/g;
+  const extraTimeIncluded = new RegExp(ET_INCLUDED.source).test(`${m} ${s}`);
+  // Extra time on its own ("Total de golos no prolongamento", "incluindo prolongamento e penáltis"): the
+  // engine reads regular time (or regular + extra time when marked "incluído"), never extra time alone.
+  // ("sem / excl. prolongamento" names regulation time, which is the default reading.)
+  const REGULATION_ONLY = /\b(sem|excl\.?|excluindo|exclui|nao inclui) prolongamento\b/g;
+  if (/\b(prolongamento|extra time|tempo extra)\b/.test(`${m} ${s}`.replace(ET_INCLUDED, ' ').replace(REGULATION_ONLY, ' '))) return null;
+  // Order of the scoring teams other than the first ("Última/Segunda equipa a marcar", "Equipa marca o Último golo"):
+  // not "that team scores", and the engine has no such leg.
+  if (TEAM_GOAL_ORDER.test(m)) return null;
   s = s.replace(/\b(prolongamento incluido|incl\.? prolongamento)\b/g, '').trim();
   // Keep HT/FT phrases intact before splitting on " e ".
   s = s.replace(/\s+vence ao intervalo e no final\b/, ' vence intervalo/final').replace(/\s+vence intervalo e final\b/, ' vence intervalo/final');
 
   // "X ou Y" combinations of two different markets (e.g. "As duas equipas marcam ou Acima de 2,5")
-  if (/marcam ou (mais|acima)/.test(m) && /^(sim|yes)$/.test(s)) {
+  // "Não" negates both: no BTTS and the total under the line (only a half line has no push to negate).
+  if (/marcam ou (mais|acima)/.test(m) && /^(sim|yes|nao|no)$/.test(s)) {
     const total = parseTotal(m.slice(m.search(/(mais|acima) de/)), m, ctx);
-    if (!total) return null;
-    return { legs: [{ kind: 'BTTS', period: periodOf(m), yes: true }, total], mode: 'ANY', extraTimeIncluded };
+    if (!total || total.kind !== 'TOTAL') return null;
+    if (/^(sim|yes)$/.test(s)) return { legs: [{ kind: 'BTTS', period: periodOf(m), yes: true }, total], mode: 'ANY', extraTimeIncluded };
+    if (Number.isInteger(total.line) || !total.over) return null;
+    return { legs: [{ kind: 'BTTS', period: periodOf(m), yes: false }, { ...total, over: false }], mode: 'ALL', extraTimeIncluded };
   }
 
+  // "Leixões / Mais de 2,5", "Fulano / Leixões": parts joined by a slash outside HT/FT and double-chance
+  // markets are not split into legs, so they must not be read as one leg either.
+  if (/\//.test(s.replace(/intervalo\/final|ht\/ft/g, ' ')) && !/intervalo\/final|ht\/ft|\b(dupla|duplo|hipotese|double)\b/.test(m)) return null;
+
+  const yesNo = /^(sim|yes|nao|no)$/.test(s);
+  const yes = /^(sim|yes)$/.test(s);
+  const marketPieces = splitCombo(m);
+  // The market names a combination and the selection only says "Sim"/"Não". "Não" negates the whole
+  // combination (not each leg): review.
+  if (yesNo && marketPieces.length > 1 && !yes) return null;
+
   // Market encodes the combination and the selection only says "Sim" (e.g. "Ambas equipas marcam e Acima de 2,5 golos")
-  if (/^(sim|yes)$/.test(s) && isBttsMarket(m) && TOTAL_RE.test(m)) {
+  if (yes && isBttsMarket(m) && TOTAL_RE.test(m)) {
     const total = parseTotal(m.slice(m.search(TOTAL_RE)), m, ctx);
     if (!total) return null;
     return { legs: [{ kind: 'BTTS', period: periodOf(m), yes: true }, total], mode: 'ALL', extraTimeIncluded };
   }
 
-  const pieces = s.split(/\s+e\s+|\s*&\s*|\s+\+\s+/).map((p) => p.trim()).filter(Boolean);
+  if (yesNo && marketPieces.length === 1) {
+    // "As duas equipas marcam/Total de golos" + "Sim": BTTS joined to another market, the answer is not BTTS alone.
+    const slashParts = m.replace(/intervalo\/final|ht\/ft/g, ' ').split('/');
+    if (isBttsMarket(m) && slashParts.length > 1 && slashParts.some((p) => !isBttsMarket(p) && SLASH_OTHER_MARKET.test(p))) return null;
+    // "Leixões marca" / Sim|Não: that team over/under 0.5 goals; never a scorer named "sim".
+    // ("Leixões sem marcar", "Marcador" + Sim: no scorer named "sim" either.)
+    if (/\bmarc(a|ar|ador)\b/.test(m) && !isBttsMarket(m)) {
+      const leg = teamScoresLeg(m, yes, ctx);
+      return leg ? { legs: [leg], mode: 'ALL', extraTimeIncluded } : null;
+    }
+  }
+
+  // "Leixões vence e ambas marcam" + "Sim": every piece of the market is a leg.
+  const pieces = yes && marketPieces.length > 1 ? marketPieces : splitCombo(s);
+  const periods = piecePeriods(pieces, m);
+  if (!periods) return null;
   const legs: Leg[] = [];
-  for (const piece of pieces) {
-    const leg = parseLeg(piece, m, ctx);
+  for (let i = 0; i < pieces.length; i++) {
+    const own = periods[i];
+    const text = own ? stripPeriod(pieces[i]!) : pieces[i]!;
+    // A bare "Empate" piece of a combination market answered "Sim" ("Empate e ambas marcam").
+    let leg: Leg | null = pieces === marketPieces && /^(empate|draw)$/.test(text)
+      ? { kind: 'RESULT', period: periodOf(m), outcomes: ['D'] }
+      : parseLeg(text, m, ctx);
+    if (leg && own) leg = withPeriod(leg, own);
     if (!leg) return null;
     legs.push(leg);
   }
   return legs.length ? { legs, mode: 'ALL', extraTimeIncluded } : null;
+}
+
+// ─── Combinations and per-leg periods ────────────────────────────────────────
+
+const COMBO_SEPARATOR = /\s+e\s+|\s*&\s*|\s+\+\s+/;
+// A half named inside a piece ("intervalo/final" is HT/FT, not the first half).
+const HALF_PHRASE = /\b(primeira parte|primeiro tempo|1\.?a parte|1\.?o tempo|1st half|first half|intervalo(?!\s*\/)|segunda parte|segundo tempo|2\.?a parte|2\.?o tempo|2nd half|second half)\b/;
+// The full match named inside a piece ("Mais de 2,5 - Jogo", "Resultado Final").
+const FULL_PHRASE = /\b(jogo|partida|encontro|resultado final|full time)\b/;
+const PERIOD_WITH_LINK = new RegExp(String.raw`\s*(?:[-:,]\s*)?(?:\b(?:ao|na|no|a|o|do|da)\s+)?(?:${HALF_PHRASE.source}|\b(?:jogo|partida|encontro|full time)\b)\s*`);
+// Market words that, joined to BTTS by a slash, make "Sim" more than a BTTS answer.
+const SLASH_OTHER_MARKET = /\b(resultado|total|golos|mais|menos|acima|abaixo|vence|vencedor|1x2|dupla|handicap|cantos?)\b/;
+
+function splitCombo(text: string): string[] {
+  return text.split(COMBO_SEPARATOR).map((p) => p.trim()).filter(Boolean);
+}
+
+interface OwnPeriod { period: Period; atStart: boolean; atEnd: boolean }
+
+/** Period a piece names itself, and whether the phrase opens or closes the piece; null when it names none. */
+function ownPeriod(text: string): OwnPeriod | null {
+  const half = text.match(HALF_PHRASE);
+  const m = half ?? text.match(FULL_PHRASE);
+  if (!m || m.index === undefined) return null;
+  const before = text.slice(0, m.index).replace(/\b(ao|na|no|a|o|do|da)\b|[\s:,-]/g, '');
+  const after = text.slice(m.index + m[0].length).replace(/[\s:,-]/g, '');
+  return { period: half ? periodOf(m[0]) : 'FT', atStart: !before, atEnd: !after };
+}
+
+function stripPeriod(text: string): string {
+  return text.replace(PERIOD_WITH_LINK, ' ').replace(/\s+/g, ' ').replace(/^[-:,\s]+|[-:,\s]+$/g, '').trim();
+}
+
+/** The leg read on another period; legs without a period exist on the full match only. */
+function withPeriod(leg: Leg, period: Period): Leg | null {
+  if ('period' in leg) return { ...leg, period };
+  return period === 'FT' ? leg : null;
+}
+
+/**
+ * Period of each selection piece when the pieces name their own ("1ª parte X e jogo Y", or a combo
+ * market whose pieces line up with the selection: "Resultado ao Intervalo & Total de golos").
+ * Entry null = keep the market's period. Returns null when the scope is ambiguous: some pieces
+ * marked and others not, a half phrase that opens or closes the whole combo, or a clash with the market.
+ */
+function piecePeriods(pieces: string[], m: string): (Period | null)[] | null {
+  const sel = pieces.map(ownPeriod);
+  const marketHalf = HALF_PHRASE.test(m) ? periodOf(m) : null;
+  const mParts = splitCombo(m);
+  // The market's pieces name different periods but do not line up with the selection: which is which?
+  const mixedMarket = mParts.length > 1 && new Set(mParts.map((p) => ownPeriod(p)?.period ?? 'FT')).size > 1;
+  if (pieces.length === 1) {
+    const own = sel[0];
+    if (!own) return mixedMarket ? null : [null];
+    return marketHalf && marketHalf !== own.period ? null : [own.period];
+  }
+  const aligned = mParts.length === pieces.length;
+  const mk = aligned ? mParts.map(ownPeriod) : null;
+  if (mk && sel.some((p, i) => p && mk[i] && p.period !== mk[i]!.period)) return null;
+  const per = pieces.map((_, i) => sel[i] ?? mk?.[i] ?? null);
+  if (per.every((p) => !p)) return mixedMarket ? null : per.map(() => null);
+  if (!aligned && marketHalf && per.some((p) => p && p.period !== marketHalf)) return null;
+  if (per.every(Boolean)) return per.map((p) => p!.period);
+  if (!mk || sel.some(Boolean)) return null; // only some selection pieces carry a period
+  // Periods come from the market's own pieces; an unmarked piece is a full-match market,
+  // unless a half phrase opens or closes the whole label ("Resultado e Total de golos - 1ª Parte").
+  const first = mk[0], last = mk[mk.length - 1];
+  if ((first && first.atStart && first.period !== 'FT') || (last && last.atEnd && last.period !== 'FT')) return null;
+  return per.map((p) => p?.period ?? 'FT');
+}
+
+/** "Leixões marca" / "Equipa da casa marca - 1ª Parte" answered Sim/Não: that team over/under 0.5 goals. */
+function teamScoresLeg(m: string, yes: boolean, ctx?: MatchContext): Leg | null {
+  const base = ownPeriod(m) ? stripPeriod(m) : m;
+  const hit = base.match(/^(.+?)\s*-?\s*\b(nao\s+)?marca(?:\s+(?:um\s+)?golos?)?$/);
+  const who = hit?.[1]?.trim();
+  if (!who || SCORE_QUALIFIER.test(who)) return null;
+  // "<equipa> não marca": Sim = under 0.5, Não = over 0.5.
+  const over = hit![2] ? !yes : yes;
+  const team = /^(a )?equipa (da|de) casa$|^casa$/.test(who) ? 'H'
+    : /^(a )?equipa (visitante|de fora|fora)$|^visitante$|^fora$/.test(who) ? 'A'
+    : strictSideOf(who, ctx);
+  return team ? { kind: 'TOTAL', period: periodOf(m), stat: 'goals', over, line: 0.5, team } : null;
 }
 
 

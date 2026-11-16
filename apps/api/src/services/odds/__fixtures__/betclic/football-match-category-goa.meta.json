@@ -1,0 +1,12 @@
+{
+  "method": "MatchService/GetMatchWithNotification",
+  "request": {
+    "match_id": "1280435240828928",
+    "language": "pt",
+    "category_id": "ca_ftb_goa"
+  },
+  "capturedAt": "2026-11-15T23:39:22.990Z",
+  "frame": "first gRPC-web data frame (snapshot), protobuf bytes without the 5-byte frame header",
+  "bytes": 37658,
+  "note": "Golos category of Estónia - Bulgária: 5 sub-categories (Mais populares, Ambas as equipas, Golos por equipa, Golos por partes, Par/Ímpar), 58 markets with overlaps between sub-categories. An unknown category_id returns the Top sub-category (id '') instead of an error."
+}

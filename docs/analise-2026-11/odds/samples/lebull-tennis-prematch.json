@@ -1,0 +1,3 @@
+{"eventId": 42392666, "teamA": "Ilya Ivashka", "teamB": "Toby Samuel", "sportName": "Tennis", "leagueId": 1432, "leagueName": "ATP Challenger. Helsinki. Hard. Finland", "timestamp": 1794841200000, "isLive": false, "oddsCount": 66, "stakeTypes": [
+ {"stakeTypeId": 702, "stakeTypeName": "Result", "stakes": [{"stakeName": "Ilya Ivashka", "stakeArgument": null, "betFactor": 2.99}, {"stakeName": "Toby Samuel", "stakeArgument": null, "betFactor": 1.28}]},
+ {"stakeTypeId": 3, "stakeTypeName": "Total Games", "stakes": [{"stakeName": "Over", "stakeArgument": 21.5, "betFactor": 1.58}, {"stakeName": "Under", "stakeArgument": 21.5, "betFactor": 1.97}, {"stakeName": "Over", "stakeArgument": 22.5, "betFactor": 1.82}]}]}

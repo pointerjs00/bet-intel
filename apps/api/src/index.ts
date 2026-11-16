@@ -21,6 +21,8 @@ import { favouritesRouter } from './routes/favouritesRoutes';
 import { defaultLimiter } from './middleware/rateLimiter';
 import { initializeSocketServer } from './sockets';
 import { ensureFreshATPRankings, scheduleATPRankingsJob } from './jobs/atpRankingsJob';
+import { scheduleOddsCatalogueJob } from './jobs/oddsCatalogueJob';
+import { getSources } from './services/odds/registry';
 import { ensureFreshWTARankings, scheduleWTARankingsJob } from './jobs/wtaRankingsJob';
 import { scheduleFixtureRefreshJob, unscheduleFixtureRefreshJob } from './jobs/fixtureRefreshJob';
 import { ensureFixturesFresh } from './services/apifootball/fixturesSync';
@@ -29,6 +31,7 @@ import { fixtureAlertRouter } from './routes/fixtureAlertRoutes';
 import { footballDataRouter } from './routes/footballDataRoutes';
 import { adminRouter } from './routes/adminRoutes';
 import { sportsRouter } from './routes/sportsRoutes';
+import { oddsRouter } from './routes/oddsRoutes';
 import { seedIfCatalogueChanged } from './prisma/seed';
 import { API_FOOTBALL_ENABLED, initFootballDataScheduler } from './scheduler';
 import { sportAssetsJob } from './jobs/sportAssetsJob';
@@ -101,6 +104,7 @@ app.use('/api/favourites', favouritesRouter);
 app.use('/api/fixtures', fixtureRouter);
 app.use('/api/fixture-alerts', fixtureAlertRouter);
 app.use('/api/sports', sportsRouter);
+app.use('/api/odds', oddsRouter);
 app.use('/api', footballDataRouter);
 app.use('/api/admin', adminRouter);
 
@@ -244,6 +248,16 @@ async function warmUp(): Promise<void> {
     logger.warn('WTA rankings job scheduling skipped — Redis unavailable', {
       error: err instanceof Error ? err.message : String(err),
     });
+  }
+
+  if (getSources().length > 0) {
+    try {
+      await scheduleOddsCatalogueJob();
+    } catch (err) {
+      logger.warn('Odds catalogue job scheduling skipped — Redis unavailable', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   if (API_FOOTBALL_ENABLED) {

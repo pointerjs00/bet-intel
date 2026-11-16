@@ -14,13 +14,13 @@
     "internal": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_RELEASE_API_BASE_URL": "https://betintel-api.stream-intel.online/api"
+        "EXPO_PUBLIC_RELEASE_API_BASE_URL": "https://betintel-api.couveflor.site/api"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_RELEASE_API_BASE_URL": "https://betintel-api.stream-intel.online/api"
+        "EXPO_PUBLIC_RELEASE_API_BASE_URL": "https://betintel-api.couveflor.site/api"
       }
     }
   },

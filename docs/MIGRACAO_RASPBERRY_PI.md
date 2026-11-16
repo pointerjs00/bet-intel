@@ -1,0 +1,784 @@
+# Guia: passar as apps do servidor Hetzner para o Raspberry Pi de casa
+
+Data: 15/11/2026.
+
+Este guia leva-te, passo a passo, do servidor alugado na Hetzner (na Alemanha) para o Raspberry Pi 5 que tens em casa. O Pi já corre o **Raspberry Pi OS (Debian 12)** e o **Home Assistant Supervised**. No fim, as tuas 4 apps (BetIntel, Stream-Intel, Parlay League e Pricetracker) correm no Pi, continuam nos mesmos endereços de internet, e o Home Assistant e a Alexa continuam a funcionar como hoje.
+
+Não precisas de perceber tudo de uma vez. Segue as secções por ordem e, em cada uma, faz a **verificação** no fim antes de avançar. Se algo não bater certo, para e pede ajuda (ao Claude ou a outra pessoa) com o texto do erro.
+
+---
+
+## Antes de começar
+
+### Onde se escreve cada comando
+
+Vais usar três computadores. Cada bloco de comandos diz no topo onde se escreve:
+
+| Etiqueta | Onde | Como lá chegar |
+|---|---|---|
+| 🖥️ **PC** | O teu computador Windows | Abre o **Git Bash** (ou o terminal do VS Code) |
+| ☁️ **Hetzner** | O servidor antigo, na Alemanha | No PC: `ssh -i ~/.ssh/hetzner_deploy root@178.104.68.233` |
+| 🍓 **Pi** | O Raspberry Pi de casa | No PC: `ssh <o-teu-utilizador>@<ip-do-pi>`, ou abre um terminal diretamente no Pi |
+
+**Como saber onde estás:** a linha onde escreves (o "prompt") mostra o nome da máquina. No Hetzner aparece `root@ubuntu-4gb-nbg1-1`; no Pi aparece o nome que deste ao Pi; no PC aparece o nome do teu computador. Antes de colar um comando, confirma que estás na máquina certa. Se tiveres dúvidas, escreve `hostname` e carrega Enter.
+
+**Como colar um comando:** copia o bloco inteiro, cola no terminal (no Git Bash: botão direito → Paste, ou Shift+Insert) e carrega Enter. As linhas que começam por `#` são comentários: o terminal ignora-as e servem só para explicar.
+
+**Se um comando ficar "preso"** à espera (por exemplo, a pedir uma palavra-passe que não sabes), carrega **Ctrl+C** para cancelar.
+
+### Palavras que vais encontrar
+
+- **SSH:** forma de abrir um terminal noutro computador através da rede. Usa uma "chave" (um ficheiro no teu PC) em vez de palavra-passe.
+- **Docker:** programa que corre cada app numa "caixa" isolada, chamada **contentor**. A caixa leva tudo o que a app precisa, por isso funciona igual em qualquer computador.
+- **Imagem:** o "molde" a partir do qual se cria um contentor. O Pi tem um processador diferente do servidor da Hetzner (ARM em vez de x86), por isso as imagens têm de ser construídas para ARM. O guia trata disso.
+- **Volume:** pasta onde o Docker guarda os dados de um contentor (por exemplo, a base de dados), para não se perderem quando o contentor é recriado.
+- **docker compose:** ficheiro (`docker-compose.yml`) que descreve vários contentores que trabalham juntos (por exemplo: base de dados + app) e os arranca de uma vez.
+- **.env:** ficheiro de texto com os "segredos" de uma app (palavras-passe, chaves). Nunca vai para o GitHub.
+- **Base de dados (Postgres / SQLite):** onde as apps guardam os dados. Para mudar de servidor, faz-se uma cópia ("dump") e restaura-se no novo.
+- **Domínio / DNS:** o domínio é o nome do site (ex.: `stream-intel.online`). O DNS é a "lista telefónica" da internet: diz a que computador corresponde cada nome.
+- **Nameservers:** quem gere essa lista para o teu domínio. Vamos passar essa gestão para a Cloudflare.
+- **Cloudflare Tunnel:** ligação segura que o Pi abre **para fora**, até à Cloudflare. Quem visita os teus sites fala com a Cloudflare, e a Cloudflare passa o pedido ao Pi pelo túnel. Assim **não é preciso abrir portas novas no router** e o teu IP de casa não fica à vista.
+- **Porta:** "número de porta" de um programa num computador (ex.: 443 para sites seguros). As apps vão usar portas internas do Pi (3100, 8000, 8080, 8090) que só o próprio Pi vê.
+- **Tailscale:** rede privada entre os teus aparelhos (PC, telemóvel, Pi). Permite-te entrar no Pi por SSH de qualquer lado, sem abrir portas.
+- **GitHub Actions / runner:** o GitHub pode correr tarefas automáticas quando mudas o código (testar, publicar). O **runner** é um pequeno programa instalado no Pi que recebe essas tarefas e as executa lá. É assim que uma alteração ao código chega ao Pi sozinha.
+
+### O que muda e o que fica igual
+
+**Fica igual:**
+- o endereço do Parlay League (`couveflor.site`);
+- o Home Assistant, a porta 443 aberta no router e a ligação da Alexa;
+- o teu cartão SD/sistema do Pi (não se reinstala nada).
+
+**Muda:**
+- as apps passam a correr no Pi, dentro do Docker;
+- os sites passam a chegar ao Pi através da Cloudflare (túnel), sem portas novas no router;
+- a Hetzner deixa de ser precisa (e de ser paga) no fim;
+- **os endereços do BetIntel, do Stream-Intel e do Pricetracker mudam para subdomínios de `couveflor.site`** (decisão de 16/11/2026). Não tens acesso à conta GoDaddy de `stream-intel.online` nem a `xuxus.site`, por isso não dá para apontar esses nomes para o Pi. Por isso, **as apps móveis do BetIntel e do Stream-Intel precisam de uma build nova** com o novo endereço, instalada **antes** de desligares o Hetzner (secção 6.6).
+
+| App | Endereço antigo | Endereço novo |
+|---|---|---|
+| BetIntel (API) | `betintel-api.stream-intel.online` (e `api.stream-intel.online`) | `betintel-api.couveflor.site` |
+| Stream-Intel (API) | `streamintel-api.stream-intel.online`, `stream-intel.online/api/` | `streamintel-api.couveflor.site` |
+| Pricetracker | `plener.xuxus.site` | `plener.couveflor.site` |
+| Parlay League | `couveflor.site` | `couveflor.site` (igual) |
+
+Enquanto o Hetzner estiver ligado, os endereços antigos continuam a funcionar lá, por isso as builds antigas não falham durante a migração.
+
+> ⚠️ **A porta 443 do router fica como está.** A Amazon (Alexa) precisa dela para falar com o Home Assistant. Nada neste guia a fecha ou altera. As apps usam o túnel e não precisam dela.
+
+### Quanto tempo demora
+
+| Parte | Tempo aproximado |
+|---|---|
+| Preparar o Pi (secção 2) | 1–2 horas |
+| Domínios na Cloudflare (secção 3) | 30 min de trabalho + até algumas horas de espera |
+| Túnel e runners (secções 4 e 5) | 1 hora |
+| Cada app (secção 6) | 30–60 min por app |
+| Backups e monitorização (secção 7) | 1 hora |
+
+Podes fazer em vários dias. Enquanto uma app não for "cortada" (secção 6), continua a funcionar no Hetzner.
+
+---
+
+## 1. O que existe hoje e como vai ficar
+
+### Hoje, no Hetzner
+
+| App | Pasta no Hetzner | Onde estão os dados | Endereços |
+|---|---|---|---|
+| **BetIntel** | `/root/betintel/apps/api` | Base de dados Postgres `betintel` (~300 MB, instalada no sistema) + fotos de perfil (volume `api_uploads_data`) | `betintel-api.stream-intel.online`, `api.stream-intel.online`, e `stream-intel.online/health` e `/socket.io/` |
+| **Stream-Intel** | `/home/streamuser/stream-intel` | Um ficheiro SQLite: `data/stream_intel.db` | `streamintel-api.stream-intel.online`, `stream-intel.online/api/` |
+| **Parlay League** | `/home/betintel_user/parlay-league` | Base de dados Postgres num contentor (volume `parlay-league_postgres_data`) | `couveflor.site` |
+| **Pricetracker** | `/home/betintel_user/pricetracker` | Pasta `data` | `plener.xuxus.site` |
+
+Os dados das 4 apps juntas ocupam menos de 1 GB. O resto do disco do Hetzner são "imagens" do Docker, que não é preciso copiar.
+
+### Como vai ficar
+
+```
+Visitante ─► Cloudflare (HTTPS) ─► túnel ─► Pi (porta interna de cada app)
+Tu, de fora de casa ─► Tailscale ─► Pi
+Alteração no código (GitHub) ─► runner no Pi ─► app atualizada no Pi
+Alexa ─► porta 443 do router ─► Home Assistant (como hoje)
+```
+
+Pastas no Pi:
+```
+/srv/betintel/.env        segredos do BetIntel
+/srv/stream-intel/        código + dados do Stream-Intel
+/srv/parlay-league/       código do Parlay League
+/srv/pricetracker/        código + dados do Pricetracker
+/srv/backups/             cópias de segurança diárias
+~/runners/<app>/          runners do GitHub
+```
+
+---
+
+## 2. Preparar o Pi
+
+**Regra de ouro: não reinstalar o sistema nem mexer no Home Assistant.**
+
+### 2.1 Cópia de segurança do Home Assistant
+
+Se algo correr mal, isto permite repor o Home Assistant.
+
+1. Abre o Home Assistant no browser.
+2. Vai a **Definições → Sistema → Cópias de segurança**.
+3. Carrega em **Criar cópia de segurança** (completa) e espera que termine.
+4. Carrega nos três pontinhos da cópia → **Transferir**. Guarda o ficheiro no PC.
+
+✅ **Verificação:** tens um ficheiro `.tar` no PC com a data de hoje.
+
+### 2.1 b) Imagem completa do cartão microSD (recomendado)
+
+Guarda o cartão inteiro (sistema, Home Assistant e configurações) num ficheiro no PC. Se o cartão se estragar, gravas a imagem noutro cartão e o Pi volta a ficar exatamente como estava.
+
+Precisas de um leitor de cartões microSD no PC, de espaço igual ao tamanho do cartão e do programa gratuito **USBImager** (gitlab.com/bztsrc/usbimager, versão Windows).
+
+1. 🍓 **Pi:** `sudo shutdown -h now`. Espera que a luz verde pare de piscar e tira a ficha. O Home Assistant fica parado enquanto o cartão estiver fora.
+2. Tira o cartão e mete-o no leitor do PC.
+3. ⚠️ **O Windows vai perguntar se queres formatar o disco: carrega SEMPRE em Cancelar.** A parte Linux do cartão não é legível pelo Windows, e formatar apagava o Pi.
+4. No **USBImager**:
+   - escolhe o cartão na lista de baixo (confirma pelo tamanho);
+   - carrega em **Read**;
+   - grava como, por exemplo, `D:\Backups\pi-sd-2026-11-15.img.zst`. O `.zst` comprime enquanto lê.
+5. No fim (10–30 min), ejeta o cartão, volta a pô-lo no Pi e liga-o.
+
+✅ **Verificação:** o ficheiro existe, a leitura acabou sem erro e o Home Assistant voltou a arrancar.
+
+**Restaurar** (se um dia for preciso): num cartão do mesmo tamanho ou maior, USBImager → escolhe o ficheiro → escolhe o cartão → **Write**.
+
+Guarda esta imagem no PC, não no Pi.
+
+### 2.2 Diagnóstico: o que o Pi tem (feito a 16/11/2026)
+
+O diagnóstico já foi feito. Isto é o que o Pi tem, e o que isso muda neste guia:
+
+| O que se viu | O que significa |
+|---|---|
+| **Debian 12 (bookworm)**, `aarch64`, 8 GB de RAM (6,6 GB livres) | Raspberry Pi OS de 64 bits (não é Lubuntu). Há memória de sobra para as 4 apps. |
+| Sistema no **cartão SD** (`mmcblk0p2`, 116 GB, 16 GB usados) | Os dados das apps ficam no cartão por agora, com cópias diárias para fora de casa; mais tarde passam para um SSD USB (passo 2.3). |
+| Disco **`sda` de 465,8 GB, modelo HM500JI** (disco rígido Samsung de 500 GB, **NTFS**), montado pelo serviço `monta_external` em `/usr/share/hassio/share/external` | Usado pelo Home Assistant. **Não se mexe.** Em NTFS não serve para bases de dados (ver 2.3). Não há SSD ligado. |
+| **Home Assistant Supervised**: o Supervisor e os addons (Node-RED, eWeLink, Samba, SSH, DuckDNS…) correm no Docker do sistema | **Não se muda a configuração do Docker** (a pasta onde guarda os dados): isso afetava o Home Assistant. As apps usam o mesmo Docker, mas guardam os dados em pastas dentro de `/srv`, não em volumes. |
+| **Porta 3000 ocupada** pelo addon eWeLink | O BetIntel usa a porta **3100** no Pi (já configurado no repositório). |
+| Home Assistant na **8123**; nada a ouvir na 443 dentro do Pi | O router encaminha a 443 de fora para a 8123 (DuckDNS). **Não se mexe.** |
+| Também correm Transmission (9091), Samba, Squid (3028) e VNC (5900) | Nenhuma destas portas choca com as apps (8000, 8080, 8090, 3100, 3001). |
+
+### 2.3 Pasta das apps: no cartão SD por agora (SSD USB mais tarde)
+
+**Decisão (16/11/2026):** os dados das apps ficam no **cartão SD**, em `/srv`, com cópias de segurança diárias para fora de casa (secção 7.2). Mais tarde muda-se tudo para um **SSD USB**.
+
+**Porquê não o disco externo de 500 GB:** está formatado em **NTFS** (o formato do Windows), montado pelo serviço `monta_external` através do `ntfs-3g`. O NTFS no Linux não guarda o dono nem as permissões dos ficheiros. O Postgres exige ambos e recusa arrancar sem eles. O disco fica como está, para o Home Assistant.
+
+**Porquê o cartão serve por agora:** as bases de dados das 4 apps ocupam menos de 0,5 GB, e o cartão tem 94 GB livres. O risco do cartão não é o espaço, é o desgaste com o tempo. Por isso as cópias diárias para fora de casa (7.2) são **obrigatórias** enquanto os dados estiverem no cartão.
+
+> Se correste a versão anterior deste passo (a que ligava `/srv` ao disco externo), desfaz primeiro. Isto não apaga nada:
+> ```bash
+> sudo umount /srv 2>/dev/null
+> sudo sed -i '\#/usr/share/hassio/share/external/servidor /srv#d' /etc/fstab
+> sudo systemctl daemon-reload
+> grep srv /etc/fstab || echo "linha removida"
+> ```
+
+🍓 **Pi**
+```bash
+sudo mkdir -p /srv
+sudo chown "$USER":"$USER" /srv
+df -h /srv          # deve mostrar o cartão (/dev/mmcblk0p2, ~116 GB)
+```
+
+✅ **Verificação:** o `df -h /srv` mostra `/dev/mmcblk0p2`, e o `findmnt /srv` não mostra nada (o `/srv` é uma pasta normal do cartão, não uma montagem).
+
+#### Mais tarde: passar para um SSD USB
+
+1. Liga o SSD a uma porta USB 3 (azul). Vê o nome com `lsblk` (por exemplo `sdb`). **Confirma que não é o disco NTFS `sda`.**
+2. Formata-o em ext4 (⚠️ apaga o SSD): `sudo mkfs.ext4 -L srv /dev/sdb1` (cria primeiro a partição com `sudo parted /dev/sdb --script mklabel gpt mkpart srv ext4 0% 100%`).
+3. Para as apps (`docker compose ... stop` em cada pasta). Copia os dados: monta o SSD temporariamente em `/mnt/ssd`, corre `sudo rsync -aHAX /srv/ /mnt/ssd/` e desmonta.
+4. No `/etc/fstab`, acrescenta `UUID=<uuid do SSD> /srv ext4 defaults,noatime 0 2` (o UUID vem do `sudo blkid /dev/sdb1`), corre `sudo mount /srv` e confirma com `df -h /srv`.
+5. Arranca as apps. Nada nas apps muda, porque continuam a usar `/srv`. O Claude pode acompanhar-te neste passo.
+
+### 2.4 Atualizações automáticas de segurança
+
+🍓 **Pi**
+```bash
+sudo apt update
+sudo apt install -y unattended-upgrades git sqlite3 curl
+sudo dpkg-reconfigure -plow unattended-upgrades     # responde "Sim/Yes"
+```
+
+**Não corras `sudo apt full-upgrade`** neste Pi sem necessidade.
+- **O que ele não faz:** não mexe na versão do Home Assistant. O Home Assistant, o Supervisor e os addons são contentores Docker e atualizam-se pelo próprio Home Assistant (Definições → Atualizações).
+- **O que ele pode fazer:** atualizar o Docker. Isso reinicia todos os contentores do Home Assistant, o que deixa a Alexa sem resposta durante um ou dois minutos. Pode também atualizar o kernel, o que obriga a reiniciar o Pi.
+- **As atualizações automáticas (`unattended-upgrades`) são seguras:** por omissão só instalam correções de segurança do Debian, e o Docker fica de fora.
+- **Para ver o que há por atualizar, sem instalar nada:** `apt list --upgradable`.
+
+**Firewall: recomendo não mexer.** O túnel não abre portas e as apps só aceitam ligações do próprio Pi. Ligar a firewall (`ufw`) sem cuidado pode cortar o Home Assistant e a Alexa.
+
+✅ **Verificação:** o Home Assistant continua a abrir normalmente.
+
+### 2.5 Docker: preparar sem tocar no Home Assistant
+
+O Docker já está instalado e é o Home Assistant Supervised que o gere. **Não mudes o `/etc/docker/daemon.json` nem reinicies o Docker** por causa deste guia: as apps guardam os dados em pastas dentro de `/srv`, por isso não é preciso mudar onde o Docker guarda as coisas.
+
+🍓 **Pi**
+```bash
+# 1. Deixar o teu utilizador usar o Docker sem "sudo"
+sudo usermod -aG docker "$USER"
+newgrp docker
+
+# 2. Rede interna partilhada pelas apps
+docker network create app_network
+
+# 3. Ver se o plugin "docker compose" existe (deve mostrar uma versão)
+docker compose version || sudo apt install -y docker-compose-plugin
+```
+
+✅ **Verificação:** `docker run --rm hello-world` mostra "Hello from Docker!", e o Home Assistant continua a funcionar.
+
+> **Nota sobre o Home Assistant Supervised:** o Supervisor pode marcar a instalação como "não suportada" (*unsupported*) por haver outros contentores no mesmo Docker. Isso não estraga nada e as atualizações continuam a funcionar. Já corres Transmission, Samba e Squid no sistema, por isso pode já estar assim. Depois de arrancares a primeira app, vê em **Definições → Sistema → Reparações**. Se aparecer *unhealthy* (não saudável), em vez de *unsupported*, para e mostra a mensagem ao Claude.
+
+### 2.6 Tailscale: entrar no Pi de qualquer lado
+
+🍓 **Pi**
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --ssh
+```
+O segundo comando mostra um link. Abre-o no browser e entra com uma conta (Google, por exemplo).
+
+Depois instala a app **Tailscale** no PC (tailscale.com/download) e no telemóvel, e entra com a mesma conta. O Pi aparece na lista de aparelhos, com um nome e um IP do tipo `100.x.y.z`.
+
+✅ **Verificação:** desliga o Wi-Fi do PC e liga-o ao hotspot do telemóvel. Experimenta 🖥️ `ssh <o-teu-utilizador>@<nome-do-pi-no-tailscale>`: tem de entrar no Pi.
+
+### 2.7 (Opcional) Desligar o ambiente gráfico
+
+O Pi tem ambiente gráfico (janelas, rato), que gasta cerca de 0,5–1 GB de memória. **Atenção:** o acesso remoto por VNC (`wayvnc`, porta 5900) depende dele. Se usas o VNC, salta este passo. Há memória de sobra mesmo sem o desligar. Se nunca usas o Pi com ecrã nem VNC:
+
+🍓 **Pi**
+```bash
+sudo systemctl set-default multi-user.target && sudo reboot
+```
+Para voltar a ter ambiente gráfico: `sudo systemctl set-default graphical.target && sudo reboot`.
+
+---
+
+## 3. Passar o domínio `couveflor.site` para a Cloudflare (sem cortar nada)
+
+**O que vais fazer:** dizer à internet que, a partir de agora, é a Cloudflare que gere o domínio `couveflor.site`. É o único domínio a cuja conta tens acesso. No início a Cloudflare continua a apontar para o Hetzner, por isso **ninguém nota diferença**.
+
+1. Entra em **dash.cloudflare.com** (cria conta se não tiveres).
+2. Carrega em **Add a site** (ou "Add a domain"), escreve `couveflor.site` e escolhe o plano **Free**.
+3. A Cloudflare procura os registos atuais e mostra uma lista. Confirma que está lá o próprio domínio (`couveflor.site`) a apontar para `178.104.68.233` (o Hetzner). Se não estiver, acrescenta-o como registo **A** com esse IP.
+4. A Cloudflare mostra **dois nameservers** (algo como `ana.ns.cloudflare.com`).
+5. Entra na conta onde **compraste** `couveflor.site` (o "registrar"), procura "Nameservers" ou "DNS" nas definições do domínio, e troca os que lá estão pelos dois da Cloudflare.
+6. Espera pelo e-mail da Cloudflare "Your site is now active". Pode demorar de minutos a algumas horas.
+
+✅ **Verificação:** depois do e-mail, `https://couveflor.site` continua a funcionar. 🖥️ `nslookup -type=ns couveflor.site` mostra nomes terminados em `cloudflare.com`.
+
+`stream-intel.online` e `xuxus.site` não se mexem: continuam a apontar para o Hetzner até ele ser desligado, e depois deixam de funcionar. Se um dia recuperares o acesso a essas contas, podes voltar a usá-los.
+
+---
+
+## 4. Criar o túnel no Pi
+
+**O que vais fazer:** instalar no Pi o programa `cloudflared`, que abre a ligação até à Cloudflare. Ainda não muda nada nos sites.
+
+1. Em dash.cloudflare.com, abre **Zero Trust** no menu da esquerda. Se pedir, escolhe o plano **Free** (pode pedir cartão, mas não cobra nada).
+2. Vai a **Networks → Tunnels → Create a tunnel**, escolhe **Cloudflared** e dá-lhe o nome `pi-server`.
+3. No ecrã seguinte escolhe **Debian** e **arm64**. Aparece um comando grande que começa por `curl ...` ou `sudo cloudflared service install ...`. Copia-o.
+4. 🍓 **Pi:** cola o comando e carrega Enter.
+5. Volta à Cloudflare: o túnel deve aparecer como **HEALTHY** (verde).
+6. **Ainda não acrescentes rotas** ("Public hostnames"). Cada rota é o momento em que uma app passa do Hetzner para o Pi. Isso faz-se na secção 6, uma app de cada vez.
+
+✅ **Verificação:** 🍓 `systemctl status cloudflared` mostra `active (running)` a verde (sai com a tecla `q`). Na Cloudflare, o túnel está HEALTHY.
+
+---
+
+## 5. Runners do GitHub no Pi
+
+**O que vais fazer:** instalar no Pi um "runner" por cada repositório. Quando alteras o código no GitHub, o runner recebe a ordem, atualiza a app no Pi e reinicia-a sozinho.
+
+> ⚠️ **Os repositórios têm de ser privados.** Num repositório público, qualquer pessoa podia propor uma alteração que corria código no teu Pi (e na tua rede de casa). Confirma em cada repositório: **Settings → General**, no fundo, em "Danger Zone", tem de dizer que é privado.
+
+Para cada repositório (bet-intel, stream-intel, parlay-league e pricetracker):
+1. No GitHub, abre o repositório → **Settings → Actions → Runners → New self-hosted runner**.
+2. Escolhe **Linux** e **ARM64**. Aparecem dois blocos de comandos: "Download" e "Configure".
+3. 🍓 **Pi:**
+   ```bash
+   mkdir -p ~/runners/<nome-do-repositório> && cd ~/runners/<nome-do-repositório>
+   ```
+   Troca `<nome-do-repositório>` por `bet-intel`, `stream-intel`, etc.
+4. Cola os comandos do bloco "Download", um a um.
+5. Cola o comando `./config.sh ...` do bloco "Configure". Às perguntas, carrega só Enter: as respostas por omissão servem.
+6. Instala-o como serviço, para arrancar sozinho com o Pi:
+   ```bash
+   sudo ./svc.sh install "$USER" && sudo ./svc.sh start
+   ```
+
+✅ **Verificação:** no GitHub, em Settings → Actions → Runners, o runner aparece **Idle** (verde).
+
+---
+
+## 6. Mudar as apps, uma de cada vez
+
+Ordem, da mais simples para a mais importante: **Pricetracker → Stream-Intel → Parlay League → BetIntel**.
+
+Em cada app o ciclo é sempre o mesmo:
+1. **Parar** a app no Hetzner e **copiar** os dados.
+2. **Arrancar** a app no Pi com esses dados.
+3. **Cortar:** criar a rota no túnel. A partir daqui, o site vai para o Pi.
+4. **Testar** o site.
+5. **Desligar** a app no Hetzner.
+
+### Como copiar ficheiros do Hetzner para o Pi (vais usar sempre isto)
+
+O Pi não tem acesso direto ao Hetzner, por isso os ficheiros passam pelo PC: primeiro do Hetzner para o PC, depois do PC para o Pi. No Pi, a tua conta é **`jbsousa`** e o IP em casa é **`192.168.1.20`**.
+
+🖥️ **PC** (funciona no **PowerShell** e no **Git Bash**)
+```powershell
+mkdir -p ~/migracao ; cd ~/migracao                                           # pasta de trabalho no PC
+scp -i ~/.ssh/hetzner_deploy root@178.104.68.233:/tmp/<ficheiro> .            # Hetzner → PC (o "." é "para esta pasta")
+scp <ficheiro> jbsousa@192.168.1.20:/tmp/                                     # PC → Pi
+ssh jbsousa@192.168.1.20 "ls -lh /tmp/<ficheiro>"                             # confirmar que chegou
+```
+Troca `<ficheiro>` pelo nome indicado em cada app.
+
+**Caminhos do PC:** no PowerShell escreve-se `C:\Users\jbsou\Desktop\bet-intel`; no Git Bash, `/c/Users/jbsou/Desktop/bet-intel`. Usar o formato errado dá "No such file or directory".
+
+**Quando o crias, o "ficheiro com os dados":** no início de cada app (6.1 a 6.4), no Hetzner, com `tar` (junta pastas num ficheiro `.tgz`), `pg_dump` (exporta uma base de dados Postgres) ou `sqlite3 .backup` (copia uma base SQLite). Confirma sempre com `ls -lh /tmp/<ficheiro>` no Hetzner, antes de copiar.
+
+**Se o Hetzner pedir palavra-passe:** a chave `hetzner_deploy` não está autorizada lá. Entra no Hetzner como costumas (por exemplo, pela consola web da Hetzner) e autoriza a chave do PC. No PC, `cat ~/.ssh/id_ed25519.pub` mostra a chave; no Hetzner, corre `echo "<essa linha>" >> ~/.ssh/authorized_keys`. Depois usa `ssh root@178.104.68.233` sem o `-i`.
+
+### Ajuste nas outras apps: portas só para o Pi
+
+Nas apps Pricetracker, Stream-Intel e Parlay League, o ficheiro `docker-compose.yml` tem uma secção `ports:`. Em cada linha, acrescenta `127.0.0.1:` no início, para a app só aceitar ligações do próprio Pi (o túnel). Exemplo:
+```yaml
+ports:
+  - "127.0.0.1:8080:8080"     # antes era "8080:8080"
+```
+Isto pode ser feito no repositório de cada app (o Claude ajuda).
+
+### 6.1 Pricetracker
+
+☁️ **Hetzner:** parar a app e juntar os dados num ficheiro
+```bash
+cd /home/betintel_user/pricetracker && docker compose stop
+tar czf /tmp/pricetracker.tgz data .env docker-compose.yml
+```
+
+🖥️ **PC:** copiar `pricetracker.tgz` do Hetzner para o Pi (ver acima).
+
+🍓 **Pi:** descarregar o código, pôr os dados e arrancar
+```bash
+git clone git@github.com:<a-tua-conta>/<repositório-do-pricetracker>.git /srv/pricetracker
+tar xzf /tmp/pricetracker.tgz -C /srv/pricetracker
+cd /srv/pricetracker && docker compose up -d --build
+curl -I http://127.0.0.1:8080
+```
+- O `git clone` pede acesso ao GitHub. Se der erro de permissão, cria uma chave SSH no Pi (`ssh-keygen -t ed25519`, Enter em tudo) e acrescenta o conteúdo de `~/.ssh/id_ed25519.pub` em GitHub → Settings → SSH and GPG keys.
+- O `--build` constrói a app para o processador do Pi. A primeira vez demora alguns minutos.
+- O `curl -I` tem de mostrar `HTTP/1.1 200` (ou outro código que não seja erro de ligação).
+
+**Corte.** Na Cloudflare: Zero Trust → Networks → Tunnels → `pi-server` → **Public hostname → Add a public hostname**:
+- Subdomain: `plener`; Domain: `couveflor.site`.
+- Service: Type **HTTP**, URL `localhost:8080`.
+- Guardar. A Cloudflare troca sozinha o registo antigo (que apontava para o Hetzner) pelo túnel.
+
+✅ **Verificação:** abre `https://plener.couveflor.site` no browser e confirma que tudo funciona. **Quem usa o Pricetracker passa a usar este endereço novo**; o antigo (`plener.xuxus.site`) deixa de funcionar quando desligares a app no Hetzner.
+
+☁️ **Hetzner:** só depois de confirmar, desligar a app antiga
+```bash
+cd /home/betintel_user/pricetracker && docker compose down
+```
+
+### 6.2 Stream-Intel (base de dados num ficheiro SQLite)
+
+☁️ **Hetzner**
+```bash
+cd /home/streamuser/stream-intel && docker compose stop
+sqlite3 data/stream_intel.db ".backup /tmp/stream_intel.db"     # cópia segura da base de dados
+tar czf /tmp/stream-intel.tgz .env docker-compose.yml
+```
+Se o `sqlite3` não existir no Hetzner: `apt install -y sqlite3`.
+
+🖥️ **PC:** copiar `stream_intel.db` e `stream-intel.tgz` para o Pi.
+
+🍓 **Pi**
+```bash
+git clone git@github.com:<a-tua-conta>/<repositório-do-stream-intel>.git /srv/stream-intel
+mkdir -p /srv/stream-intel/data
+tar xzf /tmp/stream-intel.tgz -C /srv/stream-intel
+cp /tmp/stream_intel.db /srv/stream-intel/data/
+cd /srv/stream-intel && nano docker-compose.yml
+```
+No ficheiro que abre, troca a linha `image: ghcr.io/jbsousapsn/stream-intel:latest` por `build: .`, porque a imagem antiga não serve para o processador do Pi. Guarda com **Ctrl+O → Enter → Ctrl+X**. Depois:
+```bash
+docker compose up -d --build
+curl -I http://127.0.0.1:8000
+```
+
+**Corte** (duas rotas no túnel):
+1. Subdomain `streamintel-api`, domain `couveflor.site` → HTTP `localhost:8000`.
+
+A app (ou o site) do Stream-Intel tem de passar a usar `https://streamintel-api.couveflor.site`. Isso muda-se no repositório do Stream-Intel e exige uma build nova (secção 6.6). Até lá, deixa a versão do Hetzner a correr.
+
+✅ **Verificação:** a app/site do Stream-Intel funciona e mostra os dados de antes. Depois, ☁️ **Hetzner:** `cd /home/streamuser/stream-intel && docker compose down`.
+
+### 6.3 Parlay League (base de dados Postgres num contentor)
+
+☁️ **Hetzner**
+```bash
+cd /home/betintel_user/parlay-league
+docker compose exec -T postgres pg_dump -U parlay -Fc parlay_league > /tmp/parlay.dump
+tar czf /tmp/parlay-conf.tgz .env docker-compose.yml
+```
+O `pg_dump` faz uma cópia completa da base de dados para o ficheiro `parlay.dump`.
+
+🖥️ **PC:** copiar `parlay.dump` e `parlay-conf.tgz` para o Pi.
+
+🍓 **Pi**
+```bash
+git clone git@github.com:<a-tua-conta>/<repositório-do-parlay-league>.git /srv/parlay-league
+tar xzf /tmp/parlay-conf.tgz -C /srv/parlay-league && cd /srv/parlay-league
+docker compose up -d postgres          # arranca só a base de dados (vazia)
+sleep 15                               # espera 15 segundos que ela fique pronta
+docker compose exec -T postgres pg_restore -U parlay -d parlay_league --no-owner < /tmp/parlay.dump
+docker compose up -d --build           # arranca o resto da app
+curl -I http://127.0.0.1:8090
+```
+
+**Corte:** domain `couveflor.site` (subdomain vazio) → HTTP `localhost:8090`.
+
+✅ **Verificação:** `https://couveflor.site` mostra os dados de antes. Depois, ☁️ **Hetzner:** `cd /home/betintel_user/parlay-league && docker compose down`.
+
+### 6.4 BetIntel (por último, porque é a mais complexa)
+
+O código preparado para o Pi está no repositório (branch `odds-comparador`, a juntar ao `main`):
+- `deploy/pi/docker-compose.yml`: Postgres, Redis e a API. A API é construída no próprio Pi e só fica acessível em `127.0.0.1:3100`; os dados ficam em `/srv/betintel/data`.
+- `deploy/pi/.env.example`: as variáveis que o `.env` do Pi tem de ter.
+- Job `deploy-pi` em `.github/workflows/build-api.yml`: o deploy automático pelo runner do Pi (alínea g).
+
+A migração faz-se em duas fases:
+- **Ensaio (alíneas a–d):** a app corre no Pi com uma cópia dos dados, enquanto o Hetzner continua a servir a app do telemóvel.
+- **Corte (alíneas e–h):** no mesmo dia, copiam-se os dados mais recentes, o endereço novo passa a apontar para o Pi, instalas a app nova e o deploy automático passa para o Pi.
+
+Os comandos usam a tua conta do Pi (`jbsousa`) e o IP de casa (`192.168.1.20`).
+
+#### a) Ensaio: ficheiros no Hetzner
+
+🖥️ **PC:** `ssh -i ~/.ssh/hetzner_deploy root@178.104.68.233`, depois ☁️ **Hetzner:**
+```bash
+sudo -u postgres pg_dump -Fc betintel > /tmp/betintel.dump                                   # base de dados (~45 MB)
+docker run --rm -v api_uploads_data:/d -v /tmp:/b alpine tar czf /b/uploads.tgz -C /d .       # fotos de perfil (pode ser quase vazio)
+ls -lh /tmp/betintel.dump /tmp/uploads.tgz
+cat /root/betintel/apps/api/.env                                                              # deixa esta janela aberta: vais copiar valores daqui
+```
+O `pg_dump` tira uma cópia consistente sem parar a app, por isso isto não afeta quem está a usar o Hetzner.
+
+#### b) Ensaio: código e dados para o Pi
+
+🖥️ **PC** (PowerShell):
+```powershell
+mkdir -p ~/migracao ; cd ~/migracao
+scp -i ~/.ssh/hetzner_deploy root@178.104.68.233:/tmp/betintel.dump .
+scp -i ~/.ssh/hetzner_deploy root@178.104.68.233:/tmp/uploads.tgz .
+git -C C:\Users\jbsou\Desktop\bet-intel archive --format=tar.gz -o $HOME\migracao\betintel-src.tgz odds-comparador
+scp betintel.dump uploads.tgz betintel-src.tgz jbsousa@192.168.1.20:/tmp/
+scp C:\Users\jbsou\Desktop\bet-intel\deploy\pi\.env.example jbsousa@192.168.1.20:/tmp/betintel.env
+ssh jbsousa@192.168.1.20 "ls -lh /tmp/betintel.dump /tmp/uploads.tgz /tmp/betintel-src.tgz /tmp/betintel.env"
+```
+O último comando tem de listar os 4 ficheiros. O `git archive` empacota o código do branch indicado. Depois do merge, usa `main` em vez de `odds-comparador`.
+
+#### c) Ensaio: preparar o Pi e o ficheiro de segredos
+
+🖥️ **PC:** `ssh jbsousa@192.168.1.20`, depois 🍓 **Pi:**
+```bash
+sudo mkdir -p /srv && sudo chown jbsousa:jbsousa /srv
+sudo usermod -aG docker jbsousa && newgrp docker
+docker network inspect app_network >/dev/null 2>&1 || docker network create app_network
+
+mkdir -p /srv/betintel/src && tar xzf /tmp/betintel-src.tgz -C /srv/betintel/src
+mv /tmp/betintel.env /srv/betintel/.env && chmod 600 /srv/betintel/.env
+openssl rand -hex 32     # → POSTGRES_PASSWORD
+openssl rand -hex 64     # → JWT_SECRET
+openssl rand -hex 64     # → JWT_REFRESH_SECRET
+nano /srv/betintel/.env
+```
+No `nano`:
+- Cola os três valores novos nos campos com esses nomes.
+- Copia do `.env` do Hetzner (a janela da alínea a): `FIREBASE_SERVICE_ACCOUNT_JSON` (**obrigatório**: sem ele a API não arranca; é uma linha muito comprida), os `SMTP_*`, `GEMINI_API_KEY`, `API_FOOTBALL_KEY` e `INTERNAL_ADMIN_KEY`.
+- Mete `APP_URL=https://betintel-api.couveflor.site`.
+- Deixa vazios `ODDS_SOURCES` e `SCRAPER_HTTP_PROXY`.
+- **Não** acrescentes `DATABASE_URL` nem `REDIS_URL`: o Pi define-os sozinho.
+- Mudar os JWT obriga a fazer login de novo na app.
+
+Guarda com **Ctrl+O → Enter → Ctrl+X**.
+
+#### d) Ensaio: construir, restaurar e testar
+
+🍓 **Pi**
+```bash
+cd /srv/betintel/src
+C="docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env"
+
+$C build api                          # constrói a imagem para o Pi (primeira vez: ~10–15 min)
+$C up -d betintel-db redis            # só a base de dados e o Redis
+sleep 15
+$C exec -T betintel-db pg_restore -U betintel_user -d betintel --no-owner < /tmp/betintel.dump
+sudo mkdir -p /srv/betintel/data/uploads && sudo tar xzf /tmp/uploads.tgz -C /srv/betintel/data/uploads
+$C up -d api
+sleep 30 && curl -s http://127.0.0.1:3100/health
+```
+Algumas notas sobre estes comandos:
+- **A variável `C`:** só existe nessa janela. Se abrires outro terminal, repete as duas primeiras linhas.
+- **O `sudo` nos uploads:** a pasta `/srv/betintel/data` é criada pelo Docker e pertence ao `root`, e é por isso que essa linha precisa de `sudo`. **Não mudes o dono** de `postgres` e `redis`: os contentores já lhes deram o dono certo.
+- **Avisos do `pg_restore`:** pode avisar sobre "owner" ou "shadow_db". É normal.
+
+✅ **Verificação:**
+- O `curl` responde `{"success":true,"data":{"status":"ok",...}}`.
+- Os dados estão lá:
+  ```bash
+  $C exec -T betintel-db psql -U betintel_user -d betintel -c 'SELECT count(*) AS boletins FROM "Boletin";' -c 'SELECT count(*) AS utilizadores FROM "User";'
+  docker logs betintel-api-1 --tail 40      # sem "error" a repetir; deve aparecer "listening"
+  ```
+- No Home Assistant, Definições → Sistema → Reparações não mostra *unhealthy*.
+
+**No fim do ensaio, para a API do Pi.** Enquanto o Hetzner estiver ligado, a cópia do Pi também acompanharia os jogos. O teu telemóvel receberia notificações **duplicadas**, e as duas bases de dados iam divergir.
+```bash
+$C stop api          # a base de dados e o Redis podem ficar ligados
+```
+
+#### e) Corte: preparar (pode ser em dias diferentes)
+
+Antes do dia do corte:
+1. `couveflor.site` ativo na Cloudflare (secção 3) e túnel `pi-server` HEALTHY (secção 4).
+2. **Runner do GitHub instalado no Pi** para o repositório `bet-intel` (secção 5). Instala-o com a conta `jbsousa`, que já está no grupo `docker`. Confirma que o repositório é **privado**.
+3. **Branch no `main`:** o código do Pi (branch `odds-comparador`) tem de estar no `main`, por PR ou merge. O job `deploy-pi` só corre a partir do `main`.
+4. **App nova construída** (secção 6.6), pronta a instalar.
+
+#### f) Corte: o dia (o BetIntel fica parado ~15–30 min)
+
+☁️ **Hetzner:** parar a app e tirar a cópia final
+```bash
+docker stop api-api-1
+sudo -u postgres pg_dump -Fc betintel > /tmp/betintel.dump
+ls -lh /tmp/betintel.dump
+```
+🖥️ **PC:** copiar só o `betintel.dump` (como na alínea b; as fotos não mudaram desde o ensaio).
+
+🍓 **Pi:** trocar a base de dados do ensaio pela final e arrancar
+```bash
+cd /srv/betintel/src && C="docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env"
+$C stop api
+$C exec -T betintel-db psql -U betintel_user -d postgres -c "DROP DATABASE betintel;" -c "CREATE DATABASE betintel OWNER betintel_user;"
+$C exec -T betintel-db pg_restore -U betintel_user -d betintel --no-owner < /tmp/betintel.dump
+$C up -d api && sleep 30 && curl -s http://127.0.0.1:3100/health
+```
+**Cloudflare:** Zero Trust → Networks → Tunnels → `pi-server` → Public hostname → Add:
+
+| Subdomain | Domain | Path | Service |
+|---|---|---|---|
+| `betintel-api` | `couveflor.site` | (vazio) | HTTP `localhost:3100` |
+
+Uma só rota chega: a app nova usa `betintel-api.couveflor.site` para a API e para o Socket.IO.
+
+✅ **Verificação:** 🖥️ `curl https://betintel-api.couveflor.site/health` responde `ok`.
+
+**Telemóvel:** instala a app nova (6.6), faz login e testa:
+- [ ] Lista de boletins e detalhe
+- [ ] Análise (estatísticas)
+- [ ] "A decorrer" e uma notificação de teste
+- [ ] Ler um boletim por screenshot
+- [ ] Foto de perfil
+
+#### g) Corte: passar o deploy automático para o Pi (job `deploy-pi`)
+
+O job `deploy-pi` faz, a cada push para o `main` que mexa na API, o mesmo que fizeste à mão:
+1. corre os testes na nuvem do GitHub;
+2. no runner do Pi, descarrega o código;
+3. faz `docker compose ... up -d --build` com o `/srv/betintel/.env`;
+4. confirma o `/health`.
+
+Usa a mesma base de dados e as mesmas pastas de `/srv/betintel/data`. Os contentores que lançaste à mão passam a ser geridos por ele, porque o nome do projeto é o mesmo (`betintel`).
+
+1. **Liga a variável:** GitHub → repositório **bet-intel** → **Settings → Secrets and variables → Actions → separador Variables → New repository variable**:
+   - Name: `DEPLOY_TARGET`
+   - Value: `pi`
+
+   A partir daqui, os jobs do Hetzner deixam de correr e o `deploy-pi` passa a correr.
+2. **Primeiro deploy:** **Actions → "Build & Deploy API" → Run workflow** (branch `main`) → **Run workflow**. Acompanha a execução. O passo "Health check" tem de terminar com **API OK**.
+3. A partir daí, cada push para o `main` que mexa em `apps/api/**` ou `packages/shared/**` faz deploy no Pi sozinho.
+
+**Atenção:**
+- **Não ligues o `DEPLOY_TARGET=pi` antes do corte.** O deploy arrancava a API no Pi enquanto o Hetzner também está ativo, e terias as notificações duplicadas da alínea d.
+- **A pasta `/srv/betintel/src`** (a cópia manual) deixa de ser usada. O runner trabalha em `~/runners/bet-intel/_work/bet-intel/bet-intel`. Podes apagá-la mais tarde (`rm -rf /srv/betintel/src`), mas **nunca** apagues `/srv/betintel/data` nem `/srv/betintel/.env`.
+- **Se o deploy falhar no "Health check":** o job mostra as últimas 100 linhas do log da API. A causa mais comum é faltar uma variável no `/srv/betintel/.env`.
+
+#### h) Corte: desligar o BetIntel no Hetzner
+
+Só depois de a app nova estar instalada e testada no telemóvel. ☁️ **Hetzner:**
+```bash
+docker compose -f /root/betintel/apps/api/docker-compose.yml down
+```
+A app antiga (endereço `stream-intel.online`) deixa de funcionar a partir daqui.
+
+#### Se algo correr mal
+
+🍓 **Pi**
+```bash
+docker logs betintel-api-1 --tail 100      # últimas mensagens da API (os erros aparecem aqui)
+docker ps                                  # que contentores estão a correr
+```
+**Voltar atrás antes da alínea h:**
+1. Apaga a rota do BetIntel no túnel.
+2. ☁️ Liga de novo o Hetzner: `docker start api-api-1`.
+3. No GitHub, apaga a variável `DEPLOY_TARGET`.
+4. Usa a app antiga até resolver.
+
+### 6.5 Recolha de odds (o "comparador") a partir de casa
+
+**Porque é que o Pi ajuda:** algumas casas de apostas bloqueiam pedidos vindos de fora de Portugal. No teste feito a partir do Hetzner (Alemanha), a Betano e o site da Lebull recusaram. A partir de casa, o IP é português.
+
+1. **Confirmar que as 5 casas respondem a partir do Pi:**
+   🍓 **Pi**
+   ```bash
+   cd ~/runners/bet-intel/_work/bet-intel/bet-intel && bash scripts/probe-odds.sh
+   ```
+   Espera cerca de 30 segundos. Todas as linhas têm de dizer **OK**. Se alguma disser BLOQUEADO, guarda a tabela e mostra-a ao Claude.
+2. **Importante:** o comparador de odds **ainda não está construído**. Está planeado em `docs/analise-2026-11/PLANO_ODDS.md`. Este passo só confirma que, quando for construído, as casas vão responder a partir do Pi.
+3. **Quando o comparador for entrando:** não é preciso fazer nada no Pi. Ele vem dentro da app BetIntel e chega ao Pi sozinho, com cada atualização do código (secção 6.4 b). Só é preciso que `SCRAPER_HTTP_PROXY` continue vazio no `/srv/betintel/.env`.
+4. **Ver o estado das casas** (quando existir): 🍓 `curl http://127.0.0.1:3100/api/odds/health`. Se uma casa bloquear, chega um aviso ao telemóvel.
+5. **Cuidado com o volume de pedidos:** o IP de casa é o mesmo que toda a família usa. O plano do comparador faz poucos pedidos de propósito, para não haver bloqueios.
+
+---
+
+### 6.6 Builds novas das apps móveis (endereço novo)
+
+**BetIntel:** o repositório já aponta para `https://betintel-api.couveflor.site/api` (em `apps/mobile/eas.json`, `apps/mobile/services/runtimeConfig.ts` e no teu `apps/mobile/.env` local).
+
+1. 🖥️ **PC**, na pasta `apps/mobile`: `eas build --platform android --profile production` (ou o perfil que usas para instalar no telemóvel). Usa o perfil `preview` se instalas o APK diretamente.
+2. Quando a build terminar, instala a APK no telemóvel (link do EAS) e faz login. Vai pedir login de novo por causa dos segredos novos (6.4 a).
+3. No servidor do Pi, o `/srv/betintel/.env` deve ter `APP_URL=https://betintel-api.couveflor.site`. É o endereço que aparece nos emails de recuperação da palavra-passe.
+4. **Login com Google:** a app usa o login nativo do Android (ID do cliente + SHA-1), que não depende do domínio da API, por isso não é preciso mudar nada no Google Cloud ou no Firebase.
+5. **Emails:** se o `SMTP_FROM` usa um endereço `@...stream-intel.online` validado num serviço de envio (Resend, SendGrid…), os emails continuam a sair enquanto o domínio não expirar. Quando expirar, troca o remetente para um endereço do `couveflor.site` (validado na Cloudflare) ou para o teu Gmail.
+
+**Stream-Intel** (repositório `StreamIntel`): o site e a API são servidos juntos pela app (o frontend usa caminhos relativos `/api/...`), por isso **não há build a fazer**. Basta:
+1. No `.env` do Stream-Intel no Pi (`/srv/stream-intel/.env`), pôr `GOOGLE_REDIRECT_URI=https://streamintel-api.couveflor.site/api/auth/google-callback`, se a variável existir.
+2. Na **Google Cloud Console** (credenciais OAuth do Stream-Intel), acrescentar esse URI em *Authorized redirect URIs* e `https://streamintel-api.couveflor.site` em *Authorized JavaScript origins*. Sem isto, o login com Google do Stream-Intel falha no endereço novo.
+3. A app Android `StreamIntelApp` aponta para `stream-intel.up.railway.app` (Railway), não para o Hetzner, por isso não é afetada.
+4. O ficheiro `nginx/streamintel-api.conf` do repositório deixa de ser usado (o túnel substitui o Nginx).
+
+**Pricetracker** (repositório `plener`): a app Android tem o endereço gravado em `android/local.properties` (`release.apiBaseUrl=https://plener.xuxus.site/`).
+1. Troca para `release.apiBaseUrl=https://plener.couveflor.site/`.
+2. Gera e instala uma APK de release nova (com a mesma keystore `pricetracker-release.keystore`).
+3. O `Caddyfile` do repositório deixa de ser preciso (o túnel trata do HTTPS).
+
+**Parlay League** (repositório `xuxus-bet`): o domínio (`couveflor.site`) não muda, por isso não há nada a alterar no código nem no login com Google.
+
+**Ordem segura:** primeiro a app no Pi a funcionar no endereço novo, depois a build nova instalada e testada, e só depois desligar a app no Hetzner.
+
+## 7. Depois de tudo mudado
+
+### 7.1 Trocar segredos que ficaram expostos
+
+Alguns segredos apareceram em sítios onde não deviam (um ficheiro do projeto e uma conversa). Troca-os:
+
+- **Postgres do BetIntel:** já foi trocado no passo 6.4 a). Apaga a palavra-passe antiga do ficheiro `DEPLOY.md` do projeto (o Claude faz isto).
+- **Postgres do Parlay League:** 🍓
+  ```bash
+  cd /srv/parlay-league
+  docker compose exec postgres psql -U parlay -d parlay_league -c "ALTER USER parlay PASSWORD '<nova-palavra-passe>';"
+  ```
+  Depois, troca-a também no `.env` dessa pasta (`nano .env`) e reinicia: `docker compose up -d`.
+- **Chaves TMDB e OMDB (Stream-Intel):** gera chaves novas nos sites themoviedb.org e omdbapi.com, põe-nas no `/srv/stream-intel/.env` e reinicia (`docker compose up -d`).
+- **GitHub (bet-intel → Settings → Secrets):** quando o Hetzner for apagado, apaga os segredos `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_SSH_KEY` e `DATABASE_URL`.
+
+### 7.2 Cópias de segurança automáticas (todos os dias às 4h)
+
+**Porquê:** se o SSD avariar, ou se o Pi for roubado ou apanhar uma descarga, perdias os dados. As cópias diárias, guardadas também fora de casa, evitam isso.
+
+🍓 **Pi**
+```bash
+mkdir -p /srv/backups
+cp ~/runners/bet-intel/_work/bet-intel/bet-intel/scripts/pi/backup.sh /srv/backups/
+chmod +x /srv/backups/backup.sh
+/srv/backups/backup.sh                     # primeira cópia, para testar
+ls -lh /srv/backups/                       # deve aparecer uma pasta com a data de hoje
+(crontab -l 2>/dev/null; echo "0 4 * * * /srv/backups/backup.sh >> /srv/backups/backup.log 2>&1") | crontab -
+```
+O último comando agenda a cópia para as 4h da manhã, todos os dias. As cópias com mais de 7 dias são apagadas sozinhas.
+
+**Cópia fora de casa (muito recomendado):**
+1. 🍓 `sudo apt install -y rclone && rclone config`
+2. Escolhe `n` (novo), dá-lhe o nome **`offsite`** e escolhe **Google Drive** (ou Backblaze B2). Segue as perguntas; para o Google Drive, vai pedir para abrir um link e autorizar.
+3. A partir daí, o script envia as cópias para lá sozinho.
+
+**Testar que a cópia serve** (faz isto pelo menos uma vez): 🍓
+```bash
+docker run -d --name pgtest -e POSTGRES_PASSWORD=x postgres:16-alpine
+sleep 10
+docker exec -i pgtest pg_restore -U postgres -d postgres --create < /srv/backups/$(date +%F)/betintel.dump
+docker exec pgtest psql -U postgres -d betintel -c "select count(*) from \"Boletin\";"   # deve mostrar o nº de boletins
+docker rm -f pgtest
+```
+
+### 7.3 Ser avisado se um site cair
+
+O **Uptime Kuma** verifica os teus sites de minuto a minuto e avisa-te no telemóvel se algum deixar de responder.
+
+🍓 **Pi**
+```bash
+docker run -d --name uptime-kuma --restart always -p 3001:3001 -v uptime_kuma:/app/data louislam/uptime-kuma:1
+```
+1. No PC (ligado à Tailscale), abre `http://<nome-do-pi-no-tailscale>:3001`. Cria um utilizador.
+2. **Add New Monitor** → tipo **HTTP(s)**, um monitor para cada endereço:
+   - `https://betintel-api.couveflor.site/health`
+   - `https://streamintel-api.couveflor.site`
+   - `https://couveflor.site`
+   - `https://plener.couveflor.site`
+3. Em **Settings → Notifications**, liga o **Telegram** ou o **ntfy** (app de notificações) para receberes os avisos no telemóvel.
+
+### 7.4 Desligar a Hetzner
+
+1. Com as 4 apps no Pi e testadas, deixa o servidor da Hetzner ligado (mas sem apps) mais **2 semanas**, por precaução.
+2. Se tudo correr bem, na consola da Hetzner (console.hetzner.cloud): servidor → **Delete**. Opcionalmente, antes, faz um **Snapshot** (custa cêntimos por mês) para teres uma cópia do servidor antigo.
+3. Apaga os segredos `HETZNER_*` no GitHub (7.1).
+
+### 7.5 Home Assistant e Alexa
+
+**Não muda nada.** A porta 443 continua aberta no router para o Home Assistant, porque a Amazon (Alexa) precisa dela para falar com ele. O túnel da Cloudflare serve só as apps e não interfere com a 443 nem com a 8123.
+
+---
+
+## 8. O que acontece se faltar a luz ou a internet
+
+- **Falta de luz:** o Pi desliga-se e as apps ficam em baixo. Quando a luz volta, o Pi arranca e todas as apps arrancam sozinhas (`restart: always`). Uma UPS pequena (bateria) aguenta quebras curtas.
+- **Falha da internet da MEO:** os sites ficam em baixo até a internet voltar. Os dados não se perdem.
+- **Velocidade:** o upload da tua internet chega para uso pessoal.
+
+---
+
+## 9. Lista para ir marcando
+
+- [ ] 2.1 Cópia do Home Assistant descarregada para o PC
+- [ ] 2.1 b) Imagem do cartão microSD guardada no PC
+- [ ] 2.2 Diagnóstico revisto com o Claude
+- [ ] 2.3 Pasta `/srv` criada no cartão (montagem antiga ao disco NTFS desfeita)
+- [ ] 2.4 Atualizações automáticas ligadas
+- [ ] 2.5 Rede `app_network` criada; Home Assistant sem estado unhealthy
+- [ ] 2.6 Entrar no Pi por SSH fora de casa, pela Tailscale
+- [ ] 3 `couveflor.site` ativo na Cloudflare e o site a funcionar
+- [ ] 4 Túnel `pi-server` HEALTHY
+- [ ] 5 Runners Idle nos 4 repositórios (todos privados)
+- [ ] 6.1 Pricetracker no Pi e desligado no Hetzner
+- [ ] 6.2 Stream-Intel no Pi e desligado no Hetzner
+- [ ] 6.3 Parlay League no Pi e desligado no Hetzner
+- [ ] 6.4 a–d BetIntel: ensaio no Pi (dados copiados, `/health` ok, API parada no fim)
+- [ ] 6.4 e–h BetIntel: corte (dump final, rota no túnel, app nova, `DEPLOY_TARGET=pi`, Hetzner desligado)
+- [ ] 6.6 Builds novas das apps (BetIntel e Stream-Intel) com o endereço `couveflor.site`, instaladas e testadas
+- [ ] 6.5 `probe-odds.sh` no Pi: todas as linhas OK
+- [ ] 7.1 Segredos trocados
+- [ ] 7.2 Cópias diárias a funcionar, cópia fora de casa e teste de restauro feito
+- [ ] 7.3 Uptime Kuma com avisos no telemóvel
+- [ ] 7.4 Hetzner apagado ao fim de 2 semanas
+- [ ] 7.5 Home Assistant e Alexa continuam a funcionar

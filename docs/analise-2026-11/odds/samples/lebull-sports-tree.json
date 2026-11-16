@@ -1,0 +1,6 @@
+{"inplayEventsCount": 56, "sports": [
+ {"sportId": 1, "sportName": "Football", "eventsCount": 654, "inplayEventsCount": 10}, 
+ {"sportId": 6, "sportName": "American Football", "eventsCount": 13, "inplayEventsCount": 7}, 
+ {"sportId": 4, "sportName": "Basketball", "eventsCount": 45, "inplayEventsCount": 17}, 
+ {"sportId": 20, "sportName": "Darts", "eventsCount": 11, "inplayEventsCount": 0}, 
+ {"sportId": 17, "sportName": "Futsal", "eventsCount": 2, "inplayEventsCount": 1}]}

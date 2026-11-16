@@ -20,7 +20,7 @@ function norm(s: string): string {
 }
 
 /** Which player a selection text names ("Jannik Sinner", "Sinner", "Jannik Sinner vence 2-0"). */
-function playerOf(text: string, ctx: TennisContext): 'A' | 'B' | null {
+export function playerOf(text: string, ctx: TennisContext): 'A' | 'B' | null {
   const t = text.replace(/\b(vence|ganha|wins?)\b.*$/, '').trim();
   if (!t) return null;
   const byName = (names: string[]) => names.some((n) => teamNamesMatch(t, n) || norm(n).split(' ').pop() === norm(t));

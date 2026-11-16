@@ -13,7 +13,7 @@ const DEV_DEFAULT_API_BASE_URL =
 
 // Hardcoded production URL — used as the final fallback in release builds when
 // env vars are not inlined by Metro (e.g. local Gradle builds outside EAS).
-const PRODUCTION_API_BASE_URL = 'https://betintel-api.stream-intel.online/api';
+const PRODUCTION_API_BASE_URL = 'https://betintel-api.couveflor.site/api';
 
 function normalizeApiBaseUrl(url?: string | null): string | null {
   const trimmed = url?.trim();

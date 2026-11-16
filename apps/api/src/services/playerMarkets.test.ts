@@ -34,7 +34,9 @@ test('ESPN summary → engine input: stats, halves, goals, players', () => {
 test('team stat totals: cards, corners, shots, offsides; per half', () => {
   assert.equal(r('Total de cartões', 'Mais de 5,5'), 'WON'); // 7 (a red card, but far from the line)
   assert.equal(r('Total de cartões', 'Mais de 6,5'), null); // 7 with a red card, close to the line: review
-  assert.equal(r('Total de cartões - 1.ª parte', 'Mais de 3,5'), 'WON'); // 4 in the first half
+  // First half: 4 cards (2+2), red card shown at 23'. "1.ª parte" used to be read as full time (7 cards).
+  assert.equal(r('Total de cartões - 1.ª parte', 'Menos de 5,5'), 'WON'); // 4 (FT reading, 7, would lose)
+  assert.equal(r('Total de cartões - 1.ª parte', 'Mais de 3,5'), null); // 4 with a red card, close to the line: review
   assert.equal(r('Total de cantos', 'Menos de 10,5'), 'WON'); // 10
   assert.equal(r('Total de remates', 'Mais de 22,5'), 'WON'); // 25
   assert.equal(r('Remates à baliza - Brentford', 'Brentford Mais de 3,5'), r('Remates à baliza', 'Brentford Mais de 3,5'));

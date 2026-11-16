@@ -1,0 +1,3 @@
+{"eventId": 42399197, "teamA": "Los Angeles Lakers", "teamB": "Phoenix Suns", "sportName": "Basketball", "leagueId": 998, "leagueName": "NBA", "timestamp": 1794776400000, "isLive": false, "oddsCount": 720, "stakeTypes": [
+ {"stakeTypeId": 702, "stakeTypeName": "Result", "stakes": [{"stakeName": "Los Angeles Lakers", "stakeArgument": null, "betFactor": 1.52}, {"stakeName": "Phoenix Suns", "stakeArgument": null, "betFactor": 2.19}]},
+ {"stakeTypeId": 2, "stakeTypeName": "Handicap", "stakes": [{"stakeName": "Handicap 1", "stakeArgument": -17.5, "betFactor": 5.9}, {"stakeName": "Handicap 2", "stakeArgument": 17.5, "betFactor": 1.04}, {"stakeName": "Handicap 1", "stakeArgument": -16.5, "betFactor": 5.36}]}]}
