@@ -34,6 +34,8 @@ export interface OddsEventView {
   event: OddsEventInfo;
   houses: HouseId[];
   rows: ComparedSelection[];
+  /** Each house's own participant names (what its market text was keyed with). */
+  names?: Partial<Record<HouseId, { home: string; away: string }>>;
 }
 
 export interface OddsEventListItem {

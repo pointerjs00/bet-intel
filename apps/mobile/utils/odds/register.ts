@@ -8,7 +8,7 @@ const itemId = (l: { eventKey: string; selectionKey: string }, house: HouseId) =
 
 /**
  * Converts slip legs to boletim builder items using the chosen house's own market/selection text
- * (the settlement engine parses that text). Legs without a live price/labels at the house are returned in `missing`.
+ * and participant names (the settlement engine parses that text). Legs without a live price/labels at the house are returned in `missing`.
  */
 export function toBuilderItems(
   legs: SlipLeg[],
@@ -26,10 +26,12 @@ export function toBuilderItems(
       missing.push(leg);
       continue;
     }
+    // The house's own names: its market/selection text was written against them.
+    const names = view.names?.[house] ?? view.event;
     items.push({
       id: itemId(leg, house),
-      homeTeam: view.event.home,
-      awayTeam: view.event.away,
+      homeTeam: names.home,
+      awayTeam: names.away,
       competition: view.event.competition,
       sport: view.sport as Sport,
       market: label.market,
@@ -49,6 +51,19 @@ export function oddsChanged(before: Partial<Record<string, number>>, items: Bole
 /** True when an in-progress boletim would be overwritten. */
 export function needsReplaceConfirm(builder: { items: unknown[] }): boolean {
   return builder.items.length > 0;
+}
+
+/**
+ * The house the builder is locked to: set when every item was registered from that house's odds
+ * (ids end with `|house`) and the site is that house. Changing the site would save one house's
+ * text and odds under another, so the confirmation screen hides the site selector.
+ */
+export function lockedHouse(
+  pendingHouse: HouseId | null,
+  builder: { siteSlug: string; items: Array<{ id: string }> },
+): HouseId | null {
+  if (!pendingHouse || builder.siteSlug !== pendingHouse || builder.items.length === 0) return null;
+  return builder.items.every((i) => i.id.endsWith(`|${pendingHouse}`)) ? pendingHouse : null;
 }
 
 /** True when the saved boletim is exactly this slip registered at this house. */
