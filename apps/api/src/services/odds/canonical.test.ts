@@ -261,3 +261,11 @@ test('final review: "<equipa> -Total de golos" and digit-named teams key as team
   assert.equal(footballKey('Total de golos', 'Acima de 1,5', ctx), 'FT.TOTAL.goals.O.1.5');
   assert.equal(footballKey('Total de golos', 'Mais de 2,5 Fulano', ctx), null);
 });
+
+test('final re-review: "Total de golos - HT/1H/2H/FT/ET" keys by period; ET is not compared', () => {
+  assert.equal(footballKey('Total de golos - HT', 'Mais de 1,5', ctx), '1H.TOTAL.goals.O.1.5');
+  assert.equal(footballKey('Total de golos - 1H', 'Mais de 1,5', ctx), '1H.TOTAL.goals.O.1.5');
+  assert.equal(footballKey('Total de golos - 2H', 'Mais de 1,5', ctx), '2H.TOTAL.goals.O.1.5');
+  assert.equal(footballKey('Total de golos - FT', 'Mais de 1,5', ctx), 'FT.TOTAL.goals.O.1.5');
+  assert.equal(footballKey('Total de golos - ET', 'Mais de 1,5', ctx), null);
+});

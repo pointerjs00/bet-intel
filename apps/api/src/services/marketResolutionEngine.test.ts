@@ -513,3 +513,19 @@ test('final review: a total followed by anything but unit/period words is not th
   assert.deepEqual(parseBet('Total de golos', 'Mais de 1,5 golos na 1ª parte', LX_CTX)?.legs, [{ kind: 'TOTAL', period: '1H', stat: 'goals', over: true, line: 1.5 }]);
   assert.deepEqual(parseBet('Ambas as equipas marcam e Acima de 2,5 golos', 'Sim', LX_CTX)?.legs, [{ kind: 'BTTS', period: 'FT', yes: true }, ...goals]);
 });
+
+test('final re-review: short period tokens in a label (HT/1H/2H/FT) are periods; ET stays review', () => {
+  const r: FixtureResult = { homeScore: 1, awayScore: 3, htHomeScore: 1, htAwayScore: 1, statusShort: 'FT' };
+  const tot = (period: string, line: number) => [{ kind: 'TOTAL', period, stat: 'goals', over: true, line }];
+  assert.deepEqual(parseBet('Total de golos - HT', 'Mais de 1,5', LX_CTX)?.legs, tot('1H', 1.5));
+  assert.equal(resolveMarket('Total de golos - HT', 'Mais de 1,5', r, LX_CTX), 'WON'); // 1-1 at half time
+  assert.equal(resolveMarket('Total de golos - HT', 'Mais de 2,5', r, LX_CTX), 'LOST');
+  assert.deepEqual(parseBet('Total de golos - 1H', 'Mais de 2,5', LX_CTX)?.legs, tot('1H', 2.5));
+  assert.equal(resolveMarket('Total de golos - 1H', 'Mais de 2,5', r, LX_CTX), 'LOST');
+  assert.deepEqual(parseBet('Total de golos - 2H', 'Mais de 2,5', LX_CTX)?.legs, tot('2H', 2.5));
+  assert.equal(resolveMarket('Total de golos - 2H', 'Mais de 2,5', r, LX_CTX), 'LOST'); // 0-2 in the second half
+  assert.equal(parseBet('Total de golos - ET', 'Mais de 1,5', LX_CTX), null);
+  assert.equal(resolveMarket('Total de golos - ET', 'Mais de 1,5', r, LX_CTX), null);
+  assert.deepEqual(parseBet('Total de golos - FT', 'Mais de 2,5', LX_CTX)?.legs, tot('FT', 2.5));
+  assert.equal(resolveMarket('Total de golos - FT', 'Mais de 2,5', r, LX_CTX), 'WON');
+});

@@ -250,8 +250,8 @@ const TEAM_GOAL_ORDER = /\b(ultima|segunda|terceira|quarta|quinta|[2-9]\.?a) equ
 
 function periodOf(raw: string): Period {
   const text = raw.replace(/intervalo\/final|ht\/ft/g, ' ');
-  if (/\b(primeira parte|primeiro tempo|1\.?a parte|1\.?o tempo|1st half|first half|intervalo)\b/.test(text)) return '1H';
-  if (/\b(segunda parte|segundo tempo|2\.?a parte|2\.?o tempo|2nd half|second half)\b/.test(text)) return '2H';
+  if (/\b(primeira parte|primeiro tempo|1\.?a parte|1\.?o tempo|1st half|first half|intervalo|ht|1h|1t|1p)\b/.test(text)) return '1H';
+  if (/\b(segunda parte|segundo tempo|2\.?a parte|2\.?o tempo|2nd half|second half|2h|2t|2p)\b/.test(text)) return '2H';
   return 'FT';
 }
 
@@ -525,7 +525,7 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
 const LABEL_SEPARATOR = /\s+[-–]\s*|\s*[-–]\s+/;
 
 // Words that make a "<x> - …" piece of a market label a market description, not a team name.
-const MARKET_TEXT = /\b(total|golos?|resultado|mais|menos|acima|abaixo|over|under|cantos?|cart(ao|oes)|remates?|faltas?|foras?|jogo|parte|tempo|intervalo|handicap|asiatico|equipas?|ambas|marcam?|baliza|jogador|player|prolongamento|incluido|final|goals?|half)\b/;
+const MARKET_TEXT = /\b(total|golos?|resultado|mais|menos|acima|abaixo|over|under|cantos?|cart(ao|oes)|remates?|faltas?|foras?|jogo|parte|tempo|intervalo|handicap|asiatico|equipas?|ambas|marcam?|baliza|jogador|player|prolongamento|incluido|final|goals?|half|ht|ft|1h|2h|1t|2t|1p|2p)\b/;
 
 /**
  * Team named by a team-total market label ("Total de Golos da Equipa da Casa", "Leixões - Total de golos",
@@ -561,7 +561,8 @@ function teamOfMarket(m: string, ctx?: MatchContext): 'H' | 'A' | null | undefin
       if (strict) sides.add(strict);
       // Market words, or no word at all ("1x2", "2.5"): a market description. A digit alone no longer makes
       // one ("Mainz 05" with the event's name written otherwise).
-      else if (MARKET_TEXT.test(piece) || !/[a-z]{3,}/.test(piece)) continue;
+      // Short words count only when they are periods ("HT", "1H"): "ET" (extra time) is unmapped → review.
+      else if (MARKET_TEXT.test(piece) || (/\d/.test(piece) && !/[a-z]{3,}/.test(piece))) continue;
       else sides.add(sideOf(piece, ctx)); // a team-like piece we cannot map: never the match total
     }
     if (sides.size === 1) return [...sides][0]!;
