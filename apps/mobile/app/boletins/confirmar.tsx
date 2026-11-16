@@ -21,6 +21,8 @@ import { useToast } from '../../components/ui/Toast';
 import type { ParsedBetclicBoletin } from '../../services/importService';
 import { usePersonalStats } from '../../services/statsService';
 import { useBoletinBuilderStore, type BoletinBuilderItem } from '../../stores/boletinBuilderStore';
+import { useOddsSlipStore } from '../../stores/oddsSlipStore';
+import { slipMatchesSaved } from '../../utils/odds/register';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage, plural } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
@@ -98,7 +100,11 @@ export default function ConfirmarBoletimScreen() {
     try {
       b.setStake(stake);
       if (b.siteSlug) await AsyncStorage.setItem(LAST_SITE_KEY, b.siteSlug).catch(() => undefined);
+      const before = useBoletinBuilderStore.getState();
+      const savedShape = { siteSlug: before.siteSlug, items: before.items.map((i) => ({ id: i.id })) };
       const created = await useBoletinBuilderStore.getState().save();
+      const slip = useOddsSlipStore.getState();
+      if (slipMatchesSaved(slip.legs, slip.pendingHouse, savedShape)) slip.clear();
       showToast('Boletim guardado.', 'success');
       router.replace({ pathname: '/boletins/[id]', params: { id: created.id } });
     } catch (e) {
