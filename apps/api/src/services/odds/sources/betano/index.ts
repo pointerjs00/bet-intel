@@ -5,7 +5,7 @@ import { ProviderFormatError } from '../../../sportsData/providerHealth';
 import type { OddsSource, OddsSport, SourceEvent, SourceMarket } from '../../types';
 import { readBootstrap } from './bootstrap';
 import { SPORT, leagueEvents } from './endpoints';
-import { mapEvent, mapMarkets, marketsFromState, parseInitialState } from './map';
+import { calendarEvents, mapEvent, mapMarkets, marketsFromState, parseInitialState } from './map';
 import { ORIGIN, navigationHeaders } from './profile';
 import { createBetanoSession, type BetanoSession, type LockStore } from './session';
 import { createImpersonateTransport, createUndiciTransport, type BetanoTransport } from './transport';
@@ -28,6 +28,9 @@ const pageAfter = (events: any[], to: number): boolean =>
     const t = Number((e?.event ?? e)?.startTime);
     return Number.isFinite(t) && t > 0 && t > to;
   });
+
+/** Event id of a raw calendar entry (prematch or wrapped). */
+const rawId = (e: any): string => String((e?.event ?? e)?.id ?? '');
 
 const json = <T>(text: string, what: string): T => {
   try {
@@ -70,22 +73,27 @@ export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso:
   const first = await deps.session.request(boot.calendar);
   if (first.status === 200) {
     const page = json<any>(first.text, 'calendário'); // external JSON boundary
-    const events = page?.data?.events ?? page?.events ?? page?.data ?? [];
-    for (const e of Array.isArray(events) ? events : []) keep(e);
-    let raw = Array.isArray(events) ? events.length : 0;
-    let stop = Array.isArray(events) && pageAfter(events, to);
+    // Grouped by league (`blocks`) means not sorted by time: the "page after the window" stop is unsafe.
+    const byTime = !Array.isArray(page?.data?.blocks);
+    const events = calendarEvents(page);
+    const rawIds = new Set(events.map(rawId));
+    for (const e of events) keep(e);
+    let raw = events.length;
+    let stop = byTime && pageAfter(events, to);
     const total = Number(page?.data?.totalCount ?? page?.totalCount ?? 0);
     for (let p = 1; p < (deps.maxPages ?? MAX_PAGES); p++) {
-      if (stop || (total > 0 && raw >= total)) break;
+      if (stop || raw === 0 || (total > 0 && raw >= total)) break;
       await sleep(PAGE_GAP_MS);
       const next = await deps.session.request(pageUrl(boot.calendar, p));
       if (next.status !== 200) break;
-      const body = json<any>(next.text, 'calendário'); // external JSON boundary
-      const more = body?.data?.events ?? body?.events ?? body?.data ?? [];
-      if (!Array.isArray(more) || more.length === 0) break;
-      raw += more.length;
-      for (const e of more) keep(e);
-      stop = pageAfter(more, to);
+      const more = calendarEvents(json<any>(next.text, 'calendário')); // external JSON boundary
+      // An empty page, or one that only repeats events already seen (page ignored), ends the walk.
+      const fresh = more.filter((e) => !rawIds.has(rawId(e)));
+      if (fresh.length === 0) break;
+      for (const e of fresh) rawIds.add(rawId(e));
+      raw += fresh.length;
+      for (const e of fresh) keep(e);
+      stop = byTime && pageAfter(more, to);
     }
     // A 200 calendar with raw events is authoritative, even when none fall in the window.
     if (raw > 0) return out;
@@ -103,7 +111,7 @@ export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso:
     if (res.status !== 200) continue;
     attempted++;
     try {
-      for (const e of json<any>(res.text, `liga ${leagueId}`)?.data ?? []) keep(e); // external JSON boundary
+      for (const e of calendarEvents(json<any>(res.text, `liga ${leagueId}`))) keep(e); // external JSON boundary
       succeeded++;
     } catch (err) {
       if (!(err instanceof ProviderFormatError)) throw err;
