@@ -18,7 +18,7 @@ import { useOddsSlipStore } from '../../stores/oddsSlipStore';
 import { useRegisterInHouse } from '../../hooks/useRegisterInHouse';
 import { useTheme } from '../../theme/useTheme';
 import { formatEuro, formatOdd } from '../../utils/odds/format';
-import { chosenHouse, isSelectable, legOdd, orderColumns, shownOddsFor } from '../../utils/odds/multiple';
+import { chosenHouse, isSelectable, legOdd, orderColumns, parseStake, shownOddsFor } from '../../utils/odds/multiple';
 import type { HouseId, OddsEventView } from '../../utils/odds/types';
 
 const LEG_W = 150;
@@ -29,6 +29,7 @@ export default function OddsMultipleScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { legs, stake, setStake, remove, clear, prune } = useOddsSlipStore();
+  const [stakeText, setStakeText] = useState(() => String(stake).replace('.', ','));
   const register = useRegisterInHouse();
   const [picked, setPicked] = useState<HouseId | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -149,10 +150,10 @@ export default function OddsMultipleScreen() {
             <NumericInput
               allowDecimal
               label="Valor"
-              onChangeText={(t) => { const n = Number(t.replace(',', '.')); setStake(Number.isFinite(n) ? n : 0); }}
+              onChangeText={(t) => { setStakeText(t); setStake(parseStake(t)); }}
               style={{ marginTop: 16 }}
               suffix="€"
-              value={String(stake).replace('.', ',')}
+              value={stakeText}
             />
             <Pressable accessibilityRole="button" onPress={() => setConfirmClear(true)} style={styles.clear}>
               <AppText tone="negative" variant="bodyStrong">Limpar múltipla</AppText>

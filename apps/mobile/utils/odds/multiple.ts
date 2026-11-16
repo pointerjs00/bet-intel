@@ -42,3 +42,9 @@ export function shownOddsFor(
   }
   return out;
 }
+
+/** Parses the stake text ("2,5", "2,", "") to a number; empty or invalid means 0. */
+export function parseStake(text: string): number {
+  const n = Number(text.replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}

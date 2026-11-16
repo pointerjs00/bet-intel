@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chosenHouse, isSelectable, legOdd, orderColumns, shownOddsFor } from './multiple';
+import { chosenHouse, isSelectable, legOdd, orderColumns, parseStake, shownOddsFor } from './multiple';
 import type { OddsEventView } from './types';
 
 const perHouse = {
@@ -30,4 +30,11 @@ test('legOdd and shownOddsFor', () => {
   assert.equal(legOdd(view, 'k', 'placard'), null);
   const leg = { eventKey: 'e', selectionKey: 'k' } as never;
   assert.deepEqual(shownOddsFor([leg], 'betclic', new Map([['e', view]])), { 'e|k|betclic': 2 });
+});
+
+test('parseStake', () => {
+  assert.equal(parseStake('2,5'), 2.5);
+  assert.equal(parseStake(''), 0);
+  assert.equal(parseStake('10'), 10);
+  assert.equal(parseStake('2,'), 2);
 });
