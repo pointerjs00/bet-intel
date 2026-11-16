@@ -11,7 +11,10 @@ const TO = '2026-11-18T12:00:00Z';
 const hours = (h: number) => NOW + h * 3_600_000;
 
 const SHELL = `${ORIGIN}/api/sport/futebol/jogos-de-hoje/?req=s,stnf,c,mb`;
-const CAL = `${ORIGIN}/api/sports/upcoming/calendar/FOOT/?lang=pt`;
+const CAL = `${ORIGIN}/api/sports/upcoming/calendar/FOOT/?lang=pt&timeZoneId=Europe%2FLisbon`;
+const DAY = (t: number) => `${CAL}&day=${t}&sort=Leagues`;
+const MIDNIGHT = Date.parse('2026-11-16T00:00:00Z');
+const D = (n: number) => MIDNIGHT + n * 86_400_000;
 const ev = (id: string, startTime: number, extra: object = {}) => ({
   id,
   name: `Casa${id} - Fora${id}`,
@@ -43,17 +46,15 @@ function fake(routes: Record<string, Reply>) {
 const ok = (body: unknown): Reply => ({ status: 200, text: JSON.stringify(body) });
 const shell = ok({ data: { calendarDataUrl: '/api/sports/upcoming/calendar/{sportId}/?lang=pt' } });
 
-test('calendar URL comes from the shell with {sportId} substituted; paging stops on an empty page', async () => {
+test('calendar URL comes from the shell with {sportId} substituted and the Lisbon time zone', async () => {
   const { deps, calls, sleeps } = fake({
     [SHELL]: shell,
     [CAL]: ok({ data: { events: [ev('1', hours(2)), ev('2', hours(3))] } }),
-    [`${CAL}&page=1`]: ok({ data: { events: [ev('3', hours(4))] } }),
-    [`${CAL}&page=2`]: ok({ data: { events: [] } }),
   });
   const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
-  assert.deepEqual(out.map((e) => e.houseEventId), ['1', '2', '3']);
-  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, `${CAL}&page=1`, `${CAL}&page=2`]);
-  assert.equal(sleeps.length, 2);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['1', '2']);
+  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL]);
+  assert.equal(sleeps.length, 0);
   assert.equal(out[0]!.pageUrl, '/odds/casa-fora/1/');
 });
 
@@ -70,7 +71,6 @@ test('events outside the window are dropped; live events started earlier are kep
         ],
       },
     }),
-    [`${CAL}&page=1`]: ok({ data: { events: [] } }),
   });
   const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
   assert.deepEqual(out.map((e) => e.houseEventId).sort(), ['in', 'live']);
@@ -139,12 +139,11 @@ test('shell without calendarDataUrl or calendar component falls back to the /api
   const fallback = `${ORIGIN}/api/sports/upcoming/calendar/FOOT/`;
   const { deps, calls } = fake({
     [SHELL]: ok({ data: {} }),
-    [fallback]: ok({ data: { events: [ev('1', hours(2))] } }),
-    [`${fallback}?page=1`]: ok({ data: { events: [] } }),
+    [`${fallback}?timeZoneId=Europe%2FLisbon`]: ok({ data: { events: [ev('1', hours(2))] } }),
   });
   const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
   assert.deepEqual(out.map((e) => e.houseEventId), ['1']);
-  assert.equal(calls[1]!.url, fallback);
+  assert.equal(calls[1]!.url, `${fallback}?timeZoneId=Europe%2FLisbon`);
 });
 
 test('trending leagues are only fetched when the calendar yields nothing', async () => {
@@ -160,7 +159,7 @@ test('trending leagues are only fetched when the calendar yields nothing', async
   assert.ok(calls.some((c) => c.url === trending));
 });
 
-test('paging stops once raw events reach totalCount, even if the window filtered some out', async () => {
+test('a calendar without header days is a single request', async () => {
   const { deps, calls } = fake({
     [SHELL]: shell,
     [CAL]: ok({ data: { totalCount: 2, events: [ev('a', hours(-9)), ev('b', hours(3))] } }),
@@ -193,18 +192,6 @@ test('a 200 calendar with only out-of-window events does not trigger the league 
   const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
   assert.deepEqual(out, []);
   assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL]);
-});
-
-test('paging stops once a page is entirely after the window', async () => {
-  const { deps, calls } = fake({
-    [SHELL]: shell,
-    [CAL]: ok({ data: { events: [ev('1', hours(2))] } }),
-    [`${CAL}&page=1`]: ok({ data: { events: [ev('2', hours(100)), ev('3', hours(101))] } }),
-    [`${CAL}&page=2`]: ok({ data: { events: [ev('4', hours(5))] } }),
-  });
-  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
-  assert.deepEqual(out.map((e) => e.houseEventId), ['1']);
-  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, `${CAL}&page=1`]);
 });
 
 test('a calendar with zero raw events still falls back to the leagues', async () => {
@@ -249,30 +236,40 @@ const blockEv = (id: string, startTime: number) => ({
   participants: [{ name: `Casa${id}`, id: 'h' }, { name: `Fora${id}`, id: 'a' }],
   markets: [{ name: 'Resultado Final', type: 'MRES', selections: [{ name: '1', price: 1.9, handicap: 0 }] }],
 });
-const blocks = (...groups: object[][]) => ok({ data: { header: {}, sortBy: [], marketTabs: [], blocks: groups.map((events, i) => ({ id: String(i), events })) } });
+const blocks = (dates: object[], ...groups: object[][]) =>
+  ok({ data: { header: { dates }, sortBy: [], marketTabs: [], blocks: groups.map((events, i) => ({ id: String(i), events })) } });
+// Header as served: hour tabs, today (selected), then one tab per day at Lisbon midnight.
+const HEADER = [
+  { date: D(0), hours: 3, initials: '3 HORAS', hasEvents: true },
+  { date: D(0), initials: 'HOJE', hasEvents: true, selected: true },
+  { date: D(1), initials: 'AMANHÃ', hasEvents: true },
+  { date: D(2), initials: 'QUA 18 NOV', hasEvents: true },
+  { date: D(3), initials: 'QUI 19 NOV', hasEvents: true },
+];
 
-test('blocks-shaped calendar: events flattened with pageUrl; a page repeating page 0 stops the walk', async () => {
-  const { deps, calls } = fake({
+test('blocks calendar: today plus the other header days that overlap the window, via day=', async () => {
+  const { deps, calls, sleeps } = fake({
     [SHELL]: shell,
-    [CAL]: blocks([blockEv('1', hours(30)), blockEv('2', hours(2))], [blockEv('3', hours(5))]),
-    [`${CAL}&page=1`]: blocks([blockEv('1', hours(30)), blockEv('2', hours(2))], [blockEv('3', hours(5))]),
+    [CAL]: blocks(HEADER, [blockEv('1', hours(8)), blockEv('2', hours(2))], [blockEv('3', hours(5))]),
+    [DAY(D(1))]: blocks(HEADER, [blockEv('4', hours(20)), blockEv('2', hours(2))]),
+    [DAY(D(2))]: blocks(HEADER, [blockEv('5', hours(40)), blockEv('6', hours(50))]),
   });
   const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
-  assert.deepEqual(out.map((e) => e.houseEventId), ['1', '2', '3']);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['1', '2', '3', '4', '5']);
   assert.equal(out[0]!.home, 'Casa1');
   assert.equal(out[0]!.pageUrl, '/odds/casa-fora/1/');
   assert.equal(out[0]!.mainMarkets?.length, 1);
-  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, `${CAL}&page=1`]);
+  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, DAY(D(1)), DAY(D(2))]);
+  assert.equal(sleeps.length, 2);
 });
 
-test('blocks-shaped calendar is not time-sorted: a page entirely after the window does not stop paging', async () => {
+test('blocks calendar: a refused day stops the day walk but keeps what was read', async () => {
   const { deps, calls } = fake({
     [SHELL]: shell,
-    [CAL]: blocks([blockEv('1', hours(2))]),
-    [`${CAL}&page=1`]: blocks([blockEv('2', hours(100))]),
-    [`${CAL}&page=2`]: blocks([blockEv('3', hours(5))]),
+    [CAL]: blocks(HEADER, [blockEv('1', hours(2))]),
+    [DAY(D(1))]: { status: 403, text: '' },
   });
   const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
-  assert.deepEqual(out.map((e) => e.houseEventId), ['1', '3']);
-  assert.equal(calls.length, 5); // shell + pages 0,1,2 + page 3 (404) ends it
+  assert.deepEqual(out.map((e) => e.houseEventId), ['1']);
+  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, DAY(D(1))]);
 });

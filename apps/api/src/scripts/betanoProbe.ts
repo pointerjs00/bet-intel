@@ -8,7 +8,7 @@
  *   2. warm-up (sessão no sidecar + cookies);
  *   3. shell → URL do calendário;
  *   4. calendário: forma da resposta, `totalCount`, se os eventos trazem `url` (pageUrl), ordenação
- *      por `startTime`, e numeração das páginas (páginas 1 e 2 comparadas com a 0);
+ *      por `startTime`, e a listagem real do collector (hoje + dias seguintes com `day=`);
  *   5. página de um evento: challenge?, regex do `initial_state`, mercados do próprio evento.
  *
  * ~6 pedidos à Betano no total, espaçados. Corre no contentor da API (usa o sidecar e o Redis dele):
@@ -19,6 +19,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { redis } from '../utils/redis';
 import { readBootstrap } from '../services/odds/sources/betano/bootstrap';
+import { listBetanoEvents } from '../services/odds/sources/betano/index';
 import { SPORT } from '../services/odds/sources/betano/endpoints';
 import { calendarEvents, mapEvent, mapMarkets, marketsFromState, parseInitialState } from '../services/odds/sources/betano/map';
 import { ORIGIN, navigationHeaders } from '../services/odds/sources/betano/profile';
@@ -38,7 +39,6 @@ const bad = (m: string) => console.log(`  ✗ ${m}`);
 const info = (m: string) => console.log(`    ${m}`);
 
 const eventsOf = calendarEvents;
-const idOf = (e: any) => String((e?.event ?? e)?.id ?? '');
 const startOf = (e: any) => Number((e?.event ?? e)?.startTime);
 
 async function main(): Promise<void> {
@@ -73,7 +73,9 @@ async function main(): Promise<void> {
   ok(`calendário: ${boot.calendar}`);
   info(`ligas anunciadas no shell: ${boot.leagueIds.length}`);
 
-  const p0 = await session.request(boot.calendar);
+  const cal = new URL(boot.calendar);
+  cal.searchParams.set('timeZoneId', 'Europe/Lisbon');
+  const p0 = await session.request(cal.toString());
   save('calendar-p0.json', p0.text);
   if (p0.status !== 200) {
     bad(`calendário HTTP ${p0.status} (corpo em calendar-p0.json). O collector cai para as ligas em destaque.`);
@@ -97,27 +99,21 @@ async function main(): Promise<void> {
   const grouped = Array.isArray(body0?.data?.blocks);
   info(`ordenado por startTime: ${sorted ? 'sim' : 'não'}${grouped ? ` (agrupado por liga em ${body0.data.blocks.length} blocks; a paragem por hora fica desligada)` : ''}`);
 
-  console.log('\n4. Paginação');
-  const ids0 = new Set(ev0.map(idOf));
-  for (const p of [1, 2]) {
-    await sleep(1200);
-    const u = new URL(boot.calendar);
-    u.searchParams.set('page', String(p));
-    const r = await session.request(u.toString());
-    save(`calendar-p${p}.json`, r.text);
-    if (r.status !== 200) {
-      info(`page=${p}: HTTP ${r.status}`);
-      continue;
-    }
-    const evs = eventsOf(JSON.parse(r.text));
-    const overlap = evs.filter((e) => ids0.has(idOf(e))).length;
-    info(`page=${p}: ${evs.length} eventos, ${overlap} repetidos da página 0`);
-    if (p === 1) {
-      if (evs.length === 0) ok('page=1 vazia: o calendário vem todo de uma vez (ou a numeração começa em 1 — vê totalCount)');
-      else if (overlap === evs.length) bad('page=1 igual à página 0: numeração começa em 1 ou o parâmetro é ignorado — o collector precisa de ajuste');
-      else ok('page=1 traz eventos novos: numeração a partir de 0 confirmada');
-    }
+  console.log('\n4. Listagem do collector (próximas 48 h: hoje + dias seguintes com day=)');
+  await sleep(1200);
+  const t0 = Date.now();
+  const listed = await listBetanoEvents(sport, new Date(t0).toISOString(), new Date(t0 + 48 * 3_600_000).toISOString(), { session });
+  const times = listed.map((e) => Date.parse(e.startsAt));
+  (listed.length > ev0.length ? ok : bad)(
+    `${listed.length} eventos na janela (só hoje: ${ev0.length})` +
+      (listed.length ? ` · de ${new Date(Math.min(...times)).toISOString()} a ${new Date(Math.max(...times)).toISOString()}` : ''),
+  );
+  const perDay = new Map<string, number>();
+  for (const t of times) {
+    const d = new Date(t).toISOString().slice(0, 10);
+    perDay.set(d, (perDay.get(d) ?? 0) + 1);
   }
+  info(`por dia: ${[...perDay].map(([d, n]) => `${d}=${n}`).join(', ')}`);
 
   console.log('\n5. Página de evento');
   const target = arg('--event') ?? mapped.find((e) => e.pageUrl)?.pageUrl;

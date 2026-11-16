@@ -18,19 +18,12 @@ export interface BetanoDeps {
 }
 
 export const PAGE_GAP_MS = 1200;
-export const MAX_PAGES = 12;
+/** At most this many extra day requests per listing (the window is 48 h: today + 2 days). */
+export const MAX_DAYS = 3;
 export const MAX_LEAGUES = 25;
-
-/** True when every event of a page has a parseable start time and starts after `to` (nothing more in window). */
-const pageAfter = (events: any[], to: number): boolean =>
-  events.length > 0 &&
-  events.every((e) => {
-    const t = Number((e?.event ?? e)?.startTime);
-    return Number.isFinite(t) && t > 0 && t > to;
-  });
-
-/** Event id of a raw calendar entry (prematch or wrapped). */
-const rawId = (e: any): string => String((e?.event ?? e)?.id ?? '');
+const DAY_MS = 24 * 3_600_000;
+/** The site always sends it; it makes "today" a Lisbon day, not the Pi's UTC day. */
+const TIME_ZONE = 'Europe/Lisbon';
 
 const json = <T>(text: string, what: string): T => {
   try {
@@ -40,16 +33,30 @@ const json = <T>(text: string, what: string): T => {
   }
 };
 
-/** Same calendar URL with `page=p`; the URL may already carry a query string. */
-const pageUrl = (calendar: string, p: number): string => {
+/** Calendar URL with extra query params; the shell's URL may already carry a query string. */
+const withQuery = (calendar: string, params: Record<string, string>): string => {
   const u = new URL(calendar);
-  u.searchParams.set('page', String(p));
+  for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
   return u.toString();
 };
 
 /**
- * Prematch calendar: the shell names the endpoint, paged until a short page. When the calendar is
- * refused, the highlighted leagues are walked instead — fewer events, still real.
+ * Day tabs of the calendar header (`header.dates`) other than the one already returned, whose
+ * [midnight, +24 h) overlaps the window. "3 HORAS"/"12 HORAS" carry `hours` and are skipped.
+ */
+function otherDays(body: any, from: number, to: number): number[] {
+  const dates = body?.data?.header?.dates;
+  if (!Array.isArray(dates)) return [];
+  return dates
+    .filter((d: any) => d && d.hours == null && d.selected !== true && d.hasEvents !== false)
+    .map((d: any) => Number(d.date))
+    .filter((t: number) => Number.isFinite(t) && t > 0 && t < to && t + DAY_MS > from);
+}
+
+/**
+ * Prematch calendar: the shell names the endpoint. The default response is today (Lisbon); the
+ * other days in the window are asked with `day=<midnight ms>` (the `page` param does not exist).
+ * When the calendar is refused or empty, the highlighted leagues are walked instead.
  */
 export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso: string, deps: BetanoDeps): Promise<SourceEvent[]> {
   const now = (deps.now ?? Date.now)();
@@ -70,30 +77,20 @@ export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso:
     out.push(ev);
   };
 
-  const first = await deps.session.request(boot.calendar);
+  const calendar = withQuery(boot.calendar, { timeZoneId: TIME_ZONE });
+  const first = await deps.session.request(calendar);
   if (first.status === 200) {
     const page = json<any>(first.text, 'calendário'); // external JSON boundary
-    // Grouped by league (`blocks`) means not sorted by time: the "page after the window" stop is unsafe.
-    const byTime = !Array.isArray(page?.data?.blocks);
     const events = calendarEvents(page);
-    const rawIds = new Set(events.map(rawId));
     for (const e of events) keep(e);
     let raw = events.length;
-    let stop = byTime && pageAfter(events, to);
-    const total = Number(page?.data?.totalCount ?? page?.totalCount ?? 0);
-    for (let p = 1; p < (deps.maxPages ?? MAX_PAGES); p++) {
-      if (stop || raw === 0 || (total > 0 && raw >= total)) break;
+    for (const day of otherDays(page, from, to).slice(0, MAX_DAYS)) {
       await sleep(PAGE_GAP_MS);
-      const next = await deps.session.request(pageUrl(boot.calendar, p));
-      if (next.status !== 200) break;
-      const more = calendarEvents(json<any>(next.text, 'calendário')); // external JSON boundary
-      // An empty page, or one that only repeats events already seen (page ignored), ends the walk.
-      const fresh = more.filter((e) => !rawIds.has(rawId(e)));
-      if (fresh.length === 0) break;
-      for (const e of fresh) rawIds.add(rawId(e));
-      raw += fresh.length;
-      for (const e of fresh) keep(e);
-      stop = byTime && pageAfter(more, to);
+      const res = await deps.session.request(withQuery(calendar, { day: String(day), sort: 'Leagues' }));
+      if (res.status !== 200) break;
+      const more = calendarEvents(json<any>(res.text, 'calendário')); // external JSON boundary
+      raw += more.length;
+      for (const e of more) keep(e);
     }
     // A 200 calendar with raw events is authoritative, even when none fall in the window.
     if (raw > 0) return out;
