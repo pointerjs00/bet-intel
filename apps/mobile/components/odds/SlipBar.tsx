@@ -30,7 +30,7 @@ export function SlipBar() {
     <Pressable
       accessibilityLabel={text}
       accessibilityRole="button"
-      onPress={() => router.push('/odds/multipla' as never)}
+      onPress={() => router.push('/odds/multipla')}
       style={[styles.bar, { backgroundColor: colors.primary, borderRadius: tokens.radius.lg, bottom: Math.max(insets.bottom, 12) + 64 + 8 }]}
     >
       <AppText numberOfLines={1} style={[styles.text, { color: colors.onPrimary }]} variant="bodyStrong">{text}</AppText>
