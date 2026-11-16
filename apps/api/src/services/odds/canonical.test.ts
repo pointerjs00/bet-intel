@@ -72,9 +72,9 @@ test('correct score and scorers', () => {
   assert.equal(footballKey('Marcador', 'Rafael Camacho', ctx), 'SCORER.ANY.rafael camacho');
 });
 
-test('Betclic "Resultado correcto" is not recognised by parseBet yet: null, never a wrong key', () => {
-  assert.equal(footballKey('Resultado correcto', '2-1', ctx), null);
-  assert.equal(footballKey('Resultado correcto', 'Leixões 2-1', ctx), null);
+test('Betclic "Resultado correcto": plain scores keyed; ambiguous away-team readings never a wrong key', () => {
+  assert.equal(footballKey('Resultado correcto', '2-1', ctx), 'FT.SCORE.2-1');
+  assert.equal(footballKey('Resultado correcto', 'GD Chaves 2-1', ctx), null);
 });
 
 test('safety guards: parseBet leniency must not leak into keys', () => {
@@ -119,8 +119,8 @@ test('team totals: unresolved team qualifier gives null, never a match total', (
 test('half-restricted markets need explicit half legs', () => {
   assert.equal(footballKey('Resultado correto - 1ª Parte', '1-0', ctx), null);
   assert.equal(footballKey('Empate Anula Aposta - 1ª Parte', 'Leixões', ctx), null);
-  // Half results stay out of the comparison: the plain-result allowlist only admits full-time results.
-  assert.equal(footballKey('Resultado - 1ª Parte', 'Leixões', ctx), null);
+  // Half results are compared when the market names the half (parseBet reads the period from it).
+  assert.equal(footballKey('Resultado - 1ª Parte', 'Leixões', ctx), '1H.1X2.H');
   assert.equal(footballKey('Total de golos - 1st Half', 'Over 0.5', ctx), '1H.TOTAL.goals.O.0.5');
 });
 
@@ -279,4 +279,39 @@ test('Betano "Hipótese Dupla" and bare "Menos 2.5" match Betclic', () => {
   assert.equal(footballKey('Hipótese Dupla', 'Alemanha ou Países Baixos', de), 'FT.DC.HA');
   assert.equal(footballKey('Total de Golos Mais/Menos', 'Menos 2.5', de), 'FT.TOTAL.goals.U.2.5');
   assert.equal(footballKey('Total de Golos Mais/Menos', 'Mais 3.5', de), 'FT.TOTAL.goals.O.3.5');
+});
+
+// Real labels from the unmatched-labels report of 2026-11-16 (Cazaquistão – Eslováquia etc.).
+const kz = { home: 'Cazaquistão', away: 'Eslováquia' };
+
+test('Betclic "Resultado correcto" (old spelling) matches Betano "Resultado Correto"; half scores stay unkeyed', () => {
+  assert.equal(footballKey('Resultado correcto', '1 - 0', kz), 'FT.SCORE.1-0');
+  assert.equal(footballKey('Resultado correcto', '1 - 0', kz), footballKey('Resultado Correto', '1 - 0', kz));
+  assert.equal(footballKey('Resultado correcto - Primeira Parte', '1 - 0', kz), null);
+  assert.equal(footballKey('Resultado correcto - Segunda parte', '1 - 0', kz), null);
+});
+
+test('half-time 1X2 and double chance match across houses', () => {
+  assert.equal(footballKey('Resultado da 1ª Parte', 'Cazaquistão', kz), '1H.1X2.H');
+  assert.equal(footballKey('Resultado - Primeira Parte', 'Cazaquistão', kz), '1H.1X2.H');
+  assert.equal(footballKey('Resultado da 1ª Parte', 'Empate', kz), '1H.1X2.D');
+  assert.equal(footballKey('Resultado - Segunda parte', 'Eslováquia', kz), '2H.1X2.A');
+  assert.equal(footballKey('Resultado duplo - Primeira Parte', 'Cazaquistão ou empate', kz), '1H.DC.HD');
+  // a selection naming its own half under a full-time market is still rejected
+  assert.equal(footballKey('Resultado', 'Cazaquistão vence ao intervalo', kz), null);
+});
+
+test('half corner totals: Betano "Cantos Mais/Menos - 1ª Parte" = Betclic "Primeira Parte - Total de Cantos"', () => {
+  assert.equal(footballKey('Cantos Mais/Menos - 1ª Parte', 'Mais de 3.5', kz), '1H.TOTAL.corners.O.3.5');
+  assert.equal(footballKey('Primeira Parte - Total de Cantos', 'Acima de 3,5', kz), '1H.TOTAL.corners.O.3.5');
+  // a real team prefix still makes a team total
+  assert.equal(footballKey('Cazaquistão - Total de golos', 'Acima de 1,5', kz), 'FT.TOTAL.goals.H.O.1.5');
+});
+
+test('Betano "Ambas as Equipas Marcam ou Mais de 2.5 / Não (2-0, 1-0, …)" = Betclic "Não"', () => {
+  assert.equal(
+    footballKey('Ambas as Equipas Marcam ou Mais de 2.5', 'Não (2-0, 1-0, 0-0, 0-1 ou 0-2)', kz),
+    footballKey('As duas equipas marcam ou Acima de 2,5 golos', 'Não', kz),
+  );
+  assert.equal(footballKey('Ambas as Equipas Marcam ou Mais de 2.5', 'Não (2-0, 1-0, 0-0, 0-1 ou 0-2)', kz), 'FT.BTTS.N+FT.TOTAL.goals.U.2.5');
 });

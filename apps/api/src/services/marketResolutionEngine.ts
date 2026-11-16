@@ -377,7 +377,7 @@ function isResultMarket(market: string): boolean {
 
 // (Betclic's "Resultado correcto" is left out on purpose: no sample shows how it writes its scores, so a
 // selection there goes to review; the score guard below keeps it from being read as the winner.)
-const CORRECT_SCORE_MARKET = /\b(resultado corret|resultado exat|marcador corret|correct score)/;
+const CORRECT_SCORE_MARKET = /\b(resultado correc?t|resultado exat|marcador correc?t|correct score)/;
 const SCORE_IN_TEXT = /\b\d+\s*[-:]\s*\d+\b/;
 
 /**
@@ -604,7 +604,10 @@ function refineLegs(legs: Leg[], m: string, s: string, ctx?: MatchContext): Leg[
 }
 
 /** Splits a selection/market into legs. Returns null when the bet cannot be parsed or settled as named. */
-export function parseBet(market: string, selection: string, ctx?: MatchContext): ParsedBet | null {
+export function parseBet(market: string, rawSelection: string, ctx?: MatchContext): ParsedBet | null {
+  // Betano spells out what a negated combo means: "Não (2-0, 1-0, 0-0, 0-1 ou 0-2)". The list only
+  // restates the selection, so it is dropped.
+  const selection = rawSelection.replace(/\s*\((?:\s*\d+\s*-\s*\d+\s*(?:,|ou)?)+\s*\)\s*$/i, '').trim();
   const bet = parseLegs(market, selection, ctx);
   if (!bet) return null;
   const legs = refineLegs(bet.legs, norm(market), norm(selection), ctx);
