@@ -26,7 +26,6 @@ export default function OddsEventScreen() {
   const [picked, setPicked] = useState<MarketTab | null>(null);
   const tabs = useMemo(() => (view ? groupByTab(view.rows, view.sport) : []), [view]);
   const active = tabs.find((t) => t.tab === picked) ?? tabs[0];
-  const statsId = key?.startsWith('espn:FOOTBALL:') ? key.split(':').pop() : undefined;
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -62,16 +61,6 @@ export default function OddsEventScreen() {
               <AppText numberOfLines={2} style={styles.center} variant="bodyStrong">{view.event.away}</AppText>
             </View>
           </View>
-
-          {statsId ? (
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => router.push({ pathname: '/jogo/[id]', params: { id: statsId } } as never)}
-              style={styles.statsLink}
-            >
-              <AppText tone="accent" variant="label">Estatísticas do jogo</AppText>
-            </Pressable>
-          ) : null}
 
           <View style={[styles.tabsWrap, { borderBottomColor: colors.border }]}>
             <ScrollView contentContainerStyle={styles.tabs} horizontal showsHorizontalScrollIndicator={false}>
@@ -113,7 +102,6 @@ const styles = StyleSheet.create({
   team: { alignItems: 'center', flex: 1, gap: 6 },
   center: { textAlign: 'center' },
   mid: { alignItems: 'center', gap: 2, minWidth: 70 },
-  statsLink: { alignItems: 'center', paddingVertical: 6 },
   tabsWrap: { borderBottomWidth: StyleSheet.hairlineWidth },
   tabs: { gap: 20, paddingHorizontal: 16 },
   tab: { borderBottomColor: 'transparent', borderBottomWidth: 2, paddingVertical: 10 },
