@@ -11,9 +11,20 @@ const LOCK_TTL_MS = 540_000;
 const lockKey = (house: string) => `odds:lock:${house}`;
 const runId = `${process.pid}:${Math.random().toString(36).slice(2)}`;
 
-export const oddsCatalogueQueue = new Bull('odds-catalogue', process.env.REDIS_URL!, {
-  defaultJobOptions: { removeOnComplete: 10, removeOnFail: 20 },
-});
+// Created on first schedule, so an install without ODDS_SOURCES opens no Redis connection for it.
+let queue: Bull.Queue | null = null;
+
+function getQueue(): Bull.Queue {
+  if (queue) return queue;
+  queue = new Bull('odds-catalogue', process.env.REDIS_URL!, {
+    defaultJobOptions: { removeOnComplete: 10, removeOnFail: 20 },
+  });
+  // Without a listener, a Redis error is an unhandled 'error' event: uncaughtException → exit → crash loop.
+  queue.on('error', (err) => logger.error('[oddsCatalogue] Queue error', { error: err.message }));
+  queue.on('failed', (_job, err) => logger.error('[oddsCatalogue] job failed', { error: err.message }));
+  queue.process(async () => oddsCatalogueJob());
+  return queue;
+}
 
 /** Runs one catalogue pass over the enabled sources. */
 export async function oddsCatalogueJob(): Promise<void> {
@@ -37,14 +48,17 @@ export async function oddsCatalogueJob(): Promise<void> {
   });
 }
 
-oddsCatalogueQueue.process(async () => oddsCatalogueJob());
-oddsCatalogueQueue.on('failed', (_job, err) => logger.error('[oddsCatalogue] job failed', { error: err.message }));
-
-/** Schedules the repeatable job (every 10 minutes). Call once at startup, only when ODDS_SOURCES is set. */
+/**
+ * Schedules the repeatable job (every 10 minutes). Call once at startup. With ODDS_SOURCES empty it does
+ * nothing and creates no queue: a repeatable job left in Redis by an earlier config is not processed by
+ * anyone (no worker), and oddsCatalogueJob returns at once with no sources anyway, so it is harmless.
+ */
 export async function scheduleOddsCatalogueJob(): Promise<void> {
-  for (const job of await oddsCatalogueQueue.getRepeatableJobs()) {
-    await oddsCatalogueQueue.removeRepeatableByKey(job.key);
+  if (getSources().length === 0) return;
+  const q = getQueue();
+  for (const job of await q.getRepeatableJobs()) {
+    await q.removeRepeatableByKey(job.key);
   }
-  await oddsCatalogueQueue.add({}, { repeat: { cron: '*/10 * * * *' }, jobId: 'odds-catalogue' });
+  await q.add({}, { repeat: { cron: '*/10 * * * *' }, jobId: 'odds-catalogue' });
   logger.info('[oddsCatalogue] scheduled every 10 minutes');
 }
