@@ -49,12 +49,22 @@ def _allowed(url: str) -> bool:
     return parsed.scheme in ("http", "https") and parsed.hostname in ALLOWED_HOSTS
 
 
-def _create(sid: str) -> None:
+def _create(sid: str) -> list:
+    """Register a session (caller holds _lock). Returns evicted entries to close via _close_entries."""
     session = creq.Session(impersonate=IMPERSONATE, timeout=TIMEOUT)
     _sessions[sid] = (session, threading.Lock())
+    evicted = []
     while len(_sessions) > MAX_SESSIONS:
-        _, (old, _old_lock) = _sessions.popitem(last=False)
-        old.close()
+        _, entry = _sessions.popitem(last=False)
+        evicted.append(entry)
+    return evicted
+
+
+def _close_entries(entries) -> None:
+    """Close sessions outside _lock, waiting for each one's in-flight request to finish."""
+    for session, slock in entries:
+        with slock:
+            session.close()
 
 
 def _get(sid: str):
@@ -93,7 +103,8 @@ def ping():
 def new_session():
     sid = uuid.uuid4().hex
     with _lock:
-        _create(sid)
+        evicted = _create(sid)
+    _close_entries(evicted)
     return jsonify(sid=sid)
 
 
@@ -102,7 +113,7 @@ def drop_session(sid: str):
     with _lock:
         entry = _sessions.pop(sid, None)
     if entry is not None:
-        entry[0].close()
+        _close_entries([entry])
     return jsonify(ok=True)
 
 

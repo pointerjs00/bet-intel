@@ -78,8 +78,11 @@ curl -s localhost:8765/cookies/nao-existe -H "x-egress-token: $TOKEN"
 
 O campo `resolved` do `/ping` é o alvo concreto (por exemplo `chrome136`) que o `curl_cffi` usa para o
 alias `chrome`. O major desse alvo é o que deve estar em `BETANO_BROWSER_MAJOR` (em
-`/srv/betintel/.env`, omissão `157`), para os headers `User-Agent` e `sec-ch-ua` da API coincidirem com
+`/srv/betintel/.env`; com `curl_cffi==0.17.0` é `152`), para os headers `User-Agent` e `sec-ch-ua` da API coincidirem com
 o fingerprint TLS. Se diferirem, ajustar a variável e reiniciar a API.
+
+O `curl_cffi` está fixado em `0.17.0` (`requirements.txt`). Ao actualizá-lo, voltar a verificar o `/ping` e
+actualizar `BETANO_BROWSER_MAJOR`.
 
 ## Challenge
 
