@@ -26,12 +26,17 @@ Comandos adaptados (a partir da raiz do repo no Pi; `DC` abaixo):
 ```bash
 DC="docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env"
 
-# Parte G, passo 4 (probe a partir do container da API)
-$DC exec -e ODDS_SOURCES=betano api node -e "
-const { betanoSourceFactory } = require('./dist/services/odds/sources/betano');
-const s = betanoSourceFactory(); const t = Date.now();
-s.listEvents('FOOTBALL', new Date(t).toISOString(), new Date(t + 7.2e6).toISOString())
-  .then(e => console.log('eventos:', e.length, e[0]));"
+# Parte G, passos 2–3 (sidecar autenticado e host não permitido)
+TOKEN=$(grep -oP '(?<=^BETANO_EGRESS_TOKEN=).*' /srv/betintel/.env)
+curl -s localhost:8765/ping                                                   # resolved = chrome152?
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:8765/session      # → 401
+SID=$(curl -s -X POST -H "x-egress-token: $TOKEN" localhost:8765/session | grep -oP '(?<="sid":")[^"]+')
+curl -s -X POST -H "x-egress-token: $TOKEN" -H 'content-type: application/json' \
+  -d "{\"sid\":\"$SID\",\"url\":\"http://192.168.1.1/\"}" localhost:8765/fetch  # → host não permitido
+
+# Parte G, passo 4 (diagnóstico real, ~6 pedidos; ver apps/api/src/scripts/betanoProbe.ts)
+$DC exec api node dist/scripts/betanoProbe.js            # opcional: --sport TENNIS, --event <url>
+$DC cp api:/tmp/betano-probe ./betano-probe               # respostas em bruto, para corrigir o código
 
 # Parte I
 # Challenge: correr `pnpm --filter api betano:solve` (PC de casa, mesmo IP; escreve apps/api/betano-jar.json, ou usar --out),
