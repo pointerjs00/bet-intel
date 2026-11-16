@@ -159,7 +159,8 @@ const styles = StyleSheet.create({
   search: { alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, paddingHorizontal: 12 },
   searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 },
   chipFlag: { borderRadius: 2, height: 11, width: 15 },
-  chipsWrap: { flexGrow: 0 },
+  // Fixed height: a horizontal ScrollView in a flex column can be squeezed and clip the chips.
+  chipsWrap: { flexGrow: 0, flexShrink: 0, minHeight: 48 },
   chips: { alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 6 },
   list: { gap: 10, paddingBottom: 160, paddingHorizontal: 16 },
   sep: { height: 10 },
