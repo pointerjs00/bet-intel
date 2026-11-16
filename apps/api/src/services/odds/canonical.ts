@@ -84,7 +84,7 @@ function betKey(bet: ParsedBet): string | null {
 
 const NOT_PLAIN_RESULT = /\b(cantos?|cart\w*|remates?|faltas?|minutos?|resto|prolongamento|penalt\w*|vantagem|vence|ganha|sem sofrer|a marcar|golos?)\b/;
 const NOT_PLAIN_RESULT_SELECTION = /\b(golos?|diferenca|margem|por)\b/;
-const PLAIN_RESULT_MARKET = /^(resultado|resultado duplo|resultado final|dupla hipotese|chance dupla|double chance|duplo|vencedor|match result|result|1x2|)$/;
+const PLAIN_RESULT_MARKET = /^(resultado|resultado duplo|resultado final|dupla hipotese|hipotese dupla|chance dupla|double chance|duplo|vencedor|match result|result|1x2|)$/;
 
 const LABEL_SEPARATOR = /\s+[-–]\s*|\s*[-–]\s+/;
 

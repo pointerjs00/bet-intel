@@ -422,6 +422,10 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
   // Only with the "golos" suffix, so handicap lines like "+1" are never read as totals.
   const shortTotal = t.match(/^([+-])\s*(\d+(?:\.\d+)?)\s*golos?$/);
   if (shortTotal) t = `${shortTotal[1] === '+' ? 'mais de' : 'menos de'} ${shortTotal[2]}`;
+  // "Menos 2.5" / "Mais 3.5" without "de" (Betano): a whole selection that is the word plus a
+  // decimal line. Anchored, so "pelo menos 2 golos" is never read as a total under.
+  const bareTotal = t.match(/^(mais|menos|acima|abaixo)\s+(\d+\.\d+)$/);
+  if (bareTotal) t = `${bareTotal[1]} de ${bareTotal[2]}`;
   t = t.replace(/\bgolos?$/, '').trim();
   if (!t) return null;
 

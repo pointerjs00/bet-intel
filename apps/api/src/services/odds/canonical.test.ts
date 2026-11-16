@@ -269,3 +269,14 @@ test('final re-review: "Total de golos - HT/1H/2H/FT/ET" keys by period; ET is n
   assert.equal(footballKey('Total de golos - FT', 'Mais de 1,5', ctx), 'FT.TOTAL.goals.O.1.5');
   assert.equal(footballKey('Total de golos - ET', 'Mais de 1,5', ctx), null);
 });
+
+// Real Betano labels seen on 2026-11-16 (Alemanha – Países Baixos): "Hipótese Dupla" and "Menos 2.5" (no "de").
+test('Betano "Hipótese Dupla" and bare "Menos 2.5" match Betclic', () => {
+  const de = { home: 'Alemanha', away: 'Países Baixos' };
+  assert.equal(footballKey('Hipótese Dupla', 'Alemanha ou Empate', de), footballKey('Resultado duplo', 'Alemanha ou empate', de));
+  assert.equal(footballKey('Hipótese Dupla', 'Alemanha ou Empate', de), 'FT.DC.HD');
+  assert.equal(footballKey('Hipótese Dupla', 'Países Baixos ou Empate', de), 'FT.DC.DA');
+  assert.equal(footballKey('Hipótese Dupla', 'Alemanha ou Países Baixos', de), 'FT.DC.HA');
+  assert.equal(footballKey('Total de Golos Mais/Menos', 'Menos 2.5', de), 'FT.TOTAL.goals.U.2.5');
+  assert.equal(footballKey('Total de Golos Mais/Menos', 'Mais 3.5', de), 'FT.TOTAL.goals.O.3.5');
+});
