@@ -45,14 +45,24 @@ Vais usar três computadores. Cada bloco de comandos diz no topo onde se escreve
 ### O que muda e o que fica igual
 
 **Fica igual:**
-- os endereços das apps: as apps móveis não precisam de ser reinstaladas;
+- o endereço do Parlay League (`couveflor.site`);
 - o Home Assistant, a porta 443 aberta no router e a ligação da Alexa;
 - o teu cartão SD/sistema do Pi (não se reinstala nada).
 
 **Muda:**
 - as apps passam a correr no Pi, dentro do Docker;
 - os sites passam a chegar ao Pi através da Cloudflare (túnel), sem portas novas no router;
-- a Hetzner deixa de ser precisa (e de ser paga) no fim.
+- a Hetzner deixa de ser precisa (e de ser paga) no fim;
+- **os endereços do BetIntel, do Stream-Intel e do Pricetracker mudam para subdomínios de `couveflor.site`** (decisão de 16/11/2026). Não tens acesso à conta GoDaddy de `stream-intel.online` nem a `xuxus.site`, por isso não dá para apontar esses nomes para o Pi. Por isso, **as apps móveis do BetIntel e do Stream-Intel precisam de uma build nova** com o novo endereço, instalada **antes** de desligares o Hetzner (secção 6.6).
+
+| App | Endereço antigo | Endereço novo |
+|---|---|---|
+| BetIntel (API) | `betintel-api.stream-intel.online` (e `api.stream-intel.online`) | `betintel-api.couveflor.site` |
+| Stream-Intel (API) | `streamintel-api.stream-intel.online`, `stream-intel.online/api/` | `streamintel-api.couveflor.site` |
+| Pricetracker | `plener.xuxus.site` | `plener.couveflor.site` |
+| Parlay League | `couveflor.site` | `couveflor.site` (igual) |
+
+Enquanto o Hetzner estiver ligado, os endereços antigos continuam a funcionar lá, por isso as builds antigas não falham durante a migração.
 
 > ⚠️ **A porta 443 do router fica como está.** A Amazon (Alexa) precisa dela para falar com o Home Assistant. Nada neste guia a fecha ou altera. As apps usam o túnel e não precisam dela.
 
@@ -252,24 +262,20 @@ Para voltar a ter ambiente gráfico: `sudo systemctl set-default graphical.targe
 
 ---
 
-## 3. Passar os domínios para a Cloudflare (sem cortar nada)
+## 3. Passar o domínio `couveflor.site` para a Cloudflare (sem cortar nada)
 
-**O que vais fazer:** dizer à internet que, a partir de agora, é a Cloudflare que gere os teus 3 domínios (`stream-intel.online`, `couveflor.site` e `xuxus.site`). No início a Cloudflare continua a apontar para o Hetzner, por isso **ninguém nota diferença**.
+**O que vais fazer:** dizer à internet que, a partir de agora, é a Cloudflare que gere o domínio `couveflor.site`. É o único domínio a cuja conta tens acesso. No início a Cloudflare continua a apontar para o Hetzner, por isso **ninguém nota diferença**.
 
-Para cada um dos 3 domínios:
 1. Entra em **dash.cloudflare.com** (cria conta se não tiveres).
-2. Carrega em **Add a site** (ou "Add a domain"), escreve o domínio e escolhe o plano **Free**.
-3. A Cloudflare procura os registos atuais do domínio e mostra uma lista. Confirma que estão lá os subdomínios que usas:
-   - `stream-intel.online`: `api`, `betintel-api`, `streamintel-api` e o próprio domínio;
-   - `couveflor.site`: o próprio domínio;
-   - `xuxus.site`: `plener`.
-
-   Devem apontar para `178.104.68.233` (o Hetzner). Se faltar algum, acrescenta-o como registo **A** com esse IP.
+2. Carrega em **Add a site** (ou "Add a domain"), escreve `couveflor.site` e escolhe o plano **Free**.
+3. A Cloudflare procura os registos atuais e mostra uma lista. Confirma que está lá o próprio domínio (`couveflor.site`) a apontar para `178.104.68.233` (o Hetzner). Se não estiver, acrescenta-o como registo **A** com esse IP.
 4. A Cloudflare mostra **dois nameservers** (algo como `ana.ns.cloudflare.com`).
-5. Vai ao site onde **compraste** o domínio (o "registrar"), procura "Nameservers" ou "DNS" nas definições do domínio, e troca os que lá estão pelos dois da Cloudflare.
+5. Entra na conta onde **compraste** `couveflor.site` (o "registrar"), procura "Nameservers" ou "DNS" nas definições do domínio, e troca os que lá estão pelos dois da Cloudflare.
 6. Espera pelo e-mail da Cloudflare "Your site is now active". Pode demorar de minutos a algumas horas.
 
-✅ **Verificação:** depois do e-mail, os 3 sites e o BetIntel continuam a funcionar normalmente. 🖥️ `nslookup -type=ns stream-intel.online` mostra nomes terminados em `cloudflare.com`.
+✅ **Verificação:** depois do e-mail, `https://couveflor.site` continua a funcionar. 🖥️ `nslookup -type=ns couveflor.site` mostra nomes terminados em `cloudflare.com`.
+
+`stream-intel.online` e `xuxus.site` não se mexem: continuam a apontar para o Hetzner até ele ser desligado, e depois deixam de funcionar. Se um dia recuperares o acesso a essas contas, podes voltar a usá-los.
 
 ---
 
@@ -368,11 +374,11 @@ curl -I http://127.0.0.1:8080
 - O `curl -I` tem de mostrar `HTTP/1.1 200` (ou outro código que não seja erro de ligação).
 
 **Corte.** Na Cloudflare: Zero Trust → Networks → Tunnels → `pi-server` → **Public hostname → Add a public hostname**:
-- Subdomain: `plener`; Domain: `xuxus.site`.
+- Subdomain: `plener`; Domain: `couveflor.site`.
 - Service: Type **HTTP**, URL `localhost:8080`.
 - Guardar. A Cloudflare troca sozinha o registo antigo (que apontava para o Hetzner) pelo túnel.
 
-✅ **Verificação:** abre `https://plener.xuxus.site` no browser e confirma que tudo funciona.
+✅ **Verificação:** abre `https://plener.couveflor.site` no browser e confirma que tudo funciona. **Quem usa o Pricetracker passa a usar este endereço novo**; o antigo (`plener.xuxus.site`) deixa de funcionar quando desligares a app no Hetzner.
 
 ☁️ **Hetzner:** só depois de confirmar, desligar a app antiga
 ```bash
@@ -406,8 +412,9 @@ curl -I http://127.0.0.1:8000
 ```
 
 **Corte** (duas rotas no túnel):
-1. Subdomain `streamintel-api`, domain `stream-intel.online` → HTTP `localhost:8000`.
-2. Subdomain vazio, domain `stream-intel.online`, **Path** `^/api/` → HTTP `localhost:8000`.
+1. Subdomain `streamintel-api`, domain `couveflor.site` → HTTP `localhost:8000`.
+
+A app (ou o site) do Stream-Intel tem de passar a usar `https://streamintel-api.couveflor.site`. Isso muda-se no repositório do Stream-Intel e exige uma build nova (secção 6.6). Até lá, deixa a versão do Hetzner a correr.
 
 ✅ **Verificação:** a app/site do Stream-Intel funciona e mostra os dados de antes. Depois, ☁️ **Hetzner:** `cd /home/streamuser/stream-intel && docker compose down`.
 
@@ -515,14 +522,11 @@ Acrescenta estas rotas ao túnel `pi-server`:
 
 | Subdomain | Domain | Path | Service |
 |---|---|---|---|
-| `betintel-api` | `stream-intel.online` | (vazio) | HTTP `localhost:3100` |
-| `api` | `stream-intel.online` | (vazio) | HTTP `localhost:3100` |
-| (vazio) | `stream-intel.online` | `^/health$` | HTTP `localhost:3100` |
-| (vazio) | `stream-intel.online` | `^/socket.io/` | HTTP `localhost:3100` |
+| `betintel-api` | `couveflor.site` | (vazio) | HTTP `localhost:3100` |
 
-As duas últimas têm de ficar **acima** da regra `^/api/` do Stream-Intel na lista; no painel podes arrastar para mudar a ordem. A Cloudflare usa a primeira regra que serve.
+Uma só rota chega, porque a app nova usa só `betintel-api.couveflor.site` (API e Socket.IO).
 
-#### e) Testar na app do telemóvel (a mesma app, sem reinstalar)
+#### e) Testar com a app nova do telemóvel (build da secção 6.6)
 
 - [ ] Fazer login (vai pedir de novo, por causa dos segredos novos)
 - [ ] Ver a lista de boletins e abrir um
@@ -531,10 +535,11 @@ As duas últimas têm de ficar **acima** da regra `^/api/` do Stream-Intel na li
 - [ ] Ler um boletim por screenshot
 - [ ] Ver a foto de perfil
 
-✅ **Verificação:** tudo funciona. Depois, ☁️ **Hetzner:**
+✅ **Verificação:** tudo funciona na app nova. **Só depois de a app nova estar instalada no teu telemóvel**, ☁️ **Hetzner:**
 ```bash
 docker compose -f /root/betintel/apps/api/docker-compose.yml down
 ```
+A partir daqui, a app antiga deixa de funcionar.
 
 #### f) Se algo correr mal
 
@@ -561,6 +566,22 @@ docker ps                                  # que contentores estão a correr
 5. **Cuidado com o volume de pedidos:** o IP de casa é o mesmo que toda a família usa. O plano do comparador faz poucos pedidos de propósito, para não haver bloqueios.
 
 ---
+
+### 6.6 Builds novas das apps móveis (endereço novo)
+
+**BetIntel:** o repositório já aponta para `https://betintel-api.couveflor.site/api` (em `apps/mobile/eas.json`, `apps/mobile/services/runtimeConfig.ts` e no teu `apps/mobile/.env` local).
+
+1. 🖥️ **PC**, na pasta `apps/mobile`: `eas build --platform android --profile production` (ou o perfil que usas para instalar no telemóvel). Usa o perfil `preview` se instalas o APK diretamente.
+2. Quando a build terminar, instala a APK no telemóvel (link do EAS) e faz login. Vai pedir login de novo por causa dos segredos novos (6.4 a).
+3. No servidor do Pi, o `/srv/betintel/.env` deve ter `APP_URL=https://betintel-api.couveflor.site`. É o endereço que aparece nos emails de recuperação da palavra-passe.
+4. **Login com Google:** a app usa o login nativo do Android (ID do cliente + SHA-1), que não depende do domínio da API, por isso não é preciso mudar nada no Google Cloud ou no Firebase.
+5. **Emails:** se o `SMTP_FROM` usa um endereço `@...stream-intel.online` validado num serviço de envio (Resend, SendGrid…), os emails continuam a sair enquanto o domínio não expirar. Quando expirar, troca o remetente para um endereço do `couveflor.site` (validado na Cloudflare) ou para o teu Gmail.
+
+**Stream-Intel:** no repositório dele, troca o endereço da API para `https://streamintel-api.couveflor.site` e faz uma build nova. O Claude ajuda se abrires esse repositório.
+
+**Pricetracker:** se tiver uma app ou extensão com o endereço gravado, troca para `https://plener.couveflor.site`. Se for só um site, basta usar o endereço novo.
+
+**Ordem segura:** primeiro a app no Pi a funcionar no endereço novo, depois a build nova instalada e testada, e só depois desligar a app no Hetzner.
 
 ## 7. Depois de tudo mudado
 
@@ -617,10 +638,10 @@ docker run -d --name uptime-kuma --restart always -p 3001:3001 -v uptime_kuma:/a
 ```
 1. No PC (ligado à Tailscale), abre `http://<nome-do-pi-no-tailscale>:3001`. Cria um utilizador.
 2. **Add New Monitor** → tipo **HTTP(s)**, um monitor para cada endereço:
-   - `https://api.stream-intel.online/health`
-   - `https://streamintel-api.stream-intel.online`
+   - `https://betintel-api.couveflor.site/health`
+   - `https://streamintel-api.couveflor.site`
    - `https://couveflor.site`
-   - `https://plener.xuxus.site`
+   - `https://plener.couveflor.site`
 3. Em **Settings → Notifications**, liga o **Telegram** ou o **ntfy** (app de notificações) para receberes os avisos no telemóvel.
 
 ### 7.4 Desligar a Hetzner
@@ -652,13 +673,14 @@ docker run -d --name uptime-kuma --restart always -p 3001:3001 -v uptime_kuma:/a
 - [ ] 2.4 Atualizações automáticas ligadas
 - [ ] 2.5 Rede `app_network` criada; Home Assistant sem estado unhealthy
 - [ ] 2.6 Entrar no Pi por SSH fora de casa, pela Tailscale
-- [ ] 3 Três domínios ativos na Cloudflare e sites a funcionar
+- [ ] 3 `couveflor.site` ativo na Cloudflare e o site a funcionar
 - [ ] 4 Túnel `pi-server` HEALTHY
 - [ ] 5 Runners Idle nos 4 repositórios (todos privados)
 - [ ] 6.1 Pricetracker no Pi e desligado no Hetzner
 - [ ] 6.2 Stream-Intel no Pi e desligado no Hetzner
 - [ ] 6.3 Parlay League no Pi e desligado no Hetzner
 - [ ] 6.4 BetIntel no Pi (`DEPLOY_TARGET=pi`, dados copiados, rotas, testes na app)
+- [ ] 6.6 Builds novas das apps (BetIntel e Stream-Intel) com o endereço `couveflor.site`, instaladas e testadas
 - [ ] 6.5 `probe-odds.sh` no Pi: todas as linhas OK
 - [ ] 7.1 Segredos trocados
 - [ ] 7.2 Cópias diárias a funcionar, cópia fora de casa e teste de restauro feito
