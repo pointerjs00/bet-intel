@@ -467,3 +467,49 @@ test('review round 2: "sem / excl. prolongamento" is regulation time, not an ext
   assert.equal(legsOf('Prolongamento - par/ímpar', 'Impar'), null);
   assert.equal(parseBet('Total de golos (prolongamento incluído)', 'Mais de 2,5', LX_CTX)?.extraTimeIncluded, true);
 });
+
+test('final review: team totals of digit-named teams or with "<equipa> -Total" are team totals, not the match total', () => {
+  // 1-3 (HT 1-1): the home side scored once, so a home "over 1.5" is LOST (the match total would be WON).
+  const r: FixtureResult = { homeScore: 1, awayScore: 3, htHomeScore: 1, htAwayScore: 1, statusShort: 'FT' };
+  for (const [m, s, home] of [
+    ['Bayer 04 Leverkusen - Total de golos', 'Acima de 1,5', 'Bayer 04 Leverkusen'],
+    ['Leixões -Total de golos', 'Acima de 1,5', 'Leixões'],
+    ['Schalke 04 - Total de golos', 'Mais de 1,5', 'Schalke 04'],
+    ['Schalke 04 -Total de golos', 'Mais de 1,5', 'Schalke 04'],
+    ['1. FC Köln - Total de golos', 'Mais de 1,5', '1. FC Köln'],
+    ['Mainz 05 - Total de golos', 'Mais de 1,5', 'Mainz 05'],
+  ] as const) {
+    const ctx = { homeNames: [home], awayNames: ['Hertha BSC'] };
+    assert.deepEqual(parseBet(m, s, ctx)?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'H' }], m);
+    assert.equal(resolveMarket(m, s, r, ctx), 'LOST', m);
+  }
+  // Away side named at the end, digits in the name.
+  const mainzAway = { homeNames: ['Hertha BSC'], awayNames: ['Mainz 05'] };
+  assert.equal(resolveMarket('Total de golos - Mainz 05', 'Menos de 2,5', r, mainzAway), 'LOST');
+  // Half suffix with the space missing: home first-half total, HT 0-1.
+  const ht: FixtureResult = { homeScore: 1, awayScore: 3, htHomeScore: 0, htAwayScore: 1, statusShort: 'FT' };
+  const chaves = { homeNames: ['GD Chaves'], awayNames: ['Leixões'] };
+  assert.deepEqual(parseBet('GD Chaves -Total de golos - 1ª Parte', 'Mais de 0,5', chaves)?.legs, [{ kind: 'TOTAL', period: '1H', stat: 'goals', over: true, line: 0.5, team: 'H' }]);
+  assert.equal(resolveMarket('GD Chaves -Total de golos - 1ª Parte', 'Mais de 0,5', ht, chaves), 'LOST');
+  // A team-named label that is not a mapped team, or names both teams: review, never the match total.
+  assert.equal(parseBet('Leixões - GD Chaves - Total de golos', 'Mais de 2,5', LX_CTX), null);
+  assert.equal(parseBet('Bayer 04 Leverkusen - Total de golos', 'Mais de 1,5', LX_CTX), null);
+  assert.deepEqual(parseBet('Mainz 05 -Total de golos', 'Mais de 1,5', { homeNames: ['FSV Mainz'], awayNames: ['Hertha BSC'] })?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'H' }]);
+  // "Intervalo" contains "Inter": a market word, not that team.
+  assert.deepEqual(parseBet('Total de golos - Intervalo', 'Mais de 0,5', { homeNames: ['Inter'], awayNames: ['Milan'] })?.legs, [{ kind: 'TOTAL', period: '1H', stat: 'goals', over: true, line: 0.5 }]);
+  assert.deepEqual(parseBet('Bayer 04 Leverkusen -Total de golos', 'Mais de 1,5', { homeNames: ['Bayer Leverkusen'], awayNames: ['Hertha BSC'] })?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 1.5, team: 'H' }]);
+  // Hyphens inside names are not separators; plain match totals stay match totals.
+  assert.deepEqual(parseBet('Total de golos', 'Mais de 2,5', { homeNames: ['Paris Saint-Germain'], awayNames: ['Lens'] })?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 2.5 }]);
+  assert.deepEqual(parseBet('Total de golos - 1ª Parte', 'Mais de 0,5', LX_CTX)?.legs, [{ kind: 'TOTAL', period: '1H', stat: 'goals', over: true, line: 0.5 }]);
+});
+
+test('final review: a total followed by anything but unit/period words is not the match total', () => {
+  assert.equal(parseBet('Total de golos', 'Mais de 2,5 Fulano', LX_CTX), null);
+  assert.equal(parseBet('Total de golos', 'Acima de 1,5 Fulano de Tal', LX_CTX), null);
+  const goals = [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 2.5 }];
+  assert.deepEqual(parseBet('Total de golos', 'Mais de 2,5 golos', LX_CTX)?.legs, goals);
+  assert.deepEqual(parseBet('Total de golos', 'Mais de 2,5 golos (tempo reg.)', LX_CTX)?.legs, goals);
+  assert.deepEqual(parseBet('Total de cantos', 'Acima de 9,5 cantos', LX_CTX)?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'corners', over: true, line: 9.5 }]);
+  assert.deepEqual(parseBet('Total de golos', 'Mais de 1,5 golos na 1ª parte', LX_CTX)?.legs, [{ kind: 'TOTAL', period: '1H', stat: 'goals', over: true, line: 1.5 }]);
+  assert.deepEqual(parseBet('Ambas as equipas marcam e Acima de 2,5 golos', 'Sim', LX_CTX)?.legs, [{ kind: 'BTTS', period: 'FT', yes: true }, ...goals]);
+});

@@ -272,6 +272,16 @@ function playerStatOf(text: string): PlayerStat {
   return s === 'shots' || s === 'shotsOnTarget' || s === 'fouls' ? s : 'goals';
 }
 
+// Words that may follow a total's line ("Acima de 9,5 cantos", "Mais de 2,5 golos (tempo reg.) - 1ª Parte").
+const TOTAL_UNIT_WORDS = /\b(golos?|gols?|goals?|pontos?|points?|cantos?|corners?|cart(ao|oes)|cards?|jogos?|games?|sets?|remates?|shots?|a baliza|na baliza|enquadrados?|on target|faltas?|fouls?|foras? de jogo|offsides?|assistencias?|assists?|tempo reg(ulamentar)?\.?|prolongamento incluido|incl\.? prolongamento)\b/g;
+
+function onlyUnitWords(rest: string): boolean {
+  return rest
+    .replace(new RegExp(PERIOD_WITH_LINK.source, 'g'), ' ')
+    .replace(TOTAL_UNIT_WORDS, ' ')
+    .replace(/[\s\-–:,.]+/g, '') === '';
+}
+
 const TOTAL_RE = /\b(mais de|acima de|over|menos de|abaixo de|under)\s*(\d+(?:\.\d+)?)/;
 
 function parseTotal(text: string, market: string, ctx?: MatchContext): Leg | null {
@@ -287,6 +297,8 @@ function parseTotal(text: string, market: string, ctx?: MatchContext): Leg | nul
     line = parseFloat(mm[1]!);
   }
   if (line === null || dir === null) return null;
+  // Only unit, stat and period words may follow the line: "Mais de 2,5 Fulano" is not the match total.
+  if (m && !onlyUnitWords(text.slice(m.index! + m[0].length))) return null;
   const over = /mais|acima|over/.test(dir);
   const context = `${market} ${text}`;
   const before = m ? text.slice(0, m.index).replace(/[-–:]\s*$/, '').replace(/\b(marca|faz|tem|regista)$/, '').trim() : '';
@@ -508,8 +520,12 @@ function parseLeg(text: string, market: string, ctx?: MatchContext): Leg | null 
   return null;
 }
 
+// "<x> - <y>" in a market label, also with the space missing on one side ("Leixões -Total de golos").
+// A hyphen inside a name ("Saint-Germain") has no space on either side.
+const LABEL_SEPARATOR = /\s+[-–]\s*|\s*[-–]\s+/;
+
 // Words that make a "<x> - …" piece of a market label a market description, not a team name.
-const MARKET_WORDS = /\d|\b(total|golos?|resultado|mais|menos|acima|abaixo|over|under|cantos?|cart(ao|oes)|remates?|faltas?|foras?|jogo|parte|tempo|intervalo|handicap|asiatico|equipas?|ambas|marcam?|baliza|jogador|player|prolongamento|incluido|final|goals?|half)\b/;
+const MARKET_TEXT = /\b(total|golos?|resultado|mais|menos|acima|abaixo|over|under|cantos?|cart(ao|oes)|remates?|faltas?|foras?|jogo|parte|tempo|intervalo|handicap|asiatico|equipas?|ambas|marcam?|baliza|jogador|player|prolongamento|incluido|final|goals?|half)\b/;
 
 /**
  * Team named by a team-total market label ("Total de Golos da Equipa da Casa", "Leixões - Total de golos",
@@ -522,7 +538,7 @@ function teamOfMarket(m: string, ctx?: MatchContext): 'H' | 'A' | null | undefin
   const tail = m.match(/\b(?:golos|cantos|cartoes)\s+(?:de|da|do|dos|das)\s+(.+)$/)?.[1];
   if (tail !== undefined) {
     // Only a period or extra-time suffix is cut; "Leixões - GD Chaves", "Leixões - Margem": review.
-    const [named, ...suffixes] = tail.split(' - ').map((p) => p.trim());
+    const [named, ...suffixes] = tail.split(LABEL_SEPARATOR).map((p) => p.trim());
     if (suffixes.some((p) => stripPeriod(p) && !/^(prolongamento incluido|incl\.? prolongamento|tempo reg(ulamentar)?\.?)$/.test(p))) return null;
     // "do jogo / da partida / do encontro", "da 1ª parte": the match (or half) total.
     const after = stripPeriod(named);
@@ -536,12 +552,20 @@ function teamOfMarket(m: string, ctx?: MatchContext): 'H' | 'A' | null | undefin
     if (/^(fora|away)$/.test(after)) return 'A';
     return null;
   }
-  const parts = m.split(' - ').map((p) => p.trim());
+  const parts = m.split(LABEL_SEPARATOR).map((p) => p.trim()).filter(Boolean);
   if (parts.length > 1) {
-    for (const piece of [parts[0]!, parts[parts.length - 1]!]) {
-      if (!piece || MARKET_WORDS.test(piece)) continue;
-      return sideOf(piece, ctx); // a team-like piece we cannot map: never the match total
+    // Each piece is checked as a team first: names hold digits too ("Schalke 04", "1. FC Köln").
+    const sides = new Set<'H' | 'A' | null>();
+    for (const piece of parts) {
+      const strict = strictSideOf(piece, ctx);
+      if (strict) sides.add(strict);
+      // Market words, or no word at all ("1x2", "2.5"): a market description. A digit alone no longer makes
+      // one ("Mainz 05" with the event's name written otherwise).
+      else if (MARKET_TEXT.test(piece) || !/[a-z]{3,}/.test(piece)) continue;
+      else sides.add(sideOf(piece, ctx)); // a team-like piece we cannot map: never the match total
     }
+    if (sides.size === 1) return [...sides][0]!;
+    if (sides.size > 1) return null; // "Leixões - GD Chaves - Total de golos": which team?
   }
   return /\bequipa\b/.test(m) ? null : undefined;
 }
