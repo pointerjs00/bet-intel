@@ -1,7 +1,7 @@
 # BetIntel no Raspberry Pi 5 (ARM64): Postgres + Redis + API.
 # A imagem da API é construída no próprio Pi (nativa ARM64) a partir do repositório.
 # Os segredos ficam fora do repositório, em /srv/betintel/.env (modelo: deploy/pi/.env.example).
-# Os dados (Postgres, Redis, fotos) ficam em pastas no disco externo: BETINTEL_DATA_DIR (omissão /srv/betintel/data).
+# Os dados (Postgres, Redis, fotos) ficam em pastas dentro de /srv: BETINTEL_DATA_DIR (omissão /srv/betintel/data).
 # Não se usam volumes do Docker para os dados: o Docker deste Pi é gerido pelo Home Assistant Supervised.
 #
 # Uso (a partir da raiz do repositório clonado no Pi, ou pelo workflow de deploy):

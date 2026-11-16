@@ -147,38 +147,45 @@ O diagnóstico já foi feito. Isto é o que o Pi tem, e o que isso muda neste gu
 | O que se viu | O que significa |
 |---|---|
 | **Debian 12 (bookworm)**, `aarch64`, 8 GB de RAM (6,6 GB livres) | Raspberry Pi OS de 64 bits (não é Lubuntu). Há memória de sobra para as 4 apps. |
-| Sistema no **cartão SD** (`mmcblk0p2`, 116 GB, 16 GB usados) | As bases de dados **não** devem ficar no cartão (passo 2.3). |
-| Disco **`sda` de 465,8 GB, modelo HM500JI** (disco rígido Samsung de 500 GB), montado em `/usr/share/hassio/share/external` | Já está em uso pelo Home Assistant (pasta "share"). **Não se formata.** As apps passam a usar uma pasta própria dentro dele. Não há nenhum SSD NVMe ligado. |
-| **Home Assistant Supervised**: o Supervisor e os addons (Node-RED, eWeLink, Samba, SSH, DuckDNS…) correm no Docker do sistema | **Não se muda a configuração do Docker** (a pasta onde guarda os dados): isso afetava o Home Assistant. As apps usam o mesmo Docker, mas guardam os dados em pastas no disco, não em volumes. |
+| Sistema no **cartão SD** (`mmcblk0p2`, 116 GB, 16 GB usados) | Os dados das apps ficam no cartão por agora, com cópias diárias para fora de casa; mais tarde passam para um SSD USB (passo 2.3). |
+| Disco **`sda` de 465,8 GB, modelo HM500JI** (disco rígido Samsung de 500 GB, **NTFS**), montado pelo serviço `monta_external` em `/usr/share/hassio/share/external` | Usado pelo Home Assistant. **Não se mexe.** Em NTFS não serve para bases de dados (ver 2.3). Não há SSD ligado. |
+| **Home Assistant Supervised**: o Supervisor e os addons (Node-RED, eWeLink, Samba, SSH, DuckDNS…) correm no Docker do sistema | **Não se muda a configuração do Docker** (a pasta onde guarda os dados): isso afetava o Home Assistant. As apps usam o mesmo Docker, mas guardam os dados em pastas dentro de `/srv`, não em volumes. |
 | **Porta 3000 ocupada** pelo addon eWeLink | O BetIntel usa a porta **3100** no Pi (já configurado no repositório). |
 | Home Assistant na **8123**; nada a ouvir na 443 dentro do Pi | O router encaminha a 443 de fora para a 8123 (DuckDNS). **Não se mexe.** |
 | Também correm Transmission (9091), Samba, Squid (3028) e VNC (5900) | Nenhuma destas portas choca com as apps (8000, 8080, 8090, 3100, 3001). |
 
-### 2.3 Pasta das apps no disco externo (sem formatar nada)
+### 2.3 Pasta das apps: no cartão SD por agora (SSD USB mais tarde)
 
-**Porquê:** as bases de dados escrevem constantemente, e um cartão SD gasta-se. O disco externo de 500 GB aguenta muito mais. As apps ficam numa pasta própria dentro dele, e essa pasta aparece também como `/srv` para os comandos deste guia funcionarem tal como estão.
+**Decisão (16/11/2026):** os dados das apps ficam no **cartão SD**, em `/srv`, com cópias de segurança diárias para fora de casa (secção 7.2). Mais tarde muda-se tudo para um **SSD USB**.
 
-> ⚠️ **Não formates o disco `sda`.** Ele já tem a pasta "share" do Home Assistant. Os comandos abaixo só criam uma pasta nova e não apagam nada.
+**Porquê não o disco externo de 500 GB:** está formatado em **NTFS** (o formato do Windows), montado pelo serviço `monta_external` através do `ntfs-3g`. O NTFS no Linux não guarda o dono nem as permissões dos ficheiros. O Postgres exige ambos e recusa arrancar sem eles. O disco fica como está, para o Home Assistant.
+
+**Porquê o cartão serve por agora:** as bases de dados das 4 apps ocupam menos de 0,5 GB, e o cartão tem 94 GB livres. O risco do cartão não é o espaço, é o desgaste com o tempo. Por isso as cópias diárias para fora de casa (7.2) são **obrigatórias** enquanto os dados estiverem no cartão.
+
+> Se correste a versão anterior deste passo (a que ligava `/srv` ao disco externo), desfaz primeiro. Isto não apaga nada:
+> ```bash
+> sudo umount /srv 2>/dev/null
+> sudo sed -i '\#/usr/share/hassio/share/external/servidor /srv#d' /etc/fstab
+> sudo systemctl daemon-reload
+> grep srv /etc/fstab || echo "linha removida"
+> ```
 
 🍓 **Pi**
 ```bash
-# 1. Pasta nova dentro do disco externo
-sudo mkdir -p /usr/share/hassio/share/external/servidor
-
-# 2. Fazer com que essa pasta apareça também como /srv (e continue assim depois de reiniciar)
 sudo mkdir -p /srv
-echo "/usr/share/hassio/share/external/servidor /srv none bind,nofail,x-systemd.requires-mounts-for=/usr/share/hassio/share/external 0 0" | sudo tee -a /etc/fstab
-sudo systemctl daemon-reload
-sudo mount /srv
-
-# 3. Dar-te permissão para escrever lá
 sudo chown "$USER":"$USER" /srv
-df -h /srv
+df -h /srv          # deve mostrar o cartão (/dev/mmcblk0p2, ~116 GB)
 ```
 
-✅ **Verificação:** o `df -h /srv` mostra o disco de ~466 GB (e não o cartão de 116 GB). Reinicia o Pi (`sudo reboot`), volta a entrar e repete o `df -h /srv`: tem de continuar a mostrar o disco externo. Confirma também que o Home Assistant arrancou normalmente.
+✅ **Verificação:** o `df -h /srv` mostra `/dev/mmcblk0p2`, e o `findmnt /srv` não mostra nada (o `/srv` é uma pasta normal do cartão, não uma montagem).
 
-**Se um dia comprares um SSD:** liga-o, e o Claude ajuda a mudar a pasta `servidor` para lá. Basta copiar a pasta e mudar a linha do `/etc/fstab`.
+#### Mais tarde: passar para um SSD USB
+
+1. Liga o SSD a uma porta USB 3 (azul). Vê o nome com `lsblk` (por exemplo `sdb`). **Confirma que não é o disco NTFS `sda`.**
+2. Formata-o em ext4 (⚠️ apaga o SSD): `sudo mkfs.ext4 -L srv /dev/sdb1` (cria primeiro a partição com `sudo parted /dev/sdb --script mklabel gpt mkpart srv ext4 0% 100%`).
+3. Para as apps (`docker compose ... stop` em cada pasta). Copia os dados: monta o SSD temporariamente em `/mnt/ssd`, corre `sudo rsync -aHAX /srv/ /mnt/ssd/` e desmonta.
+4. No `/etc/fstab`, acrescenta `UUID=<uuid do SSD> /srv ext4 defaults,noatime 0 2` (o UUID vem do `sudo blkid /dev/sdb1`), corre `sudo mount /srv` e confirma com `df -h /srv`.
+5. Arranca as apps. Nada nas apps muda, porque continuam a usar `/srv`. O Claude pode acompanhar-te neste passo.
 
 ### 2.4 Atualizações automáticas de segurança
 
@@ -195,7 +202,7 @@ sudo dpkg-reconfigure -plow unattended-upgrades     # responde "Sim/Yes"
 
 ### 2.5 Docker: preparar sem tocar no Home Assistant
 
-O Docker já está instalado e é o Home Assistant Supervised que o gere. **Não mudes o `/etc/docker/daemon.json` nem reinicies o Docker** por causa deste guia: as apps guardam os dados em pastas dentro de `/srv` (no disco externo), por isso não é preciso mudar onde o Docker guarda as coisas.
+O Docker já está instalado e é o Home Assistant Supervised que o gere. **Não mudes o `/etc/docker/daemon.json` nem reinicies o Docker** por causa deste guia: as apps guardam os dados em pastas dentro de `/srv`, por isso não é preciso mudar onde o Docker guarda as coisas.
 
 🍓 **Pi**
 ```bash
@@ -635,7 +642,7 @@ docker run -d --name uptime-kuma --restart always -p 3001:3001 -v uptime_kuma:/a
 - [ ] 2.1 Cópia do Home Assistant descarregada para o PC
 - [ ] 2.1 b) Imagem do cartão microSD guardada no PC
 - [ ] 2.2 Diagnóstico revisto com o Claude
-- [ ] 2.3 Pasta `servidor` do disco externo montada em `/srv` (continua lá depois de reiniciar)
+- [ ] 2.3 Pasta `/srv` criada no cartão (montagem antiga ao disco NTFS desfeita)
 - [ ] 2.4 Atualizações automáticas ligadas
 - [ ] 2.5 Rede `app_network` criada; Home Assistant sem estado unhealthy
 - [ ] 2.6 Entrar no Pi por SSH fora de casa, pela Tailscale
