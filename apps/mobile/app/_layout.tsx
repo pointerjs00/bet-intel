@@ -266,6 +266,7 @@ export default function RootLayout() {
                     <Stack.Screen name="user/[username]" />
                     <Stack.Screen name="boletins" />
                     <Stack.Screen name="jogo/[id]" />
+                    <Stack.Screen name="odds/[key]" />
                   </Stack>
                 </View>
               </AuthGate>
