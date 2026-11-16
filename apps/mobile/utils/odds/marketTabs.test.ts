@@ -26,3 +26,8 @@ test('isTop: 1X2/ML, DC, BTTS and the 2.5 goals line (football)', () => {
 test('tabLabel renames golos per sport', () => {
   assert.equal(tabLabel('golos', 'BASKETBALL'), 'Pontos'); assert.equal(tabLabel('golos', 'TENNIS'), 'Jogos'); assert.equal(tabLabel('golos', 'FOOTBALL'), 'Golos');
 });
+test('combos, ANY and ET keys go to outros and never Top', () => {
+  for (const k of ['FT.1X2.H+FT.BTTS.Y', 'ANY(FT.1X2.H+FT.BTTS.Y)', 'ET:FT.1X2.H']) {
+    assert.equal(tabOf(k), 'outros'); assert.ok(!isTop(r(k), 'FOOTBALL'));
+  }
+});

@@ -21,9 +21,14 @@ export function tabLabel(tab: MarketTab, sport: OddsSport): string {
   return MARKET_TAB_LABEL[tab];
 }
 
+/** Combos (`+`), ANY(...) wrappers and extra-time (`ET:`) keys are never main markets. */
+function isCompound(key: string): boolean {
+  return key.includes('+') || key.includes('(') || key.startsWith('ET:');
+}
+
 /** Maps a canonical key to its market tab; unknown or null keys go to `outros`. */
 export function tabOf(key: string | null): Exclude<MarketTab, 'top'> {
-  if (!key) return 'outros';
+  if (!key || isCompound(key)) return 'outros';
   const k = key.replace(/^[QH]\d:/, '');
   if (k.startsWith('HTFT.')) return 'resultado';
   if (k.startsWith('SCORER.')) return 'marcadores';
@@ -42,7 +47,7 @@ export function tabOf(key: string | null): Exclude<MarketTab, 'top'> {
 /** Whether a row belongs in the "Top" tab (main full-time markets only). */
 export function isTop(row: ComparedSelection, sport: OddsSport): boolean {
   const k = row.key;
-  if (!k) return false;
+  if (!k || isCompound(k)) return false;
   if (sport === 'FOOTBALL') {
     if (!k.startsWith('FT.')) return false;
     const type = k.split('.')[1];
