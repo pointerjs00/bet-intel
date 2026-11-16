@@ -446,3 +446,24 @@ test('review round 1: extra-time-only markets go to review; "prolongamento inclu
   assert.equal(parseBet('Total de golos - par/ímpar (prolongamento incluído)', 'Par', EB)?.extraTimeIncluded, true);
   assert.equal(parseBet('Acima de 9,5 cantos (prolongamento incluído)', 'Acima de 9,5 cantos', EB)?.extraTimeIncluded, true);
 });
+
+test('review round 2: "sem / excl. prolongamento" is regulation time, not an extra-time market', () => {
+  const res = (o: 'H' | 'D' | 'A') => [{ kind: 'RESULT', period: 'FT', outcomes: [o] }];
+  assert.deepEqual(legsOf('Resultado (sem prolongamento)', 'Leixões'), res('H'));
+  assert.deepEqual(legsOf('Resultado sem prolongamento', 'Empate'), res('D'));
+  assert.deepEqual(legsOf('Vencedor sem prolongamento', 'GD Chaves'), res('A'));
+  assert.deepEqual(legsOf('Resultado (excluindo prolongamento)', 'Leixões'), res('H'));
+  assert.deepEqual(legsOf('Total de golos (excl. prolongamento)', 'Mais de 2,5'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 2.5 }]);
+  assert.deepEqual(legsOf('Total de golos (sem prolongamento)', 'Mais de 2,5'), [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 2.5 }]);
+  for (const [m, s] of [['Resultado (sem prolongamento)', 'Leixões'], ['Total de golos (excl. prolongamento)', 'Mais de 2,5']] as const) {
+    assert.equal(parseBet(m, s, LX_CTX)?.extraTimeIncluded, false, m);
+  }
+  // AET 3-2 after 2-2 in regulation: a regulation bet reads the 90-minute score.
+  const aet: FixtureResult = { homeScore: 3, awayScore: 2, regularHomeScore: 2, regularAwayScore: 2, htHomeScore: 1, htAwayScore: 1, statusShort: 'AET' };
+  assert.equal(lx('Resultado (sem prolongamento)', 'Empate', aet), 'WON');
+  assert.equal(lx('Resultado (sem prolongamento)', 'Leixões', aet), 'LOST');
+  // Unchanged: extra time alone → review; "incluído" → extra-time flag.
+  assert.equal(legsOf('Total de golos no prolongamento', 'Mais de 0,5'), null);
+  assert.equal(legsOf('Prolongamento - par/ímpar', 'Impar'), null);
+  assert.equal(parseBet('Total de golos (prolongamento incluído)', 'Mais de 2,5', LX_CTX)?.extraTimeIncluded, true);
+});

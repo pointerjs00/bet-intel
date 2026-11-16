@@ -591,7 +591,9 @@ function parseLegs(market: string, selection: string, ctx?: MatchContext): Parse
   const extraTimeIncluded = new RegExp(ET_INCLUDED.source).test(`${m} ${s}`);
   // Extra time on its own ("Total de golos no prolongamento", "incluindo prolongamento e penáltis"): the
   // engine reads regular time (or regular + extra time when marked "incluído"), never extra time alone.
-  if (/\b(prolongamento|extra time|tempo extra)\b/.test(`${m} ${s}`.replace(ET_INCLUDED, ' '))) return null;
+  // ("sem / excl. prolongamento" names regulation time, which is the default reading.)
+  const REGULATION_ONLY = /\b(sem|excl\.?|excluindo|exclui|nao inclui) prolongamento\b/g;
+  if (/\b(prolongamento|extra time|tempo extra)\b/.test(`${m} ${s}`.replace(ET_INCLUDED, ' ').replace(REGULATION_ONLY, ' '))) return null;
   // Order of the scoring teams other than the first ("Última/Segunda equipa a marcar", "Equipa marca o Último golo"):
   // not "that team scores", and the engine has no such leg.
   if (TEAM_GOAL_ORDER.test(m)) return null;
