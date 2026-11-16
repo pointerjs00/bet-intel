@@ -606,7 +606,7 @@ Usa a mesma base de dados e as mesmas pastas de `/srv/betintel/data`. Os content
    - Value: `pi`
 
    A partir daqui, os jobs do Hetzner deixam de correr e o `deploy-pi` passa a correr.
-2. **Primeiro deploy:** **Actions → "Build & Deploy API" → Run workflow** (branch `main`) → **Run workflow**. Acompanha a execução. O passo "Health check" tem de terminar com **API OK**.
+2. **Primeiro deploy:** **Actions → "Build & Deploy API" → Run workflow** (branch `main`), em **Destino do deploy** escolhe `pi` (ou `auto`, que segue a variável), → **Run workflow**. Acompanha a execução. O primeiro passo do job `test` ("Deploy target") mostra para onde vai o deploy. O passo "Health check" do `deploy-pi` tem de terminar com **API OK**.
 3. A partir daí, cada push para o `main` que mexa em `apps/api/**` ou `packages/shared/**` faz deploy no Pi sozinho.
 
 **Atenção:**
