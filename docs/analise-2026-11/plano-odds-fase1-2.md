@@ -292,3 +292,22 @@ Uma seleção normalizada é uma string. Lados e linhas:
 2. Uniformizar "primeiro golo: nenhum": a chave deve ser `FT.FIRSTGOAL.NONE` (formato da especificação), e não `SCORER.FIRST.NONE`.
 3. Testes com os rótulos reais da Betclic, das fixtures em `apps/api/src/services/odds/__fixtures__/betclic/`. Verificação antes/depois no corpus de seleções reais (nenhuma mudança fora das pretendidas).
 4. Repetir a sonda de cobertura (`canonicalKey` sobre todas as seleções do detalhe da Betclic). Reportar a percentagem e confirmar que não há chaves erradas, revendo à mão todas as famílias de mercados com chave.
+
+---
+
+## Estado no fim (16/11/2026)
+
+Tarefas 1 a 14 feitas, revistas tarefa a tarefa, com revisão final do branch e ronda de correções. 249 testes, `tsc` sem erros. Comparador **desligado por omissão** (`ODDS_SOURCES` vazio).
+
+### Pendentes (por ordem de importância)
+1. **Liquidação:** totais de equipa escritos sem separador ("Bayer 04 Total de golos", "Leixões: Total de golos", "Total de golos (Leixões)", "Leixões Mais/Menos") ainda são lidos como total do jogo. Não aparece em nenhum talão real; é plausível vindo de screenshots. Correção sugerida: se um TOTAL sem equipa tiver no mercado o nome de uma das equipas, vai para revisão.
+2. **Liquidação:** "Golos - Fora" é lido como total do jogo, enquanto "Golos - Casa" vai para revisão. Com o Casa Pia em jogo, "Total de golos - Casa" vai para o lado do Casa Pia.
+3. **Decisão do utilizador:** "Marcador: Nenhum" quando os únicos golos são autogolos (hoje dá perdida; muitas casas pagam).
+4. **Decisão antes da 2.ª casa:** comparar odds ao vivo da Betclic com odds pré-jogo de outras casas (marcar ou esconder).
+5. **Auditoria:** depois do merge, correr `npm run audit:misparsed` contra a produção para rever apostas antigas lidas mal.
+6. **Comparador:** cobertura de 48,7% das seleções da Betclic. Faltam: pares de jogadores, resultado correto com espaços ("1 - 0"), combinações resultado+golos, resultado ao intervalo, golos exatos por parte. `mergeEvent` guarda o primeiro duplicado da mesma casa em vez do melhor. Alias "Man Utd".
+7. **Robustez:** o job do calendário não se volta a agendar se o Redis estiver em baixo no arranque; falta um teste de timeout a meio da resposta da Betclic; ainda não há fixtures de detalhe de basquetebol e ténis.
+8. **Documentação:** frase "Old scrapers… stay gone" no AGENTS.md; a linha de riscos do PLANO_ODDS ainda fala em proxy.
+
+### Próximas fases (PLANO_ODDS.md)
+Fase 3 (ecrãs na app), 4 (Lebull), 5 (múltiplas), 6 (Betano, a partir do Pi), 7 (Placard/Solverde, depois da captura), 8 (CLV).
