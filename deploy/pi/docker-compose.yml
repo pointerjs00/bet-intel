@@ -45,6 +45,7 @@ services:
       NODE_ENV: production
       PORT: 3000
       TZ: UTC
+      BETANO_EGRESS_URL: http://betano-egress:8765
     ports:
       # Só localmente: o acesso público é feito pelo Cloudflare Tunnel.
       # No Pi a porta 3000 já está ocupada (addon eWeLink do Home Assistant), por isso usa-se a 3100.
@@ -58,6 +59,28 @@ services:
         condition: service_started
     networks: [app_network]
 
+  # Sidecar de rede da Betano (curl_cffi com fingerprint TLS/HTTP2 de browser). Só a API lhe fala,
+  # com o token BETANO_EGRESS_TOKEN. Ver services/betano-egress/README.md.
+  betano-egress:
+    build:
+      context: ../../services/betano-egress
+    image: betintel-betano-egress:local
+    restart: always
+    environment:
+      BETANO_EGRESS_TOKEN: ${BETANO_EGRESS_TOKEN:-}
+      BETANO_IMPERSONATE: ${BETANO_IMPERSONATE:-chrome}
+    ports:
+      # Só localmente, para verificações; a API chega-lhe pela rede app_network.
+      - '127.0.0.1:8765:8765'
+    mem_limit: 256m
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks: [app_network]
 
 networks:
   app_network:
