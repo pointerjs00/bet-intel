@@ -86,13 +86,17 @@ const NOT_PLAIN_RESULT = /\b(cantos?|cart\w*|remates?|faltas?|minutos?|resto|pro
 const NOT_PLAIN_RESULT_SELECTION = /\b(golos?|diferenca|margem|por)\b/;
 const PLAIN_RESULT_MARKET = /^(resultado|resultado duplo|resultado final|dupla hipotese|chance dupla|double chance|duplo|vencedor|match result|result|1x2|)$/;
 
+const LABEL_SEPARATOR = /\s+[-–]\s*|\s*[-–]\s+/;
+
 /** Side named by a team-total market label, or null when not resolvable; `qualified` = label talks about a team. */
 function teamOfMarket(m: string, ctx: MatchContext): { side: 'H' | 'A' | null; qualified: boolean } {
   // 1. Explicit "equipa da casa / visitante" phrasing.
   if (/\b(equipa da casa|equipa de casa|home team)\b/.test(m)) return { side: 'H', qualified: true };
   if (/\b(equipa visitante|equipa de fora|equipa fora|away team|visitante|visitor)\b/.test(m)) return { side: 'A', qualified: true };
   // 2. Team names win over generic words ("Total de golos da Casa Pia" is not "da casa").
-  const sep = m.indexOf(' - ');
+  // "<equipa> - …", also with the space missing on one side ("Leixões -Total de golos"); a hyphen inside a
+  // name ("Saint-Germain") has no space on either side.
+  const sep = m.search(LABEL_SEPARATOR);
   const prefix = sep > 0 ? m.slice(0, sep).trim() : '';
   const named = /^(total|golos|resultado|mais|menos)\b/.test(prefix) ? '' : prefix;
   const afterGolos = m.match(/\bgolos\s+(?:da|do)\s+(.+)$/)?.[1]?.trim() ?? '';

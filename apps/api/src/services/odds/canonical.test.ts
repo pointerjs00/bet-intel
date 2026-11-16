@@ -246,3 +246,18 @@ test('review round 1: last/second team to score and extra-time-only markets get 
   assert.equal(footballKey('Total de golos (prolongamento incluído)', 'Mais de 2,5', eb), 'ET:FT.TOTAL.goals.O.2.5');
   assert.equal(footballKey('Total de golos - par/ímpar (prolongamento incluído)', 'Par', eb), 'ET:FT.PARITY.EVEN');
 });
+
+test('final review: "<equipa> -Total de golos" and digit-named teams key as team totals, never match totals', () => {
+  assert.equal(footballKey('Leixões -Total de golos', 'Acima de 1,5', ctx), 'FT.TOTAL.goals.H.O.1.5');
+  assert.equal(footballKey('GD Chaves -Total de golos', 'Abaixo de 1,5', ctx), 'FT.TOTAL.goals.A.U.1.5');
+  assert.equal(footballKey('GD Chaves -Total de golos - 1ª Parte', 'Mais de 0,5', ctx), '1H.TOTAL.goals.A.O.0.5');
+  const de = { home: 'Bayer 04 Leverkusen', away: 'Mainz 05' };
+  assert.equal(footballKey('Bayer 04 Leverkusen - Total de golos', 'Acima de 1,5', de), 'FT.TOTAL.goals.H.O.1.5');
+  assert.equal(footballKey('Mainz 05 - Total de golos', 'Acima de 1,5', de), 'FT.TOTAL.goals.A.O.1.5');
+  assert.equal(footballKey('Total de golos - Mainz 05', 'Acima de 1,5', de), 'FT.TOTAL.goals.A.O.1.5');
+  assert.equal(footballKey('1. FC Köln - Total de golos', 'Mais de 1,5', { home: '1. FC Köln', away: 'Schalke 04' }), 'FT.TOTAL.goals.H.O.1.5');
+  assert.equal(footballKey('Schalke 04 -Total de golos', 'Mais de 1,5', { home: '1. FC Köln', away: 'Schalke 04' }), 'FT.TOTAL.goals.A.O.1.5');
+  // The match total is unchanged, and a trailing name after the line is no total at all.
+  assert.equal(footballKey('Total de golos', 'Acima de 1,5', ctx), 'FT.TOTAL.goals.O.1.5');
+  assert.equal(footballKey('Total de golos', 'Mais de 2,5 Fulano', ctx), null);
+});
