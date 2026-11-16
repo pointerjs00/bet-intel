@@ -47,9 +47,9 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
           {
             color: selected ? colors.primary : colors.textSecondary,
             fontSize: tokens.font.sizes.sm,
+            lineHeight: tokens.font.sizes.sm + 5,
           },
         ]}
-        numberOfLines={1}
       >
         {label}
       </Text>

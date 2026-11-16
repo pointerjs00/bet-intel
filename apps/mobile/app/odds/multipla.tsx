@@ -1,6 +1,6 @@
 // Odds multiple table: total odds per house, return for a stake, register at a house.
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useQueries } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -63,7 +63,8 @@ export default function OddsMultipleScreen() {
   const target = chosenHouse(perHouse, best, picked);
 
   return (
-    <View style={[styles.flex, { backgroundColor: colors.background, paddingTop: 16 }]}>
+    // Android shows the modal full screen, under the status bar; iOS presents it as a sheet below it.
+    <View style={[styles.flex, { backgroundColor: colors.background, paddingTop: Platform.OS === 'ios' ? 16 : insets.top + 12 }]}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.topBar}>
         <AppText style={styles.flex} variant="heading">Múltipla</AppText>
