@@ -191,8 +191,11 @@ jobs:
 
       - name: Health check
         run: |
+          # The host port comes from the Pi's .env (the compose file publishes API_HOST_PORT, default 3100).
+          PORT=$(grep -E '^API_HOST_PORT=' /srv/betintel/.env 2>/dev/null | tail -n 1 | cut -d= -f2 | tr -d '"'"'"' \r')
+          PORT=${PORT:-3100}
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:${API_HOST_PORT:-3100}/health >/dev/null; then echo "API OK"; exit 0; fi
+            if curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then echo "API OK on port ${PORT}"; exit 0; fi
             sleep 5
           done
           docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env logs --tail 100 api
