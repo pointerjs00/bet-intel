@@ -80,6 +80,7 @@ export function mapEvent(raw: any, sport: OddsSport, now: number): SourceEvent |
   const radar = clean(ev.betRadarId ?? ev.betradarMatchId) || null;
   const mainMarkets = Array.isArray(raw?.markets) ? mapMarkets(raw.markets, raw.selections, now) : [];
   const pageUrl = clean(ev.url) || undefined;
+  const marketCount = Number(ev.totalMarketsAvailable);
   return {
     house: 'betano',
     houseEventId: id,
@@ -90,6 +91,7 @@ export function mapEvent(raw: any, sport: OddsSport, now: number): SourceEvent |
     startsAt: new Date(start).toISOString(),
     live: ev.liveData != null,
     ...(pageUrl ? { pageUrl } : {}),
+    ...(Number.isFinite(marketCount) && marketCount > 0 ? { marketCount } : {}),
     ...(radar ? { extraIds: { betRadarId: radar } } : {}),
     ...(mainMarkets.length ? { mainMarkets } : {}),
   };

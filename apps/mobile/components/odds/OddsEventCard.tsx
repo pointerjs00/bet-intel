@@ -5,13 +5,15 @@ import { AppText } from '../ui/AppText';
 import { Pressable } from '../ui/Pressable';
 import { TeamBadge } from '../ui/TeamBadge';
 import { useTheme } from '../../theme/useTheme';
+import { lisbonDay } from '../../utils/odds/format';
 import { lisbonTime, mainCaption, orderMain } from '../../utils/odds/list';
 import type { OddsEventListItem } from '../../utils/odds/types';
 import { CompetitionLabel } from './CompetitionLabel';
 import { OddButton } from './OddButton';
 
 /** One game of the Odds list: competition, teams, time and the main-market buttons. */
-export function OddsEventCard({ item }: { item: OddsEventListItem }) {
+/** `showDay`: prefix the time with "Amanhã" for tomorrow's games (used where days are mixed). */
+export function OddsEventCard({ item, showDay = false }: { item: OddsEventListItem; showDay?: boolean }) {
   const { colors, tokens } = useTheme();
   const router = useRouter();
   const { event } = item;
@@ -34,7 +36,9 @@ export function OddsEventCard({ item }: { item: OddsEventListItem }) {
         {event.live ? (
           <AppText style={[styles.time, { color: colors.live }]} variant="label">AO VIVO</AppText>
         ) : (
-          <AppText style={styles.time} variant="bodyStrong">{lisbonTime(event.startsAt)}</AppText>
+          <AppText style={styles.time} variant="bodyStrong">
+            {showDay && lisbonDay(0, new Date(event.startsAt)) !== lisbonDay(0) ? 'Amanhã ' : ''}{lisbonTime(event.startsAt)}
+          </AppText>
         )}
         <TeamBadge name={event.canonical?.away ?? event.away} size={24} variant={variant} />
         <AppText numberOfLines={2} style={styles.flex} variant="bodyStrong">{event.away}</AppText>

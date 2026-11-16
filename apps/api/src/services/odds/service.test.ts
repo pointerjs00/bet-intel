@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { createOddsService, foldLine, mapLimit } from './service';
+import { createOddsService, ESPN_BONUS, foldLine, mapLimit } from './service';
 import { createOddsStore } from './store';
 import { createFakeRedis } from './fakeRedis';
 import { compareMultiple } from './compare';
@@ -433,4 +433,18 @@ test('events without an ESPN match have no canonical names', async () => {
   const [item] = await svc.listEvents('FOOTBALL', START);
   assert.equal(item?.event.canonical, undefined);
   assert.equal(item?.event.countryCode, undefined);
+});
+
+test('popularity: most markets any house opens, with a bonus for ESPN-matched games', async () => {
+  const a = new FakeSource('betclic', [{ ...ev('betclic', 'b1', 'FC Porto', 'SL Benfica'), marketCount: 157 }], m1x2(2, 3, 4));
+  const b = new FakeSource('lebull', [{ ...ev('lebull', 'l1', 'Porto', 'Benfica'), marketCount: 287 }], m1x2(2, 3, 4));
+  const { svc } = await setup([a, b]);
+  const [item] = await svc.listEvents('FOOTBALL', START);
+  assert.equal(item?.popularity, 287 + ESPN_BONUS);
+  const store = createOddsStore(createFakeRedis());
+  const lone = new FakeSource('betclic', [{ ...ev('betclic', 'b9', 'Clube A', 'Clube B'), extraIds: { betRadarId: '7' } }], m1x2(2, 3, 4));
+  const svc2 = createOddsService({ sources: [lone], store, candidates: async () => [], now: () => NOW, track: (_p, fn) => fn() });
+  await svc2.refreshCatalogue(lone, 'FOOTBALL');
+  const [plain] = await svc2.listEvents('FOOTBALL', START);
+  assert.equal(plain?.popularity, 0);
 });

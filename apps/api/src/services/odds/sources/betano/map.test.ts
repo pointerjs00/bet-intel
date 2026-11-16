@@ -182,3 +182,9 @@ test('calendarEvents flattens data.blocks[].events and keeps the flat shapes', (
   assert.deepEqual(calendarEvents({ data: [{ id: 4 }] }), [{ id: 4 }]);
   assert.deepEqual(calendarEvents({ data: {} }), []);
 });
+
+test('mapEvent keeps the calendar totalMarketsAvailable as marketCount', () => {
+  const ev = mapEvent({ id: '95645619', name: 'Alemanha - Países Baixos', startTime: 1794858300000, totalMarketsAvailable: 287 }, 'FOOTBALL', NOW);
+  assert.equal(ev?.marketCount, 287);
+  assert.equal(mapEvent({ id: '1', name: 'A - B', startTime: 1794858300000 }, 'FOOTBALL', NOW)?.marketCount, undefined);
+});

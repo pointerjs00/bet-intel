@@ -10,6 +10,7 @@ import { Skeleton } from '../ui/Skeleton';
 import { useTheme } from '../../theme/useTheme';
 import { useOddsDay } from '../../services/oddsService';
 import { lisbonDay } from '../../utils/odds/format';
+import { pickFeatured } from '../../utils/odds/featured';
 import { flagUrlForCode } from '../../utils/odds/flags';
 import { competitionsByCount } from '../../utils/odds/list';
 import { matchesQuery, normalizeText } from '../../utils/odds/search';
@@ -60,8 +61,13 @@ export function OddsTab() {
         { title: 'Amanhã', data: pick(searchLists.map(([, m]) => m)) },
       ].filter((s) => s.data.length > 0);
     }
-    const keep = (l: OddsEventListItem[] | undefined) => (l ?? []).filter((i) => !active || i.event.competition === active);
+    // Without a competition filter, the biggest games go first, in "Em destaque", and leave the day lists.
+    const featured = active ? [] : pickFeatured([...(today.data ?? []), ...(tomorrow.data ?? [])]);
+    const shown = new Set(featured.map((i) => i.eventKey));
+    const keep = (l: OddsEventListItem[] | undefined) =>
+      (l ?? []).filter((i) => (!active || i.event.competition === active) && !shown.has(i.eventKey));
     return [
+      { title: 'Em destaque', data: featured },
       { title: 'Hoje', data: keep(today.data) },
       { title: 'Amanhã', data: keep(tomorrow.data) },
     ].filter((s) => s.data.length > 0);
@@ -131,9 +137,10 @@ export function OddsTab() {
           contentContainerStyle={styles.list}
           keyExtractor={(i) => i.eventKey}
           refreshControl={<RefreshControl onRefresh={refresh} refreshing={refreshing} tintColor={colors.primary} />}
-          renderItem={({ item }) => <OddsEventCard item={item} />}
+          renderItem={({ item, section }) => <OddsEventCard item={item} showDay={searching || section.title === 'Em destaque'} />}
           renderSectionHeader={({ section }) => (
             <View style={[styles.sectionHead, { backgroundColor: colors.background }]}>
+              {section.title === 'Em destaque' ? <Ionicons color={colors.gold} name="star" size={16} /> : null}
               <AppText variant="heading">{section.title}</AppText>
             </View>
           )}
@@ -156,5 +163,5 @@ const styles = StyleSheet.create({
   chips: { alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 6 },
   list: { gap: 10, paddingBottom: 160, paddingHorizontal: 16 },
   sep: { height: 10 },
-  sectionHead: { paddingBottom: 6, paddingTop: 12 },
+  sectionHead: { alignItems: 'center', flexDirection: 'row', gap: 6, paddingBottom: 6, paddingTop: 12 },
 });

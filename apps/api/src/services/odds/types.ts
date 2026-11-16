@@ -22,6 +22,8 @@ export interface SourceEvent {
   pageUrl?: string;
   /** ISO country of the competition when the house gives one (Betclic: "PT"). */
   countryCode?: string;
+  /** Markets the house has open for the event (Betclic "+157 apostas", Betano totalMarketsAvailable). */
+  marketCount?: number;
 }
 
 /** One selection of one market, with the house's own labels. */

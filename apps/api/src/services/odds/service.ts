@@ -60,7 +60,15 @@ export interface EventListItem {
   houses: HouseId[];
   houseCount: number;
   main: ComparedSelection[];
+  /**
+   * How big the game is: the most markets any house opened for it (bookmakers open far more for big
+   * games), plus ESPN_BONUS when it is matched to ESPN (top leagues, UEFA, ATP/WTA). 0 when unknown.
+   */
+  popularity: number;
 }
+
+/** Popularity bonus of ESPN-matched events. */
+export const ESPN_BONUS = 100;
 
 const HORIZON_MS = 48 * 3600e3;
 /** Parallel getEvent calls in multiple(). */
@@ -317,6 +325,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
         houses: entries.map((e) => e.house).filter((h) => !dropped.has(h)),
         houseCount: entries.length - dropped.size,
         main: mergeEvent(perHouse),
+        popularity: Math.max(0, ...entries.map((e) => e.ev.marketCount ?? 0)) + (key.startsWith('espn:') && entries.some((e) => e.ev.marketCount) ? ESPN_BONUS : 0),
       });
     }
     return out.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt));

@@ -49,6 +49,8 @@ export interface OddsEventListItem {
   houses: HouseId[];
   houseCount: number;
   main: ComparedSelection[];
+  /** How big the game is (most markets any house opened, + bonus for ESPN-matched); absent on older servers. */
+  popularity?: number;
 }
 
 export interface MultipleResult {
