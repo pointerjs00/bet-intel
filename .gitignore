@@ -52,3 +52,7 @@ api_logs.txt
 /PT_*.pdf
 
 betano-jar.json
+
+# Python bytecode
+__pycache__/
+*.pyc
