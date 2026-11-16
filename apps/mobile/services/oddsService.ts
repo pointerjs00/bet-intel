@@ -32,9 +32,12 @@ export function useOddsEvent(key: string | undefined) {
     queryFn: () => fetchOddsEvent(key as string),
     enabled: !!key,
     staleTime: 60_000,
-    retry: false,
+    retry: 1,
   });
 }
+
+/** A cold multiple can fetch many events server-side (Betano via the Pi egress is slow). */
+const MULTIPLE_TIMEOUT_MS = 45_000;
 
 /** Multiple total per house for the given legs. */
 export function useOddsMultiple(legs: SlipLeg[]) {
@@ -43,7 +46,7 @@ export function useOddsMultiple(legs: SlipLeg[]) {
     queryFn: async () =>
       (await apiClient.post<ApiEnvelope<MultipleResult>>('/odds/multiple', {
         selections: legs.map(({ eventKey, selectionKey }) => ({ eventKey, selectionKey })),
-      })).data.data,
+      }, { timeout: MULTIPLE_TIMEOUT_MS })).data.data,
     enabled: legs.length > 0,
     staleTime: 60_000,
     placeholderData: keepPreviousData,

@@ -81,7 +81,7 @@ export function OddButton({ view, row, caption, compact }: OddButtonProps) {
           <SiteMark showName={false} size={14} slug={best.house} />
         </View>
       </Pressable>
-      {sheetOpen ? <HousesSheet onClose={() => setSheetOpen(false)} row={row} view={view} visible={sheetOpen} /> : null}
+      {sheetOpen ? <HousesSheet onClose={() => setSheetOpen(false)} row={row} view={view} /> : null}
     </>
   );
 }

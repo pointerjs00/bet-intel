@@ -37,7 +37,11 @@ export default function OddsMultipleScreen() {
 
   useEffect(() => { prune(); }, [prune]);
 
-  const { data } = useOddsMultiple(legs);
+  const multiple = useOddsMultiple(legs);
+  const { data } = multiple;
+  // Totals not known yet (first load, or a new leg set still fetching after keepPreviousData).
+  const calculating = !data || multiple.isPlaceholderData;
+  const failed = multiple.isError && !multiple.isFetching;
   const eventKeys = useMemo(() => [...new Set(legs.map((l) => l.eventKey))], [legs]);
   const eventQueries = useQueries({
     queries: eventKeys.map((key) => ({
@@ -127,7 +131,7 @@ export default function OddsMultipleScreen() {
                     const isBest = h === best && total !== null;
                     return (
                       <View key={h} style={[styles.cell, { width: COL_W, backgroundColor: isBest ? colors.surfaceRaised : 'transparent' }]}>
-                        <AppText tone={isBest ? 'accent' : total === null ? 'muted' : 'primary'} variant="number">{total === null ? '—' : formatOdd(total)}</AppText>
+                        <AppText tone={isBest ? 'accent' : total === null ? 'muted' : 'primary'} variant="number">{calculating ? '…' : total === null ? '—' : formatOdd(total)}</AppText>
                       </View>
                     );
                   })}
@@ -139,13 +143,22 @@ export default function OddsMultipleScreen() {
                     const total = perHouse[h]?.total ?? null;
                     return (
                       <View key={h} style={[styles.cell, { width: COL_W }]}>
-                        <AppText tone={total === null ? 'muted' : 'secondary'} variant="caption">{total === null ? '—' : formatEuro(total * stake)}</AppText>
+                        <AppText tone={total === null ? 'muted' : 'secondary'} variant="caption">{calculating ? '…' : total === null ? '—' : formatEuro(total * stake)}</AppText>
                       </View>
                     );
                   })}
                 </View>
               </View>
             </ScrollView>
+
+            {failed ? (
+              <View style={[styles.notice, { backgroundColor: colors.surfaceRaised }]}>
+                <AppText style={styles.flex} tone="secondary" variant="caption">Não foi possível calcular a múltipla.</AppText>
+                <Button onPress={() => multiple.refetch()} size="sm" title="Tentar de novo" variant="secondary" />
+              </View>
+            ) : calculating ? (
+              <AppText style={styles.calc} tone="muted" variant="caption">A calcular as odds totais…</AppText>
+            ) : null}
 
             <NumericInput
               allowDecimal
@@ -162,14 +175,18 @@ export default function OddsMultipleScreen() {
 
           <View style={[styles.footer, { borderTopColor: colors.border, paddingBottom: Math.max(insets.bottom, 12) }]}>
             <Button
-              disabled={!target || registering}
+              disabled={!target || registering || calculating}
               loading={registering}
               onPress={async () => {
-                if (!target) return;
+                if (!target || calculating) return;
                 setRegistering(true);
-                try { await register(legs, target, shownOddsFor(legs, target, views)); } finally { setRegistering(false); }
+                try {
+                  await register(legs, target, { shownOdds: shownOddsFor(legs, target, views), stake, fromModal: true });
+                } finally {
+                  setRegistering(false);
+                }
               }}
-              title={target ? `Registar na ${houseName(target)}` : 'Sem casa completa'}
+              title={calculating ? (failed ? 'Múltipla indisponível' : 'A calcular…') : target ? `Registar na ${houseName(target)}` : 'Sem casa completa'}
             />
           </View>
         </>
@@ -194,5 +211,7 @@ const styles = StyleSheet.create({
   cell: { alignItems: 'center', gap: 2, justifyContent: 'center', paddingVertical: 10 },
   legCell: { alignItems: 'center', flexDirection: 'row', gap: 6, paddingRight: 8, paddingVertical: 10 },
   clear: { alignItems: 'center', paddingVertical: 16 },
+  notice: { alignItems: 'center', borderRadius: 10, flexDirection: 'row', gap: 10, marginTop: 12, padding: 12 },
+  calc: { marginTop: 12 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16, paddingTop: 12 },
 });
