@@ -16,6 +16,7 @@ import { useFootballMatch, type MatchIncident, type TeamStats } from '../../serv
 import { useTheme } from '../../theme/useTheme';
 import { useBoletins } from '../../services/boletinService';
 import { findMatchBets, indexBetsByDay } from '../../utils/dayBets';
+import { MatchOddsCard } from '../../components/odds/MatchOddsCard';
 import { MatchBetVerdict, OtherMarkets } from '../../components/fixtures/MatchBetVerdict';
 
 const STAT_ROWS: Array<{ key: keyof TeamStats; label: string; percent?: boolean }> = [
@@ -123,6 +124,8 @@ export default function MatchDetailScreen() {
               </View>
               {m.venue ? <AppText style={styles.centerText} variant="caption">{m.venue}</AppText> : null}
             </HeroCard>
+
+            {id ? <MatchOddsCard espnId={id} /> : null}
 
             {bets.map((x, i) => (
               <MatchBetVerdict

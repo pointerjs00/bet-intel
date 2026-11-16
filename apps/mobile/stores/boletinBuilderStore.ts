@@ -218,6 +218,7 @@ export const useBoletinBuilderStore = create<BoletinBuilderStore>()(
         defaultIsPublic: state.defaultIsPublic,
         isPublic: state.isPublic,
         isFreebet: state.isFreebet,
+        siteSlug: state.siteSlug,
       }),
       merge: (persistedState, currentState) => ({
         ...currentState,

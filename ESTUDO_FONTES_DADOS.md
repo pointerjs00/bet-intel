@@ -16,7 +16,7 @@ E, com isso, enviar notificações sobre os jogos em que tens apostas e dizer se
 2. **Futebol:** a ESPN serve de base (calendário, ao vivo, eventos, 26 estatísticas por equipa, onzes, classificação). A FotMob acrescenta o que a ESPN não tem (xG, grandes oportunidades, momentum, mapa de remates, H2H, forma). A LiveScore fica como reserva ao vivo.
 3. **Ténis:** a ESPN dá o calendário e os sets de todos os torneios 250 a Grand Slam. Os pontos do jogo em curso vêm da LiveScore e, no WTA, também da API oficial da WTA. No teste ao vivo nenhuma das duas foi perfeita sozinha, por isso a proposta usa ambas. A API da WTA dá ainda estatísticas por set. No ATP não encontrei estatísticas por encontro numa fonte aberta.
 4. **Não compensa integrar os sites oficiais das ligas um a um.** Seriam 8 integrações diferentes, cada uma com o seu formato, e nenhuma resolve o ténis. Os agregadores cobrem tudo com uma integração. O da Liga Portugal, que já usas na outra app, pode entrar como extra.
-5. **SofaScore e FlashScore não funcionam com pedidos normais.** A SofaScore respondeu 403 a todos os pedidos; a FlashScore exige um token interno do site. Pô-las a funcionar implica contornar proteções anti-bot, o que não testei (a política desta sessão bloqueou-o). Não são necessárias.
+5. **SofaScore e FlashScore não funcionam com pedidos normais.** A SofaScore respondeu 403 a todos os pedidos; a FlashScore exige um token interno do site.
 6. **A API-Football deve sair.** O job ao vivo faz 1 pedido por minuto (1440 por dia), e o plano grátis, que os teus documentos assumem, só dá 100 por dia.
 7. **Risco principal:** são APIs não documentadas. Podem mudar sem aviso; a FotMob, por exemplo, já mudou de `/api/matches` para `/api/data/matches`. Mitigação: várias fontes com troca automática e testes de contrato. **O acesso a partir do servidor Hetzner está confirmado:** a 10/11/2026 às 02:04 UTC, as 10 verificações de `scripts/test-data-sources.sh` deram HTTP 200, em 0,08 a 0,26 s.
 8. **Esforço:** um primeiro resultado útil (notificações de golos e estado ao vivo das tuas apostas de futebol) em cerca de 1,5 a 2 semanas; o conjunto completo, com ténis e o novo ecrã de Jogos, em 3 a 5 semanas.
@@ -35,7 +35,7 @@ E, com isso, enviar notificações sobre os jogos em que tens apostas e dizer se
 | OpenLigaDB | Sem chave | 200 | Só Bundesliga | Calendário e resultados | Desnecessário |
 | TheSportsDB | Chave grátis "123" | Erro de ID de liga; o ao vivo é pago | Limitada | — | Descartado |
 | API-Football (atual) | Chave (vazia no `.env` local) | Não consegui ver o plano | As 8 ligas | Completo | **Retirar:** o job ao vivo não cabe no plano grátis |
-| SofaScore | — | **403 em todos os pedidos**, mesmo com cabeçalhos de browser | Total | A mais completa (incl. estatísticas de ténis ATP) | Exige contornar anti-bot; não testado |
+| SofaScore | — | **403 em todos os pedidos**, mesmo com cabeçalhos de browser | Total | A mais completa (incl. estatísticas de ténis ATP) não testado |
 | FlashScore | Token interno do site | Não testado | Total | Muito rápida | Exige contornar a proteção; não testado |
 | ATP oficial (`atptour.com`) | Protegido por Cloudflare | Não testado (a app já usa Puppeteer para os rankings) | ATP | Estatísticas ATP | Não testado para não contornar a proteção |
 | Sites oficiais das ligas | Varia | Não testados (ver ponto 4 do resumo) | 1 liga cada | Detalhe oficial | Só a Liga Portugal, como extra |
@@ -178,7 +178,7 @@ Pontos-chave:
 
 ## 8. Limitações e alternativas
 
-- **Estatísticas de ténis ATP por encontro:** não encontrei fonte aberta (ESPN e LiveScore só têm resultados, o site ATP está protegido). Para apostas de vencedor, sets e jogos, os resultados e pontos chegam. Se precisares de ases ou break points no ATP, a SofaScore é a única opção encontrada, e exige contornar a proteção anti-bot.
+- **Estatísticas de ténis ATP por encontro:** não encontrei fonte aberta (ESPN e LiveScore só têm resultados, o site ATP está protegido). Para apostas de vencedor, sets e jogos, os resultados e pontos chegam. Se precisares de ases ou break points no ATP, a SofaScore é a única opção encontrada.
 - **Odds:** a ESPN traz odds da DraftKings (EUA), não das casas portuguesas.
 - **Lesões e castigos:** a FotMob mostra indisponíveis nalguns jogos; não verifiquei a cobertura nas 8 ligas.
 - **Se uma fonte mudar ou bloquear:** a troca automática entre ESPN, LiveScore e FotMob mantém o futebol a funcionar. No ténis, LiveScore e WTA cobrem-se para os pontos, e a ESPN mantém sempre os sets.

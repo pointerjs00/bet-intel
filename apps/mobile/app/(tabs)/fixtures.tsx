@@ -18,6 +18,7 @@ import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useCardElevation } from '../../components/ui/ListCard';
 import { TeamBadge } from '../../components/ui/TeamBadge';
+import { OddsTab } from '../../components/odds/OddsTab';
 import { MatchCard, isLive, isDone, type AnyMatch } from '../../components/fixtures/MatchCard';
 import { LiveBetMatchCard } from '../../components/fixtures/BetMatchCard';
 import { getCountryFlagUrl, getLeagueLogoUrl } from '../../utils/sportAssets';
@@ -31,7 +32,7 @@ import { formatCurrency } from '../../utils/formatters';
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
-type Tab = 'bets' | SportKey;
+type Tab = 'bets' | 'odds' | SportKey;
 type AnyGroup = { league: string; slug: string; matches: AnyMatch[] };
 type SortMode = 'default' | 'bets' | 'az' | 'count';
 
@@ -101,7 +102,8 @@ export default function JogosScreen() {
   const basketballQuery = useBasketballDay(iso, tab === 'basketball' || bets);
   const tennisQuery = useTennisDay(iso, tab === 'tennis' || bets);
   const queries = { football: footballQuery, basketball: basketballQuery, tennis: tennisQuery } as const;
-  const dayQuery = bets ? footballQuery : queries[tab];
+  const odds = tab === 'odds';
+  const dayQuery = bets || odds ? footballQuery : queries[tab as SportKey];
 
   const boletinsQuery = useBoletins();
   const betIndex = useMemo(() => indexBetsByDay(boletinsQuery.data ?? []), [boletinsQuery.data]);
@@ -152,7 +154,7 @@ export default function JogosScreen() {
   }, [anyBetLive]);
 
   // ── Sport tabs ────────────────────────────────────────────────────────────
-  const allGroups = (bets ? [] : (queries[tab].data?.groups ?? [])) as AnyGroup[];
+  const allGroups = (bets || odds ? [] : (queries[tab as SportKey].data?.groups ?? [])) as AnyGroup[];
   const groups = useMemo(() => {
     const list = allGroups
       .map((g) => ({ ...g, matches: g.matches.filter((m) => !liveOnly || isLive(m)) }))
@@ -190,6 +192,7 @@ export default function JogosScreen() {
 
   const tabs: TabDef[] = [
     { value: 'bets', label: 'Apostas', icon: (c) => <Ionicons color={c} name="receipt" size={20} />, badge: betMatches.length || undefined },
+    { value: 'odds', label: 'Odds', icon: (c) => <Ionicons color={c} name="trending-up" size={20} /> },
     { value: 'football', label: 'Futebol', icon: (c) => <Ionicons color={c} name="football" size={20} /> },
     { value: 'tennis', label: 'Ténis', icon: (c) => <MaterialCommunityIcons color={c} name="tennis" size={20} /> },
     { value: 'basketball', label: 'Basquetebol', icon: (c) => <Ionicons color={c} name="basketball" size={20} /> },
@@ -214,7 +217,7 @@ export default function JogosScreen() {
         />
       </View>
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, odds && styles.hidden]}>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ selected: liveOnly }}
@@ -252,6 +255,7 @@ export default function JogosScreen() {
         )}
       </View>
 
+      {odds ? <OddsTab /> : (<>
       <View style={styles.flex} {...swipe.panHandlers}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}
@@ -316,6 +320,7 @@ export default function JogosScreen() {
           </Animated.View>
         </ScrollView>
       </View>
+      </>)}
 
 
       <Modal animationType="fade" onRequestClose={() => setSortOpen(false)} transparent visible={sortOpen}>
@@ -503,6 +508,7 @@ void TeamBadge;
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   flex: { flex: 1 },
+  hidden: { display: 'none' },
   center: { textAlign: 'center' },
   header: { paddingBottom: 4, paddingHorizontal: 16, paddingTop: 8 },
   tabBar: { borderRadius: 16, flexDirection: 'row', padding: 4 },

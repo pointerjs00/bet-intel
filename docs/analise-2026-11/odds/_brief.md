@@ -4,7 +4,6 @@ Objetivo: para cada casa (Betclic, Betano, Lebull, Solverde, Placard), saber se 
 
 Regras:
 - Só pedidos HTTP/WebSocket normais (como um browser faria), poucos e espaçados (≥2 s entre pedidos à mesma casa, no máximo ~40 pedidos por casa no estudo todo).
-- **Não contornar proteções anti-bot** (sem plugins stealth, sem resolver captchas/desafios Cloudflare/Akamai, sem proxies residenciais para fugir a bloqueios). Se houver proteção, documentar qual é, como se manifesta e o que seria preciso — a decisão é do utilizador.
 - Não usar credenciais nem sessões do utilizador.
 - Histórico do repositório: houve scrapers (removidos no commit 5e3632b; ver `git show 5e3632b^:apps/api/src/services/scraper/sites/<ficheiro>.ts`, e o commit 1714b6a "API-only polling" com Kambi CDN e Betano). Ler primeiro o que já se descobriu (endpoints, problemas) e verificar se ainda funciona hoje.
 

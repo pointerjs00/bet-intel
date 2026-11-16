@@ -34,6 +34,11 @@ export interface EventView {
   event: EventInfo;
   houses: HouseId[];
   rows: ComparedSelection[];
+  /**
+   * Each house's own participant names (the order its market text was keyed with). A boletim
+   * registered at a house must carry these names, since settlement parses the house's text.
+   */
+  names: Partial<Record<HouseId, { home: string; away: string }>>;
 }
 
 export interface EventListItem {
@@ -46,6 +51,22 @@ export interface EventListItem {
 }
 
 const HORIZON_MS = 48 * 3600e3;
+/** Parallel getEvent calls in multiple(). */
+const MULTIPLE_CONCURRENCY = 4;
+
+/** Maps items with at most `limit` calls in flight; results keep the input order. */
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
 const DAY_MS = 24 * 3600e3;
 const MAIN_PREFIX: Record<OddsSport, string> = { FOOTBALL: 'FT.1X2.', TENNIS: 'T.WIN.', BASKETBALL: 'B.ML.' };
 
@@ -195,6 +216,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     const perHouse: Partial<Record<HouseId, CanonicalSelection[]>> = {};
     let info: EventInfo | null = null;
     const houses: HouseId[] = [];
+    const names: Partial<Record<HouseId, { home: string; away: string }>> = {};
     for (const source of deps.sources) {
       const houseEventId = index[source.house];
       if (!houseEventId) continue;
@@ -218,6 +240,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
         if (sels === null) continue;
         perHouse[source.house] = sels;
         houses.push(source.house);
+        if (own) names[source.house] = { home: own.home, away: own.away };
         if (!info && se) info = { home: se.home, away: se.away, startsAt: se.startsAt, competition: se.competition, live: se.live };
       } catch {
         // already recorded by tracked(); the house is simply absent from this response
@@ -231,6 +254,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
       event: info ?? { home: '', away: '', startsAt: '', competition: '', live: false },
       houses,
       rows: mergeEvent(perHouse),
+      names,
     };
   }
 
@@ -281,15 +305,18 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     return out.sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt));
   }
 
-  /** Totals of a multiple per house; an unknown event or selection is missing for every house. */
+  /**
+   * Totals of a multiple per house; an unknown event or selection is missing for every house.
+   * Distinct events are fetched with bounded concurrency (a cold house fetch can take seconds).
+   */
   async function multiple(selections: Array<{ eventKey: string; selectionKey: string }>) {
-    const views = new Map<string, EventView | null>();
-    const legs: Array<Partial<Record<HouseId, HousePrice>>> = [];
-    for (const s of selections) {
-      if (!views.has(s.eventKey)) views.set(s.eventKey, await getEvent(s.eventKey));
+    const keys = [...new Set(selections.map((s) => s.eventKey))];
+    const fetched = await mapLimit(keys, MULTIPLE_CONCURRENCY, (k) => getEvent(k));
+    const views = new Map<string, EventView | null>(keys.map((k, i) => [k, fetched[i] ?? null]));
+    const legs: Array<Partial<Record<HouseId, HousePrice>>> = selections.map((s) => {
       const row = views.get(s.eventKey)?.rows.find((r) => r.key === s.selectionKey);
-      legs.push(row ? row.prices : {});
-    }
+      return row ? row.prices : {};
+    });
     return compareMultiple(legs);
   }
 

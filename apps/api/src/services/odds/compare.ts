@@ -12,8 +12,12 @@ export interface HousePrice {
 export interface ComparedSelection {
   key: string | null;
   label: string;
+  /** Market text of the house that created the row. */
+  market: string;
   prices: Partial<Record<HouseId, HousePrice>>;
   best: HouseId | null;
+  /** Original market/selection text per house. */
+  labels: Partial<Record<HouseId, { market: string; selection: string }>>;
 }
 
 function bestOf(prices: Partial<Record<HouseId, HousePrice>>): HouseId | null {
@@ -36,15 +40,17 @@ export function mergeEvent(perHouse: Partial<Record<HouseId, CanonicalSelection[
   for (const house of HOUSE_ORDER) {
     for (const s of perHouse[house] ?? []) {
       const price = { odds: s.odds, suspended: s.suspended };
+      const text = { market: s.marketLabel, selection: s.selectionLabel };
       if (s.key === null) {
-        rows.push({ key: null, label: s.selectionLabel, prices: { [house]: price }, best: null });
+        rows.push({ key: null, label: s.selectionLabel, market: s.marketLabel, prices: { [house]: price }, best: null, labels: { [house]: text } });
         continue;
       }
       const existing = byKey.get(s.key);
       if (existing) {
+        if (!existing.prices[house]) existing.labels[house] = text;
         existing.prices[house] ??= price;
       } else {
-        const row: ComparedSelection = { key: s.key, label: s.selectionLabel, prices: { [house]: price }, best: null };
+        const row: ComparedSelection = { key: s.key, label: s.selectionLabel, market: s.marketLabel, prices: { [house]: price }, best: null, labels: { [house]: text } };
         byKey.set(s.key, row);
         rows.push(row);
       }

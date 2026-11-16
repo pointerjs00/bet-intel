@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { AddressInfo } from 'node:net';
 import express from 'express';
-import { createOddsService, foldLine } from './service';
+import { createOddsService, foldLine, mapLimit } from './service';
 import { createOddsStore } from './store';
 import { createFakeRedis } from './fakeRedis';
 import { compareMultiple } from './compare';
@@ -121,6 +121,57 @@ test('multiple computes like compareMultiple; unknown legs are missing everywher
   assert.deepEqual(bad.perHouse.betclic, { total: null, missing: 1 });
 });
 
+test("getEvent carries each house's own participant names", async () => {
+  const a = new FakeSource('betclic', [ev('betclic', 'b1', 'FC Porto', 'SL Benfica')], m1x2(2.0, 3.3, 3.6));
+  const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Porto', 'Benfica')], m1x2(2.1, 3.2, 3.5));
+  const { svc } = await setup([a, b]);
+  const view = await svc.getEvent(KEY);
+  assert.deepEqual(view?.names, {
+    betclic: { home: 'FC Porto', away: 'SL Benfica' },
+    lebull: { home: 'Porto', away: 'Benfica' },
+  });
+});
+
+test('multiple over several events keeps leg order and fetches each event once', async () => {
+  const START2 = '2026-11-16T18:00:00.000Z';
+  const cands = async () => [
+    { providerMatchId: '99', league: 'por.1', sport: 'FOOTBALL' as const, home: 'Porto', away: 'Benfica', startsAt: START },
+    { providerMatchId: '98', league: 'por.1', sport: 'FOOTBALL' as const, home: 'Braga', away: 'Sporting', startsAt: START2 },
+  ];
+  const marketsById: Record<string, SourceMarket[]> = { b1: m1x2(2.0, 3.3, 3.6), b2: m1x2(1.5, 4.0, 6.0) };
+  let calls = 0;
+  const src: OddsSource = {
+    house: 'betclic',
+    listEvents: async () => [ev('betclic', 'b1', 'Porto', 'Benfica'), { ...ev('betclic', 'b2', 'Braga', 'Sporting'), startsAt: START2 }],
+    getMarkets: async (id) => { calls++; await new Promise((r) => setTimeout(r, id === 'b1' ? 20 : 1)); return marketsById[id]!; },
+  };
+  const store = createOddsStore(createFakeRedis());
+  const svc = createOddsService({ sources: [src], store, candidates: cands, now: () => NOW, track: (_p, fn) => fn() });
+  await svc.refreshCatalogue(src, 'FOOTBALL');
+  const K2 = 'espn:FOOTBALL:98';
+  const got = await svc.multiple([
+    { eventKey: KEY, selectionKey: 'FT.1X2.H' },
+    { eventKey: K2, selectionKey: 'FT.1X2.A' },
+  ]);
+  assert.deepEqual(got, compareMultiple([{ betclic: { odds: 2.0, suspended: false } }, { betclic: { odds: 6.0, suspended: false } }]));
+  assert.equal(calls, 2);
+});
+
+test('mapLimit keeps order and never exceeds the limit', async () => {
+  let inFlight = 0;
+  let peak = 0;
+  const got = await mapLimit([5, 1, 4, 2, 3, 0, 6], 3, async (n) => {
+    inFlight++;
+    peak = Math.max(peak, inFlight);
+    await new Promise((r) => setTimeout(r, n));
+    inFlight--;
+    return n * 10;
+  });
+  assert.deepEqual(got, [50, 10, 40, 20, 30, 0, 60]);
+  assert.equal(peak, 3);
+  assert.deepEqual(await mapLimit([], 4, async (n: number) => n), []);
+});
+
 test('foldLine adds the line only when the label lacks it', () => {
   assert.equal(foldLine('Over', 2.5), 'Over 2.5');
   assert.equal(foldLine('Over 2.5', 2.5), 'Over 2.5');
@@ -163,10 +214,10 @@ test('routes: envelope, validation, URL-encoded key, health', async () => {
     const bad = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"selections":[]}' });
     assert.equal(bad.status, 400);
     const sel = { eventKey: KEY, selectionKey: 'FT.1X2.H' };
-    const tooMany = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(11).fill(sel) }) });
+    const tooMany = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(31).fill(sel) }) });
     assert.equal(tooMany.status, 400);
-    const ten = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(10).fill(sel) }) });
-    assert.equal(ten.status, 200);
+    const thirty = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(30).fill(sel) }) });
+    assert.equal(thirty.status, 200);
     const health = await get('/health');
     assert.deepEqual(Object.keys(health.body.data), ['odds-betclic']);
     console.log('MULTIPLE', JSON.stringify(multi));

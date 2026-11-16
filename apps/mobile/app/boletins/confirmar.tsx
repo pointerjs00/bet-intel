@@ -16,11 +16,14 @@ import { DatePickerField } from '../../components/ui/DatePickerField';
 import { useCardElevation } from '../../components/ui/ListCard';
 import { Pressable } from '../../components/ui/Pressable';
 import { SiteMark } from '../../components/ui/SiteMark';
+import { houseName } from '../../components/odds/houseName';
 import { TeamBadge } from '../../components/ui/TeamBadge';
 import { useToast } from '../../components/ui/Toast';
 import type { ParsedBetclicBoletin } from '../../services/importService';
 import { usePersonalStats } from '../../services/statsService';
 import { useBoletinBuilderStore, type BoletinBuilderItem } from '../../stores/boletinBuilderStore';
+import { useOddsSlipStore } from '../../stores/oddsSlipStore';
+import { lockedHouse, slipMatchesSaved } from '../../utils/odds/register';
 import { useTheme } from '../../theme/useTheme';
 import { formatCurrency, formatOdds, formatPercentage, plural } from '../../utils/formatters';
 import { BETTING_SITES } from '../../utils/sportAssets';
@@ -44,6 +47,9 @@ export default function ConfirmarBoletimScreen() {
   const elevation = useCardElevation();
   const { showToast } = useToast();
   const b = useBoletinBuilderStore();
+  const pendingHouse = useOddsSlipStore((s) => s.pendingHouse);
+  // Registered from a house's odds: its text and odds only make sense at that house.
+  const locked = lockedHouse(pendingHouse, b);
   const stats = usePersonalStats('all', [], undefined, undefined, true).data;
 
   const [stakeText, setStakeText] = useState(b.stake > 0 ? String(b.stake).replace('.', ',') : '');
@@ -98,7 +104,11 @@ export default function ConfirmarBoletimScreen() {
     try {
       b.setStake(stake);
       if (b.siteSlug) await AsyncStorage.setItem(LAST_SITE_KEY, b.siteSlug).catch(() => undefined);
+      const before = useBoletinBuilderStore.getState();
+      const savedShape = { siteSlug: before.siteSlug, items: before.items.map((i) => ({ id: i.id })) };
       const created = await useBoletinBuilderStore.getState().save();
+      const slip = useOddsSlipStore.getState();
+      if (slipMatchesSaved(slip.legs, slip.pendingHouse, savedShape)) slip.clear();
       showToast('Boletim guardado.', 'success');
       router.replace({ pathname: '/boletins/[id]', params: { id: created.id } });
     } catch (e) {
@@ -173,16 +183,23 @@ export default function ConfirmarBoletimScreen() {
 
           <AppText variant="label" tone="secondary">Casa e data</AppText>
           <View style={card}>
-            <ScrollView contentContainerStyle={styles.chips} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>
-              {BETTING_SITES.map((s) => {
-                const on = s.slug === b.siteSlug;
-                return (
-                  <Pressable key={s.slug} onPress={() => b.setSiteSlug(on ? '' : s.slug)} style={[styles.chip, styles.siteChip, { backgroundColor: on ? `${colors.primary}22` : colors.background }]}>
-                    <SiteMark size={16} slug={s.slug} textStyle={{ color: on ? colors.primary : colors.textSecondary, fontSize: 13 }} />
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            {locked ? (
+              <View style={styles.lockedRow}>
+                <SiteMark showName={false} size={16} slug={locked} />
+                <Text style={[styles.flex, styles.switchText, { color: colors.textSecondary }]}>{`Registado a partir das odds da ${houseName(locked)}`}</Text>
+              </View>
+            ) : (
+              <ScrollView contentContainerStyle={styles.chips} horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>
+                {BETTING_SITES.map((s) => {
+                  const on = s.slug === b.siteSlug;
+                  return (
+                    <Pressable key={s.slug} onPress={() => b.setSiteSlug(on ? '' : s.slug)} style={[styles.chip, styles.siteChip, { backgroundColor: on ? `${colors.primary}22` : colors.background }]}>
+                      <SiteMark size={16} slug={s.slug} textStyle={{ color: on ? colors.primary : colors.textSecondary, fontSize: 13 }} />
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
             <DatePickerField label="Data da aposta" onChange={(d) => b.setBetDate(ddmmyyyy(d))} onClear={() => b.setBetDate(ddmmyyyy(new Date()))} value={betDay} />
             <View style={styles.switchRow}>
               <Text style={[styles.flex, styles.switchText, { color: colors.textPrimary }]}>Aposta gratuita (freebet)</Text>
@@ -252,6 +269,7 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { alignItems: 'center', borderRadius: 10, justifyContent: 'center', minHeight: 36, paddingHorizontal: 14 },
   siteChip: { marginRight: 6 },
+  lockedRow: { alignItems: 'center', flexDirection: 'row', gap: 8, paddingVertical: 4 },
   chipText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   hint: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   switchRow: { alignItems: 'center', flexDirection: 'row', minHeight: 40 },
