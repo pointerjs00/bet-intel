@@ -11,8 +11,15 @@ import { useOddsMultiple } from '../../services/oddsService';
 import { formatOdd } from '../../utils/odds/format';
 import { houseName } from './houseName';
 
-/** Floating bar above the tab bar summarising the odds multiple; hidden when empty. */
-export function SlipBar() {
+const TAB_BAR_HEIGHT = 64;
+
+interface SlipBarProps {
+  /** True when rendered inside the tabs, so the bar clears the tab bar. */
+  aboveTabBar?: boolean;
+}
+
+/** Floating bar summarising the odds multiple (above the tab bar when inside the tabs); hidden when empty. */
+export function SlipBar({ aboveTabBar = false }: SlipBarProps) {
   const { colors, tokens } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -31,7 +38,7 @@ export function SlipBar() {
       accessibilityLabel={text}
       accessibilityRole="button"
       onPress={() => router.push('/odds/multipla')}
-      style={[styles.bar, { backgroundColor: colors.primary, borderRadius: tokens.radius.lg, bottom: Math.max(insets.bottom, 12) + 64 + 8 }]}
+      style={[styles.bar, { backgroundColor: colors.primary, borderRadius: tokens.radius.lg, bottom: Math.max(insets.bottom, 12) + (aboveTabBar ? TAB_BAR_HEIGHT + 8 : 0) }]}
     >
       <AppText numberOfLines={1} style={[styles.text, { color: colors.onPrimary }]} variant="bodyStrong">{text}</AppText>
       <Ionicons color={colors.onPrimary} name="chevron-forward" size={18} />

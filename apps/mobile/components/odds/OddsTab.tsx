@@ -80,7 +80,7 @@ export function OddsTab() {
           stickySectionHeadersEnabled={false}
         />
       )}
-      <SlipBar />
+      <SlipBar aboveTabBar />
     </View>
   );
 }

@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AppText } from '../../components/ui/AppText';
+import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Pressable } from '../../components/ui/Pressable';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -39,6 +40,13 @@ export default function OddsEventScreen() {
 
       {query.isLoading ? (
         <View style={styles.pad}><Skeleton height={90} /><Skeleton height={120} style={{ marginTop: 12 }} /></View>
+      ) : !view && query.isError ? (
+        <EmptyState
+          action={<Button loading={query.isFetching} onPress={() => query.refetch()} title="Tentar de novo" variant="secondary" />}
+          icon="wifi-off"
+          message="Não foi possível obter as odds."
+          title="Erro ao carregar"
+        />
       ) : !view ? (
         <EmptyState icon="chart-line" title="Odds indisponíveis para este jogo" />
       ) : (

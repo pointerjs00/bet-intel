@@ -17,7 +17,7 @@ import { useTheme } from '../../theme/useTheme';
 import { useBoletins } from '../../services/boletinService';
 import { findMatchBets, indexBetsByDay } from '../../utils/dayBets';
 import { MatchOddsCard } from '../../components/odds/MatchOddsCard';
-import { MatchBetVerdict,OtherMarkets } from '../../components/fixtures/MatchBetVerdict';
+import { MatchBetVerdict, OtherMarkets } from '../../components/fixtures/MatchBetVerdict';
 
 const STAT_ROWS: Array<{ key: keyof TeamStats; label: string; percent?: boolean }> = [
   { key: 'possession', label: 'Posse de bola', percent: true },
