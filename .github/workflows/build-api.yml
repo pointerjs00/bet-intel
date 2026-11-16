@@ -5,11 +5,23 @@ on:
     branches: [main]
     paths: ['apps/api/**', 'packages/shared/**']
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Destino do deploy (auto = variável DEPLOY_TARGET do repositório)'
+        type: choice
+        options: [auto, pi, hetzner]
+        default: auto
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Deploy target
+        run: |
+          echo "inputs.target=[${{ inputs.target }}]"
+          echo "vars.DEPLOY_TARGET=[${{ vars.DEPLOY_TARGET }}]"
+          echo "deploy vai para: ${{ (inputs.target == 'pi' || (inputs.target != 'hetzner' && vars.DEPLOY_TARGET == 'pi')) && 'pi' || 'hetzner' }}"
+
       - uses: actions/checkout@v4
 
       # Version comes from "packageManager" in the root package.json.
@@ -43,7 +55,7 @@ jobs:
   # Hetzner (antigo): corre enquanto a variável do repositório DEPLOY_TARGET não for "pi".
   build-and-push:
     needs: test
-    if: vars.DEPLOY_TARGET != 'pi'
+    if: ${{ !(inputs.target == 'pi' || (inputs.target != 'hetzner' && vars.DEPLOY_TARGET == 'pi')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -69,7 +81,7 @@ jobs:
 
   deploy:
     needs: build-and-push
-    if: vars.DEPLOY_TARGET != 'pi'
+    if: ${{ !(inputs.target == 'pi' || (inputs.target != 'hetzner' && vars.DEPLOY_TARGET == 'pi')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -178,7 +190,7 @@ jobs:
   # Ativa-se definindo a variável do repositório DEPLOY_TARGET=pi (Settings → Secrets and variables → Actions → Variables).
   deploy-pi:
     needs: test
-    if: vars.DEPLOY_TARGET == 'pi'
+    if: ${{ inputs.target == 'pi' || (inputs.target != 'hetzner' && vars.DEPLOY_TARGET == 'pi') }}
     runs-on: [self-hosted, linux, ARM64]
     steps:
       - uses: actions/checkout@v4
