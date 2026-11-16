@@ -1,5 +1,5 @@
 import { isAxiosError } from 'axios';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { apiClient } from './apiClient';
 import type { SlipLeg } from '../utils/odds/slip';
 import type { MultipleResult, OddsEventListItem, OddsEventView, OddsSport } from '../utils/odds/types';
@@ -46,5 +46,6 @@ export function useOddsMultiple(legs: SlipLeg[]) {
       })).data.data,
     enabled: legs.length > 0,
     staleTime: 60_000,
+    placeholderData: keepPreviousData,
   });
 }

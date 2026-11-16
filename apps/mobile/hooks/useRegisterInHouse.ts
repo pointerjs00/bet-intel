@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useToast } from '../components/ui/Toast';
@@ -25,38 +25,56 @@ function confirmReplace(count: number): Promise<boolean> {
 }
 
 /** Returns a function that registers the odds multiple at a house through the Novo boletim builder. */
+async function registerInHouse(
+  router: ReturnType<typeof useRouter>,
+  showToast: ReturnType<typeof useToast>['showToast'],
+  legs: SlipLeg[],
+  house: HouseId,
+  shownOdds?: Partial<Record<string, number>>,
+): Promise<void> {
+  const builder = useBoletinBuilderStore.getState();
+  if (needsReplaceConfirm(builder) && !(await confirmReplace(builder.items.length))) return;
+
+  const keys = [...new Set(legs.map((l) => l.eventKey))];
+  let views: Map<string, OddsEventView | null>;
+  try {
+    const fetched = await Promise.all(keys.map((k) => fetchOddsEvent(k)));
+    views = new Map(keys.map((k, i) => [k, fetched[i] ?? null]));
+  } catch {
+    showToast('Não foi possível obter as odds. Tenta novamente.', 'error');
+    return;
+  }
+
+  const { items, missing } = toBuilderItems(legs, house, views);
+  const houseName = BETTING_SITES.find((s) => s.slug === house)?.name ?? house.charAt(0).toUpperCase() + house.slice(1);
+  if (missing.length) {
+    showToast(`A ${houseName} já não tem odd para ${missing.length} ${missing.length === 1 ? 'seleção' : 'seleções'}`, 'error');
+    return;
+  }
+
+  const b = useBoletinBuilderStore.getState();
+  b.reset();
+  b.setSiteSlug(house);
+  for (const it of items) b.addItem(it);
+  useOddsSlipStore.getState().setPendingHouse(house);
+
+  if (shownOdds && oddsChanged(shownOdds, items)) showToast('Odds atualizadas', 'info');
+  router.push('/boletins/confirmar');
+}
+
+/** Returns a function that registers the odds multiple at a house through the Novo boletim builder. */
 export function useRegisterInHouse() {
   const router = useRouter();
   const { showToast } = useToast();
+  const inFlight = useRef(false);
 
   return useCallback(async (legs: SlipLeg[], house: HouseId, shownOdds?: Partial<Record<string, number>>) => {
-    const builder = useBoletinBuilderStore.getState();
-    if (needsReplaceConfirm(builder) && !(await confirmReplace(builder.items.length))) return;
-
-    const keys = [...new Set(legs.map((l) => l.eventKey))];
-    let views: Map<string, OddsEventView | null>;
+    if (inFlight.current) return;
+    inFlight.current = true;
     try {
-      const fetched = await Promise.all(keys.map((k) => fetchOddsEvent(k)));
-      views = new Map(keys.map((k, i) => [k, fetched[i] ?? null]));
-    } catch {
-      showToast('Não foi possível obter as odds. Tenta novamente.', 'error');
-      return;
+      await registerInHouse(router, showToast, legs, house, shownOdds);
+    } finally {
+      inFlight.current = false;
     }
-
-    const { items, missing } = toBuilderItems(legs, house, views);
-    const houseName = BETTING_SITES.find((s) => s.slug === house)?.name ?? house.charAt(0).toUpperCase() + house.slice(1);
-    if (missing.length) {
-      showToast(`A ${houseName} já não tem odd para ${missing.length} ${missing.length === 1 ? 'seleção' : 'seleções'}`, 'error');
-      return;
-    }
-
-    const b = useBoletinBuilderStore.getState();
-    b.reset();
-    b.setSiteSlug(house);
-    for (const it of items) b.addItem(it);
-    useOddsSlipStore.getState().setPendingHouse(house);
-
-    if (shownOdds && oddsChanged(shownOdds, items)) showToast('Odds atualizadas', 'info');
-    router.push('/boletins/confirmar');
   }, [router, showToast]);
 }
