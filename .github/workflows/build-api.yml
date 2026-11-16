@@ -3,7 +3,7 @@ name: Build & Deploy API
 on:
   push:
     branches: [main]
-    paths: ['apps/api/**', 'packages/shared/**']
+    paths: ['apps/api/**', 'packages/shared/**', 'services/betano-egress/**', 'deploy/pi/**']
   workflow_dispatch:
     inputs:
       target:

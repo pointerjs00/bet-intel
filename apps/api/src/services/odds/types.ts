@@ -18,6 +18,8 @@ export interface SourceEvent {
   extraIds?: { betRadarId?: string };
   /** Main market (1X2 / winner / moneyline) as carried by the house's calendar response, when it has one. */
   mainMarkets?: SourceMarket[];
+  /** Página do evento na casa, quando é preciso abri-la para os mercados. */
+  pageUrl?: string;
 }
 
 /** One selection of one market, with the house's own labels. */
@@ -33,7 +35,7 @@ export interface SourceMarket {
 export interface OddsSource {
   house: HouseId;
   listEvents(sport: OddsSport, fromIso: string, toIso: string): Promise<SourceEvent[]>;
-  getMarkets(houseEventId: string): Promise<SourceMarket[]>;
+  getMarkets(houseEventId: string, hint?: { pageUrl?: string }): Promise<SourceMarket[]>;
 }
 
 /** A house selection plus its canonical key (null = not comparable, shown only for its own house). */

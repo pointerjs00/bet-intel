@@ -20,9 +20,11 @@ class FakeSource implements OddsSource {
     private events: SourceEvent[],
     private markets: SourceMarket[] | Error,
   ) {}
+  hints: Array<{ pageUrl?: string } | undefined> = [];
   async listEvents() { return this.events; }
-  async getMarkets(): Promise<SourceMarket[]> {
+  async getMarkets(_id?: string, hint?: { pageUrl?: string }): Promise<SourceMarket[]> {
     this.calls++;
+    this.hints.push(hint);
     if (this.markets instanceof Error) throw this.markets;
     return this.markets;
   }
@@ -350,4 +352,11 @@ test('started tennis event: cached markets of a reversed house keep their orient
   assert.equal(list[0]!.houseCount, 1);
   const view = await svc2.getEvent('espn:TENNIS:t1');
   assert.deepEqual(view!.houses, ['betclic']);
+});
+
+test('the calendar pageUrl reaches source.getMarkets as a hint', async () => {
+  const a = new FakeSource('betclic', [{ ...ev('betclic', 'b1', 'Porto', 'Benfica'), pageUrl: '/jogo/b1' }], m1x2(2.0, 3.3, 3.6));
+  const { svc } = await setup([a]);
+  await svc.getEvent(KEY);
+  assert.deepEqual(a.hints, [{ pageUrl: '/jogo/b1' }]);
 });

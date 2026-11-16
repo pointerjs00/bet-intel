@@ -76,7 +76,15 @@ export async function recordProviderResult(provider: Provider, ok: boolean, erro
 export async function getProviderHealth(): Promise<Record<string, unknown>> {
   try {
     const raw = await redis().hgetall('provider:last');
-    return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, JSON.parse(v) as unknown]));
+    const out: Record<string, unknown> = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, JSON.parse(v) as unknown]));
+    try {
+      // Same key as CHALLENGE_KEY in odds/sources/betano/session.ts (not imported: session.ts imports this file).
+      const reason = await redis().get('betano:challenge');
+      if (reason) out['odds-betano'] = { ...(out['odds-betano'] as object | undefined), challenged: true, reason };
+    } catch {
+      // challenge flag is best-effort
+    }
+    return out;
   } catch {
     return {};
   }

@@ -139,10 +139,10 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     return events.find((e) => e.houseEventId === houseEventId) ?? null;
   }
 
-  async function marketsOf(source: OddsSource, houseEventId: string, own?: { home: string; away: string }): Promise<MarketsSnapshot> {
+  async function marketsOf(source: OddsSource, houseEventId: string, own?: { home: string; away: string }, hint?: { pageUrl?: string }): Promise<MarketsSnapshot> {
     const cached = await store.getMarkets(source.house, houseEventId);
     if (cached) return cached;
-    const markets = await deps.track(provider(source.house), () => source.getMarkets(houseEventId));
+    const markets = await deps.track(provider(source.house), () => source.getMarkets(houseEventId, hint));
     const snap: MarketsSnapshot = { fetchedAt: new Date(deps.now()).toISOString(), markets, ...(own ? { own } : {}) };
     await store.setMarkets(source.house, houseEventId, snap);
     return snap;
@@ -209,7 +209,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
           if (!cached) continue;
           snap = cached;
         } else {
-          snap = await marketsOf(source, houseEventId, seOwn);
+          snap = await marketsOf(source, houseEventId, seOwn, se?.pageUrl ? { pageUrl: se.pageUrl } : undefined);
         }
         // Own order: the live calendar entry, else the one saved with the cached markets.
         const own = seOwn ?? snap.own;
