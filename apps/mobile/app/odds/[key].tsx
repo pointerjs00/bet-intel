@@ -16,6 +16,7 @@ import { useOddsEvent } from '../../services/oddsService';
 import { useTheme } from '../../theme/useTheme';
 import { lisbonTime } from '../../utils/odds/list';
 import { groupByTab, tabLabel, type MarketTab } from '../../utils/odds/marketTabs';
+import { CompetitionLabel } from '../../components/odds/CompetitionLabel';
 
 export default function OddsEventScreen() {
   const { key } = useLocalSearchParams<{ key: string }>();
@@ -35,7 +36,7 @@ export default function OddsEventScreen() {
         <Pressable accessibilityLabel="Voltar" accessibilityRole="button" hitSlop={10} onPress={() => router.back()}>
           <Ionicons color={colors.textPrimary} name="chevron-back" size={26} />
         </Pressable>
-        <AppText numberOfLines={1} style={styles.flex} tone="secondary" variant="label">{view?.event.competition ?? ''}</AppText>
+        <CompetitionLabel countryCode={view?.event.countryCode} name={view?.event.competition ?? ''} />
       </View>
 
       {query.isLoading ? (
@@ -53,7 +54,7 @@ export default function OddsEventScreen() {
         <>
           <View style={styles.header}>
             <View style={styles.team}>
-              <TeamBadge name={view.event.home} size={36} />
+              <TeamBadge name={view.event.canonical?.home ?? view.event.home} size={36} variant={view.sport === 'TENNIS' ? 'player' : 'team'} />
               <AppText numberOfLines={2} style={styles.center} variant="bodyStrong">{view.event.home}</AppText>
             </View>
             <View style={styles.mid}>
@@ -65,7 +66,7 @@ export default function OddsEventScreen() {
               <AppText tone="muted" variant="label">{view.houses.length === 1 ? '1 casa' : `${view.houses.length} casas`}</AppText>
             </View>
             <View style={styles.team}>
-              <TeamBadge name={view.event.away} size={36} />
+              <TeamBadge name={view.event.canonical?.away ?? view.event.away} size={36} variant={view.sport === 'TENNIS' ? 'player' : 'team'} />
               <AppText numberOfLines={2} style={styles.center} variant="bodyStrong">{view.event.away}</AppText>
             </View>
           </View>

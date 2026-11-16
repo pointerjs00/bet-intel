@@ -143,6 +143,8 @@ export function mapMatch(m: BetclicMatch, sport: OddsSport): SourceEvent | null 
     houseEventId: m.matchId,
     sport,
     competition: clean(m.competition?.name),
+    ...(m.openMarketCount > 0 ? { marketCount: m.openMarketCount } : {}),
+    ...(clean(m.competition?.countryCode) ? { countryCode: clean(m.competition?.countryCode).toUpperCase() } : {}),
     home,
     away,
     startsAt,
