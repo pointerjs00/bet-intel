@@ -529,3 +529,11 @@ test('final re-review: short period tokens in a label (HT/1H/2H/FT) are periods;
   assert.deepEqual(parseBet('Total de golos - FT', 'Mais de 2,5', LX_CTX)?.legs, tot('FT', 2.5));
   assert.equal(resolveMarket('Total de golos - FT', 'Mais de 2,5', r, LX_CTX), 'WON');
 });
+
+test('goal totals without "de" ("Menos 2.5", Betano) settle; "pelo menos 2" is never a total under', () => {
+  const ctx = { homeNames: ['Alemanha'], awayNames: ['Países Baixos'] };
+  assert.deepEqual(parseBet('Total de Golos Mais/Menos', 'Menos 2.5', ctx)?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: false, line: 2.5 }]);
+  assert.deepEqual(parseBet('Total de Golos Mais/Menos', 'Mais 3.5', ctx)?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 3.5 }]);
+  const atLeast = parseBet('Alemanha marca pelo menos 2 golos', 'Sim', ctx);
+  assert.ok(!atLeast?.legs.some((l) => l.kind === 'TOTAL' && l.over === false));
+});
