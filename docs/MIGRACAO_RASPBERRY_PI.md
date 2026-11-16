@@ -332,16 +332,22 @@ Em cada app o ciclo é sempre o mesmo:
 
 ### Como copiar ficheiros do Hetzner para o Pi (vais usar sempre isto)
 
-O Pi não tem acesso direto ao Hetzner, por isso os ficheiros passam pelo PC: primeiro do Hetzner para o PC, depois do PC para o Pi.
+O Pi não tem acesso direto ao Hetzner, por isso os ficheiros passam pelo PC: primeiro do Hetzner para o PC, depois do PC para o Pi. No Pi, a tua conta é **`jbsousa`** e o IP em casa é **`192.168.1.20`**.
 
-🖥️ **PC**
-```bash
-# Do Hetzner para o PC (para a pasta onde estás)
-scp -i ~/.ssh/hetzner_deploy root@178.104.68.233:/tmp/<ficheiro> .
-# Do PC para o Pi
-scp <ficheiro> <o-teu-utilizador>@<ip-do-pi>:/tmp/
+🖥️ **PC** (funciona no **PowerShell** e no **Git Bash**)
+```powershell
+mkdir -p ~/migracao ; cd ~/migracao                                           # pasta de trabalho no PC
+scp -i ~/.ssh/hetzner_deploy root@178.104.68.233:/tmp/<ficheiro> .            # Hetzner → PC (o "." é "para esta pasta")
+scp <ficheiro> jbsousa@192.168.1.20:/tmp/                                     # PC → Pi
+ssh jbsousa@192.168.1.20 "ls -lh /tmp/<ficheiro>"                             # confirmar que chegou
 ```
 Troca `<ficheiro>` pelo nome indicado em cada app.
+
+**Caminhos do PC:** no PowerShell escreve-se `C:\Users\jbsou\Desktop\bet-intel`; no Git Bash, `/c/Users/jbsou/Desktop/bet-intel`. Usar o formato errado dá "No such file or directory".
+
+**Quando o crias, o "ficheiro com os dados":** no início de cada app (6.1 a 6.4), no Hetzner, com `tar` (junta pastas num ficheiro `.tgz`), `pg_dump` (exporta uma base de dados Postgres) ou `sqlite3 .backup` (copia uma base SQLite). Confirma sempre com `ls -lh /tmp/<ficheiro>` no Hetzner, antes de copiar.
+
+**Se o Hetzner pedir palavra-passe:** a chave `hetzner_deploy` não está autorizada lá. Entra no Hetzner como costumas (por exemplo, pela consola web da Hetzner) e autoriza a chave do PC. No PC, `cat ~/.ssh/id_ed25519.pub` mostra a chave; no Hetzner, corre `echo "<essa linha>" >> ~/.ssh/authorized_keys`. Depois usa `ssh root@178.104.68.233` sem o `-i`.
 
 ### Ajuste nas outras apps: portas só para o Pi
 
@@ -447,108 +453,187 @@ curl -I http://127.0.0.1:8090
 
 ### 6.4 BetIntel (por último, porque é a mais complexa)
 
-O código do BetIntel já está preparado para o Pi. Tem:
-- um ficheiro que descreve a app no Pi: base de dados, Redis e API (`deploy/pi/docker-compose.yml`);
-- uma lista dos segredos necessários (`deploy/pi/.env.example`);
-- uma tarefa automática no GitHub que instala e atualiza a app no Pi (o "job" `deploy-pi`). Só fica ativa quando o mandares (passo b).
+O código preparado para o Pi está no repositório (branch `odds-comparador`, a juntar ao `main`):
+- `deploy/pi/docker-compose.yml`: Postgres, Redis e a API. A API é construída no próprio Pi e só fica acessível em `127.0.0.1:3100`; os dados ficam em `/srv/betintel/data`.
+- `deploy/pi/.env.example`: as variáveis que o `.env` do Pi tem de ter.
+- Job `deploy-pi` em `.github/workflows/build-api.yml`: o deploy automático pelo runner do Pi (alínea g).
 
-#### a) Criar o ficheiro de segredos no Pi
+A migração faz-se em duas fases:
+- **Ensaio (alíneas a–d):** a app corre no Pi com uma cópia dos dados, enquanto o Hetzner continua a servir a app do telemóvel.
+- **Corte (alíneas e–h):** no mesmo dia, copiam-se os dados mais recentes, o endereço novo passa a apontar para o Pi, instalas a app nova e o deploy automático passa para o Pi.
 
-🖥️ **PC** (na pasta do projeto bet-intel): enviar o modelo para o Pi
+Os comandos usam a tua conta do Pi (`jbsousa`) e o IP de casa (`192.168.1.20`).
+
+#### a) Ensaio: ficheiros no Hetzner
+
+🖥️ **PC:** `ssh -i ~/.ssh/hetzner_deploy root@178.104.68.233`, depois ☁️ **Hetzner:**
 ```bash
-scp deploy/pi/.env.example <o-teu-utilizador>@<ip-do-pi>:/tmp/betintel.env
+sudo -u postgres pg_dump -Fc betintel > /tmp/betintel.dump                                   # base de dados (~45 MB)
+docker run --rm -v api_uploads_data:/d -v /tmp:/b alpine tar czf /b/uploads.tgz -C /d .       # fotos de perfil (pode ser quase vazio)
+ls -lh /tmp/betintel.dump /tmp/uploads.tgz
+cat /root/betintel/apps/api/.env                                                              # deixa esta janela aberta: vais copiar valores daqui
 ```
-☁️ **Hetzner:** ver os valores atuais (para os copiares)
-```bash
-cat /root/betintel/apps/api/.env
+O `pg_dump` tira uma cópia consistente sem parar a app, por isso isto não afeta quem está a usar o Hetzner.
+
+#### b) Ensaio: código e dados para o Pi
+
+🖥️ **PC** (PowerShell):
+```powershell
+mkdir -p ~/migracao ; cd ~/migracao
+scp -i ~/.ssh/hetzner_deploy root@178.104.68.233:/tmp/betintel.dump .
+scp -i ~/.ssh/hetzner_deploy root@178.104.68.233:/tmp/uploads.tgz .
+git -C C:\Users\jbsou\Desktop\bet-intel archive --format=tar.gz -o $HOME\migracao\betintel-src.tgz odds-comparador
+scp betintel.dump uploads.tgz betintel-src.tgz jbsousa@192.168.1.20:/tmp/
+scp C:\Users\jbsou\Desktop\bet-intel\deploy\pi\.env.example jbsousa@192.168.1.20:/tmp/betintel.env
+ssh jbsousa@192.168.1.20 "ls -lh /tmp/betintel.dump /tmp/uploads.tgz /tmp/betintel-src.tgz /tmp/betintel.env"
 ```
-🍓 **Pi**
+O último comando tem de listar os 4 ficheiros. O `git archive` empacota o código do branch indicado. Depois do merge, usa `main` em vez de `odds-comparador`.
+
+#### c) Ensaio: preparar o Pi e o ficheiro de segredos
+
+🖥️ **PC:** `ssh jbsousa@192.168.1.20`, depois 🍓 **Pi:**
 ```bash
-mkdir -p /srv/betintel
-mv /tmp/betintel.env /srv/betintel/.env
-chmod 600 /srv/betintel/.env           # só tu podes ler este ficheiro
-openssl rand -hex 32                   # gera uma palavra-passe nova (copia o resultado)
-openssl rand -hex 64                   # corre 2 vezes: uma para JWT_SECRET, outra para JWT_REFRESH_SECRET
+sudo mkdir -p /srv && sudo chown jbsousa:jbsousa /srv
+sudo usermod -aG docker jbsousa && newgrp docker
+docker network inspect app_network >/dev/null 2>&1 || docker network create app_network
+
+mkdir -p /srv/betintel/src && tar xzf /tmp/betintel-src.tgz -C /srv/betintel/src
+mv /tmp/betintel.env /srv/betintel/.env && chmod 600 /srv/betintel/.env
+openssl rand -hex 32     # → POSTGRES_PASSWORD
+openssl rand -hex 64     # → JWT_SECRET
+openssl rand -hex 64     # → JWT_REFRESH_SECRET
 nano /srv/betintel/.env
 ```
-No editor:
-- `POSTGRES_PASSWORD=`: cola a palavra-passe **nova** (a antiga está escrita num ficheiro do projeto e deve ser trocada).
-- `JWT_SECRET=` e `JWT_REFRESH_SECRET=`: cola os dois valores longos. Isto obriga a fazer login de novo na app, mas é mais seguro.
-- Os restantes campos (Firebase, SMTP, Gemini, etc.): copia-os do `.env` do Hetzner. O **`FIREBASE_SERVICE_ACCOUNT_JSON` é obrigatório**: sem ele a API não arranca (aparece o erro `FIREBASE_SERVICE_ACCOUNT_JSON env var is missing`). É uma linha muito comprida; copia-a inteira.
+No `nano`:
+- Cola os três valores novos nos campos com esses nomes.
+- Copia do `.env` do Hetzner (a janela da alínea a): `FIREBASE_SERVICE_ACCOUNT_JSON` (**obrigatório**: sem ele a API não arranca; é uma linha muito comprida), os `SMTP_*`, `GEMINI_API_KEY`, `API_FOOTBALL_KEY` e `INTERNAL_ADMIN_KEY`.
+- Mete `APP_URL=https://betintel-api.couveflor.site`.
+- Deixa vazios `ODDS_SOURCES` e `SCRAPER_HTTP_PROXY`.
 - **Não** acrescentes `DATABASE_URL` nem `REDIS_URL`: o Pi define-os sozinho.
-- `SCRAPER_HTTP_PROXY=` fica vazio.
+- Mudar os JWT obriga a fazer login de novo na app.
 
 Guarda com **Ctrl+O → Enter → Ctrl+X**.
 
-#### b) Primeira instalação no Pi (ainda sem dados)
+#### d) Ensaio: construir, restaurar e testar
 
-1. No GitHub, abre o repositório **bet-intel → Settings → Secrets and variables → Actions → separador Variables → New repository variable**:
-   - Name: `DEPLOY_TARGET`
-   - Value: `pi`
-2. Vai a **Actions → "Build & Deploy API" → Run workflow** (branch `main`) → **Run workflow**.
-3. Acompanha a execução. O passo `deploy-pi` corre no Pi; a primeira vez demora cerca de 5–10 minutos, porque constrói a app para o Pi.
-
-✅ **Verificação:** a execução acaba com um ✓ verde e o passo "Health check" diz **API OK**. 🍓 `curl http://127.0.0.1:3100/health` responde.
-
-A partir deste momento, cada alteração ao código no GitHub atualiza o Pi automaticamente, e o Hetzner deixa de receber atualizações.
-
-#### c) Copiar os dados (a app fica parada 15–30 minutos)
-
-☁️ **Hetzner:** parar a app e copiar a base de dados e as fotos de perfil
+🍓 **Pi**
 ```bash
-docker stop api-api-1
-sudo -u postgres pg_dump -Fc betintel > /tmp/betintel.dump
-docker run --rm -v api_uploads_data:/d -v /tmp:/b alpine tar czf /b/uploads.tgz -C /d .
-```
-🖥️ **PC:** copiar `betintel.dump` e `uploads.tgz` para o Pi.
-
-🍓 **Pi:** substituir a base de dados vazia pela cópia
-```bash
-cd ~/runners/bet-intel/_work/bet-intel/bet-intel        # pasta onde o runner guardou o código
+cd /srv/betintel/src
 C="docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env"
-$C stop api
-$C exec -T betintel-db psql -U betintel_user -d postgres -c "DROP DATABASE betintel;" -c "CREATE DATABASE betintel OWNER betintel_user;"
+
+$C build api                          # constrói a imagem para o Pi (primeira vez: ~10–15 min)
+$C up -d betintel-db redis            # só a base de dados e o Redis
+sleep 15
 $C exec -T betintel-db pg_restore -U betintel_user -d betintel --no-owner < /tmp/betintel.dump
-mkdir -p /srv/betintel/data/uploads && tar xzf /tmp/uploads.tgz -C /srv/betintel/data/uploads
+sudo mkdir -p /srv/betintel/data/uploads && sudo tar xzf /tmp/uploads.tgz -C /srv/betintel/data/uploads
 $C up -d api
 sleep 30 && curl -s http://127.0.0.1:3100/health
 ```
-- O `pg_restore` pode mostrar avisos sobre "owner" ou "shadow_db": são normais.
-- O último comando tem de responder (algo com `ok`).
+Algumas notas sobre estes comandos:
+- **A variável `C`:** só existe nessa janela. Se abrires outro terminal, repete as duas primeiras linhas.
+- **O `sudo` nos uploads:** a pasta `/srv/betintel/data` é criada pelo Docker e pertence ao `root`, e é por isso que essa linha precisa de `sudo`. **Não mudes o dono** de `postgres` e `redis`: os contentores já lhes deram o dono certo.
+- **Avisos do `pg_restore`:** pode avisar sobre "owner" ou "shadow_db". É normal.
 
-#### d) Corte: rotas no túnel
+✅ **Verificação:**
+- O `curl` responde `{"success":true,"data":{"status":"ok",...}}`.
+- Os dados estão lá:
+  ```bash
+  $C exec -T betintel-db psql -U betintel_user -d betintel -c 'SELECT count(*) AS boletins FROM "Boletin";' -c 'SELECT count(*) AS utilizadores FROM "User";'
+  docker logs betintel-api-1 --tail 40      # sem "error" a repetir; deve aparecer "listening"
+  ```
+- No Home Assistant, Definições → Sistema → Reparações não mostra *unhealthy*.
 
-Acrescenta estas rotas ao túnel `pi-server`:
+**No fim do ensaio, para a API do Pi.** Enquanto o Hetzner estiver ligado, a cópia do Pi também acompanharia os jogos. O teu telemóvel receberia notificações **duplicadas**, e as duas bases de dados iam divergir.
+```bash
+$C stop api          # a base de dados e o Redis podem ficar ligados
+```
+
+#### e) Corte: preparar (pode ser em dias diferentes)
+
+Antes do dia do corte:
+1. `couveflor.site` ativo na Cloudflare (secção 3) e túnel `pi-server` HEALTHY (secção 4).
+2. **Runner do GitHub instalado no Pi** para o repositório `bet-intel` (secção 5). Instala-o com a conta `jbsousa`, que já está no grupo `docker`. Confirma que o repositório é **privado**.
+3. **Branch no `main`:** o código do Pi (branch `odds-comparador`) tem de estar no `main`, por PR ou merge. O job `deploy-pi` só corre a partir do `main`.
+4. **App nova construída** (secção 6.6), pronta a instalar.
+
+#### f) Corte: o dia (o BetIntel fica parado ~15–30 min)
+
+☁️ **Hetzner:** parar a app e tirar a cópia final
+```bash
+docker stop api-api-1
+sudo -u postgres pg_dump -Fc betintel > /tmp/betintel.dump
+ls -lh /tmp/betintel.dump
+```
+🖥️ **PC:** copiar só o `betintel.dump` (como na alínea b; as fotos não mudaram desde o ensaio).
+
+🍓 **Pi:** trocar a base de dados do ensaio pela final e arrancar
+```bash
+cd /srv/betintel/src && C="docker compose -f deploy/pi/docker-compose.yml --env-file /srv/betintel/.env"
+$C stop api
+$C exec -T betintel-db psql -U betintel_user -d postgres -c "DROP DATABASE betintel;" -c "CREATE DATABASE betintel OWNER betintel_user;"
+$C exec -T betintel-db pg_restore -U betintel_user -d betintel --no-owner < /tmp/betintel.dump
+$C up -d api && sleep 30 && curl -s http://127.0.0.1:3100/health
+```
+**Cloudflare:** Zero Trust → Networks → Tunnels → `pi-server` → Public hostname → Add:
 
 | Subdomain | Domain | Path | Service |
 |---|---|---|---|
 | `betintel-api` | `couveflor.site` | (vazio) | HTTP `localhost:3100` |
 
-Uma só rota chega, porque a app nova usa só `betintel-api.couveflor.site` (API e Socket.IO).
+Uma só rota chega: a app nova usa `betintel-api.couveflor.site` para a API e para o Socket.IO.
 
-#### e) Testar com a app nova do telemóvel (build da secção 6.6)
+✅ **Verificação:** 🖥️ `curl https://betintel-api.couveflor.site/health` responde `ok`.
 
-- [ ] Fazer login (vai pedir de novo, por causa dos segredos novos)
-- [ ] Ver a lista de boletins e abrir um
-- [ ] Abrir a Análise
-- [ ] Ver "A decorrer" e receber uma notificação de teste
+**Telemóvel:** instala a app nova (6.6), faz login e testa:
+- [ ] Lista de boletins e detalhe
+- [ ] Análise (estatísticas)
+- [ ] "A decorrer" e uma notificação de teste
 - [ ] Ler um boletim por screenshot
-- [ ] Ver a foto de perfil
+- [ ] Foto de perfil
 
-✅ **Verificação:** tudo funciona na app nova. **Só depois de a app nova estar instalada no teu telemóvel**, ☁️ **Hetzner:**
+#### g) Corte: passar o deploy automático para o Pi (job `deploy-pi`)
+
+O job `deploy-pi` faz, a cada push para o `main` que mexa na API, o mesmo que fizeste à mão:
+1. corre os testes na nuvem do GitHub;
+2. no runner do Pi, descarrega o código;
+3. faz `docker compose ... up -d --build` com o `/srv/betintel/.env`;
+4. confirma o `/health`.
+
+Usa a mesma base de dados e as mesmas pastas de `/srv/betintel/data`. Os contentores que lançaste à mão passam a ser geridos por ele, porque o nome do projeto é o mesmo (`betintel`).
+
+1. **Liga a variável:** GitHub → repositório **bet-intel** → **Settings → Secrets and variables → Actions → separador Variables → New repository variable**:
+   - Name: `DEPLOY_TARGET`
+   - Value: `pi`
+
+   A partir daqui, os jobs do Hetzner deixam de correr e o `deploy-pi` passa a correr.
+2. **Primeiro deploy:** **Actions → "Build & Deploy API" → Run workflow** (branch `main`) → **Run workflow**. Acompanha a execução. O passo "Health check" tem de terminar com **API OK**.
+3. A partir daí, cada push para o `main` que mexa em `apps/api/**` ou `packages/shared/**` faz deploy no Pi sozinho.
+
+**Atenção:**
+- **Não ligues o `DEPLOY_TARGET=pi` antes do corte.** O deploy arrancava a API no Pi enquanto o Hetzner também está ativo, e terias as notificações duplicadas da alínea d.
+- **A pasta `/srv/betintel/src`** (a cópia manual) deixa de ser usada. O runner trabalha em `~/runners/bet-intel/_work/bet-intel/bet-intel`. Podes apagá-la mais tarde (`rm -rf /srv/betintel/src`), mas **nunca** apagues `/srv/betintel/data` nem `/srv/betintel/.env`.
+- **Se o deploy falhar no "Health check":** o job mostra as últimas 100 linhas do log da API. A causa mais comum é faltar uma variável no `/srv/betintel/.env`.
+
+#### h) Corte: desligar o BetIntel no Hetzner
+
+Só depois de a app nova estar instalada e testada no telemóvel. ☁️ **Hetzner:**
 ```bash
 docker compose -f /root/betintel/apps/api/docker-compose.yml down
 ```
-A partir daqui, a app antiga deixa de funcionar.
+A app antiga (endereço `stream-intel.online`) deixa de funcionar a partir daqui.
 
-#### f) Se algo correr mal
+#### Se algo correr mal
 
 🍓 **Pi**
 ```bash
-docker logs betintel-api-1 --tail 100      # últimas mensagens da app (erros aparecem aqui)
+docker logs betintel-api-1 --tail 100      # últimas mensagens da API (os erros aparecem aqui)
 docker ps                                  # que contentores estão a correr
 ```
-**Voltar atrás:** apaga as rotas do BetIntel no túnel e, ☁️ no Hetzner, `docker start api-api-1`. Na Cloudflare, os registos voltam a apontar para o IP do Hetzner (`178.104.68.233`). No GitHub, apaga a variável `DEPLOY_TARGET`.
+**Voltar atrás antes da alínea h:**
+1. Apaga a rota do BetIntel no túnel.
+2. ☁️ Liga de novo o Hetzner: `docker start api-api-1`.
+3. No GitHub, apaga a variável `DEPLOY_TARGET`.
+4. Usa a app antiga até resolver.
 
 ### 6.5 Recolha de odds (o "comparador") a partir de casa
 
@@ -688,7 +773,8 @@ docker run -d --name uptime-kuma --restart always -p 3001:3001 -v uptime_kuma:/a
 - [ ] 6.1 Pricetracker no Pi e desligado no Hetzner
 - [ ] 6.2 Stream-Intel no Pi e desligado no Hetzner
 - [ ] 6.3 Parlay League no Pi e desligado no Hetzner
-- [ ] 6.4 BetIntel no Pi (`DEPLOY_TARGET=pi`, dados copiados, rotas, testes na app)
+- [ ] 6.4 a–d BetIntel: ensaio no Pi (dados copiados, `/health` ok, API parada no fim)
+- [ ] 6.4 e–h BetIntel: corte (dump final, rota no túnel, app nova, `DEPLOY_TARGET=pi`, Hetzner desligado)
 - [ ] 6.6 Builds novas das apps (BetIntel e Stream-Intel) com o endereço `couveflor.site`, instaladas e testadas
 - [ ] 6.5 `probe-odds.sh` no Pi: todas as linhas OK
 - [ ] 7.1 Segredos trocados
