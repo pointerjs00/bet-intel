@@ -363,8 +363,9 @@ test('correct score with a team name: home-away score when every reading agrees,
     ['Resultado exato', 'GD Chaves 1-2'], ['Resultado correto', 'GD Chaves 2-1'], ['Resultado correto', '1-2 GD Chaves'],
     ['Resultado correto', 'Empate 2-1'], ['Resultado correto', 'Fulano 2-1'], ['Resultado correto', 'Leixões vence 2-1'],
     ['Resultado correto', 'Leixões 2-1 GD Chaves'], ['Resultado correto', 'Leixões'], ['Resultado correto - 1ª Parte', 'Leixões 1-0'],
-    // A score is never just the winner (Betclic's "Resultado correcto" is not read yet: no sample of its scores).
-    ['Resultado', 'Leixões 2-1'], ['Resultado correcto', 'Leixões 2-1'], ['Resultado correcto', 'Leixões 2:1'], ['Resultado (Tempo Regulamentar)', 'GD Chaves 1-2'],
+    // A score is never just the winner. (Betclic's "Resultado correcto" — scores "1 - 0", seen 2026-11-16 —
+    // is read like "Resultado correto"; its away-team ambiguity is covered by the same rules.)
+    ['Resultado', 'Leixões 2-1'], ['Resultado correcto', 'GD Chaves 2-1'], ['Resultado (Tempo Regulamentar)', 'GD Chaves 1-2'],
   ] as const) assert.equal(legsOf(m, s), null, `${m} / ${s}`);
 });
 
@@ -536,4 +537,13 @@ test('goal totals without "de" ("Menos 2.5", Betano) settle; "pelo menos 2" is n
   assert.deepEqual(parseBet('Total de Golos Mais/Menos', 'Mais 3.5', ctx)?.legs, [{ kind: 'TOTAL', period: 'FT', stat: 'goals', over: true, line: 3.5 }]);
   const atLeast = parseBet('Alemanha marca pelo menos 2 golos', 'Sim', ctx);
   assert.ok(!atLeast?.legs.some((l) => l.kind === 'TOTAL' && l.over === false));
+});
+
+test('"Resultado correcto" settles as a correct score; a trailing score list in the selection is ignored', () => {
+  const ctx = { homeNames: ['Cazaquistão'], awayNames: ['Eslováquia'] };
+  assert.deepEqual(parseBet('Resultado correcto', '2 - 1', ctx)?.legs, [{ kind: 'SCORE', home: 2, away: 1 }]);
+  assert.deepEqual(
+    parseBet('Ambas as Equipas Marcam ou Mais de 2.5', 'Não (2-0, 1-0, 0-0, 0-1 ou 0-2)', ctx)?.legs,
+    parseBet('Ambas as Equipas Marcam ou Mais de 2.5', 'Não', ctx)?.legs,
+  );
 });

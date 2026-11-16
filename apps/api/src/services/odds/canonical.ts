@@ -84,7 +84,9 @@ function betKey(bet: ParsedBet): string | null {
 
 const NOT_PLAIN_RESULT = /\b(cantos?|cart\w*|remates?|faltas?|minutos?|resto|prolongamento|penalt\w*|vantagem|vence|ganha|sem sofrer|a marcar|golos?)\b/;
 const NOT_PLAIN_RESULT_SELECTION = /\b(golos?|diferenca|margem|por)\b/;
-const PLAIN_RESULT_MARKET = /^(resultado|resultado duplo|resultado final|dupla hipotese|hipotese dupla|chance dupla|double chance|duplo|vencedor|match result|result|1x2|)$/;
+/** A half named in a market label ("1ª Parte", "Primeira Parte", "2.ª parte"), after `plain`. */
+const MARKET_HALF = /\b(1|2)\.?\s*a\s+parte\b|\b(primeira|segunda) parte\b/;
+const PLAIN_RESULT_MARKET =/^(resultado|resultado duplo|resultado final|dupla hipotese|hipotese dupla|chance dupla|double chance|duplo|vencedor|match result|result|1x2|)$/;
 
 const LABEL_SEPARATOR = /\s+[-–]\s*|\s*[-–]\s+/;
 
@@ -98,7 +100,9 @@ function teamOfMarket(m: string, ctx: MatchContext): { side: 'H' | 'A' | null; q
   // name ("Saint-Germain") has no space on either side.
   const sep = m.search(LABEL_SEPARATOR);
   const prefix = sep > 0 ? m.slice(0, sep).trim() : '';
-  const named = /^(total|golos|resultado|mais|menos)\b/.test(prefix) ? '' : prefix;
+  // Stat and period words before the separator are not a team: "Cantos Mais/Menos - 1ª Parte",
+  // "Primeira Parte - Total de Cantos".
+  const named = /^(total|golos|resultado|mais|menos|cantos?)\b/.test(prefix) || MARKET_HALF.test(prefix) ? '' : prefix;
   const afterGolos = m.match(/\bgolos\s+(?:da|do)\s+(.+)$/)?.[1]?.trim() ?? '';
   // "Total de golos do jogo / da partida / do encontro" is the match total.
   const after = /^(jogo|partida|encontro)$/.test(afterGolos) ? '' : afterGolos;
@@ -136,11 +140,14 @@ function contradicts(bet: ParsedBet, market: string, selection: string): boolean
   if (/corret|correct|exat|exact/.test(m) && !bet.legs.every((l) => l.kind === 'SCORE')) return true;
   // Result legs: only plain full-time 1X2 / double-chance markets, not "Cantos 1X2", "resto do jogo"...
   if (bet.legs.some((l) => l.kind === 'RESULT')) {
-    // A selection can name its own half ("Leixões vence ao intervalo"): plain results are full time only.
-    if (bet.legs.some((l) => l.kind === 'RESULT' && l.period !== 'FT')) return true;
+    // A half result is keyed only when the market itself names the half ("Resultado da 1ª Parte",
+    // "Resultado - Primeira Parte"); a selection naming its own half under a full-time market
+    // ("Leixões vence ao intervalo") is not a plain result.
+    if (bet.legs.some((l) => l.kind === 'RESULT' && l.period !== 'FT') && !MARKET_HALF.test(m)) return true;
     if (NOT_PLAIN_RESULT.test(m) || NOT_PLAIN_RESULT_SELECTION.test(s)) return true;
     const stripped = m
-      .replace(/tempo regulamentar|tempo reg\.?|1x2|do jogo|\bfinal\b|[()-]/g, ' ')
+      .replace(MARKET_HALF, ' ')
+      .replace(/tempo regulamentar|tempo reg\.?|1x2|do jogo|\bfinal\b|\bda\b|[()-]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
     if (!PLAIN_RESULT_MARKET.test(stripped)) return true;
