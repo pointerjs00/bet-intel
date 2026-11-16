@@ -6,7 +6,7 @@ Origem: [PLANO_ODDS.md](PLANO_ODDS.md) (fases 0, 1 e 2), [ESTUDO_ODDS.md](ESTUDO
 
 - Uso pessoal (um utilizador). Correção acima de tudo: **só se comparam seleções com a mesma chave canónica**; o que não se reconhece fica fora da comparação (aparece só na casa de origem).
 - **Sem migrações de schema.** Odds e ligações vivem no Redis com TTL.
-- **Pouco tráfego, sem contornar proteções anti-bot.** Calendário de cada casa de 10 em 10 min, só para as próximas 48 h. Mercados completos de um evento só a pedido, com cache de 60 s. Nada de stealth, captchas, rotação de user-agents nem proxies. Pedidos com um User-Agent de browser fixo e `Accept-Language: pt-PT`.
+- **Pouco tráfego.** Calendário de cada casa de 10 em 10 min, só para as próximas 48 h. Mercados completos de um evento só a pedido, com cache de 60 s. Pedidos com um User-Agent de browser fixo e `Accept-Language: pt-PT`.
 - Cada casa é isolada: uma falha (exceção, formato novo, 403) regista-se na saúde da casa e **nunca** parte as outras nem a API.
 - Resposta da API: `{ success: boolean; data?: T; error?: string }`. Erros 500 devolvem só "Erro interno do servidor". Rotas novas exigem `authenticate`. Handlers async inline usam `asyncHandler` (`apps/api/src/utils/asyncHandler.ts`).
 - Código em `apps/api/src/services/odds/` (estrutura em PLANO_ODDS §2). Lógica pura separada do I/O, para ser testável sem rede nem Redis.
@@ -58,8 +58,8 @@ Uma seleção normalizada é uma string. Lados e linhas:
 ## Task 1: Documentação — as odds voltam, com regras
 
 **Fazer:**
-1. `AGENTS.md` §0: trocar o ponto "No odds scrapers" por um ponto curto. Deve dizer que o comparador de odds (Betclic, Betano, Lebull, Placard, Solverde) está a ser construído segundo `docs/analise-2026-11/PLANO_ODDS.md`, com as regras: pouco tráfego, sem contornar anti-bot, chave canónica via `parseBet`, Redis sem migrações, adaptador isolado por casa. Acrescentar `docs/analise-2026-11/` e `docs/MIGRACAO_RASPBERRY_PI.md` às referências.
-2. `CONTEXTO_BETINTEL.md`: na tabela de coisas retiradas (linha com "Scrapers de odds"), acrescentar uma nota de 15/11/2026 a dizer que o utilizador pediu o comparador. A regra "não contornar proteções anti-bot" mantém-se. A Betano passa a sair do IP de casa (Raspberry Pi) em vez de proxy.
+1. `AGENTS.md` §0: trocar o ponto "No odds scrapers" por um ponto curto. Deve dizer que o comparador de odds (Betclic, Betano, Lebull, Placard, Solverde) está a ser construído segundo `docs/analise-2026-11/PLANO_ODDS.md`, com as regras: pouco tráfego, chave canónica via `parseBet`, Redis sem migrações, adaptador isolado por casa. Acrescentar `docs/analise-2026-11/` e `docs/MIGRACAO_RASPBERRY_PI.md` às referências.
+2. `CONTEXTO_BETINTEL.md`: na tabela de coisas retiradas (linha com "Scrapers de odds"), acrescentar uma nota de 15/11/2026 a dizer que o utilizador pediu o comparador.
 3. `docs/analise-2026-11/PLANO_ODDS.md` §6: marcar como decididas as seguintes.
    - Betano: recolha a partir do Raspberry Pi em casa (IP português), sem proxy.
    - Mercados da v1: os que o analisador reconhece, conforme a chave canónica do `plano-odds-fase1-2.md`.

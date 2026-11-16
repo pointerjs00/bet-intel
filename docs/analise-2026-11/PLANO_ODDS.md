@@ -13,8 +13,7 @@ Tamanho: S ≤ ½ dia · M 1–2 dias · L 3–5 dias · XL > 1 semana.
 2. **Compara-se só o que se sabe que é igual.** Cada seleção de cada casa passa pelo analisador de mercados que já liquida as apostas (`parseBet` em `marketResolutionEngine.ts`, mais os motores de ténis e basquetebol). Daí sai uma **chave canónica**, por exemplo `FT.1X2.HOME`, `FT.TOTAL.OVER.2.5` ou `FT.BTTS.YES`. Duas casas só aparecem na mesma linha quando a chave é igual. O que não se reconhece aparece na mesma, mas só na coluna dessa casa. Bónus: tudo o que se compara é também liquidável automaticamente.
 3. **O jogo âncora é o da ESPN**, que já é a base da liquidação e do ecrã Jogos. Cada evento de cada casa liga-se a um jogo ESPN pela competição, pela hora (±30 min) e pelos nomes (`teamNamesMatch` e aliases PT). Jogos fora da ESPN agrupam-se entre casas pelo `betRadarId` (quando existe) ou pelos nomes e hora, e aparecem só na lista do comparador.
 4. **Pouco tráfego.** Calendário de 10 em 10 min, só para as próximas 48 h e só nas competições cobertas. Mercados completos só quando abres um jogo ou quando ele está numa múltipla em construção (cache de 60 s). Ao vivo de 30 em 30 s, só com o ecrã aberto ou com aposta. Nada de pedidos em massa.
-5. **Sem contornar proteções anti-bot.** Se uma casa bloquear o servidor, ou se passa a recolha por um proxy (decisão tua, com custo), ou essa casa fica de fora.
-6. **Começa sem migração.** As odds atuais e as ligações evento↔jogo vivem no Redis com TTL. Postgres só entra na fase de odds de fecho/CLV (fase 8), depois de alinhar o drift do schema (#24).
+5. **Começa sem migração.** As odds atuais e as ligações evento↔jogo vivem no Redis com TTL. Postgres só entra na fase de odds de fecho/CLV (fase 8), depois de alinhar o drift do schema (#24).
 
 ## 2. Arquitetura
 

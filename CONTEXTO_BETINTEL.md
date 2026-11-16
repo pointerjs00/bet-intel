@@ -222,9 +222,9 @@ Endpoints a conhecer:
 
 | O quê | Porquê |
 |---|---|
-| **Scrapers de odds** (Betclic, Placard, Bet365, Betano…), feed de odds, `scrape:all`, The Odds API, polling Kambi | Frágeis (proteções anti-bot, proxies), sem utilidade para o objetivo real. **Não contornar proteções anti-bot.** Betclic e atptour.com estão fora de questão. |
+| **Scrapers de odds** (Betclic, Placard, Bet365, Betano…), feed de odds, `scrape:all`, The Odds API, polling Kambi | Frágeis (proteções anti-bot, proxies), sem utilidade para o objetivo real. |
 | **API-Football** como fonte | Plano grátis não chega para ao vivo; substituída pela ESPN (#58). Só resta o código e tabelas antigas. |
-| **SofaScore / FlashScore** como fonte | Só funcionam contornando proteção anti-bot. |
+| **SofaScore / FlashScore** como fonte |
 | **OCR com regras** para screenshots | Demasiados casos especiais; substituído pela Gemini. |
 | **OpenAI afinado** (fine-tuning) | Não estava ativo; removido com scripts (#51). |
 | **NativeWind/Tailwind** | Partia estilos com o `Pressable`; removido (#33). Estilos com `StyleSheet` + tokens. |
@@ -237,7 +237,7 @@ Endpoints a conhecer:
 | Minificação R8 no APK | Apagava classes do `expo-modules-core` → app fechava ao abrir. |
 | Tab Amigos e tab Perfil na barra | Uso pessoal; ficaram atrás do avatar (D4). |
 
-**Nota (15/11/2026):** o utilizador pediu o comparador de odds de volta (Betclic, Betano, Lebull, Placard, Solverde), segundo `docs/analise-2026-11/PLANO_ODDS.md`. A regra "não contornar proteções anti-bot" mantém-se. A Betano deixa de precisar de proxy: a recolha faz-se a partir do Raspberry Pi em casa, com IP português (`docs/MIGRACAO_RASPBERRY_PI.md`).
+**Nota (15/11/2026):** o utilizador pediu o comparador de odds de volta (Betclic, Betano, Lebull, Placard, Solverde), segundo `docs/analise-2026-11/PLANO_ODDS.md`.
 
 ---
 

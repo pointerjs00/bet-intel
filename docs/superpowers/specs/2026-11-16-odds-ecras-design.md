@@ -45,7 +45,7 @@ Uso pessoal (um utilizador). A referência visual é a app da Betclic (lista de 
   (`theme/tokens.ts`) e componentes de `components/ui/` (`AppText`, `ListCard`, `StatusPill`,
   `SegmentedControl`, `SectionHeader`, `TeamBadge`, `SiteMark`). PT-PT, odds com vírgula (`1,90`).
 - API: rotas `/api/odds/*` já existem e exigem autenticação: `GET /events?sport&date`,
-  `GET /events/:key`, `POST /multiple` (1–10 seleções `{eventKey, selectionKey}`), `GET /health`.
+  `GET /events/:key`, `POST /multiple` (hoje 1–10 seleções `{eventKey, selectionKey}`; passa a 30, §1), `GET /health`.
 - Janela de odds: 48 h (hoje e amanhã); recolha a cada 10 min.
 - Um boletim tem **uma** casa (`siteSlug`); as casas usam os slugs `betclic`, `betano`, `lebull`,
   `placard`, `solverde` (iguais ao `HouseId` da API).
@@ -81,6 +81,8 @@ interface ComparedSelection { key: string | null; label: string; market: string;
 - `market` da linha = `marketLabel` da primeira casa (ordem `HOUSE_ORDER`), para títulos de cartão.
 - `compareMultiple` ignora os campos novos. Testes de `compare`/`service` atualizados.
 - A linha do 1X2 de `GET /events` (`main`) já traz estes campos por herança.
+- `POST /multiple` passa a aceitar até **30** seleções (era 10), o máximo das casas portuguesas;
+  teste da rota atualizado (30 aceite, 31 → 400).
 
 ### 2. Tab Odds (página Jogos, `app/(tabs)/fixtures.tsx`)
 
@@ -139,7 +141,7 @@ interface ComparedSelection { key: string | null; label: string; market: string;
 
 - Store `oddsSlipStore` (Zustand + persistência AsyncStorage, como o builder):
   `legs: { eventKey, selectionKey, label, market, home, away, startsAt, sport, competition }[]`,
-  máx. 10 (limite da API), **uma seleção por jogo** (adicionar outra do mesmo jogo substitui, com toast).
+  máx. **30** (o máximo das casas portuguesas; a 31.ª dá toast "Máximo de 30 seleções"), **uma seleção por jogo** (adicionar outra do mesmo jogo substitui, com toast).
   Pernas cujo `startsAt` já passou há mais de 3 h são descartadas ao abrir.
 - **Barra flutuante** (visível na tab Odds e no ecrã de odds quando há pernas):
   "Múltipla · N seleções · melhor X,XX na <casa>"; toque abre a tabela.

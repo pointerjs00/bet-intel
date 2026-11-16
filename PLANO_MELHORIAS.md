@@ -310,6 +310,6 @@ O estudo completo, com os testes, está em [ESTUDO_FONTES_DADOS.md](ESTUDO_FONTE
 ## Decisões pendentes
 
 1. Retirar ficheiros sensíveis do Git (#17): `git rm --cached api_logs.txt PT_17996111.pdf` e os JPGs da raiz.
-3. SofaScore e FlashScore: só funcionam contornando a proteção anti-bot, o que não testei. Não são necessários para cobrir o que pediste (ver o estudo).
+3. SofaScore e FlashScore.
 4. Quando fazer o upgrade do Expo (#32): antes ou depois do redesign.
 5. Manter ou simplificar a parte social.
