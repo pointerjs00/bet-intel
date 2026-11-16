@@ -37,9 +37,15 @@ export function createJar(client: JarStore, now: () => number = Date.now) {
   };
   return {
     read,
-    async merge(cookies: Record<string, string>, sid?: string | null): Promise<Jar> {
+    /** Merges cookies; stamps `warmedAt` unless `opts.warm === false` (cookies-only write, sid and warmedAt untouched). */
+    async merge(cookies: Record<string, string>, sid?: string | null, opts: { warm?: boolean } = {}): Promise<Jar> {
       const j = await read();
-      const next: Jar = { sid: sid === undefined ? j.sid : sid, cookies: { ...j.cookies, ...cookies }, warmedAt: now() };
+      const warm = opts.warm !== false;
+      const next: Jar = {
+        sid: warm && sid !== undefined ? sid : j.sid,
+        cookies: { ...j.cookies, ...cookies },
+        warmedAt: warm ? now() : j.warmedAt,
+      };
       await client.set(KEY, JSON.stringify(next), 'EX', TTL_S);
       return next;
     },

@@ -126,4 +126,32 @@ describe('betano session', () => {
     assert.equal(calls.length, 7);
     assert.equal(calls[6]!.sid, 's2');
   });
+
+  it('a failed warm-up leaves the jar cold (no sid, not warm)', async () => {
+    const { session } = harness([ok, blocked]);
+    await assert.rejects(session.warmUp(), ProviderFormatError);
+    const j = await session.jar.read();
+    assert.equal(j.sid, null);
+    assert.equal(j.warmedAt, 0);
+  });
+
+  it('a non-owner waits and reuses the sid warmed by the lock holder', async () => {
+    const { session, store, calls } = harness([]);
+    store.set('betano:warm', 'other');
+    store.set(
+      'betano:jar',
+      JSON.stringify({ sid: 'warm-sid', cookies: {}, warmedAt: 1_000_000 }),
+    );
+    // warmUp read of the jar after the wait sees a fresh warmedAt (clock is 1_000_000).
+    const sid = await session.warmUp();
+    assert.equal(sid, 'warm-sid');
+    assert.equal(calls.length, 0);
+  });
+
+  it('fails fast without network while the challenge flag is set', async () => {
+    const { session, store, calls } = harness([]);
+    store.set(CHALLENGE_KEY, 'warm-up /: HTTP 403');
+    await assert.rejects(session.request(URL_A), /challenged: warm-up/);
+    assert.equal(calls.length, 0);
+  });
 });

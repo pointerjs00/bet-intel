@@ -36,3 +36,14 @@ test('missing or corrupt JSON reads as empty jar; clear deletes', async () => {
   await jar.clear();
   assert.equal(store.data.size, 0);
 });
+
+test('merge with warm:false stores cookies but leaves sid and warmedAt untouched', async () => {
+  let t = 100;
+  const jar = createJar(memStore(), () => t);
+  await jar.merge({ a: '1' }, 'sid1');
+  t = 999;
+  const next = await jar.merge({ b: '2' }, 'sid2', { warm: false });
+  assert.deepEqual(next, { sid: 'sid1', cookies: { a: '1', b: '2' }, warmedAt: 100 });
+  const fresh = createJar(memStore(), () => t);
+  assert.deepEqual(await fresh.merge({ c: '3' }, 'sid9', { warm: false }), { sid: null, cookies: { c: '3' }, warmedAt: 0 });
+});

@@ -67,8 +67,10 @@ export function createBetanoSession(deps: BetanoSessionDeps) {
       for (const path of WARM_PATHS) {
         const url = new URL(path, ORIGIN).toString();
         const res = await deps.transport.fetch(sid, url, { headers: navigationHeaders(url, from) });
-        await jar.merge(await deps.transport.cookies(sid), sid);
+        // Cookies only: the session is not marked warm until every warm path has passed.
+        await jar.merge(await deps.transport.cookies(sid), undefined, { warm: false });
         if (isChallenge(res)) {
+          await jar.reset();
           await markChallenge(`warm-up ${path}: HTTP ${res.status}`);
           throw new ProviderFormatError(`Betano warm-up challenged (${res.status})`);
         }
@@ -94,6 +96,9 @@ export function createBetanoSession(deps: BetanoSessionDeps) {
     url: string,
     init: { method?: string; headers?: ReadonlyArray<readonly [string, string]>; body?: string } = {},
   ): Promise<BetanoResponse> {
+    // Fail fast while challenged: no network call until the flag expires or the solve script clears it.
+    const challenged = await deps.redis.get(CHALLENGE_KEY).catch(() => null);
+    if (challenged) throw new ProviderFormatError(`Betano challenged: ${challenged}`);
     for (let attempt = 0; attempt < 2; attempt++) {
       const sid = await context();
       let res: BetanoResponse;
