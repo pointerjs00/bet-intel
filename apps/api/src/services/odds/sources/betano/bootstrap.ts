@@ -6,7 +6,10 @@ import type { BetanoSession } from './session';
 
 export interface Bootstrap {
   calendar: string;
+  /** League ids the shell itself advertised (may be empty). */
   leagueIds: string[];
+  /** Lazily fetches the trending leagues; only call when the calendar yielded nothing. */
+  trendingLeagueIds(): Promise<string[]>;
 }
 
 const abs = (u: string) => (u.startsWith('http') ? u : new URL(u, ORIGIN).toString());
@@ -40,15 +43,17 @@ export async function readBootstrap(session: BetanoSession, sportCode: string, s
     const m = u.match(/\/hot\/trending\/leagues\/(\d+)\/events/);
     if (m) leagueIds.push(m[1]!);
   }
-  if (leagueIds.length === 0) {
+  const trendingLeagueIds = async (): Promise<string[]> => {
+    const ids: string[] = [];
     const leagues = await session.request(abs(trendingLeagues(sportCode)));
     if (leagues.status === 200) {
       try {
-        for (const l of JSON.parse(leagues.text)?.data ?? []) if (l?.id != null) leagueIds.push(String(l.id));
+        for (const l of JSON.parse(leagues.text)?.data ?? []) if (l?.id != null) ids.push(String(l.id));
       } catch {
-        /* the caller treats an empty bootstrap as no events */
+        /* the caller treats an empty list as no events */
       }
     }
-  }
-  return { calendar, leagueIds };
+    return ids;
+  };
+  return { calendar, leagueIds, trendingLeagueIds };
 }

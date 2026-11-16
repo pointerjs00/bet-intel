@@ -52,7 +52,7 @@ test('calendar URL comes from the shell with {sportId} substituted; paging stops
   });
   const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
   assert.deepEqual(out.map((e) => e.houseEventId), ['1', '2', '3']);
-  assert.deepEqual(calls.map((c) => c.url), [SHELL, `${ORIGIN}/api/sports/FOOT/hot/trending/leagues`, CAL, `${CAL}&page=1`, `${CAL}&page=2`]);
+  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, `${CAL}&page=1`, `${CAL}&page=2`]);
   assert.equal(sleeps.length, 2);
   assert.equal(out[0]!.pageUrl, '/odds/casa-fora/1/');
 });
@@ -133,4 +133,54 @@ test('getMarkets rejects missing pageUrl, foreign hosts, missing state, HTTP err
   await assert.rejects(getBetanoMarkets('5', { pageUrl: '/odds/casa-fora/5/' }, deps), ProviderFormatError);
   await assert.rejects(getBetanoMarkets('6', { pageUrl: '/odds/a/6/' }, deps), ProviderFormatError);
   await assert.rejects(getBetanoMarkets('7', { pageUrl: '/odds/a/7/' }, deps), ProviderFormatError);
+});
+
+test('shell without calendarDataUrl or calendar component falls back to the /api calendar', async () => {
+  const fallback = `${ORIGIN}/api/sports/upcoming/calendar/FOOT/`;
+  const { deps, calls } = fake({
+    [SHELL]: ok({ data: {} }),
+    [fallback]: ok({ data: { events: [ev('1', hours(2))] } }),
+    [`${fallback}?page=1`]: ok({ data: { events: [] } }),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['1']);
+  assert.equal(calls[1]!.url, fallback);
+});
+
+test('trending leagues are only fetched when the calendar yields nothing', async () => {
+  const trending = `${ORIGIN}/api/sports/FOOT/hot/trending/leagues`;
+  const { deps, calls } = fake({
+    [SHELL]: shell,
+    [CAL]: { status: 400, text: '' },
+    [trending]: ok({ data: [{ id: 5 }] }),
+    [`${ORIGIN}/api/sports/FOOT/hot/trending/leagues/5/events`]: ok({ data: [ev('8', hours(3))] }),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['8']);
+  assert.ok(calls.some((c) => c.url === trending));
+});
+
+test('paging stops once raw events reach totalCount, even if the window filtered some out', async () => {
+  const { deps, calls } = fake({
+    [SHELL]: shell,
+    [CAL]: ok({ data: { totalCount: 2, events: [ev('a', hours(-9)), ev('b', hours(3))] } }),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['b']);
+  assert.equal(calls.length, 2);
+});
+
+test('one league with invalid JSON is skipped; all leagues invalid throws', async () => {
+  const L = (id: string) => `${ORIGIN}/api/sports/FOOT/hot/trending/leagues/${id}/events`;
+  const sh = ok({
+    data: {
+      calendarDataUrl: '/api/sports/upcoming/calendar/{sportId}/?lang=pt',
+      segments: [{ components: [{ url: '/api/sports/FOOT/hot/trending/leagues/1/events' }, { url: '/api/sports/FOOT/hot/trending/leagues/2/events' }] }],
+    },
+  });
+  const mixed = fake({ [SHELL]: sh, [CAL]: { status: 400, text: '' }, [L('1')]: { status: 200, text: '<html>' }, [L('2')]: ok({ data: [ev('4', hours(2))] }) });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, mixed.deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['4']);
+  const bad = fake({ [SHELL]: sh, [CAL]: { status: 400, text: '' }, [L('1')]: { status: 200, text: '<html>' }, [L('2')]: { status: 200, text: 'x' } });
+  await assert.rejects(listBetanoEvents('FOOTBALL', FROM, TO, bad.deps), ProviderFormatError);
 });

@@ -64,15 +64,17 @@ export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso:
     const page = json<any>(first.text, 'calendário'); // external JSON boundary
     const events = page?.data?.events ?? page?.events ?? page?.data ?? [];
     for (const e of Array.isArray(events) ? events : []) keep(e);
+    let raw = Array.isArray(events) ? events.length : 0;
     const total = Number(page?.data?.totalCount ?? page?.totalCount ?? 0);
     for (let p = 1; p < (deps.maxPages ?? MAX_PAGES); p++) {
-      if (total > 0 && out.length >= total) break;
+      if (total > 0 && raw >= total) break;
       await sleep(PAGE_GAP_MS);
       const next = await deps.session.request(pageUrl(boot.calendar, p));
       if (next.status !== 200) break;
       const body = json<any>(next.text, 'calendário'); // external JSON boundary
       const more = body?.data?.events ?? body?.events ?? body?.data ?? [];
       if (!Array.isArray(more) || more.length === 0) break;
+      raw += more.length;
       for (const e of more) keep(e);
     }
     if (out.length > 0) return out;
@@ -80,11 +82,26 @@ export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso:
     logger.warn(`[odds] Betano calendário ${sport}: HTTP ${first.status}; a usar destacados`);
   }
 
-  for (const leagueId of boot.leagueIds.slice(0, MAX_LEAGUES)) {
+  const leagueIds = boot.leagueIds.length > 0 ? boot.leagueIds : await boot.trendingLeagueIds();
+  let attempted = 0;
+  let failed = 0;
+  let succeeded = 0;
+  for (const leagueId of leagueIds.slice(0, MAX_LEAGUES)) {
     await sleep(PAGE_GAP_MS);
     const res = await deps.session.request(leagueEvents(code, leagueId));
     if (res.status !== 200) continue;
-    for (const e of json<any>(res.text, `liga ${leagueId}`)?.data ?? []) keep(e); // external JSON boundary
+    attempted++;
+    try {
+      for (const e of json<any>(res.text, `liga ${leagueId}`)?.data ?? []) keep(e); // external JSON boundary
+      succeeded++;
+    } catch (err) {
+      if (!(err instanceof ProviderFormatError)) throw err;
+      failed++;
+      logger.warn(`[odds] Betano liga ${leagueId}: ${err.message}`);
+    }
+  }
+  if (attempted > 0 && succeeded === 0 && failed === attempted) {
+    throw new ProviderFormatError(`Betano ligas ${sport}: todas as respostas com JSON inválido`);
   }
   return out;
 }

@@ -5,7 +5,7 @@ export const trendingLeagues = (sportCode: string) => `${SITE_API}/sports/${spor
 export const leagueEvents = (sportCode: string, leagueId: string) =>
   `${SITE_API}/sports/${sportCode}/hot/trending/leagues/${leagueId}/events`;
 /** Betano's own calendar path; `{sportId}` is the code (`FOOT`), not a number. */
-export const calendarPath = (sportCode: string) => `/sports/upcoming/calendar/${sportCode}/`;
+export const calendarPath = (sportCode: string) => `${SITE_API}/sports/upcoming/calendar/${sportCode}/`;
 export const liveOverview =
   `${LIVE_API}/live/overview/latest?includeVirtuals=true&queryLanguageId=5&queryOperatorId=7`;
 export const eventPage = (slug: string, eventId: string) => `${ORIGIN}/odds/${slug}/${eventId}/`;
