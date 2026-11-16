@@ -139,3 +139,22 @@ test('marketsFromState finds nested markets/selections and ignores cycles', () =
   assert.equal(out.markets.length, 1);
   assert.deepEqual(out.selections.map((s: any) => s.id), [1, 5]);
 });
+
+test('marketsFromState with eventId keeps only that event subtree; falls back to the whole walk without a match', () => {
+  const state = {
+    main: { id: '5', markets: [{ type: 'A', name: 'Mine', selections: [{ id: 1, name: '1', price: 2 }] }] },
+    other: { id: '6', markets: [{ type: 'A', name: 'Theirs', selections: [{ id: 2, name: '1', price: 3 }] }] },
+  };
+  assert.deepEqual(marketsFromState(state, '5').markets.map((m: any) => m.name), ['Mine']);
+  assert.deepEqual(marketsFromState(state, '404').markets.map((m: any) => m.name), ['Mine', 'Theirs']);
+  assert.deepEqual(marketsFromState(state).markets.length, 2);
+});
+
+test('mapMarkets keeps selections that share labels but differ in line', () => {
+  const out = mapMarkets(
+    [{ name: 'Total', selections: [{ name: 'Mais', price: 1.9, handicap: 2.5 }, { name: 'Mais', price: 1.4, handicap: 1.5 }] }],
+    undefined,
+    0,
+  );
+  assert.deepEqual(out.map((m) => m.line), [2.5, 1.5]);
+});

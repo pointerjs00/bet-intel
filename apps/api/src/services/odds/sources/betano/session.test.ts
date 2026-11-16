@@ -86,13 +86,6 @@ describe('betano session', () => {
     assert.equal(store.has('betano:warm'), false);
   });
 
-  it('does not delete a lock held by another caller', async () => {
-    const { session, store } = harness([ok, ok]);
-    store.set('betano:warm', 'other');
-    await session.warmUp();
-    assert.equal(store.get('betano:warm'), 'other');
-  });
-
   it('warm-up challenge sets the challenge key and throws ProviderFormatError', async () => {
     const { session, store } = harness([blocked]);
     await assert.rejects(session.warmUp(), ProviderFormatError);
@@ -145,6 +138,22 @@ describe('betano session', () => {
     // warmUp read of the jar after the wait sees a fresh warmedAt (clock is 1_000_000).
     const sid = await session.warmUp();
     assert.equal(sid, 'warm-sid');
+    assert.equal(calls.length, 0);
+  });
+
+  it('a non-owner never warms in parallel: cold jar after the wait fails with warm-up em curso', async () => {
+    const { session, store, calls } = harness([ok]);
+    store.set('betano:warm', 'other');
+    await assert.rejects(session.warmUp(), /warm-up em curso/);
+    assert.equal(calls.length, 0);
+    assert.equal(store.get('betano:warm'), 'other');
+  });
+
+  it('a non-owner fails with challenged when the challenge flag is set after the wait', async () => {
+    const { session, store, calls } = harness([ok]);
+    store.set('betano:warm', 'other');
+    store.set(CHALLENGE_KEY, 'warm-up /: HTTP 403');
+    await assert.rejects(session.warmUp(), /challenged: warm-up/);
     assert.equal(calls.length, 0);
   });
 

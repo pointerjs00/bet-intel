@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ProviderFormatError } from '../../../sportsData/providerHealth';
-import { createBetanoSource, getBetanoMarkets, listBetanoEvents, type BetanoDeps } from './index';
+import { betanoSourceFactory, createBetanoSource, getBetanoMarkets, listBetanoEvents, type BetanoDeps } from './index';
 import { ORIGIN } from './profile';
 import type { BetanoSession } from './session';
 
@@ -183,4 +183,59 @@ test('one league with invalid JSON is skipped; all leagues invalid throws', asyn
   assert.deepEqual(out.map((e) => e.houseEventId), ['4']);
   const bad = fake({ [SHELL]: sh, [CAL]: { status: 400, text: '' }, [L('1')]: { status: 200, text: '<html>' }, [L('2')]: { status: 200, text: 'x' } });
   await assert.rejects(listBetanoEvents('FOOTBALL', FROM, TO, bad.deps), ProviderFormatError);
+});
+
+test('a 200 calendar with only out-of-window events does not trigger the league fallback', async () => {
+  const { deps, calls } = fake({
+    [SHELL]: shell,
+    [CAL]: ok({ data: { events: [ev('late', hours(100))], totalCount: 1 } }),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out, []);
+  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL]);
+});
+
+test('paging stops once a page is entirely after the window', async () => {
+  const { deps, calls } = fake({
+    [SHELL]: shell,
+    [CAL]: ok({ data: { events: [ev('1', hours(2))] } }),
+    [`${CAL}&page=1`]: ok({ data: { events: [ev('2', hours(100)), ev('3', hours(101))] } }),
+    [`${CAL}&page=2`]: ok({ data: { events: [ev('4', hours(5))] } }),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['1']);
+  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, `${CAL}&page=1`]);
+});
+
+test('a calendar with zero raw events still falls back to the leagues', async () => {
+  const leagues = `${ORIGIN}/api/sports/FOOT/hot/trending/leagues/77/events`;
+  const { deps, calls } = fake({
+    [SHELL]: ok({
+      data: {
+        calendarDataUrl: '/api/sports/upcoming/calendar/{sportId}/?lang=pt',
+        segments: [{ components: [{ url: '/api/sports/FOOT/hot/trending/leagues/77/events' }] }],
+      },
+    }),
+    [CAL]: ok({ data: { events: [] } }),
+    [leagues]: ok({ data: [ev('9', hours(6))] }),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['9']);
+  assert.ok(calls.some((c) => c.url === leagues));
+});
+
+test('factory with URL but no token yields a source that rejects without network', async () => {
+  const source = betanoSourceFactory({ BETANO_EGRESS_URL: 'http://betano-egress:8765' } as NodeJS.ProcessEnv);
+  await assert.rejects(source.listEvents('FOOTBALL', FROM, TO), /BETANO_EGRESS_TOKEN em falta/);
+  await assert.rejects(source.getMarkets('1', { pageUrl: '/x/' }), ProviderFormatError);
+});
+
+test('getMarkets only returns the matching event markets, not related events', async () => {
+  const state = {
+    event: { id: 5, markets: [{ type: 'MRES', name: 'Resultado Final', selections: [{ id: 1, name: '1', price: 1.9 }] }] },
+    related: [{ id: 99, markets: [{ type: 'MRES', name: 'Outro Jogo', selections: [{ id: 2, name: '1', price: 7 }] }] }],
+  };
+  const { deps } = fake({ [PAGE]: { status: 200, text: html(state) } });
+  const out = await getBetanoMarkets('5', { pageUrl: PAGE }, deps);
+  assert.deepEqual(out.map((m) => m.marketLabel), ['Resultado Final']);
 });

@@ -57,8 +57,12 @@ export function createBetanoSession(deps: BetanoSessionDeps) {
     try {
       if (!owned) {
         await sleep(1500);
+        // Another caller is warming up: never warm in parallel, just reuse its result or fail.
         const j = await jar.read();
+        const challenged = await deps.redis.get(CHALLENGE_KEY).catch(() => null);
+        if (challenged) throw new ProviderFormatError(`Betano challenged: ${challenged}`);
         if (j.sid && now() - j.warmedAt < WARM_TTL_MS) return j.sid;
+        throw new ProviderFormatError('Betano: warm-up em curso');
       }
       const stale = await jar.read();
       const sid = await deps.transport.session();

@@ -33,10 +33,10 @@ Corre como utilizador não-root, `read_only` com `tmpfs` em `/tmp`, `cap_drop: A
 
 | Variável | Omissão | Notas |
 |---|---|---|
-| `BETANO_EGRESS_TOKEN` | (obrigatória) | Partilhada com a API (`openssl rand -hex 32`). Com o valor vazio o sidecar recusa-se a arrancar. |
+| `BETANO_EGRESS_TOKEN` | (obrigatória) | Partilhada com a API (`openssl rand -hex 32`). Com o valor vazio o sidecar fica inativo (loga em stderr e não serve pedidos, sem reiniciar em ciclo). |
 | `BETANO_IMPERSONATE` | `chrome` | Alvo do `curl_cffi`. `chrome` resolve para o Chrome mais recente que a versão instalada conhece. |
 | `BETANO_MAX_SESSIONS` | `8` | Máximo de sessões vivas (LRU). |
-| `HOST` | `127.0.0.1` | O compose define `0.0.0.0` (dentro do contentor). |
+| `HOST` | `127.0.0.1` | O Dockerfile define `0.0.0.0` (dentro do contentor). |
 | `PORT` | `8765` | |
 
 `BETANO_BROWSER_MAJOR` (usada pela API nos headers) deve coincidir com o major do alvo resolvido, ver
@@ -87,5 +87,5 @@ actualizar `BETANO_BROWSER_MAJOR`.
 ## Challenge
 
 Se a Betano devolver um challenge, a API marca-o e a recolha pára até ser resolvido à mão com o
-script de solve (`pnpm --filter api betano:solve`, ver Task 7 do plano), que carrega os cookies para
+script de solve (`pnpm --filter api betano:solve`, ver docs/PLANO_BETANO.md), que carrega os cookies para
 o Redis.

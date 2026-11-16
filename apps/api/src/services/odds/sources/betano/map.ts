@@ -35,7 +35,7 @@ export function mapMarkets(markets: any[], selections: any[] | undefined, now: n
   }
   const seen = new Set<string>();
   return out.filter((m) => {
-    const k = `${m.marketLabel}\u0000${m.selectionLabel}`;
+    const k = `${m.marketLabel}\u0000${m.selectionLabel}\u0000${m.line ?? ''}`;
     return seen.has(k) ? false : (seen.add(k), true);
   });
 }
@@ -91,17 +91,39 @@ export function parseInitialState(html: string): any | null {
   }
 }
 
-/** Walks an `initial_state` for the market arrays, whichever branch holds them. */
-export function marketsFromState(state: any): { markets: any[]; selections: any[] } {
-  const seen = new Set<any>();
-  const out = { markets: [] as any[], selections: [] as any[] };
-  const walk = (node: any, depth: number) => {
-    if (!node || typeof node !== 'object' || depth > 8 || seen.has(node)) return;
-    seen.add(node);
-    if (Array.isArray(node.markets)) out.markets.push(...node.markets.filter((m: any) => m?.type && m?.name));
-    if (Array.isArray(node.selections)) out.selections.push(...node.selections.filter((s: any) => s?.id != null));
-    for (const v of Object.values(node)) walk(v, depth + 1);
+/**
+ * Walks an `initial_state` for the market arrays, whichever branch holds them. With `eventId`, only
+ * subtrees whose `id` matches and that carry a `markets` array are collected (related/carousel events
+ * are ignored); with no match the whole state is walked.
+ */
+export function marketsFromState(state: any, eventId?: string): { markets: any[]; selections: any[] } {
+  const collect = (roots: any[]) => {
+    const seen = new Set<any>();
+    const out = { markets: [] as any[], selections: [] as any[] };
+    const walk = (node: any, depth: number) => {
+      if (!node || typeof node !== 'object' || depth > 8 || seen.has(node)) return;
+      seen.add(node);
+      if (Array.isArray(node.markets)) out.markets.push(...node.markets.filter((m: any) => m?.type && m?.name));
+      if (Array.isArray(node.selections)) out.selections.push(...node.selections.filter((s: any) => s?.id != null));
+      for (const v of Object.values(node)) walk(v, depth + 1);
+    };
+    for (const r of roots) walk(r, 0);
+    return out;
   };
-  walk(state, 0);
-  return out;
+  if (eventId) {
+    const roots: any[] = [];
+    const seen = new Set<any>();
+    const find = (node: any, depth: number) => {
+      if (!node || typeof node !== 'object' || depth > 8 || seen.has(node)) return;
+      seen.add(node);
+      if (String(node.id) === eventId && Array.isArray(node.markets)) {
+        roots.push(node);
+        return;
+      }
+      for (const v of Object.values(node)) find(v, depth + 1);
+    };
+    find(state, 0);
+    if (roots.length > 0) return collect(roots);
+  }
+  return collect([state]);
 }

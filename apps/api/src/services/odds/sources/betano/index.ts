@@ -21,6 +21,14 @@ export const PAGE_GAP_MS = 1200;
 export const MAX_PAGES = 12;
 export const MAX_LEAGUES = 25;
 
+/** True when every event of a page has a parseable start time and starts after `to` (nothing more in window). */
+const pageAfter = (events: any[], to: number): boolean =>
+  events.length > 0 &&
+  events.every((e) => {
+    const t = Number((e?.event ?? e)?.startTime);
+    return Number.isFinite(t) && t > 0 && t > to;
+  });
+
 const json = <T>(text: string, what: string): T => {
   try {
     return JSON.parse(text) as T;
@@ -65,9 +73,10 @@ export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso:
     const events = page?.data?.events ?? page?.events ?? page?.data ?? [];
     for (const e of Array.isArray(events) ? events : []) keep(e);
     let raw = Array.isArray(events) ? events.length : 0;
+    let stop = Array.isArray(events) && pageAfter(events, to);
     const total = Number(page?.data?.totalCount ?? page?.totalCount ?? 0);
     for (let p = 1; p < (deps.maxPages ?? MAX_PAGES); p++) {
-      if (total > 0 && raw >= total) break;
+      if (stop || (total > 0 && raw >= total)) break;
       await sleep(PAGE_GAP_MS);
       const next = await deps.session.request(pageUrl(boot.calendar, p));
       if (next.status !== 200) break;
@@ -76,8 +85,10 @@ export async function listBetanoEvents(sport: OddsSport, fromIso: string, toIso:
       if (!Array.isArray(more) || more.length === 0) break;
       raw += more.length;
       for (const e of more) keep(e);
+      stop = pageAfter(more, to);
     }
-    if (out.length > 0) return out;
+    // A 200 calendar with raw events is authoritative, even when none fall in the window.
+    if (raw > 0) return out;
   } else {
     logger.warn(`[odds] Betano calendário ${sport}: HTTP ${first.status}; a usar destacados`);
   }
@@ -127,7 +138,7 @@ export async function getBetanoMarkets(houseEventId: string, hint: { pageUrl?: s
   if (res.status !== 200) throw new ProviderFormatError(`Betano evento: HTTP ${res.status} em ${url}`);
   const state = parseInitialState(res.text);
   if (!state) throw new ProviderFormatError(`Betano evento: initial_state ausente em ${url}`);
-  const { markets, selections } = marketsFromState(state);
+  const { markets, selections } = marketsFromState(state, houseEventId);
   const mapped = mapMarkets(markets, selections, now);
   if (mapped.length === 0) throw new ProviderFormatError(`Betano evento: sem mercados em ${url}`);
   return mapped;
@@ -142,10 +153,25 @@ export function createBetanoSource(deps: BetanoDeps): OddsSource {
   };
 }
 
-/** Production factory: sidecar transport when configured, direct `fetch` otherwise. */
-export function betanoSourceFactory(): OddsSource {
-  const url = process.env.BETANO_EGRESS_URL;
-  const token = process.env.BETANO_EGRESS_TOKEN;
+/** Source whose every call rejects with `message`; used when the configuration is unusable. */
+function brokenSource(message: string): OddsSource {
+  const fail = async (): Promise<never> => {
+    throw new ProviderFormatError(message);
+  };
+  return { house: 'betano', listEvents: fail, getMarkets: fail };
+}
+
+/**
+ * Production factory: sidecar transport when `BETANO_EGRESS_URL` is set (the token is then mandatory,
+ * otherwise every call fails without touching the network); direct `fetch` only when the URL is unset.
+ */
+export function betanoSourceFactory(env: NodeJS.ProcessEnv = process.env): OddsSource {
+  const url = env.BETANO_EGRESS_URL;
+  const token = env.BETANO_EGRESS_TOKEN;
+  if (url && !token) {
+    logger.error('[odds] BETANO_EGRESS_URL definido mas BETANO_EGRESS_TOKEN em falta: Betano desativado');
+    return brokenSource('Betano: BETANO_EGRESS_TOKEN em falta');
+  }
   const transport: BetanoTransport = url && token ? createImpersonateTransport(url, token) : createUndiciTransport();
   if (!url) logger.warn('[odds] BETANO_EGRESS_URL ausente: a usar fetch direto (sem fingerprint)');
   const session = createBetanoSession({ transport, redis: redis as unknown as LockStore, log: logger });

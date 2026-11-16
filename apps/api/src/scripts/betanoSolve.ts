@@ -15,7 +15,7 @@
  * Usage: `pnpm --filter api betano:solve [-- --out jar.json]`
  */
 import { writeFileSync } from 'fs';
-import { resolve } from 'path';
+import { basename, resolve } from 'path';
 import { chromium } from 'playwright';
 import IORedis from 'ioredis';
 import { USER_AGENT } from '../services/odds/sources/betano/profile';
@@ -72,8 +72,10 @@ async function main(): Promise<void> {
 
   const file = resolve(outPath());
   writeFileSync(file, json);
-  console.log(`\nJar escrito em ${file}. Copia-o para o Pi e, a partir da raiz do repo no Pi:\n`);
-  console.log(`${COMPOSE} exec -T redis redis-cli -x SET ${JAR_KEY} < ${file}`);
+  const name = basename(file);
+  console.log(`\nJar escrito em ${file}.`);
+  console.log(`Copia o ficheiro ${name} para o Pi e corre na raiz do repositório:\n`);
+  console.log(`${COMPOSE} exec -T redis redis-cli -x SET ${JAR_KEY} < ${name}`);
   console.log(`${COMPOSE} exec -T redis redis-cli EXPIRE ${JAR_KEY} ${JAR_TTL_SECONDS}`);
   console.log(`${COMPOSE} exec -T redis redis-cli DEL ${CHALLENGE_KEY}`);
 }

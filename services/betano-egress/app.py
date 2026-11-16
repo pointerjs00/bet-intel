@@ -192,7 +192,14 @@ def fetch():
 
 if __name__ == "__main__":
     if not TOKEN:
-        sys.exit("BETANO_EGRESS_TOKEN vazio: define-o (openssl rand -hex 32) antes de arrancar o sidecar.")
+        # Do not exit: `restart: always` would crash-loop on every deploy. Stay idle, never serve.
+        print(
+            "BETANO_EGRESS_TOKEN vazio: define-o (openssl rand -hex 32) em /srv/betintel/.env e reinicia o sidecar. "
+            "A ficar inativo, sem servir pedidos.",
+            file=sys.stderr,
+            flush=True,
+        )
+        threading.Event().wait()
     app.run(
         host=os.environ.get("HOST", "127.0.0.1"),
         port=int(os.environ.get("PORT", "8765")),
