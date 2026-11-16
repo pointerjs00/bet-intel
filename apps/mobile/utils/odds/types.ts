@@ -26,6 +26,10 @@ export interface OddsEventInfo {
   startsAt: string;
   competition: string;
   live: boolean;
+  /** ISO country of the competition ("PT"), when a house gives one. */
+  countryCode?: string;
+  /** ESPN participant names, for ESPN-matched events: crests and photos are looked up by them. */
+  canonical?: { home: string; away: string };
 }
 
 export interface OddsEventView {

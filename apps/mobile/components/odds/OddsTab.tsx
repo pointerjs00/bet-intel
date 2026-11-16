@@ -1,14 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, SectionList, StyleSheet, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, SectionList, StyleSheet, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { AppText } from '../ui/AppText';
 import { Chip } from '../ui/Chip';
 import { EmptyState } from '../ui/EmptyState';
+import { Pressable } from '../ui/Pressable';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Skeleton } from '../ui/Skeleton';
 import { useTheme } from '../../theme/useTheme';
 import { useOddsDay } from '../../services/oddsService';
 import { lisbonDay } from '../../utils/odds/format';
+import { flagUrlForCode } from '../../utils/odds/flags';
 import { competitionsByCount } from '../../utils/odds/list';
+import { matchesQuery, normalizeText } from '../../utils/odds/search';
 import type { OddsEventListItem, OddsSport } from '../../utils/odds/types';
 import { OddsEventCard } from './OddsEventCard';
 import { SlipBar } from './SlipBar';
@@ -19,24 +23,51 @@ const SPORTS: Array<{ value: OddsSport; label: string }> = [
   { value: 'BASKETBALL', label: 'Basquetebol' },
 ];
 
-/** "Odds" tab of Jogos: today's and tomorrow's games with the main-market buttons. */
+/** "Odds" tab of Jogos: search, sport and competition filters, today's and tomorrow's games. */
 export function OddsTab() {
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
   const [sport, setSport] = useState<OddsSport>('FOOTBALL');
   const [competition, setCompetition] = useState<string | null>(null);
-  const today = useOddsDay(sport, lisbonDay(0));
-  const tomorrow = useOddsDay(sport, lisbonDay(1));
+  const [text, setText] = useState('');
+  const searching = normalizeText(text).length >= 2;
+  const d0 = lisbonDay(0);
+  const d1 = lisbonDay(1);
+  // The selected sport always loads; the other two only while searching (search spans every sport).
+  const on = (s: OddsSport) => s === sport || searching;
+  const days = {
+    FOOTBALL: [useOddsDay('FOOTBALL', d0, on('FOOTBALL')), useOddsDay('FOOTBALL', d1, on('FOOTBALL'))],
+    TENNIS: [useOddsDay('TENNIS', d0, on('TENNIS')), useOddsDay('TENNIS', d1, on('TENNIS'))],
+    BASKETBALL: [useOddsDay('BASKETBALL', d0, on('BASKETBALL')), useOddsDay('BASKETBALL', d1, on('BASKETBALL'))],
+  } as const;
+  const [today, tomorrow] = days[sport];
 
   const all = useMemo(() => [...(today.data ?? []), ...(tomorrow.data ?? [])], [today.data, tomorrow.data]);
   const competitions = useMemo(() => competitionsByCount(all), [all]);
+  const countryOf = useMemo(() => {
+    const m = new Map<string, string | undefined>();
+    for (const i of all) if (!m.get(i.event.competition)) m.set(i.event.competition, i.event.countryCode);
+    return m;
+  }, [all]);
   const active = competition && competitions.includes(competition) ? competition : null;
+
+  const searchLists = (Object.values(days) as Array<typeof days.FOOTBALL>).map(([t, m]) => [t.data, m.data] as const);
   const sections = useMemo(() => {
+    if (searching) {
+      const pick = (lists: Array<OddsEventListItem[] | undefined>) =>
+        lists.flatMap((l) => l ?? []).filter((i) => matchesQuery(i, text)).sort((a, b) => a.event.startsAt.localeCompare(b.event.startsAt));
+      return [
+        { title: 'Hoje', data: pick(searchLists.map(([t]) => t)) },
+        { title: 'Amanhã', data: pick(searchLists.map(([, m]) => m)) },
+      ].filter((s) => s.data.length > 0);
+    }
     const keep = (l: OddsEventListItem[] | undefined) => (l ?? []).filter((i) => !active || i.event.competition === active);
     return [
       { title: 'Hoje', data: keep(today.data) },
       { title: 'Amanhã', data: keep(tomorrow.data) },
     ].filter((s) => s.data.length > 0);
-  }, [today.data, tomorrow.data, active]);
+    // searchLists changes identity every render; its data arrays are the real inputs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searching, text, active, today.data, tomorrow.data, ...searchLists.flat()]);
 
   const loading = (today.isLoading || tomorrow.isLoading) && all.length === 0;
   const refreshing = today.isRefetching || tomorrow.isRefetching;
@@ -45,18 +76,48 @@ export function OddsTab() {
   return (
     <View style={styles.flex}>
       <View style={styles.top}>
-        <SegmentedControl
-          onChange={(s) => { setSport(s); setCompetition(null); }}
-          options={SPORTS}
-          value={sport}
-        />
+        <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: tokens.radius.md }]}>
+          <Ionicons color={colors.textMuted} name="search" size={18} />
+          <TextInput
+            accessibilityLabel="Procurar equipa ou jogador"
+            autoCorrect={false}
+            clearButtonMode="never"
+            onChangeText={setText}
+            placeholder="Procurar equipa ou jogador"
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="search"
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            value={text}
+          />
+          {text ? (
+            <Pressable accessibilityLabel="Limpar pesquisa" hitSlop={10} onPress={() => setText('')}>
+              <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+            </Pressable>
+          ) : null}
+        </View>
+        {searching ? null : (
+          <SegmentedControl
+            onChange={(s) => { setSport(s); setCompetition(null); }}
+            options={SPORTS}
+            value={sport}
+          />
+        )}
       </View>
-      {competitions.length > 0 ? (
+      {!searching && competitions.length > 0 ? (
         <ScrollView contentContainerStyle={styles.chips} horizontal showsHorizontalScrollIndicator={false} style={styles.chipsWrap}>
           <Chip label="Todas" onPress={() => setCompetition(null)} selected={active === null} />
-          {competitions.map((c) => (
-            <Chip key={c} label={c} onPress={() => setCompetition(c)} selected={active === c} />
-          ))}
+          {competitions.map((c) => {
+            const flag = flagUrlForCode(countryOf.get(c));
+            return (
+              <Chip
+                icon={flag ? <Image source={{ uri: flag }} style={styles.chipFlag} /> : undefined}
+                key={c}
+                label={c}
+                onPress={() => setCompetition(c)}
+                selected={active === c}
+              />
+            );
+          })}
         </ScrollView>
       ) : null}
       {loading ? (
@@ -66,7 +127,7 @@ export function OddsTab() {
       ) : (
         <SectionList
           ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListEmptyComponent={<EmptyState icon="trending-up" title="Sem odds para estes jogos" />}
+          ListEmptyComponent={<EmptyState icon={searching ? 'magnify' : 'trending-up'} title={searching ? `Nenhum jogo com odds para "${text.trim()}"` : 'Sem odds para estes jogos'} />}
           contentContainerStyle={styles.list}
           keyExtractor={(i) => i.eventKey}
           refreshControl={<RefreshControl onRefresh={refresh} refreshing={refreshing} tintColor={colors.primary} />}
@@ -87,9 +148,12 @@ export function OddsTab() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  top: { paddingHorizontal: 16, paddingVertical: 8 },
+  top: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
+  search: { alignItems: 'center', borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, paddingHorizontal: 12 },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 },
+  chipFlag: { borderRadius: 2, height: 11, width: 15 },
   chipsWrap: { flexGrow: 0 },
-  chips: { gap: 8, paddingHorizontal: 16, paddingVertical: 6 },
+  chips: { alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 6 },
   list: { gap: 10, paddingBottom: 160, paddingHorizontal: 16 },
   sep: { height: 10 },
   sectionHead: { paddingBottom: 6, paddingTop: 12 },

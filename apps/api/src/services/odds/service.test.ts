@@ -411,3 +411,26 @@ test('the calendar pageUrl reaches source.getMarkets as a hint', async () => {
   await svc.getEvent(KEY);
   assert.deepEqual(a.hints, [{ pageUrl: '/jogo/b1' }]);
 });
+
+test('event info carries the competition country and, for ESPN matches, the ESPN names', async () => {
+  const a = new FakeSource('betclic', [{ ...ev('betclic', 'b1', 'FC Porto', 'SL Benfica'), countryCode: 'PT' }], m1x2(2.0, 3.3, 3.6));
+  const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Porto', 'Benfica')], m1x2(2.1, 3.2, 3.5));
+  const { svc } = await setup([b, a]);
+  const view = await svc.getEvent(KEY);
+  assert.equal(view?.event.countryCode, 'PT');
+  assert.deepEqual(view?.event.canonical, { home: 'Porto', away: 'Benfica' });
+  const [item] = await svc.listEvents('FOOTBALL', START);
+  assert.equal(item?.event.countryCode, 'PT');
+  assert.deepEqual(item?.event.canonical, { home: 'Porto', away: 'Benfica' });
+});
+
+test('events without an ESPN match have no canonical names', async () => {
+  const lone = (house: HouseId, id: string): SourceEvent => ({ ...ev(house, id, 'Clube A', 'Clube B'), extraIds: { betRadarId: '7' } });
+  const store = createOddsStore(createFakeRedis());
+  const a = new FakeSource('betclic', [lone('betclic', 'b9')], m1x2(2, 3, 4));
+  const svc = createOddsService({ sources: [a], store, candidates: async () => [], now: () => NOW, track: (_p, fn) => fn() });
+  await svc.refreshCatalogue(a, 'FOOTBALL');
+  const [item] = await svc.listEvents('FOOTBALL', START);
+  assert.equal(item?.event.canonical, undefined);
+  assert.equal(item?.event.countryCode, undefined);
+});

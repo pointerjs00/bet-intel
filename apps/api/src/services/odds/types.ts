@@ -20,6 +20,8 @@ export interface SourceEvent {
   mainMarkets?: SourceMarket[];
   /** Página do evento na casa, quando é preciso abri-la para os mercados. */
   pageUrl?: string;
+  /** ISO country of the competition when the house gives one (Betclic: "PT"). */
+  countryCode?: string;
 }
 
 /** One selection of one market, with the house's own labels. */

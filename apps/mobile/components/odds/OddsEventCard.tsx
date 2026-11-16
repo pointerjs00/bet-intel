@@ -7,6 +7,7 @@ import { TeamBadge } from '../ui/TeamBadge';
 import { useTheme } from '../../theme/useTheme';
 import { lisbonTime, mainCaption, orderMain } from '../../utils/odds/list';
 import type { OddsEventListItem } from '../../utils/odds/types';
+import { CompetitionLabel } from './CompetitionLabel';
 import { OddButton } from './OddButton';
 
 /** One game of the Odds list: competition, teams, time and the main-market buttons. */
@@ -24,18 +25,18 @@ export function OddsEventCard({ item }: { item: OddsEventListItem }) {
       style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: tokens.radius.lg }]}
     >
       <View style={styles.head}>
-        <AppText numberOfLines={1} style={styles.flex} tone="secondary" variant="label">{event.competition}</AppText>
+        <CompetitionLabel countryCode={event.countryCode} name={event.competition} />
         <AppText tone="muted" variant="label">{item.houseCount === 1 ? '1 casa' : `${item.houseCount} casas`}</AppText>
       </View>
       <View style={styles.teams}>
         <AppText numberOfLines={2} style={[styles.flex, styles.right]} variant="bodyStrong">{event.home}</AppText>
-        <TeamBadge name={event.home} size={24} variant={variant} />
+        <TeamBadge name={event.canonical?.home ?? event.home} size={24} variant={variant} />
         {event.live ? (
           <AppText style={[styles.time, { color: colors.live }]} variant="label">AO VIVO</AppText>
         ) : (
           <AppText style={styles.time} variant="bodyStrong">{lisbonTime(event.startsAt)}</AppText>
         )}
-        <TeamBadge name={event.away} size={24} variant={variant} />
+        <TeamBadge name={event.canonical?.away ?? event.away} size={24} variant={variant} />
         <AppText numberOfLines={2} style={styles.flex} variant="bodyStrong">{event.away}</AppText>
       </View>
       <View style={styles.buttons}>

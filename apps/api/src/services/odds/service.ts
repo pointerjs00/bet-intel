@@ -26,6 +26,18 @@ export interface EventInfo {
   startsAt: string;
   competition: string;
   live: boolean;
+  /** ISO country of the competition, from the first house that gives one. */
+  countryCode?: string;
+  /** ESPN participant names, for ESPN-matched events (crests and photos are looked up by them). */
+  canonical?: { home: string; away: string };
+}
+
+/** Optional EventInfo extras: country code and, for espn: keys, the stored ESPN names. */
+function infoExtras(key: string, countryCode: string | undefined, ctx: { home: string; away: string } | null): Pick<EventInfo, 'countryCode' | 'canonical'> {
+  return {
+    ...(countryCode ? { countryCode } : {}),
+    ...(key.startsWith('espn:') && ctx ? { canonical: { home: ctx.home, away: ctx.away } } : {}),
+  };
 }
 
 export interface EventView {
@@ -215,6 +227,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     const stored = await store.getCtx(key);
     const perHouse: Partial<Record<HouseId, CanonicalSelection[]>> = {};
     let info: EventInfo | null = null;
+    let countryCode: string | undefined;
     const houses: HouseId[] = [];
     const names: Partial<Record<HouseId, { home: string; away: string }>> = {};
     for (const source of deps.sources) {
@@ -222,6 +235,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
       if (!houseEventId) continue;
       try {
         const se = await findSourceEvent(source.house, sport, houseEventId);
+        countryCode ??= se?.countryCode || undefined;
         const seOwn = se ? { home: se.home, away: se.away } : undefined;
         // Left the stored calendar after kickoff: serve cache only, never count it as a failure.
         const gone = !se && stored !== null && Date.parse(stored.startsAt) < deps.now();
@@ -251,7 +265,7 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     return {
       eventKey: key,
       sport,
-      event: info ?? { home: '', away: '', startsAt: '', competition: '', live: false },
+      event: { ...(info ?? { home: '', away: '', startsAt: '', competition: '', live: false }), ...infoExtras(key, countryCode, stored) },
       houses,
       rows: mergeEvent(perHouse),
       names,
@@ -296,7 +310,10 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
       out.push({
         eventKey: key,
         sport,
-        event: { home: first.home, away: first.away, startsAt: first.startsAt, competition: first.competition, live: first.live },
+        event: {
+          home: first.home, away: first.away, startsAt: first.startsAt, competition: first.competition, live: first.live,
+          ...infoExtras(key, entries.find((e) => e.ev.countryCode)?.ev.countryCode, canon),
+        },
         houses: entries.map((e) => e.house).filter((h) => !dropped.has(h)),
         houseCount: entries.length - dropped.size,
         main: mergeEvent(perHouse),

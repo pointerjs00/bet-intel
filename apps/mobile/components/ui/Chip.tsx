@@ -60,6 +60,8 @@ export function Chip({ label, selected = false, onPress, icon, style }: ChipProp
 const styles = StyleSheet.create({
   base: {
     alignItems: 'center',
+    // In horizontal lists a chip must never shrink (Android cut the label short).
+    flexShrink: 0,
     borderRadius: 9999,
     borderWidth: 1,
     flexDirection: 'row',
@@ -70,6 +72,8 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   label: {
+    flexShrink: 0,
     fontWeight: '600',
+    includeFontPadding: false,
   },
 });
