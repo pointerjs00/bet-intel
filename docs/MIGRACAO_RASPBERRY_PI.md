@@ -191,10 +191,16 @@ df -h /srv          # deve mostrar o cartão (/dev/mmcblk0p2, ~116 GB)
 
 🍓 **Pi**
 ```bash
-sudo apt update && sudo apt full-upgrade -y
+sudo apt update
 sudo apt install -y unattended-upgrades git sqlite3 curl
 sudo dpkg-reconfigure -plow unattended-upgrades     # responde "Sim/Yes"
 ```
+
+**Não corras `sudo apt full-upgrade`** neste Pi sem necessidade.
+- **O que ele não faz:** não mexe na versão do Home Assistant. O Home Assistant, o Supervisor e os addons são contentores Docker e atualizam-se pelo próprio Home Assistant (Definições → Atualizações).
+- **O que ele pode fazer:** atualizar o Docker. Isso reinicia todos os contentores do Home Assistant, o que deixa a Alexa sem resposta durante um ou dois minutos. Pode também atualizar o kernel, o que obriga a reiniciar o Pi.
+- **As atualizações automáticas (`unattended-upgrades`) são seguras:** por omissão só instalam correções de segurança do Debian, e o Docker fica de fora.
+- **Para ver o que há por atualizar, sem instalar nada:** `apt list --upgradable`.
 
 **Firewall: recomendo não mexer.** O túnel não abre portas e as apps só aceitam ligações do próprio Pi. Ligar a firewall (`ufw`) sem cuidado pode cortar o Home Assistant e a Alexa.
 
