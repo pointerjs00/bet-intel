@@ -317,6 +317,10 @@ Para cada repositório (bet-intel, stream-intel, parlay-league e pricetracker):
 
 ✅ **Verificação:** no GitHub, em Settings → Actions → Runners, o runner aparece **Idle** (verde).
 
+**Notas do BetIntel (16/11/2026):**
+- **Onde ficou:** o runner foi instalado em `~/runners/bet-intel/actions-runner`, como o serviço `actions.runner.pointerjs00-bet-intel.hass.service`. O código que ele descarrega fica em `~/runners/bet-intel/actions-runner/_work/bet-intel/bet-intel`.
+- **Se o deploy falhar com `permission denied … docker.sock`:** o serviço arrancou antes de a conta entrar no grupo `docker`. Reinicia-o com `sudo systemctl restart actions.runner.pointerjs00-bet-intel.hass.service`.
+
 ---
 
 ## 6. Mudar as apps, uma de cada vez
@@ -611,7 +615,7 @@ Usa a mesma base de dados e as mesmas pastas de `/srv/betintel/data`. Os content
 
 **Atenção:**
 - **Não ligues o `DEPLOY_TARGET=pi` antes do corte.** O deploy arrancava a API no Pi enquanto o Hetzner também está ativo, e terias as notificações duplicadas da alínea d.
-- **A pasta `/srv/betintel/src`** (a cópia manual) deixa de ser usada. O runner trabalha em `~/runners/bet-intel/_work/bet-intel/bet-intel`. Podes apagá-la mais tarde (`rm -rf /srv/betintel/src`), mas **nunca** apagues `/srv/betintel/data` nem `/srv/betintel/.env`.
+- **A pasta `/srv/betintel/src`** (a cópia manual) deixa de ser usada. O runner trabalha em `~/runners/bet-intel/actions-runner/_work/bet-intel/bet-intel`. Podes apagá-la mais tarde (`rm -rf /srv/betintel/src`), mas **nunca** apagues `/srv/betintel/data` nem `/srv/betintel/.env`.
 - **Se o deploy falhar no "Health check":** o job mostra as últimas 100 linhas do log da API. A causa mais comum é faltar uma variável no `/srv/betintel/.env`.
 
 #### h) Corte: desligar o BetIntel no Hetzner
@@ -642,7 +646,7 @@ docker ps                                  # que contentores estão a correr
 1. **Confirmar que as 5 casas respondem a partir do Pi:**
    🍓 **Pi**
    ```bash
-   cd ~/runners/bet-intel/_work/bet-intel/bet-intel && bash scripts/probe-odds.sh
+   cd ~/runners/bet-intel/actions-runner/_work/bet-intel/bet-intel && bash scripts/probe-odds.sh
    ```
    Espera cerca de 30 segundos. Todas as linhas têm de dizer **OK**. Se alguma disser BLOQUEADO, guarda a tabela e mostra-a ao Claude.
 2. **Importante:** o comparador de odds **ainda não está construído**. Está planeado em `docs/analise-2026-11/PLANO_ODDS.md`. Este passo só confirma que, quando for construído, as casas vão responder a partir do Pi.
@@ -700,7 +704,7 @@ Alguns segredos apareceram em sítios onde não deviam (um ficheiro do projeto e
 🍓 **Pi**
 ```bash
 mkdir -p /srv/backups
-cp ~/runners/bet-intel/_work/bet-intel/bet-intel/scripts/pi/backup.sh /srv/backups/
+cp ~/runners/bet-intel/actions-runner/_work/bet-intel/bet-intel/scripts/pi/backup.sh /srv/backups/
 chmod +x /srv/backups/backup.sh
 /srv/backups/backup.sh                     # primeira cópia, para testar
 ls -lh /srv/backups/                       # deve aparecer uma pasta com a data de hoje
