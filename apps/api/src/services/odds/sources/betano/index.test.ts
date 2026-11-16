@@ -239,3 +239,40 @@ test('getMarkets only returns the matching event markets, not related events', a
   const out = await getBetanoMarkets('5', { pageUrl: PAGE }, deps);
   assert.deepEqual(out.map((m) => m.marketLabel), ['Resultado Final']);
 });
+
+// Real calendar shape (2026-11-16): events grouped by league in data.blocks[].events, sorted by league.
+const blockEv = (id: string, startTime: number) => ({
+  id,
+  name: `Casa${id} - Fora${id}`,
+  startTime,
+  url: `/odds/casa-fora/${id}/`,
+  participants: [{ name: `Casa${id}`, id: 'h' }, { name: `Fora${id}`, id: 'a' }],
+  markets: [{ name: 'Resultado Final', type: 'MRES', selections: [{ name: '1', price: 1.9, handicap: 0 }] }],
+});
+const blocks = (...groups: object[][]) => ok({ data: { header: {}, sortBy: [], marketTabs: [], blocks: groups.map((events, i) => ({ id: String(i), events })) } });
+
+test('blocks-shaped calendar: events flattened with pageUrl; a page repeating page 0 stops the walk', async () => {
+  const { deps, calls } = fake({
+    [SHELL]: shell,
+    [CAL]: blocks([blockEv('1', hours(30)), blockEv('2', hours(2))], [blockEv('3', hours(5))]),
+    [`${CAL}&page=1`]: blocks([blockEv('1', hours(30)), blockEv('2', hours(2))], [blockEv('3', hours(5))]),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['1', '2', '3']);
+  assert.equal(out[0]!.home, 'Casa1');
+  assert.equal(out[0]!.pageUrl, '/odds/casa-fora/1/');
+  assert.equal(out[0]!.mainMarkets?.length, 1);
+  assert.deepEqual(calls.map((c) => c.url), [SHELL, CAL, `${CAL}&page=1`]);
+});
+
+test('blocks-shaped calendar is not time-sorted: a page entirely after the window does not stop paging', async () => {
+  const { deps, calls } = fake({
+    [SHELL]: shell,
+    [CAL]: blocks([blockEv('1', hours(2))]),
+    [`${CAL}&page=1`]: blocks([blockEv('2', hours(100))]),
+    [`${CAL}&page=2`]: blocks([blockEv('3', hours(5))]),
+  });
+  const out = await listBetanoEvents('FOOTBALL', FROM, TO, deps);
+  assert.deepEqual(out.map((e) => e.houseEventId), ['1', '3']);
+  assert.equal(calls.length, 5); // shell + pages 0,1,2 + page 3 (404) ends it
+});

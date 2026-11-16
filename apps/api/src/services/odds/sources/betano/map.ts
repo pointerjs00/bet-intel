@@ -40,6 +40,17 @@ export function mapMarkets(markets: any[], selections: any[] | undefined, now: n
   });
 }
 
+/**
+ * Raw events of a calendar or league page. The real calendar groups them by league in
+ * `data.blocks[].events` (sorted by league, not time); older/flat shapes use `data.events` or `data`.
+ */
+export function calendarEvents(body: any): any[] {
+  const blocks = body?.data?.blocks;
+  if (Array.isArray(blocks)) return blocks.flatMap((b: any) => (Array.isArray(b?.events) ? b.events : []));
+  const flat = body?.data?.events ?? body?.events ?? body?.data ?? [];
+  return Array.isArray(flat) ? flat : [];
+}
+
 /** Prematch ("Casa - Fora" in `name`) or live (participants with `isHome`) → `SourceEvent`. */
 export function mapEvent(raw: any, sport: OddsSport, now: number): SourceEvent | null {
   const ev = raw?.event ?? raw;
@@ -49,16 +60,20 @@ export function mapEvent(raw: any, sport: OddsSport, now: number): SourceEvent |
 
   let home: string;
   let away: string;
-  if (Array.isArray(ev.participants) && ev.participants.length === 2) {
-    const h = ev.participants.find((p: any) => p?.isHome === true);
-    const a = ev.participants.find((p: any) => p?.isHome !== true);
-    if (!h || !a) return null;
+  const parts = clean(ev.name).split(/\s+[-–]\s+/);
+  const duo = Array.isArray(ev.participants) && ev.participants.length === 2 ? ev.participants : null;
+  const h = duo?.find((p: any) => p?.isHome === true);
+  if (duo && h) {
+    // Live: `isHome` marks the home side.
     home = clean(h.name);
-    away = clean(a.name);
-  } else {
-    const parts = clean(ev.name).split(/\s+[-–]\s+/);
-    if (parts.length !== 2) return null;
+    away = clean(duo.find((p: any) => p !== h)?.name);
+  } else if (parts.length === 2) {
+    // Prematch: "Casa - Fora" (the calendar also lists participants, without `isHome`).
     [home, away] = [parts[0]!, parts[1]!];
+  } else if (duo) {
+    [home, away] = [clean(duo[0]?.name), clean(duo[1]?.name)];
+  } else {
+    return null;
   }
   if (!home || !away) return null;
 

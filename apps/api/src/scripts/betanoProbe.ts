@@ -20,7 +20,7 @@ import { join } from 'path';
 import { redis } from '../utils/redis';
 import { readBootstrap } from '../services/odds/sources/betano/bootstrap';
 import { SPORT } from '../services/odds/sources/betano/endpoints';
-import { mapEvent, mapMarkets, marketsFromState, parseInitialState } from '../services/odds/sources/betano/map';
+import { calendarEvents, mapEvent, mapMarkets, marketsFromState, parseInitialState } from '../services/odds/sources/betano/map';
 import { ORIGIN, navigationHeaders } from '../services/odds/sources/betano/profile';
 import { CHALLENGE_KEY, createBetanoSession, isChallenge, type LockStore } from '../services/odds/sources/betano/session';
 import { createImpersonateTransport, createUndiciTransport } from '../services/odds/sources/betano/transport';
@@ -37,10 +37,7 @@ const ok = (m: string) => console.log(`  ✓ ${m}`);
 const bad = (m: string) => console.log(`  ✗ ${m}`);
 const info = (m: string) => console.log(`    ${m}`);
 
-const eventsOf = (page: any): any[] => {
-  const e = page?.data?.events ?? page?.events ?? page?.data ?? [];
-  return Array.isArray(e) ? e : [];
-};
+const eventsOf = calendarEvents;
 const idOf = (e: any) => String((e?.event ?? e)?.id ?? '');
 const startOf = (e: any) => Number((e?.event ?? e)?.startTime);
 
@@ -97,7 +94,8 @@ async function main(): Promise<void> {
   (withUrl === mapped.length ? ok : bad)(`pageUrl (campo url): ${withUrl}/${mapped.length}${withUrl ? ` · ex.: ${mapped.find((e) => e.pageUrl)?.pageUrl}` : ' — sem isto o comparador não abre mercados'}`);
   const starts = ev0.map(startOf);
   const sorted = starts.every((t, i) => i === 0 || t >= starts[i - 1]!);
-  (sorted ? ok : bad)(`ordenado por startTime: ${sorted ? 'sim' : 'NÃO — a paragem antecipada da paginação pode perder eventos'}`);
+  const grouped = Array.isArray(body0?.data?.blocks);
+  info(`ordenado por startTime: ${sorted ? 'sim' : 'não'}${grouped ? ` (agrupado por liga em ${body0.data.blocks.length} blocks; a paragem por hora fica desligada)` : ''}`);
 
   console.log('\n4. Paginação');
   const ids0 = new Set(ev0.map(idOf));

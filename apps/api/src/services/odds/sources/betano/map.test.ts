@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mapEvent, mapMarkets, marketsFromState, parseInitialState } from './map';
+import { calendarEvents, mapEvent, mapMarkets, marketsFromState, parseInitialState } from './map';
 
 const NOW = 1_700_000_000_000;
 
@@ -157,4 +157,28 @@ test('mapMarkets keeps selections that share labels but differ in line', () => {
     0,
   );
   assert.deepEqual(out.map((m) => m.line), [2.5, 1.5]);
+});
+
+test('mapEvent: calendar participants without isHome fall back to the "Casa - Fora" name', () => {
+  const ev = mapEvent(
+    {
+      id: '95645619',
+      name: 'Alemanha - Países Baixos',
+      startTime: 1794858300000,
+      url: '/odds/alemanha-paises-baixos/95645619/',
+      participants: [{ name: 'Alemanha', id: '108301' }, { name: 'Países Baixos', id: '107231' }],
+    },
+    'FOOTBALL',
+    NOW,
+  );
+  assert.equal(ev?.home, 'Alemanha');
+  assert.equal(ev?.away, 'Países Baixos');
+  assert.equal(ev?.pageUrl, '/odds/alemanha-paises-baixos/95645619/');
+});
+
+test('calendarEvents flattens data.blocks[].events and keeps the flat shapes', () => {
+  assert.deepEqual(calendarEvents({ data: { blocks: [{ events: [{ id: 1 }] }, { events: [{ id: 2 }] }, {}] } }), [{ id: 1 }, { id: 2 }]);
+  assert.deepEqual(calendarEvents({ data: { events: [{ id: 3 }] } }), [{ id: 3 }]);
+  assert.deepEqual(calendarEvents({ data: [{ id: 4 }] }), [{ id: 4 }]);
+  assert.deepEqual(calendarEvents({ data: {} }), []);
 });
