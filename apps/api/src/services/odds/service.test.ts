@@ -163,10 +163,10 @@ test('routes: envelope, validation, URL-encoded key, health', async () => {
     const bad = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"selections":[]}' });
     assert.equal(bad.status, 400);
     const sel = { eventKey: KEY, selectionKey: 'FT.1X2.H' };
-    const tooMany = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(11).fill(sel) }) });
+    const tooMany = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(31).fill(sel) }) });
     assert.equal(tooMany.status, 400);
-    const ten = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(10).fill(sel) }) });
-    assert.equal(ten.status, 200);
+    const thirty = await fetch(base + '/multiple', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ selections: Array(30).fill(sel) }) });
+    assert.equal(thirty.status, 200);
     const health = await get('/health');
     assert.deepEqual(Object.keys(health.body.data), ['odds-betclic']);
     console.log('MULTIPLE', JSON.stringify(multi));

@@ -95,3 +95,19 @@ test('compareMultiple: suspended leg gives null total; best null if none complet
   const t = compareMultiple([{ placard: ok(2), lebull: ok(2) }]);
   assert.equal(t.best, 'lebull');
 });
+
+test('mergeEvent keeps each house original market/selection text and the row market', () => {
+  const a: CanonicalSelection = { key: 'FT.1X2.H', house: 'betclic', marketLabel: 'Resultado (Tempo Regulamentar)', selectionLabel: 'Alemanha', odds: 1.84, suspended: false };
+  const b: CanonicalSelection = { key: 'FT.1X2.H', house: 'betano', marketLabel: 'Resultado Final', selectionLabel: '1', odds: 1.9, suspended: false };
+  const [row] = mergeEvent({ betano: [b], betclic: [a] });
+  assert.equal(row!.market, 'Resultado (Tempo Regulamentar)');
+  assert.deepEqual(row!.labels, {
+    betclic: { market: 'Resultado (Tempo Regulamentar)', selection: 'Alemanha' },
+    betano: { market: 'Resultado Final', selection: '1' },
+  });
+});
+test('mergeEvent null-key rows carry their own market and labels', () => {
+  const [row] = mergeEvent({ betano: [{ key: null, house: 'betano', marketLabel: '+2 Golos Vantagem', selectionLabel: 'Alemanha', odds: 1.8, suspended: false }] });
+  assert.equal(row!.market, '+2 Golos Vantagem');
+  assert.deepEqual(row!.labels, { betano: { market: '+2 Golos Vantagem', selection: 'Alemanha' } });
+});
