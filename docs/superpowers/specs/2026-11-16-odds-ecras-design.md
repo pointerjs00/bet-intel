@@ -73,13 +73,16 @@ Uso pessoal (um utilizador). A referência visual é a app da Betclic (lista de 
 `ComparedSelection` passa a levar o texto de cada casa, para o registo e para agrupar por mercado:
 
 ```ts
-interface HousePrice { odds: number; suspended: boolean; market: string; selection: string }
-interface ComparedSelection { key: string | null; label: string; market: string; prices: …; best: … }
+interface ComparedSelection {
+  key: string | null; label: string; market: string; prices: …; best: …;
+  labels: Partial<Record<HouseId, { market: string; selection: string }>>;
+}
 ```
 
-- `prices[house].market/selection` = `marketLabel`/`selectionLabel` originais dessa casa.
+- `labels[house]` = `marketLabel`/`selectionLabel` originais dessa casa (campo à parte de `prices`,
+  para `HousePrice` e `compareMultiple` ficarem como estão).
 - `market` da linha = `marketLabel` da primeira casa (ordem `HOUSE_ORDER`), para títulos de cartão.
-- `compareMultiple` ignora os campos novos. Testes de `compare`/`service` atualizados.
+- `compareMultiple` não muda. Testes de `compare`/`service` atualizados.
 - A linha do 1X2 de `GET /events` (`main`) já traz estes campos por herança.
 - `POST /multiple` passa a aceitar até **30** seleções (era 10), o máximo das casas portuguesas;
   teste da rota atualizado (30 aceite, 31 → 400).
@@ -159,7 +162,7 @@ interface ComparedSelection { key: string | null; label: string; market: string;
 
 Função pura `toBuilderItems(legs, house, views)` (testada) que gera `BoletinBuilderItem[]`:
 
-- `market` = `prices[house].market`, `selection` = `prices[house].selection`, `oddValue` = `prices[house].odds`
+- `market` = `labels[house].market`, `selection` = `labels[house].selection`, `oddValue` = `prices[house].odds`
   (texto original da casa — reconhecido pelo motor, ver Restrições);
 - `homeTeam`/`awayTeam`/`competition`/`eventDate`/`sport` do `EventView`.
 
