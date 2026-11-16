@@ -577,9 +577,18 @@ docker ps                                  # que contentores estão a correr
 4. **Login com Google:** a app usa o login nativo do Android (ID do cliente + SHA-1), que não depende do domínio da API, por isso não é preciso mudar nada no Google Cloud ou no Firebase.
 5. **Emails:** se o `SMTP_FROM` usa um endereço `@...stream-intel.online` validado num serviço de envio (Resend, SendGrid…), os emails continuam a sair enquanto o domínio não expirar. Quando expirar, troca o remetente para um endereço do `couveflor.site` (validado na Cloudflare) ou para o teu Gmail.
 
-**Stream-Intel:** no repositório dele, troca o endereço da API para `https://streamintel-api.couveflor.site` e faz uma build nova. O Claude ajuda se abrires esse repositório.
+**Stream-Intel** (repositório `StreamIntel`): o site e a API são servidos juntos pela app (o frontend usa caminhos relativos `/api/...`), por isso **não há build a fazer**. Basta:
+1. No `.env` do Stream-Intel no Pi (`/srv/stream-intel/.env`), pôr `GOOGLE_REDIRECT_URI=https://streamintel-api.couveflor.site/api/auth/google-callback`, se a variável existir.
+2. Na **Google Cloud Console** (credenciais OAuth do Stream-Intel), acrescentar esse URI em *Authorized redirect URIs* e `https://streamintel-api.couveflor.site` em *Authorized JavaScript origins*. Sem isto, o login com Google do Stream-Intel falha no endereço novo.
+3. A app Android `StreamIntelApp` aponta para `stream-intel.up.railway.app` (Railway), não para o Hetzner, por isso não é afetada.
+4. O ficheiro `nginx/streamintel-api.conf` do repositório deixa de ser usado (o túnel substitui o Nginx).
 
-**Pricetracker:** se tiver uma app ou extensão com o endereço gravado, troca para `https://plener.couveflor.site`. Se for só um site, basta usar o endereço novo.
+**Pricetracker** (repositório `plener`): a app Android tem o endereço gravado em `android/local.properties` (`release.apiBaseUrl=https://plener.xuxus.site/`).
+1. Troca para `release.apiBaseUrl=https://plener.couveflor.site/`.
+2. Gera e instala uma APK de release nova (com a mesma keystore `pricetracker-release.keystore`).
+3. O `Caddyfile` do repositório deixa de ser preciso (o túnel trata do HTTPS).
+
+**Parlay League** (repositório `xuxus-bet`): o domínio (`couveflor.site`) não muda, por isso não há nada a alterar no código nem no login com Google.
 
 **Ordem segura:** primeiro a app no Pi a funcionar no endereço novo, depois a build nova instalada e testada, e só depois desligar a app no Hetzner.
 
