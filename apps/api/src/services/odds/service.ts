@@ -157,6 +157,20 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     // Overlapping day windows return the same match more than once; a duplicate would read as a tie.
     const seen = new Set<string>();
     const unique = candidates.filter((c) => (seen.has(`${c.sport}|${c.providerMatchId}`) ? false : (seen.add(`${c.sport}|${c.providerMatchId}`), true)));
+    // Linked events of the other houses, built once and only if an event needs them.
+    let others: Candidate[] | null = null;
+    const otherCandidates = async (): Promise<Candidate[]> => {
+      if (others) return others;
+      const out: Candidate[] = [];
+      for (const other of deps.sources) {
+        if (other.house === source.house) continue;
+        for (const oe of (await store.getEvents(other.house, sport)) ?? []) {
+          const link = await store.getLink(other.house, oe.houseEventId);
+          if (link) out.push({ providerMatchId: link, league: null, home: oe.home, away: oe.away, startsAt: oe.startsAt, sport });
+        }
+      }
+      return (others = out);
+    };
     let linked = 0;
     for (const ev of events) {
       try {
@@ -165,6 +179,11 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
         if (!key) continue;
         const radar = radarOf(ev);
         let aliased = false;
+        if (!match && !radar) {
+          // No ESPN game and no BetRadar id: join an event another house has already linked.
+          const near = matchEvent(ev, await otherCandidates());
+          if (near) { key = near.providerMatchId; aliased = true; }
+        }
         if (radar && match) {
           // Another house may have missed ESPN for this game: move its links onto the ESPN key now.
           await store.setRadarAlias(sport, radar, key);

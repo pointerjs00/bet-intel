@@ -465,3 +465,62 @@ test('a house that missed ESPN joins the ESPN key through a shared BetRadar id, 
     assert.deepEqual(await store.getCtx(KEY), { home: 'Porto', away: 'Benfica', startsAt: START });
   }
 });
+
+// Houses with no ESPN game and no BetRadar id join the other houses' linked events by names and kickoff.
+{
+  const radar = (e: SourceEvent, id: string): SourceEvent => ({ ...e, extraIds: { betRadarId: id } });
+  const mk = (): { store: ReturnType<typeof createOddsStore>; svc: ReturnType<typeof createOddsService> } => {
+    const store = createOddsStore(createFakeRedis());
+    return { store, svc: createOddsService({ sources: [], store, candidates, now: () => NOW, track: (_p, fn) => fn() }) };
+  };
+  const mkSvc = (sources: OddsSource[]) => {
+    const store = createOddsStore(createFakeRedis());
+    const svc = createOddsService({ sources, store, candidates, now: () => NOW, track: (_p, fn) => fn() });
+    return { store, svc };
+  };
+  void mk;
+
+  test('no ESPN, no radar: adopts the bet: key of another house by names and kickoff', async () => {
+    const a = new FakeSource('betclic', [withMain(radar(ev('betclic', 'b1', 'Gil Vicente', 'Casa Pia'), '555'), m1x2(2.0, 3.3, 3.6))], []);
+    const b = new FakeSource('lebull', [withMain(ev('lebull', 'l1', 'Gil Vicente FC', 'Casa Pia AC'), m1x2(2.1, 3.2, 3.5))], []);
+    const { svc, store } = mkSvc([a, b]);
+    await svc.refreshCatalogue(a, 'FOOTBALL');
+    await svc.refreshCatalogue(b, 'FOOTBALL');
+    assert.equal(await store.getLink('lebull', 'l1'), 'bet:FOOTBALL:555');
+    const list = await svc.listEvents('FOOTBALL', '2026-11-16');
+    assert.equal(list.length, 1);
+    assert.equal(list[0]!.houseCount, 2);
+  });
+
+  test('reverse order: converges on a second round', async () => {
+    const a = new FakeSource('betclic', [radar(ev('betclic', 'b1', 'Gil Vicente', 'Casa Pia'), '555')], []);
+    const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Gil Vicente FC', 'Casa Pia AC')], []);
+    const { svc, store } = mkSvc([a, b]);
+    await svc.refreshCatalogue(b, 'FOOTBALL');
+    assert.match((await store.getLink('lebull', 'l1')) ?? '', /^n:/);
+    await svc.refreshCatalogue(a, 'FOOTBALL');
+    await svc.refreshCatalogue(b, 'FOOTBALL');
+    await svc.refreshCatalogue(a, 'FOOTBALL');
+    assert.equal(await store.getLink('lebull', 'l1'), 'bet:FOOTBALL:555');
+    assert.equal(await store.getLink('betclic', 'b1'), 'bet:FOOTBALL:555');
+  });
+
+  test('a variant (B team) does not adopt the main team key', async () => {
+    const a = new FakeSource('betclic', [radar(ev('betclic', 'b1', 'Benfica', 'Rival'), '556')], []);
+    const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Benfica B', 'Rival')], []);
+    const { svc, store } = mkSvc([a, b]);
+    await svc.refreshCatalogue(a, 'FOOTBALL');
+    await svc.refreshCatalogue(b, 'FOOTBALL');
+    assert.match((await store.getLink('lebull', 'l1')) ?? '', /^n:/);
+  });
+
+  test('kickoff more than 30 min apart does not adopt', async () => {
+    const a = new FakeSource('betclic', [radar(ev('betclic', 'b1', 'Gil Vicente', 'Casa Pia'), '555')], []);
+    const late = { ...ev('lebull', 'l1', 'Gil Vicente FC', 'Casa Pia AC'), startsAt: '2026-11-16T20:45:00.000Z' };
+    const b = new FakeSource('lebull', [late], []);
+    const { svc, store } = mkSvc([a, b]);
+    await svc.refreshCatalogue(a, 'FOOTBALL');
+    await svc.refreshCatalogue(b, 'FOOTBALL');
+    assert.match((await store.getLink('lebull', 'l1')) ?? '', /^n:/);
+  });
+}
