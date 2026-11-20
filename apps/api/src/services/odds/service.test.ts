@@ -448,3 +448,20 @@ test('popularity: most markets any house opens, with a bonus for ESPN-matched ga
   const [plain] = await svc2.listEvents('FOOTBALL', START);
   assert.equal(plain?.popularity, 0);
 });
+
+test('a house that missed ESPN joins the ESPN key through a shared BetRadar id, in either order', async () => {
+  const radar = (e: SourceEvent, id: string): SourceEvent => ({ ...e, extraIds: { betRadarId: id } });
+  for (const order of [0, 1]) {
+    // "Porto B" never matches ESPN's "Porto" (variant), so only the BetRadar id can join it.
+    const missed = new FakeSource('betclic', [withMain(radar(ev('betclic', 'b1', 'Porto B', 'Benfica'), '777'), m1x2(2.0, 3.3, 3.6))], []);
+    const hit = new FakeSource('betano', [withMain(radar(ev('betano', 'n1', 'FC Porto', 'SL Benfica'), '777'), m1x2(2.1, 3.2, 3.5))], []);
+    const { svc, store } = await setup(order === 0 ? [missed, hit] : [hit, missed]);
+    assert.equal(await store.getLink('betclic', 'b1'), KEY, `order ${order}`);
+    assert.equal(await store.getLink('betano', 'n1'), KEY);
+    const list = await svc.listEvents('FOOTBALL', START);
+    assert.equal(list.length, 1, `order ${order}`);
+    assert.deepEqual([...list[0]!.houses].sort(), ['betano', 'betclic']);
+    // Canonical order stays ESPN's.
+    assert.deepEqual(await store.getCtx(KEY), { home: 'Porto', away: 'Benfica', startsAt: START });
+  }
+});

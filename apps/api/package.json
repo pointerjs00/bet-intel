@@ -12,6 +12,7 @@
     "audit:settlement": "node -r ../../node_modules/ts-node/register/transpile-only src/scripts/auditAutoSettlement.ts",
     "betano:solve": "node -r ../../node_modules/ts-node/register/transpile-only src/scripts/betanoSolve.ts",
     "betano:probe": "node -r ../../node_modules/ts-node/register/transpile-only src/scripts/betanoProbe.ts",
+    "odds:coverage": "node -r ../../node_modules/ts-node/register/transpile-only src/scripts/oddsCoverageProbe.ts",
     "audit:misparsed": "node -r ../../node_modules/ts-node/register/transpile-only src/scripts/auditMisparsedSettlements.ts",
     "prisma:generate": "node ../../node_modules/prisma/build/index.js generate --schema src/prisma/schema.prisma",
     "prisma:db:push": "node ../../node_modules/prisma/build/index.js db push --schema src/prisma/schema.prisma",

@@ -51,6 +51,13 @@ export function calendarEvents(body: any): any[] {
   return Array.isArray(flat) ? flat : [];
 }
 
+/** Markets of the calendar's six-pack grid (`sixPackBlocks[].columns`), same shape as `markets`. */
+function sixPackColumns(raw: any): any[] {
+  const blocks = raw?.sixPackBlocks;
+  if (!Array.isArray(blocks)) return [];
+  return blocks.flatMap((b: any) => (Array.isArray(b?.columns) ? b.columns : []));
+}
+
 /** Prematch ("Casa - Fora" in `name`) or live (participants with `isHome`) → `SourceEvent`. */
 export function mapEvent(raw: any, sport: OddsSport, now: number): SourceEvent | null {
   const ev = raw?.event ?? raw;
@@ -77,8 +84,12 @@ export function mapEvent(raw: any, sport: OddsSport, now: number): SourceEvent |
   }
   if (!home || !away) return null;
 
-  const radar = clean(ev.betRadarId ?? ev.betradarMatchId) || null;
-  const mainMarkets = Array.isArray(raw?.markets) ? mapMarkets(raw.markets, raw.selections, now) : [];
+  // Betano sends 0 when it has no BetRadar id; "0" would merge unrelated events under one key.
+  const radarRaw = clean(ev.betRadarId ?? ev.betradarMatchId);
+  const radar = /^[1-9]\d*$/.test(radarRaw) ? radarRaw : null;
+  // Basketball calendars send `markets: []` and carry the main markets in the six-pack columns.
+  const listed = Array.isArray(raw?.markets) && raw.markets.length > 0 ? raw.markets : sixPackColumns(raw);
+  const mainMarkets = mapMarkets(listed, raw?.selections, now);
   const pageUrl = clean(ev.url) || undefined;
   const marketCount = Number(ev.totalMarketsAvailable);
   return {

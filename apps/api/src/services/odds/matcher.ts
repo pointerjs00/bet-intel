@@ -31,6 +31,12 @@ const VARIANT_TOKENS = new Set([
 ]);
 /** Words that make a name a different club when only one of the two names has them. */
 const OTHER_CLUB_TOKENS = new Set(['miami', 'braga', 'city', 'united', 'utd', 'gijon', 'lisboa', 'madrid', 'milan', 'sporting', 'real', 'athletic', 'atletico', 'olympique']);
+/**
+ * English suffixes houses often drop ("Leeds" = "Leeds United", "Coventry" = "Coventry City"). They only
+ * separate clubs when the rest of the name is a city with two clubs, so a side that differs only by them
+ * is accepted when the other side matches without any conflict (a team never plays two games at once).
+ */
+const SUFFIX_CLUB_TOKENS = new Set(['city', 'united', 'utd']);
 const NOISE_TOKENS = new Set(['fc', 'cf', 'sc', 'ac', 'sl', 'cp', 'sad', 'club', 'de', 'the', 'fk', 'sk']);
 
 function plainTokens(name: string): string[] {
@@ -42,21 +48,39 @@ const isVariant = (t: string) => VARIANT_TOKENS.has(t) || /^u\d{2}$/.test(t);
 
 /** True when two names that pass teamNamesMatch are really different teams (reserves, women, other club). */
 export function variantConflict(a: string, b: string): boolean {
+  return conflictOf(a, b) !== null;
+}
+
+/** 'variant' / 'club' for a real conflict, 'suffix' when the names differ only by city/united/utd, else null. */
+function conflictOf(a: string, b: string): 'variant' | 'club' | 'suffix' | null {
   const ta = plainTokens(a), tb = plainTokens(b);
   const va = ta.filter(isVariant).sort().join(','), vb = tb.filter(isVariant).sort().join(',');
-  if (va !== vb) return true;
+  if (va !== vb) return 'variant';
   const ra = new Set(ta.filter((t) => !isVariant(t) && !NOISE_TOKENS.has(t)));
   const rb = new Set(tb.filter((t) => !isVariant(t) && !NOISE_TOKENS.has(t)));
   const extra = (x: Set<string>, y: Set<string>) => [...x].filter((t) => !y.has(t));
   const ea = extra(ra, rb), eb = extra(rb, ra);
   // Only a name that adds words to the other can be another club.
-  if (ea.length && !eb.length && ea.some((t) => OTHER_CLUB_TOKENS.has(t))) return true;
-  if (eb.length && !ea.length && eb.some((t) => OTHER_CLUB_TOKENS.has(t))) return true;
-  return false;
+  const added = ea.length && !eb.length ? ea : eb.length && !ea.length ? eb : [];
+  if (added.some((t) => OTHER_CLUB_TOKENS.has(t) && !SUFFIX_CLUB_TOKENS.has(t))) return 'club';
+  if (added.some((t) => SUFFIX_CLUB_TOKENS.has(t))) return 'suffix';
+  return null;
 }
 
-const sameSide = (sport: OddsSport, a: string, b: string) =>
-  teamNamesMatch(a, b) && (sport === 'TENNIS' || !variantConflict(a, b));
+/** 2 = same side, 1 = same side but for a dropped city/united/utd suffix, 0 = different. */
+function sideScore(sport: OddsSport, a: string, b: string): 0 | 1 | 2 {
+  if (!teamNamesMatch(a, b)) return 0;
+  if (sport === 'TENNIS') return 2;
+  const c = conflictOf(a, b);
+  return c === null ? 2 : c === 'suffix' ? 1 : 0;
+}
+
+/** Both sides match, and at most one of them only through a dropped suffix. */
+const samePair = (sport: OddsSport, h1: string, a1: string, h2: string, a2: string) => {
+  const x = sideScore(sport, h1, h2);
+  const y = sideScore(sport, a1, a2);
+  return x > 0 && y > 0 && x + y >= 3;
+};
 
 /**
  * The ESPN match for a house event: same sport, kickoff within 30 min, both team names matching
@@ -70,14 +94,20 @@ export function matchEvent(ev: SourceEvent, candidates: Candidate[]): Candidate 
     if (c.sport && c.sport !== ev.sport) continue;
     const diff = Math.abs(Date.parse(c.startsAt) - t);
     if (!(diff <= MATCH_WINDOW_MS)) continue;
-    const straight = sameSide(ev.sport, ev.home, c.home) && sameSide(ev.sport, ev.away, c.away);
-    const swapped = ev.sport === 'TENNIS' && sameSide(ev.sport, ev.home, c.away) && sameSide(ev.sport, ev.away, c.home);
+    const straight = samePair(ev.sport, ev.home, ev.away, c.home, c.away);
+    const swapped = ev.sport === 'TENNIS' && samePair(ev.sport, ev.home, ev.away, c.away, c.home);
     if (straight || swapped) hits.push({ c, diff });
   }
   if (hits.length === 0) return null;
   hits.sort((a, b) => a.diff - b.diff);
   if (hits.length > 1 && hits[0]!.diff === hits[1]!.diff) return null;
   return hits[0]!.c;
+}
+
+/** The event's BetRadar id when it is a real one (houses send 0 / empty when they have none). */
+export function radarOf(ev: SourceEvent): string | null {
+  const r = ev.extraIds?.betRadarId;
+  return r && /^[1-9]\d*$/.test(r) ? r : null;
 }
 
 /**
@@ -87,7 +117,7 @@ export function matchEvent(ev: SourceEvent, candidates: Candidate[]): Candidate 
  */
 export function eventKey(ev: SourceEvent, match: Candidate | null): string | null {
   if (match) return `espn:${ev.sport}:${match.providerMatchId}`;
-  const radar = ev.extraIds?.betRadarId;
+  const radar = radarOf(ev);
   if (radar) return `bet:${ev.sport}:${radar}`;
   const t = Date.parse(ev.startsAt);
   if (Number.isNaN(t)) return null;

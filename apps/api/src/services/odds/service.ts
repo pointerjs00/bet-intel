@@ -6,7 +6,7 @@ import { teamKey, teamNamesMatch } from '../marketResolutionEngine';
 import { ProviderFormatError, tracked, type Provider } from '../sportsData/providerHealth';
 import { canonicalKey, swapTennisKey } from './canonical';
 import { mergeEvent, compareMultiple, type ComparedSelection, type HousePrice } from './compare';
-import { candidatesFor, eventKey, matchEvent, type Candidate } from './matcher';
+import { candidatesFor, eventKey, matchEvent, radarOf, type Candidate } from './matcher';
 import { createOddsStore, type EventCtx, type MarketsSnapshot, type OddsStore } from './store';
 import { getSources } from './registry';
 import type { CanonicalSelection, HouseId, OddsSource, OddsSport, SourceEvent, SourceMarket } from './types';
@@ -161,12 +161,27 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     for (const ev of events) {
       try {
         const match = matchEvent(ev, unique);
-        const key = eventKey(ev, match);
+        let key = eventKey(ev, match);
         if (!key) continue;
+        const radar = radarOf(ev);
+        let aliased = false;
+        if (radar && match) {
+          // Another house may have missed ESPN for this game: move its links onto the ESPN key now.
+          await store.setRadarAlias(sport, radar, key);
+          for (const [house, id] of Object.entries(await store.getIndex(`bet:${sport}:${radar}`)) as Array<[HouseId, string]>) {
+            if (house === source.house) continue;
+            await store.setLink(house, id, key);
+            await store.setIndex(key, house, id);
+          }
+        } else if (radar) {
+          const alias = await store.getRadarAlias(sport, radar);
+          if (alias) { key = alias; aliased = true; }
+        }
         await store.setLink(source.house, ev.houseEventId, key);
         await store.setIndex(key, source.house, ev.houseEventId);
-        // bet: keys have no external order: the first house to write decides.
-        if (!key.startsWith('bet:') || !(await store.getCtx(key))) await store.setCtx(key, canonicalCtx(ev, key, match));
+        // bet: keys have no external order: the first house to write decides. An aliased ESPN key keeps
+        // the order written by the house that matched ESPN.
+        if ((!key.startsWith('bet:') && !aliased) || !(await store.getCtx(key))) await store.setCtx(key, canonicalCtx(ev, key, match));
         linked++;
       } catch {
         recordFormat(source.house, 'evento do calendário com formato inesperado');

@@ -122,6 +122,23 @@ test('legitimate aliases still match', () => {
   }
 });
 
+test('a dropped city/united/utd suffix matches when the other side matches cleanly', () => {
+  const at = '2026-11-21T15:00:00Z';
+  const cand = (home: string, away: string): Candidate => ({ providerMatchId: '1', league: null, sport: 'FOOTBALL', home, away, startsAt: at });
+  assert.ok(matchEvent(ev({ home: 'Chelsea', away: 'Leeds', startsAt: at }), [cand('Chelsea', 'Leeds United')]));
+  assert.ok(matchEvent(ev({ home: 'Coventry', away: 'Crystal Palace', startsAt: at }), [cand('Coventry City', 'Crystal Palace')]));
+  assert.ok(matchEvent(ev({ home: 'Newcastle', away: 'Arsenal', startsAt: at }), [cand('Newcastle United', 'Arsenal')]));
+  // Both sides only through a suffix: not enough.
+  assert.equal(matchEvent(ev({ home: 'Leeds', away: 'Coventry', startsAt: at }), [cand('Leeds United', 'Coventry City')]), null);
+  // Other club words stay hard conflicts even with a clean opponent.
+  assert.equal(matchEvent(ev({ home: 'Inter', away: 'Arsenal', startsAt: at }), [cand('Inter Miami', 'Arsenal')]), null);
+});
+
+test('betRadarId 0 is not an id', () => {
+  const e = ev({ home: 'A', away: 'B', startsAt: '2026-11-15T20:00:00Z', extraIds: { betRadarId: '0' } });
+  assert.ok(eventKey(e, null)!.startsWith('n:'));
+});
+
 test('candidatesFor tolerates an invalid date', async () => {
   const { candidatesFor } = await import('./matcher');
   assert.deepEqual(await candidatesFor('FOOTBALL', 'nope'), []);

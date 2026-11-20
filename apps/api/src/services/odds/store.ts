@@ -57,6 +57,12 @@ export function createOddsStore(client: OddsRedis = redis as unknown as OddsRedi
     setLink: (house: HouseId, houseEventId: string, eventKey: string) =>
       client.set(`odds:link:${house}:${houseEventId}`, eventKey, 'EX', LINK_TTL_S),
 
+    /** BetRadar id to the ESPN key a house matched it to (TTL 48 h): joins houses that missed ESPN. */
+    getRadarAlias: (sport: OddsSport, radar: string) =>
+      client.get(`odds:radar:${sport}:${radar}`),
+    setRadarAlias: (sport: OddsSport, radar: string, eventKey: string) =>
+      client.set(`odds:radar:${sport}:${radar}`, eventKey, 'EX', LINK_TTL_S),
+
     /** Full markets of one house event (TTL 60 s). */
     getMarkets: (house: HouseId, houseEventId: string) =>
       getJson<MarketsSnapshot>(client, `odds:markets:${house}:${houseEventId}`),
