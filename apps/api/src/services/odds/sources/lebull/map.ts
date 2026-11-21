@@ -118,6 +118,8 @@ const FOOTBALL: Record<number, StakeMapper> = {
   },
   3: (s) => {
     const line = arg(s);
+    // Quarter lines (2.25) are the asian total. Whole lines (2) stay under the plain total on purpose: their canonical
+    // key carries the whole line (FT.TOTAL.goals.O.2), which only ever meets other houses' whole (push) lines.
     if (line !== null && isQuarterLine(line)) return overUnder('Total de Golos Asiático', s);
     return overUnder('Total de Golos Mais/Menos', s);
   },

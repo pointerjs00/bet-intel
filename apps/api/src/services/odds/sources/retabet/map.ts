@@ -91,12 +91,17 @@ function mainMarkets(e: RawEvent, sport: OddsSport, names: { home: string; away:
   return mapMarkets(sport, names, [{ mid: String(b.i ?? ''), tag: 0, name: clean(b.md), rows }]);
 }
 
+/** ISO date-time that names its zone (`Z` or `±hh:mm`). */
+const ZONED_ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/;
+
 /** Calendar events of one sport (any start time: the caller filters the window). */
 export function mapCalendarEvents(raw: RawEvent[], sport: OddsSport): SourceEvent[] {
   const out: SourceEvent[] = [];
   for (const e of raw) {
     const id = String(e?.i ?? '');
-    const t = Date.parse(String(e?.du ?? ''));
+    const du = String(e?.du ?? '');
+    // A time without Z / offset would be read as this server's local time: reject it.
+    const t = ZONED_ISO.test(du) ? Date.parse(du) : NaN;
     if (e?.di !== SPORT_DI[sport] || !/^\d+$/.test(id) || !Number.isFinite(t)) continue;
     const names = namesOf(e, sport);
     if (!names) continue;

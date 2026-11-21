@@ -232,6 +232,7 @@ export function createRetabetSource(deps: RetabetDeps = {}): OddsSource {
       out.push(...next.events);
       cursor = next.next;
     }
+    if (cursor) logger.warn(`[odds] Retabet calendar capped at ${MAX_PENDING_PAGES} pages with more pending; later games of the day are missing`);
     return out;
   }
 

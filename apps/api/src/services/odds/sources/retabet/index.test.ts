@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { ProviderFormatError } from '../../../sportsData/providerHealth';
+import { logger } from '../../../../utils/logger';
 import { BASKETBALL_LEAGUES, BLOCK_MS, CALENDAR_TTL_MS, FOOTBALL_LEAGUES, MAX_PENDING_PAGES, REQUEST_GAP_MS, createRetabetSource, type RetabetDeps } from './index';
 
 const FIX = path.join(__dirname, '..', '..', '__fixtures__', 'retabet');
@@ -352,4 +353,24 @@ test('getMarkets: a tab POST answered with an anti-bot page blocks; 400 renews t
   const markets = await createRetabetSource(g.deps).getMarkets('38784300', { pageUrl: PAGE_URL });
   assert.ok(markets.length > 50);
   assert.equal(g.calls.filter(isHome).length, 2);
+});
+
+test('hitting MAX_PENDING_PAGES with a cursor still pending logs a warning (the day is cut short)', async () => {
+  const warns: string[] = [];
+  const orig = logger.warn;
+  (logger as { warn: unknown }).warn = (m: string) => { warns.push(String(m)); return logger; };
+  try {
+    const f = fake((c) => {
+      if (isPending(c)) {
+        const page = JSON.parse(text('loadpending.json'));
+        page.lei = 38980586 + f.calls.length;
+        return ok(JSON.stringify(page));
+      }
+      return site(c);
+    });
+    await createRetabetSource(f.deps).listEvents('FOOTBALL', FROM, TO);
+  } finally {
+    (logger as { warn: unknown }).warn = orig;
+  }
+  assert.ok(warns.some((w) => /capped at 8 pages/.test(w)), warns.join(' | '));
 });

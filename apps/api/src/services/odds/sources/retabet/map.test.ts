@@ -363,3 +363,17 @@ test('tennis: set handicaps, set-scoped games, odd/even and winner+total combos 
   assert.ok(labels.has('Vencedor do encontro e mais/menos jogos'));
   assert.ok(labels.has('Total de jogos no encontro par ou ímpar'));
 });
+
+test('a start time without Z or an offset is rejected (never read as the server local time)', () => {
+  const raw = parseCalendarHtml(text('calendar.html'));
+  const one = (du: string) => {
+    const e = structuredClone(raw.filter((x) => x.i === 38939502));
+    e[0]!.du = du;
+    return mapCalendarEvents(e, 'FOOTBALL');
+  };
+  assert.deepEqual(one('2026-11-21T19:45:00'), []);
+  assert.deepEqual(one('2026-11-21 19:45'), []);
+  assert.equal(one('2026-11-21T19:45:00Z')[0]?.startsAt, '2026-11-21T19:45:00.000Z');
+  assert.equal(one('2026-11-21T19:45:00.1234567Z')[0]?.startsAt, '2026-11-21T19:45:00.123Z');
+  assert.equal(one('2026-11-21T20:45:00+01:00')[0]?.startsAt, '2026-11-21T19:45:00.000Z');
+});

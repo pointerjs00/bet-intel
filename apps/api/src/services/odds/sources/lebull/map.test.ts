@@ -225,3 +225,15 @@ test('mapStakeTypes: prices of 1 or less and inactive stakes are suspended; dele
 test('mapPrematch returns [] for a sport the comparator does not cover', () => {
   assert.deepEqual(mapPrematch({ sportId: 13, teamA: 'A', teamB: 'B', stakeTypes: [] }), []);
 });
+
+test('whole-number total lines stay under the plain total and key as push lines (FT.TOTAL.goals.O.2)', () => {
+  const ctx = { sport: 'FOOTBALL' as const, home: 'A', away: 'B' };
+  const out = mapStakeTypes([{ stakeTypeId: 3, stakeTypeName: 'Total', stakes: [
+    { stakeName: 'Over', stakeArgument: 2, betFactor: 1.6, isActive: true },
+    { stakeName: 'Under', stakeArgument: 2, betFactor: 2.2, isActive: true },
+    { stakeName: 'Over', stakeArgument: 2.25, betFactor: 1.5, isActive: true },
+  ] }], ctx);
+  const keys = out.map((m) => [m.marketLabel, canonicalKey('FOOTBALL', m.marketLabel, m.selectionLabel, ctx)]);
+  assert.deepEqual(keys.slice(0, 2), [['Total de Golos Mais/Menos', 'FT.TOTAL.goals.O.2'], ['Total de Golos Mais/Menos', 'FT.TOTAL.goals.U.2']]);
+  assert.equal(keys[2]![0], 'Total de Golos Asiático', 'a quarter line is the asian total');
+});
