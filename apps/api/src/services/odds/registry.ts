@@ -6,6 +6,7 @@ import { createBwinSource } from './sources/bwin';
 import { createCasinoPortugalSource } from './sources/casinoportugal';
 import { createGoldenParkSource } from './sources/goldenpark';
 import { createRetabetSource } from './sources/retabet';
+import { sharedSportsWidgetSource } from './sources/sportswidget';
 import type { HouseId, OddsSource } from './types';
 
 /** Adapter factories, filled in as each house adapter lands. */
@@ -17,6 +18,9 @@ const FACTORIES: Partial<Record<HouseId, () => OddsSource>> = {
   casinoportugal: () => createCasinoPortugalSource(),
   goldenpark: () => createGoldenParkSource(),
   retabet: () => createRetabetSource(),
+  // Same widget feed, separate hosts and state; one shared instance per house (the model is several MB).
+  placard: () => sharedSportsWidgetSource('placard'),
+  solverde: () => sharedSportsWidgetSource('solverde'),
 };
 
 /** Registers an adapter factory (used by the adapter modules). */
