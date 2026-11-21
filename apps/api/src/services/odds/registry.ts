@@ -5,6 +5,7 @@ import { createLebullSource } from './sources/lebull';
 import { createBwinSource } from './sources/bwin';
 import { createCasinoPortugalSource } from './sources/casinoportugal';
 import { createGoldenParkSource } from './sources/goldenpark';
+import { createRetabetSource } from './sources/retabet';
 import type { HouseId, OddsSource } from './types';
 
 /** Adapter factories, filled in as each house adapter lands. */
@@ -15,6 +16,7 @@ const FACTORIES: Partial<Record<HouseId, () => OddsSource>> = {
   bwin: () => createBwinSource(),
   casinoportugal: () => createCasinoPortugalSource(),
   goldenpark: () => createGoldenParkSource(),
+  retabet: () => createRetabetSource(),
 };
 
 /** Registers an adapter factory (used by the adapter modules). */

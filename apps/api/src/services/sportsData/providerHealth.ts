@@ -7,7 +7,7 @@
 import { logger } from '../../utils/logger';
 
 export type Provider = 'espn-football' | 'espn-tennis' | 'espn-basketball' | 'espn-preview' | 'livescore'
-  | 'odds-betclic' | 'odds-betano' | 'odds-lebull' | 'odds-placard' | 'odds-solverde' | 'odds-bwin' | 'odds-casinoportugal' | 'odds-goldenpark';
+  | 'odds-betclic' | 'odds-betano' | 'odds-lebull' | 'odds-placard' | 'odds-solverde' | 'odds-bwin' | 'odds-casinoportugal' | 'odds-goldenpark' | 'odds-retabet';
 
 const FAIL_THRESHOLD = 10;
 const ALERT_COOLDOWN_S = 6 * 3600;
@@ -24,6 +24,7 @@ const LABEL: Record<Provider, string> = {
   'odds-bwin': 'Odds Bwin',
   'odds-casinoportugal': 'Odds Casino Portugal',
   'odds-goldenpark': 'Odds GoldenPark',
+  'odds-retabet': 'Odds Retabet',
   'odds-placard': 'Odds Placard',
   'odds-solverde': 'Odds Solverde',
 };

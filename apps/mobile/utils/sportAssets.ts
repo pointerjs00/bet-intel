@@ -2118,6 +2118,7 @@ const SITE_LOGOS: Record<string, ImageSourcePropType> = {
   lebull:    { uri: 'https://www.google.com/s2/favicons?domain=lebull.pt&sz=128' },
   casinoportugal: { uri: 'https://www.google.com/s2/favicons?domain=casinoportugal.pt&sz=128' },
   goldenpark: { uri: 'https://www.google.com/s2/favicons?domain=goldenpark.pt&sz=128' },
+  retabet: { uri: 'https://www.google.com/s2/favicons?domain=retabet.pt&sz=128' },
 };
 
 export interface BettingSite {
@@ -2153,6 +2154,7 @@ export const BETTING_SITES: BettingSite[] = [
   { slug: 'lebull',    name: 'Lebull',     logo: SITE_LOGOS.lebull },
   { slug: 'casinoportugal', name: 'Casino Portugal', logo: SITE_LOGOS.casinoportugal },
   { slug: 'goldenpark', name: 'GoldenPark', logo: SITE_LOGOS.goldenpark },
+  { slug: 'retabet', name: 'Retabet', logo: SITE_LOGOS.retabet },
 ];
 
 export interface CompetitionBranding {
