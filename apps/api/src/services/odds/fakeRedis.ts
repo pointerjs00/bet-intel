@@ -14,6 +14,9 @@ export function createFakeRedis(): FakeRedis {
     async get(key) {
       return strings.get(key) ?? null;
     },
+    async mget(keys) {
+      return keys.map((k) => strings.get(k) ?? null);
+    },
     async set(key, value, _mode, seconds) {
       strings.set(key, value);
       ttls.set(key, seconds);

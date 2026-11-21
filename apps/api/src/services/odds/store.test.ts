@@ -33,6 +33,25 @@ test('link round trip with 48 h TTL', async () => {
   assert.equal(r.ttlOf('odds:link:betano:9'), 172800);
 });
 
+test('getLinks reads many links in batched MGETs, in input order, none for an empty list', async () => {
+  const r = createFakeRedis();
+  let calls = 0;
+  const mget = r.mget.bind(r);
+  r.mget = async (keys) => { calls++; return mget(keys); };
+  const s = createOddsStore(r);
+  assert.deepEqual(await s.getLinks('lebull', []), []);
+  assert.equal(calls, 0);
+  const ids = Array.from({ length: 1001 }, (_, i) => String(i));
+  for (const id of ['0', '500', '1000']) await s.setLink('lebull', id, `K${id}`);
+  const got = await s.getLinks('lebull', ids);
+  assert.equal(got.length, 1001);
+  assert.equal(got[0], 'K0');
+  assert.equal(got[1], null);
+  assert.equal(got[500], 'K500');
+  assert.equal(got[1000], 'K1000');
+  assert.equal(calls, 3);
+});
+
 test('markets round trip with 60 s TTL', async () => {
   const r = createFakeRedis();
   const s = createOddsStore(r);

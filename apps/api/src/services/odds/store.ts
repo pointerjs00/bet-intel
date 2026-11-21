@@ -4,6 +4,7 @@ import { redis } from '../../utils/redis';
 /** Minimal Redis surface used by the odds store (ioredis satisfies it; easy to fake). */
 export interface OddsRedis {
   get(key: string): Promise<string | null>;
+  mget(keys: string[]): Promise<Array<string | null>>;
   set(key: string, value: string, mode: 'EX', seconds: number): Promise<unknown>;
   hset(key: string, field: string, value: string): Promise<unknown>;
   hgetall(key: string): Promise<Record<string, string>>;
@@ -15,6 +16,8 @@ export const LINK_TTL_S = 48 * 3600;
 export const MARKETS_TTL_S = 60;
 export const INDEX_TTL_S = 48 * 3600;
 
+/** Keys per MGET in getLinks. */
+const LINK_BATCH = 500;
 const CTX_FIELD = '_ctx';
 
 /** Canonical (home, away) order of a canonical event, plus its kickoff. */
@@ -54,6 +57,15 @@ export function createOddsStore(client: OddsRedis = redis as unknown as OddsRedi
     /** House event to canonical event key (TTL 48 h). */
     getLink: (house: HouseId, houseEventId: string) =>
       client.get(`odds:link:${house}:${houseEventId}`),
+    /** Links of many house events, one MGET per LINK_BATCH ids (null where missing), in input order. */
+    async getLinks(house: HouseId, houseEventIds: string[]): Promise<Array<string | null>> {
+      const out: Array<string | null> = [];
+      for (let i = 0; i < houseEventIds.length; i += LINK_BATCH) {
+        const keys = houseEventIds.slice(i, i + LINK_BATCH).map((id) => `odds:link:${house}:${id}`);
+        out.push(...(await client.mget(keys)));
+      }
+      return out;
+    },
     setLink: (house: HouseId, houseEventId: string, eventKey: string) =>
       client.set(`odds:link:${house}:${houseEventId}`, eventKey, 'EX', LINK_TTL_S),
 

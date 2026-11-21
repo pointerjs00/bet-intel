@@ -42,15 +42,16 @@ const NOISE_TOKENS = new Set(['fc', 'cf', 'sc', 'ac', 'sl', 'cp', 'sad', 'club',
 /** Women's-team markers; they are all the one same variant. */
 const WOMEN_TOKENS = new Set(['w', 'women', 'feminino', 'feminina', 'fem', 'femenino']);
 
-/** City exonyms (PT / local / EN) and nicknames, folded to one spelling. Keys and values are normalised. */
+/** City exonyms (PT / local / EN), folded to one spelling, every sport. Keys and values are normalised. */
 const NAME_WORDS: Record<string, string> = {
   sevilha: 'sevilla', bolonha: 'bologna', veneza: 'venezia', praga: 'praha', prague: 'praha', augsburgo: 'augsburg',
   colonia: 'koln', cologne: 'koln', munique: 'munchen', munich: 'munchen', genova: 'genoa', napoles: 'napoli', naples: 'napoli',
   saragoca: 'zaragoza', maiorca: 'mallorca', viena: 'wien', vienna: 'wien',
-  wolverhampton: 'wolves', spurs: 'tottenham',
 };
-/** Multi-word nicknames, applied before the word table. */
-const NAME_PHRASES: Array<[RegExp, string]> = [
+/** Football club nicknames ("San Antonio Spurs" is not Tottenham): FOOTBALL only. */
+const CLUB_WORDS: Record<string, string> = { wolverhampton: 'wolves', spurs: 'tottenham' };
+/** Multi-word football club nicknames, applied before the word tables. FOOTBALL only. */
+const CLUB_PHRASES: Array<[RegExp, string]> = [
   [/\bman (?:utd|united)\b/g, 'manchester united'],
   [/\bman city\b/g, 'manchester city'],
   [/\bwolverhampton wanderers\b/g, 'wolves'],
@@ -58,7 +59,7 @@ const NAME_PHRASES: Array<[RegExp, string]> = [
 
 /**
  * A team name with its women's marker folded into one trailing "feminino" and its city exonyms/nicknames
- * folded to one spelling. Leaves "F.C."/"FC"/"C.F." alone: only a standalone final "F"/"F." after a real
+ * folded to one spelling (club nicknames only for FOOTBALL). Leaves "F.C."/"FC"/"C.F." alone: only a standalone final "F"/"F." after a real
  * word counts ("F"/"F."/"W"/"W." alike). Not applied to tennis (pass the sport). Used only to compare names across houses (not by settlement).
  */
 export function canonName(name: string, sport?: OddsSport): string {
@@ -70,8 +71,9 @@ export function canonName(name: string, sport?: OddsSport): string {
   // Final marker after a word of 2+ letters ("Liverpool F.", "Arsenal W", "Chelsea Fem.", "Lyon Women").
   s = s.replace(/(?<=[a-z]{2}\.?)\s+(?:f\.?|w|fem\.?|women|feminino|feminina|femenino)\s*$/i, () => { women = true; return ''; });
   let n = s.toLowerCase().replace(/[-–.&]/g, ' ').replace(/\s+/g, ' ').trim();
-  for (const [re, to] of NAME_PHRASES) n = n.replace(re, to);
-  n = n.split(' ').map((t) => NAME_WORDS[t] ?? t).join(' ');
+  const football = sport === 'FOOTBALL';
+  if (football) for (const [re, to] of CLUB_PHRASES) n = n.replace(re, to);
+  n = n.split(' ').map((t) => (football ? CLUB_WORDS[t] : undefined) ?? NAME_WORDS[t] ?? t).join(' ');
   return women ? `${n} feminino` : n;
 }
 
@@ -146,6 +148,40 @@ export function matchEvent(ev: SourceEvent, candidates: Candidate[]): Candidate 
   hits.sort((a, b) => a.diff - b.diff);
   if (hits.length > 1 && hits[0]!.diff === hits[1]!.diff) return null;
   return hits[0]!.c;
+}
+
+/** Key strength for the cross-house fallback: espn: > bet: > n:. */
+const keyRank = (k: string) => (k.startsWith('espn:') ? 3 : k.startsWith('bet:') ? 2 : 1);
+
+/**
+ * Another house's linked event for a house event without ESPN game or BetRadar id (candidates carry
+ * the other houses' event keys as providerMatchId). Unlike matchEvent, hits that are the same game as
+ * the closest one (their names match each other too) are one game under several keys: the strongest key
+ * wins (espn: > bet: > n:), then the key most houses share (`shared`), then the lexicographically
+ * smallest. This lets houses that met first on an n: key move together onto a radar house's bet: key.
+ * An equally close hit that is a different game is still ambiguous (null).
+ */
+export function matchLinked(ev: SourceEvent, candidates: Candidate[], shared: ReadonlyMap<string, number> = new Map()): Candidate | null {
+  const t = Date.parse(ev.startsAt);
+  if (Number.isNaN(t)) return null;
+  const pair = (h1: string, a1: string, h2: string, a2: string) =>
+    samePair(ev.sport, h1, a1, h2, a2) || (ev.sport === 'TENNIS' && samePair(ev.sport, h1, a1, a2, h2));
+  const hits: Array<{ c: Candidate; diff: number }> = [];
+  for (const c of candidates) {
+    if (c.sport && c.sport !== ev.sport) continue;
+    const diff = Math.abs(Date.parse(c.startsAt) - t);
+    if (!(diff <= MATCH_WINDOW_MS)) continue;
+    if (pair(ev.home, ev.away, c.home, c.away)) hits.push({ c, diff });
+  }
+  if (hits.length === 0) return null;
+  hits.sort((a, b) => a.diff - b.diff);
+  const first = hits[0]!.c;
+  const game = hits.filter((h) => h.c === first || pair(first.home, first.away, h.c.home, h.c.away));
+  if (hits.some((h) => h.diff === hits[0]!.diff && !game.includes(h))) return null;
+  game.sort((x, y) => keyRank(y.c.providerMatchId) - keyRank(x.c.providerMatchId)
+    || (shared.get(y.c.providerMatchId) ?? 0) - (shared.get(x.c.providerMatchId) ?? 0)
+    || x.c.providerMatchId.localeCompare(y.c.providerMatchId));
+  return game[0]!.c;
 }
 
 /** The event's BetRadar id when it is a real one (houses send 0 / empty when they have none). */

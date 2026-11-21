@@ -157,6 +157,27 @@ test('multiple over several events keeps leg order and fetches each event once',
   assert.equal(calls, 2);
 });
 
+test('getEvent fetches the houses in parallel and keeps the source order', async () => {
+  // Each house's getMarkets resolves only once both have started: a sequential loop would never finish.
+  let started = 0;
+  let release!: () => void;
+  const both = new Promise<void>((r) => { release = r; });
+  class Gated extends FakeSource {
+    override async getMarkets(id?: string, hint?: { pageUrl?: string }) {
+      if (++started === 2) release();
+      await both;
+      return super.getMarkets(id, hint);
+    }
+  }
+  const a = new Gated('betclic', [ev('betclic', 'b1', 'FC Porto', 'SL Benfica')], m1x2(2.0, 3.3, 3.6));
+  const b = new Gated('lebull', [ev('lebull', 'l1', 'Porto', 'Benfica')], m1x2(2.1, 3.2, 3.5));
+  const { svc } = await setup([a, b]);
+  const timeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 500).unref());
+  const view = await Promise.race([svc.getEvent(KEY), timeout]);
+  assert.notEqual(view, 'timeout', 'houses were fetched one after another');
+  assert.deepEqual((view as { houses: HouseId[] }).houses, ['betclic', 'lebull']);
+});
+
 test('mapLimit keeps order and never exceeds the limit', async () => {
   let inFlight = 0;
   let peak = 0;
@@ -527,6 +548,52 @@ test('a house that missed ESPN joins the ESPN key through a shared BetRadar id, 
     for (const s of [a, b, c]) await svc.refreshCatalogue(s, 'FOOTBALL');
     assert.equal(await store.getLink('lebull', 'l1'), 'bet:FOOTBALL:555');
     assert.equal(await store.getLink('placard', 'p1'), 'bet:FOOTBALL:555');
+  });
+
+  test('radar house lists the game after two no-radar houses: converges to one card with all three', async () => {
+    const a = new FakeSource('betclic', [], m1x2(2.0, 3.3, 3.6));
+    const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Gil Vicente FC', 'Casa Pia AC')], m1x2(2.1, 3.2, 3.5));
+    const c = new FakeSource('goldenpark', [ev('goldenpark', 'g1', 'Gil Vicente', 'Casa Pia')], m1x2(2.2, 3.1, 3.4));
+    const store = createOddsStore(createFakeRedis());
+    const svc = createOddsService({ sources: [a, b, c], store, candidates: async () => [], now: () => NOW, track: (_p, fn) => fn() });
+    for (const s of [a, b, c]) await svc.refreshCatalogue(s, 'FOOTBALL');
+    const nl = await store.getLink('lebull', 'l1');
+    assert.match(nl ?? '', /^n:/);
+    assert.equal(await store.getLink('goldenpark', 'g1'), nl, 'cycle 0: one card');
+    (a as unknown as { events: SourceEvent[] }).events = [radar(ev('betclic', 'b1', 'Gil Vicente', 'Casa Pia'), '555')];
+    for (let i = 1; i <= 2; i++) for (const s of [a, b, c]) await svc.refreshCatalogue(s, 'FOOTBALL');
+    const BET = 'bet:FOOTBALL:555';
+    assert.equal(await store.getLink('betclic', 'b1'), BET);
+    assert.equal(await store.getLink('lebull', 'l1'), BET);
+    assert.equal(await store.getLink('goldenpark', 'g1'), BET);
+    const list = await svc.listEvents('FOOTBALL', START);
+    assert.equal(list.length, 1);
+    assert.deepEqual([...list[0]!.houses].sort(), ['betclic', 'goldenpark', 'lebull']);
+    // I4: the old n: index still names lebull/goldenpark, but they moved away: getEvent must not show them.
+    const stale = await svc.getEvent(nl!);
+    assert.equal(stale, null);
+    const view = await svc.getEvent(BET);
+    assert.deepEqual([...view!.houses].sort(), ['betclic', 'goldenpark', 'lebull']);
+  });
+
+  test('two no-radar houses stay on one shared card across cycles', async () => {
+    const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Gil Vicente FC', 'Casa Pia AC')], []);
+    const c = new FakeSource('goldenpark', [ev('goldenpark', 'g1', 'Gil Vicente', 'Casa Pia')], []);
+    const { svc, store } = mkSvc([b, c]);
+    for (let i = 0; i < 3; i++) {
+      for (const s of [b, c]) await svc.refreshCatalogue(s, 'FOOTBALL');
+      assert.equal(await store.getLink('goldenpark', 'g1'), await store.getLink('lebull', 'l1'), `cycle ${i}`);
+    }
+  });
+
+  test('equal-kickoff linked events of different games still never merge', async () => {
+    // "Benfica B" matches neither "Benfica" nor... two different radar games with matching names to nobody.
+    const a = new FakeSource('betclic', [radar(ev('betclic', 'b1', 'Benfica', 'Rival'), '1'), radar(ev('betclic', 'b2', 'Benfica B', 'Rival'), '2')], []);
+    const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Benfica B', 'Rival')], []);
+    const { svc, store } = mkSvc([a, b]);
+    await svc.refreshCatalogue(a, 'FOOTBALL');
+    await svc.refreshCatalogue(b, 'FOOTBALL');
+    assert.equal(await store.getLink('lebull', 'l1'), 'bet:FOOTBALL:2');
   });
 
   test('a failing store read for another house falls back to n: keys and scans once', async () => {

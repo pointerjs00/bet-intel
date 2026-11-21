@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { mapEspnSummary } from '../sportsData/espnFootball';
 import { mapEspnNbaSummary } from '../sportsData/espnBasketball';
 import { mapEspnTennisScoreboard } from '../sportsData/espnTennis';
-import { basketballCandidate, eventKey, footballCandidate, matchEvent, namesMatch, tennisCandidate, type Candidate } from './matcher';
+import { basketballCandidate, eventKey, footballCandidate, matchEvent, matchLinked, namesMatch, tennisCandidate, type Candidate } from './matcher';
 import type { SourceEvent } from './types';
 
 const fx = (name: string) => JSON.parse(readFileSync(join(__dirname, '../sportsData/__fixtures__', name), 'utf8'));
@@ -154,7 +154,30 @@ test('exonyms and nicknames join across houses', () => {
     ['Sparta Praga', 'Sparta Prague'], ['Sparta Praha', 'Sparta Prague'], ['Augsburgo', 'Augsburg'], ['FC Colonia', 'FC Koln'],
     ['Colonia', 'Cologne'], ['Munique', 'Munchen'], ['Genova', 'Genoa'], ['Napoles', 'Napoli'], ['Napoli', 'Naples'],
   ];
-  for (const [a, b] of pairs) assert.ok(namesMatch(a, b), `${a} = ${b}`);
+  for (const [a, b] of pairs) assert.ok(namesMatch(a, b, 'FOOTBALL'), `${a} = ${b}`);
+});
+
+test('club nicknames are football only; city exonyms apply to every sport', () => {
+  assert.equal(eventKey(ev({ sport: 'BASKETBALL', home: 'San Antonio Spurs', away: 'Utah Jazz', startsAt: '2026-11-16T01:00:00Z' }), null),
+    'n:BASKETBALL:2026-11-16:san antonio spurs:utah jazz');
+  assert.ok(namesMatch('Spurs', 'Tottenham Hotspur', 'FOOTBALL'));
+  assert.ok(namesMatch('Sevilha', 'Sevilla', 'BASKETBALL'));
+});
+
+test('matchLinked: keys of one game collapse to the strongest; different games stay ambiguous', () => {
+  const e = ev({ home: 'Gil Vicente', away: 'Casa Pia', startsAt: '2026-11-16T20:00:00Z' });
+  const c = (id: string, home: string, away: string, min = 0): Candidate =>
+    ({ providerMatchId: id, league: null, sport: 'FOOTBALL', home, away, startsAt: new Date(Date.parse(e.startsAt) + min * 60_000).toISOString() });
+  const n = c('n:FOOTBALL:2026-11-16:gil vicente:casa pia ac', 'Gil Vicente FC', 'Casa Pia AC');
+  assert.equal(matchLinked(e, [n, c('bet:FOOTBALL:555', 'Gil Vicente', 'Casa Pia')])?.providerMatchId, 'bet:FOOTBALL:555');
+  assert.equal(matchLinked(e, [c('bet:FOOTBALL:555', 'Gil Vicente', 'Casa Pia', 10), n, c('espn:FOOTBALL:9', 'Gil Vicente', 'Casa Pia', 5)])?.providerMatchId, 'espn:FOOTBALL:9');
+  // same rank: the key more houses share wins, then lexicographic
+  const n2 = c('n:FOOTBALL:2026-11-16:gil vicente:casa pia', 'Gil Vicente', 'Casa Pia');
+  assert.equal(matchLinked(e, [n, n2], new Map([[n2.providerMatchId, 2]]))?.providerMatchId, n2.providerMatchId);
+  assert.equal(matchLinked(e, [n, n2])?.providerMatchId, n2.providerMatchId); // lexicographic
+  // an event that matches two different games equally ("Manchester" vs City and United) stays ambiguous
+  const m = ev({ home: 'Manchester', away: 'Rival', startsAt: e.startsAt });
+  assert.equal(matchLinked(m, [c('bet:FOOTBALL:1', 'Manchester City', 'Rival'), c('bet:FOOTBALL:2', 'Manchester United', 'Rival')]), null);
 });
 
 test('exonyms do not join different clubs', () => {
