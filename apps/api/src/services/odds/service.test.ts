@@ -178,6 +178,17 @@ test('getEvent fetches the houses in parallel and keeps the source order', async
   assert.deepEqual((view as { houses: HouseId[] }).houses, ['betclic', 'lebull']);
 });
 
+test('getSources shares one instance per house across calls; fresh: true builds new ones', () => {
+  const [a1] = getSources('lebull');
+  const [a2, g] = getSources('lebull,goldenpark');
+  assert.equal(a1, a2, 'job and API must share pacing, session and block state');
+  assert.equal(g!.house, 'goldenpark');
+  assert.equal(getSources('goldenpark')[0], g);
+  const [f] = getSources('lebull', { fresh: true });
+  assert.notEqual(f, a1);
+  assert.equal(f!.house, 'lebull');
+});
+
 test('mapLimit keeps order and never exceeds the limit', async () => {
   let inFlight = 0;
   let peak = 0;

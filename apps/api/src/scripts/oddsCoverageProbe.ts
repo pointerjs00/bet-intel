@@ -9,6 +9,8 @@
  * Betano passa pelo sidecar quando BETANO_EGRESS_URL/TOKEN estão definidos. O Redis é em memória.
  */
 import { writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { createFakeRedis } from '../services/odds/fakeRedis';
 import { createOddsStore } from '../services/odds/store';
 import { createOddsService } from '../services/odds/service';
@@ -30,7 +32,7 @@ async function main(): Promise<void> {
   };
   const sources: OddsSource[] = (process.argv[3] ?? 'betclic,betano').split(',').map((h) => h === 'betano'
     ? createBetanoSource({ session: createBetanoSession({ transport: process.env.BETANO_EGRESS_URL ? createImpersonateTransport(process.env.BETANO_EGRESS_URL, process.env.BETANO_EGRESS_TOKEN ?? '') : createUndiciTransport(), redis: lock, log: { warn: (m) => console.log('  [betano]', m) } }) })
-    : getSources(h)[0]!);
+    : getSources(h, { fresh: true })[0]!);
   const store = createOddsStore(createFakeRedis());
   const svc = createOddsService({ sources, store, track: (_p, fn) => fn() });
   for (const s of sources) {
@@ -83,7 +85,10 @@ async function main(): Promise<void> {
     console.log(`   detalhe ${i.eventKey} (${i.event.home} v ${i.event.away}): ${v?.rows.length ?? 0} linhas, principal: ${main.map((r) => `${r.key}=${JSON.stringify(r.prices)}`).join(' ')}`);
     report[i.eventKey] = { list: i, mainRaw: (await Promise.all(i.houses.map(async (h) => (await store.getEvents(h, sport))?.find((e) => e.home === i.event.home)?.mainMarkets))) };
   }
-  writeFileSync(process.env.PROBE_OUT ?? 'odds-coverage.json', JSON.stringify({ list, report }, null, 1));
+  // Never into the repo: default to the OS temp dir.
+  const out = process.env.PROBE_OUT ?? join(tmpdir(), 'odds-coverage.json');
+  writeFileSync(out, JSON.stringify({ list, report }, null, 1));
+  console.log(`relatório: ${out}`);
   process.exit(0);
 }
 
