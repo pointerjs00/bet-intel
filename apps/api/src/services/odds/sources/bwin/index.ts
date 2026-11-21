@@ -29,6 +29,11 @@ export const REQUEST_GAP_MS = 300;
 export const CONFIG_TTL_MS = 6 * 3_600_000;
 /** Fixtures per calendar page. */
 export const PAGE_SIZE = 100;
+/**
+ * The football calendar is refetched at most this often (the grid markets make it ~14 MB; fixtureCategories=Gridable
+ * did not shrink it, measured live 2026-11-21); in between the last one is filtered to the requested window.
+ */
+export const FOOTBALL_REFRESH_MS = 30 * 60_000;
 /** Calendar pages read per sport and refresh, at most. */
 export const MAX_PAGES = 10;
 /** After a 429/403/HTML answer the adapter makes no request for this long. */
@@ -61,6 +66,8 @@ export function createBwinSource(deps: BwinDeps = {}): OddsSource {
   const doFetch = deps.fetch ?? (fetch as FetchLike);
   const sleep = deps.sleep ?? defaultSleep;
   const now = deps.now ?? Date.now;
+  // BWIN_GAP_MS can only slow the adapter down (live probing); it never goes under the production gap.
+  const gapMs = Math.max(REQUEST_GAP_MS, Number(process.env.BWIN_GAP_MS) || 0);
 
   let blockedUntil = 0;
   const checkBlock = (what: string) => {
@@ -68,10 +75,10 @@ export function createBwinSource(deps: BwinDeps = {}): OddsSource {
   };
   let gate: Promise<void> = Promise.resolve();
   let started = false;
-  /** Serialises requests and keeps ≥ REQUEST_GAP_MS between their starts. */
+  /** Serialises requests and keeps ≥ gapMs between their starts. */
   const pace = (): Promise<void> => {
     const turn = gate.then(async () => {
-      if (started) await sleep(REQUEST_GAP_MS);
+      if (started) await sleep(gapMs);
       started = true;
     });
     gate = turn.catch(() => undefined);
@@ -155,9 +162,26 @@ export function createBwinSource(deps: BwinDeps = {}): OddsSource {
 
   const COMMON = 'lang=pt&country=PT&userCountry=PT';
 
+  /** In window: not after `to`, and not before `from` unless live. */
+  const inWindow = (ev: SourceEvent, from: number, to: number) => {
+    const t = Date.parse(ev.startsAt);
+    return !(t > to || (t < from && !ev.live));
+  };
+
+  let football: { at: number; events: SourceEvent[] } | null = null;
+
+  /** The football calendar is ~14 MB (the grid markets of ~500 games): fetched at most every FOOTBALL_REFRESH_MS. */
   async function listEvents(sport: OddsSport, fromIso: string, toIso: string): Promise<SourceEvent[]> {
     const from = Date.parse(fromIso);
     const to = Date.parse(toIso);
+    if (sport !== 'FOOTBALL') return fetchCalendar(sport, from, to);
+    if (football && now() - football.at < FOOTBALL_REFRESH_MS) return football.events.filter((ev) => inWindow(ev, from, to));
+    const events = await fetchCalendar(sport, from, to);
+    football = { at: now(), events };
+    return events;
+  }
+
+  async function fetchCalendar(sport: OddsSport, from: number, to: number): Promise<SourceEvent[]> {
     const range = `from=${new Date(from).toISOString()}&to=${new Date(to).toISOString()}`;
     const out: SourceEvent[] = [];
     const seen = new Set<string>();
@@ -166,14 +190,13 @@ export function createBwinSource(deps: BwinDeps = {}): OddsSource {
       const body = (await cds(
         (id) =>
           `/bettingoffer/fixtures?x-bwin-accessid=${id}&${COMMON}&fixtureTypes=Standard&state=Latest&offerMapping=Filtered&offerCategories=Gridable` +
-          `&fixtureCategories=Gridable,NonGridable,Specials,Outrights&regionIds=&competitionIds=&conferences=&isPriceBoost=false&statisticsModes=None` +
+          `&fixtureCategories=Gridable&regionIds=&competitionIds=&conferences=&isPriceBoost=false&statisticsModes=None` +
           `&sportIds=${SPORT_ID[sport]}&skip=${skip}&take=${PAGE_SIZE}&sortBy=StartDate&${range}`,
         `${sport} calendar page ${page + 1}`,
       )) as { fixtures?: unknown; totalCount?: unknown } | null;
       if (!body || !Array.isArray(body.fixtures)) throw new ProviderFormatError(`Bwin ${sport} calendar: no fixtures list`);
       for (const ev of mapCalendar(body, sport)) {
-        const t = Date.parse(ev.startsAt);
-        if (t > to || (t < from && !ev.live) || seen.has(ev.houseEventId)) continue;
+        if (!inWindow(ev, from, to) || seen.has(ev.houseEventId)) continue;
         seen.add(ev.houseEventId);
         out.push(ev);
       }

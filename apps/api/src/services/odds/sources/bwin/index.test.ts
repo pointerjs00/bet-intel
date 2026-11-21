@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { ProviderFormatError } from '../../../sportsData/providerHealth';
-import { BLOCK_MS, CONFIG_TTL_MS, MAX_PAGES, PAGE_SIZE, REQUEST_GAP_MS, createBwinSource, type BwinDeps } from './index';
+import { BLOCK_MS, CONFIG_TTL_MS, FOOTBALL_REFRESH_MS, MAX_PAGES, PAGE_SIZE, REQUEST_GAP_MS, createBwinSource, type BwinDeps } from './index';
 
 const FIX = path.join(__dirname, '..', '..', '__fixtures__', 'bwin');
 const text = (name: string) => fs.readFileSync(path.join(FIX, name), 'utf8');
@@ -17,7 +17,7 @@ const TO = '2026-11-23T00:00:00.000Z';
 
 const calUrl = (sportId: number, skip: number, id = ID, from = FROM, to = TO) =>
   `${CDS}/fixtures?x-bwin-accessid=${id}&lang=pt&country=PT&userCountry=PT&fixtureTypes=Standard&state=Latest&offerMapping=Filtered&offerCategories=Gridable` +
-  `&fixtureCategories=Gridable,NonGridable,Specials,Outrights&regionIds=&competitionIds=&conferences=&isPriceBoost=false&statisticsModes=None` +
+  `&fixtureCategories=Gridable&regionIds=&competitionIds=&conferences=&isPriceBoost=false&statisticsModes=None` +
   `&sportIds=${sportId}&skip=${skip}&take=100&sortBy=StartDate&from=${from}&to=${to}`;
 const viewUrl = (fixtureId: string, id = ID) =>
   `${CDS}/fixture-view?x-bwin-accessid=${id}&lang=pt&country=PT&userCountry=PT&offerMapping=All&scoreboardMode=Full&fixtureIds=${fixtureId}` +
@@ -194,4 +194,25 @@ test('a 429, an HTML answer or a 403 that survives the config re-read starts a 1
   await assert.rejects(s.listEvents('TENNIS', FROM, TO), /HTTP 500/);
   await assert.rejects(s.listEvents('TENNIS', FROM, TO), /HTTP 500/);
   assert.equal(flaky.calls.length, 3);
+});
+
+test('football calendar (~14 MB) is fetched at most every 30 min; in between the last one is filtered to the new window', async () => {
+  assert.equal(FOOTBALL_REFRESH_MS, 30 * 60_000);
+  const f = fake({ [CONFIG]: config(), [calUrl(4, 0)]: ok(json('calendar-football.json')), [calUrl(5, 0)]: ok(json('calendar-tennis.json')) });
+  const s = createBwinSource(f.deps);
+  const first = await s.listEvents('FOOTBALL', FROM, TO);
+  assert.ok(first.length > 0);
+  const n = f.calls.length;
+  f.advance(FOOTBALL_REFRESH_MS - 1000);
+  assert.deepEqual(await s.listEvents('FOOTBALL', FROM, TO), first);
+  // A window that starts after every cached game keeps only the live ones.
+  const later = await s.listEvents('FOOTBALL', TO, '2026-11-25T00:00:00.000Z');
+  assert.ok(later.length < first.length && later.every((e) => e.live));
+  assert.equal(f.calls.length, n, 'no request within 30 min');
+  await s.listEvents('TENNIS', FROM, TO);
+  await s.listEvents('TENNIS', FROM, TO);
+  assert.equal(f.calls.length, n + 2, 'other sports are not cached');
+  f.advance(2000);
+  await s.listEvents('FOOTBALL', FROM, TO);
+  assert.equal(f.calls.length, n + 3, 'refetched after 30 min');
 });
