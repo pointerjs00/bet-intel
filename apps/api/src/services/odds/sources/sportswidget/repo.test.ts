@@ -299,3 +299,9 @@ test('the language is pt when the repository offers it, else its first culture',
   assert.match(planSync({ ...META, cultures: ['en', 'pt'] }, null, T0).slices[0]!.path, /_8_pt_/);
   assert.match(planSync({ ...META, cultures: ['pt-PT'] }, null, T0).slices[0]!.path, /_8_pt_PT_/);
 });
+
+test('only the base slice carries the base flag (a partial numbered 8 does not)', () => {
+  const p = planSync({ ...META, fullIndex: 5, upd2fullIndex: 6, partialIndex: 8 }, null, T0);
+  assert.deepEqual(p.slices.filter((s) => s.base).map((s) => s.path), ['1795166563_8_pt_1_0.bin']);
+  assert.ok(p.slices.some((s) => s.path === '1795166563_1_pt_8_0.bin' && !s.base));
+});

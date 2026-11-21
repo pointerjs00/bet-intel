@@ -8,7 +8,9 @@
  *   full 2 × 5 partitions, update-to-full 3, partials 1), decoded with the house's own `/library/lzma.wasm`.
  * The Socket.IO channel only announces new indexes; `getmeta` is enough for a 10-minute calendar.
  *
- * Sync (at most once per SYNC_TTL_MS; `listEvents` / `getMarkets` read the in-memory model): first time base + full
+ * Sync (calendar path only, at most once per SYNC_TTL_MS; `listEvents` / `getMarkets` read the in-memory model;
+ * `getMarkets` syncs only when the model is missing or older than MARKETS_MAX_AGE_MS, so opening a game never waits
+ * on a 7-10 request sync while the 10-minute catalogue job keeps it fresh): first time base + full
  * + update-to-full + the last partial (≈ 10 requests, ≈ 2 MB). Then, on the same full index, only the missing partials
  * or the new update-to-full; on a new full index (about every 10 minutes) a rebuild from the full partitions, with the
  * base kept in memory (`repo.ts`, `planSync`). A rebuild is made on a new model and swapped in only when complete.
@@ -42,6 +44,8 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 export const REQUEST_GAP_MS = 1000;
 /** The model is synced at most this often; calls in between read it as it is. */
 export const SYNC_TTL_MS = 5 * 60_000;
+/** getMarkets serves the model as it is while younger than this (the catalogue job syncs every 10 min). */
+export const MARKETS_MAX_AGE_MS = 15 * 60_000;
 /** After a 429/403/HTML answer the house makes no request for this long. */
 export const BLOCK_MS = 10 * 60_000;
 /** A live event that started this long before `from` is still listed. */
@@ -177,7 +181,7 @@ export function createSportsWidgetSource(house: SportsWidgetHouse, deps: SportsW
       requests++;
       bytesIn += bytes.length;
       apply(bytes, slice);
-      if (/_8_/.test(slice.path)) baseBytes = bytes;
+      if (slice.base) baseBytes = bytes;
     }
     repo.finishSync(now());
     model = {
@@ -200,10 +204,10 @@ export function createSportsWidgetSource(house: SportsWidgetHouse, deps: SportsW
     return repo;
   }
 
-  /** The model, synced when older than SYNC_TTL_MS; concurrent callers share one sync. */
-  function current(what: string): Promise<SportsRepo> {
+  /** The model, synced when older than `maxAgeMs`; concurrent callers share one sync. */
+  function current(what: string, maxAgeMs = SYNC_TTL_MS): Promise<SportsRepo> {
     if (now() < blockedUntil) return Promise.reject(new BlockedError(blockedMessage(what)));
-    if (model && now() - model.syncedAt < SYNC_TTL_MS) return Promise.resolve(model.repo);
+    if (model && now() - model.syncedAt < maxAgeMs) return Promise.resolve(model.repo);
     pending ??= sync().finally(() => {
       pending = null;
     });
@@ -227,7 +231,7 @@ export function createSportsWidgetSource(house: SportsWidgetHouse, deps: SportsW
 
   async function getMarkets(houseEventId: string): Promise<SourceMarket[]> {
     if (!/^\d+$/.test(houseEventId)) throw new ProviderFormatError(`${name}: bad event id ${houseEventId}`);
-    const repo = await current(`event ${houseEventId}`);
+    const repo = await current(`event ${houseEventId}`, MARKETS_MAX_AGE_MS);
     return mapMarkets(repo, Number(houseEventId));
   }
 

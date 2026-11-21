@@ -3,7 +3,7 @@ import test from 'node:test';
 import { ProviderFormatError } from '../../../sportsData/providerHealth';
 import { COLUMN_TYPE as T } from './memory';
 import { writeMemory, type TableSpec } from './memoryWriter';
-import { BLOCK_MS, HOSTS, REQUEST_GAP_MS, SYNC_TTL_MS, createSportsWidgetSource, sharedSportsWidgetSource, type SportsWidgetDeps } from './index';
+import { BLOCK_MS, HOSTS, MARKETS_MAX_AGE_MS, REQUEST_GAP_MS, SYNC_TTL_MS, createSportsWidgetSource, sharedSportsWidgetSource, type SportsWidgetDeps } from './index';
 
 const NOW = Date.parse('2026-11-21T10:00:00Z');
 const sec = (ms: number) => Math.floor(ms / 1000);
@@ -203,7 +203,7 @@ test('after SYNC_TTL_MS: same full index → getmeta and the missing partials on
   assert.equal(evs[0]!.mainMarkets![0]!.odds, 2.1, 'partial 1103 moved the price back');
   // Nothing new: only getmeta.
   h.advance(SYNC_TTL_MS);
-  await src.getMarkets('34000001');
+  await src.listEvents('TENNIS', FROM, TO);
   assert.deepEqual(h.urls().slice(n + 3), ['/v2/getmeta']);
 });
 
@@ -306,4 +306,42 @@ test('the production factory shares one feed per house (one model, one pacing, o
     placard: { cdn: 'https://sportswidget-cdn.placard.pt', origin: 'https://www.placard.pt' },
     solverde: { cdn: 'https://sportswidget-cdn.solverde.pt', origin: 'https://www.solverde.pt' },
   });
+});
+
+test('a partial slice numbered 8 (right after a repository reset) is never kept as the base', async () => {
+  const h = harness({ meta: () => ({ ...META, fullIndex: 5, upd2fullIndex: 6, partialIndex: 8 }) });
+  const src = createSportsWidgetSource('placard', h.deps);
+  await src.listEvents('FOOTBALL', FROM, TO);
+  assert.ok(h.urls().includes(`/v2/getslice/${REPO}_1_pt_8_0.bin`), 'the partial 8 was downloaded after the base');
+  h.advance(SYNC_TTL_MS);
+  h.setMeta(() => ({ ...META, fullIndex: 20, upd2fullIndex: 21, partialIndex: 22 }));
+  const evs = await src.listEvents('FOOTBALL', FROM, TO);
+  assert.deepEqual(evs.map((e) => [e.home, e.away]), [['Benfica', 'FC Porto'], ['Braga', 'Guimarães']], 'rebuilt on the real base');
+});
+
+test('getMarkets serves the model the calendar synced while it is younger than MARKETS_MAX_AGE_MS (no request); only older is synced', async () => {
+  assert.equal(MARKETS_MAX_AGE_MS, 15 * 60_000);
+  const h = harness();
+  const src = createSportsWidgetSource('placard', h.deps);
+  await src.listEvents('FOOTBALL', FROM, TO);
+  const n = h.calls.length;
+  h.advance(SYNC_TTL_MS + 60_000);
+  assert.equal((await src.getMarkets('34000001')).length, 3);
+  h.advance(MARKETS_MAX_AGE_MS - SYNC_TTL_MS - 120_000);
+  await src.getMarkets('34000001');
+  assert.equal(h.calls.length, n, 'a model under 15 min old is served as it is');
+  // The calendar path still syncs after SYNC_TTL_MS.
+  await src.listEvents('FOOTBALL', FROM, TO);
+  assert.equal(h.urls()[n], '/v2/getmeta');
+  const m = h.calls.length;
+  h.advance(MARKETS_MAX_AGE_MS);
+  await src.getMarkets('34000001');
+  assert.equal(h.urls()[m], '/v2/getmeta', 'a stale model (the job stopped) is synced by getMarkets');
+});
+
+test('getMarkets with no model yet syncs once', async () => {
+  const h = harness();
+  const src = createSportsWidgetSource('placard', h.deps);
+  assert.equal((await src.getMarkets('34000001')).length, 3);
+  assert.equal(h.urls()[0], '/v2/getmeta');
 });

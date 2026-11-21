@@ -439,6 +439,8 @@ export interface SliceRef {
   /** Path under `/v2/getslice/`. */
   path: string;
   policy: Policy;
+  /** The repository's base slice (kept in memory and re-applied on rebuilds of the same base). */
+  base?: boolean;
 }
 
 export interface SyncPlan {
@@ -487,7 +489,7 @@ export function planSync(meta: Meta, applied: Applied | null, nowMs: number): Sy
   }
 
   const slices: SliceRef[] = [];
-  if (!sameBase) slices.push({ path: `${repo}_8_${lang}_${meta.baseIndex}_0.bin`, policy: 'authoritative' });
+  if (!sameBase) slices.push({ path: `${repo}_8_${lang}_${meta.baseIndex}_0.bin`, policy: 'authoritative', base: true });
   for (let p = 0; p < meta.fullPartitions; p++) slices.push({ path: `${repo}_2_${lang}_${meta.fullIndex}_${p}.bin`, policy: p === 0 ? 'authoritative' : 'snapshot' });
   const hasU2f = meta.upd2fullIndex > meta.fullIndex;
   slices.push(hasU2f ? u2f : { path: `live/${repo}/${lang}.bin`, policy: 'delta' });
