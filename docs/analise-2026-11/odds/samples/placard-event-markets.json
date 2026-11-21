@@ -1,0 +1,22 @@
+{
+ "_nota": "Mercados completos de um evento (placard, Liverpool - Manchester United), recortados a 16 de 150 mercados. type = código MarketType; line = handicap_dictionary_id.",
+ "event": {"houseEventId":"34319247","sport":"FOOTBALL","region":"Reino Unido","competition":"Premier League","home":"Liverpool","away":"Manchester United","startsAt":"2026-11-22T16:30:00.000Z","live":false,"marketCount":150,"statscoreId":"6558957"},
+ "markets": [
+  {"type":"BTSC","market":"Ambas as equipas marcam","active":true,"selections":[{"sel":"Não","line":null,"odds":2.25},{"sel":"Sim","line":null,"odds":1.42}]},
+  {"type":"H1RS","market":"1.ª Parte - Resultado","active":true,"selections":[{"sel":"Manchester United","line":null,"odds":4.33},{"sel":"Empate","line":null,"odds":2.45},{"sel":"Liverpool","line":null,"odds":2.2}]},
+  {"type":"MRES","market":"Resultado Final (TR)","active":true,"selections":[{"sel":"Manchester United","line":null,"odds":4.45},{"sel":"Empate","line":null,"odds":4},{"sel":"Liverpool","line":null,"odds":1.62}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Liverpool","line":"-1","odds":2.38},{"sel":"Manchester United","line":"+1","odds":2.05},{"sel":"Empate","line":"-1","odds":3.25}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Liverpool","line":"-2","odds":4},{"sel":"Manchester United","line":"+2","odds":1.38},{"sel":"Empate","line":"-2","odds":4}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Liverpool","line":"+1","odds":1.14},{"sel":"Manchester United","line":"-1","odds":7},{"sel":"Empate","line":"+1","odds":5}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Liverpool","line":"-3","odds":7},{"sel":"Manchester United","line":"+3","odds":1.11},{"sel":"Empate","line":"-3","odds":5.75}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"2.5","odds":1.42},{"sel":"Menos de","line":"2.5","odds":2.38}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"1.5","odds":1.11},{"sel":"Menos de","line":"1.5","odds":4.33}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"3.5","odds":2.05},{"sel":"Menos de","line":"3.5","odds":1.57}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"4.5","odds":3.3},{"sel":"Menos de","line":"4.5","odds":1.2}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"5.5","odds":5.5},{"sel":"Menos de","line":"5.5","odds":1.05}]},
+  {"type":"CSFT","market":"Resultado exato","active":true,"selections":[{"sel":"0 - 0","line":null,"odds":7},{"sel":"0 - 1","line":null,"odds":15},{"sel":"0 - 2","line":null,"odds":23},{"sel":"0 - 3","line":null,"odds":51},{"sel":"0 - 4","line":null,"odds":101},{"sel":"1 - 0","line":null,"odds":8.5}]},
+  {"type":"DBLC","market":"Hipótese dupla","active":true,"selections":[{"sel":"Manchester United/Empate","line":null,"odds":2.05},{"sel":"Liverpool/Manchester United","line":null,"odds":1.13},{"sel":"Liverpool/Empate","line":null,"odds":1.14}]},
+  {"type":"HTFT","market":"Intervalo / Final","active":true,"selections":[{"sel":"2/2","line":null,"odds":5.75},{"sel":"2/X","line":null,"odds":10},{"sel":"2/1","line":null,"odds":13},{"sel":"X/2","line":null,"odds":8},{"sel":"X/X","line":null,"odds":5.5},{"sel":"X/1","line":null,"odds":3.8}]},
+  {"type":"TOTG","market":"Total de golos (Exato)","active":true,"selections":[{"sel":"0-2","line":null,"odds":2.38},{"sel":"3","line":null,"odds":3.35},{"sel":"4+","line":null,"odds":2.05}]}
+ ]
+}

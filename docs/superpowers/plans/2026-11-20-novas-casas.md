@@ -136,3 +136,22 @@ Estudo: `docs/analise-2026-11/odds/retabet.md` (ler todo; amostras `docs/analise
 - [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
 - [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,retabet`; relatar.
 - [ ] `npm test` verde; commit `feat(odds): Retabet adapter`.
+
+### Task 7: API — adaptador Placard + Solverde (widget "pt-vision")
+
+**Files:**
+- Create: `apps/api/src/services/odds/sources/sportswidget/` (`memory.ts` leitor do formato binário, `lzma.ts` descodificador via o `lzma.wasm` da casa, `repo.ts` modelo em memória com sincronização completa e incremental, `map.ts`, `index.ts` com a fábrica por host, testes)
+- Create: `apps/api/src/services/odds/__fixtures__/sportswidget/` (slices reais pequenos já descomprimidos, ou um slice LZMA pequeno + o wasm se couber; preferir fixtures descomprimidas recortadas)
+- Modify: os ficheiros da regra "uma casa nova toca sempre" (Global Constraints); `placard` e `solverde` já existem em `HouseId`, `providerHealth` e `sportAssets` — confirmar.
+
+Estudos: `docs/analise-2026-11/odds/placard.md` e `solverde.md` (ler todos; amostras `samples/placard-*.json`, `samples/solverde-*.json`). Prova de conceito funcional: `docs/analise-2026-11/odds/poc-sportswidget/poc.js` e `mo.js` (formato e sequência de pedidos já verificados contra as duas casas) — portar para TypeScript, não reinventar.
+
+- [ ] Um adaptador, dois hosts: Placard (`sportswidget-cdn.placard.pt`, Origin `https://www.placard.pt`) e Solverde (`sportswidget-cdn.solverde.pt`, Origin `https://www.solverde.pt`); `registry.ts` regista `placard` e `solverde` com a mesma fábrica e hosts diferentes. Estado por casa isolado.
+- [ ] Sincronização: `GET /v2/getmeta` → índices; primeira vez base + full (5 partições) + update-to-full; seguintes só o que mudou (getmeta + update-to-full + parciais em falta), como no estudo. Sem Socket.IO (o calendário é lido a cada 10 min; basta o `getmeta`). Se um índice base mudar (reset do repositório), sincronização completa de novo. Eventos removidos saem do modelo.
+- [ ] `lzma.wasm` descarregado do CDN da casa uma vez e guardado em memória; falha de descodificação → `ProviderFormatError`. Resposta HTML num pedido de slice → erro (possível desafio).
+- [ ] `listEvents(sport, from, to)`: a partir do modelo em memória (sincronizar se o último sync tiver mais de 5 min); futebol/basquetebol/ténis pelos ids do estudo; principal pelos códigos `MRES` (futebol), `H2HT` (basquetebol), `HTOH` (ténis) em `mainMarkets`; `live` a partir de `NodesInPlayDetail`; odd = `OddMap.dec / 1000`; sem BetRadar (o id Statscore não vai para `extraIds`). Placard e Solverde partilham ids de evento: são casas diferentes no comparador, cada uma com as suas odds.
+- [ ] `getMarkets(id)`: do mesmo modelo (sem pedidos extra se o sync for recente); rótulos PT a partir do dicionário; testes de chaves (`FT.1X2.H`, `FT.TOTAL.goals.O.2.5`, `FT.BTTS.Y`, `FT.DC.HD`, `B.ML.H`, `T.WIN.A`).
+- [ ] Memória: o modelo de uma casa ocupa alguns MB; manter só os desportos usados (futebol, basquetebol, ténis) depois do parse.
+- [ ] `.env.example` (`ODDS_SOURCES`).
+- [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,placard,solverde`; relatar.
+- [ ] `npm test` verde; commit `feat(odds): Placard and Solverde adapter (pt-vision widget feed)`.
