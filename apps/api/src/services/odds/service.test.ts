@@ -469,16 +469,11 @@ test('a house that missed ESPN joins the ESPN key through a shared BetRadar id, 
 // Houses with no ESPN game and no BetRadar id join the other houses' linked events by names and kickoff.
 {
   const radar = (e: SourceEvent, id: string): SourceEvent => ({ ...e, extraIds: { betRadarId: id } });
-  const mk = (): { store: ReturnType<typeof createOddsStore>; svc: ReturnType<typeof createOddsService> } => {
-    const store = createOddsStore(createFakeRedis());
-    return { store, svc: createOddsService({ sources: [], store, candidates, now: () => NOW, track: (_p, fn) => fn() }) };
-  };
   const mkSvc = (sources: OddsSource[]) => {
     const store = createOddsStore(createFakeRedis());
     const svc = createOddsService({ sources, store, candidates, now: () => NOW, track: (_p, fn) => fn() });
     return { store, svc };
   };
-  void mk;
 
   test('no ESPN, no radar: adopts the bet: key of another house by names and kickoff', async () => {
     const a = new FakeSource('betclic', [withMain(radar(ev('betclic', 'b1', 'Gil Vicente', 'Casa Pia'), '555'), m1x2(2.0, 3.3, 3.6))], []);
@@ -522,5 +517,29 @@ test('a house that missed ESPN joins the ESPN key through a shared BetRadar id, 
     await svc.refreshCatalogue(a, 'FOOTBALL');
     await svc.refreshCatalogue(b, 'FOOTBALL');
     assert.match((await store.getLink('lebull', 'l1')) ?? '', /^n:/);
+  });
+
+  test('three houses: the third adopts the key two houses already share', async () => {
+    const a = new FakeSource('betclic', [radar(ev('betclic', 'b1', 'Gil Vicente', 'Casa Pia'), '555')], []);
+    const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Gil Vicente FC', 'Casa Pia AC')], []);
+    const c = new FakeSource('placard', [ev('placard', 'p1', 'Gil Vicente', 'Casa Pia')], []);
+    const { svc, store } = mkSvc([a, b, c]);
+    for (const s of [a, b, c]) await svc.refreshCatalogue(s, 'FOOTBALL');
+    assert.equal(await store.getLink('lebull', 'l1'), 'bet:FOOTBALL:555');
+    assert.equal(await store.getLink('placard', 'p1'), 'bet:FOOTBALL:555');
+  });
+
+  test('a failing store read for another house falls back to n: keys and scans once', async () => {
+    const a = new FakeSource('betclic', [radar(ev('betclic', 'b1', 'Gil Vicente', 'Casa Pia'), '555')], []);
+    const b = new FakeSource('lebull', [ev('lebull', 'l1', 'Gil Vicente FC', 'Casa Pia AC'), ev('lebull', 'l2', 'Arouca', 'Famalicao')], []);
+    const store = createOddsStore(createFakeRedis());
+    let reads = 0;
+    const real = store.getEvents;
+    store.getEvents = async (h, sp) => { if (h === 'betclic') { reads++; throw new Error('redis down'); } return real(h, sp); };
+    const svc = createOddsService({ sources: [a, b], store, candidates, now: () => NOW, track: (_p, fn) => fn() });
+    await svc.refreshCatalogue(b, 'FOOTBALL');
+    assert.match((await store.getLink('lebull', 'l1')) ?? '', /^n:/);
+    assert.match((await store.getLink('lebull', 'l2')) ?? '', /^n:/);
+    assert.equal(reads, 1);
   });
 }

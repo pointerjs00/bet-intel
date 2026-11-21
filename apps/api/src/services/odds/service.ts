@@ -161,15 +161,20 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     let others: Candidate[] | null = null;
     const otherCandidates = async (): Promise<Candidate[]> => {
       if (others) return others;
-      const out: Candidate[] = [];
+      const byKey = new Map<string, Candidate>();
       for (const other of deps.sources) {
         if (other.house === source.house) continue;
-        for (const oe of (await store.getEvents(other.house, sport)) ?? []) {
-          const link = await store.getLink(other.house, oe.houseEventId);
-          if (link) out.push({ providerMatchId: link, league: null, home: oe.home, away: oe.away, startsAt: oe.startsAt, sport });
+        try {
+          for (const oe of (await store.getEvents(other.house, sport)) ?? []) {
+            const link = await store.getLink(other.house, oe.houseEventId);
+            // One candidate per key: several houses on the same key would read as a tie.
+            if (link && !byKey.has(link)) byKey.set(link, { providerMatchId: link, league: null, home: oe.home, away: oe.away, startsAt: oe.startsAt, sport });
+          }
+        } catch {
+          // a failing store read only drops that house from the scan
         }
       }
-      return (others = out);
+      return (others = [...byKey.values()]);
     };
     let linked = 0;
     for (const ev of events) {
