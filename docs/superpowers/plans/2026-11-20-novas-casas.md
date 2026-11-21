@@ -155,3 +155,16 @@ Estudos: `docs/analise-2026-11/odds/placard.md` e `solverde.md` (ler todos; amos
 - [ ] `.env.example` (`ODDS_SOURCES`).
 - [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,placard,solverde`; relatar.
 - [ ] `npm test` verde; commit `feat(odds): Placard and Solverde adapter (pt-vision widget feed)`.
+
+### Task 8: API — nomes entre casas (exónimos, femininos, alcunhas)
+
+**Files:**
+- Modify: `apps/api/src/services/marketResolutionEngine.ts` (`PT_TEAM_NAMES` / normalização usada por `teamKey`) e/ou `apps/api/src/services/odds/matcher.ts` (`VARIANT_TOKENS`, `conflictOf`)
+- Test: `apps/api/src/services/odds/matcher.test.ts` (e o teste do motor se mexer em `teamKey`)
+
+Com as casas novas ligadas, o probe mostra jogos iguais em cartões separados só por nomes diferentes. Exemplos relatados pelos implementadores: Wolves/Wolverhampton, Sevilha/Sevilla, Bolonha/Bologna, Veneza/Venezia, Praga/Prague, Augsburgo/Augsburg, Juventus–Veneza; futebol feminino escrito "Liverpool F." na Betclic, "(F)" na Betano e "Feminino"/"Women"/"W" noutras casas (hoje "F." não conta como marcador de feminino, o que impede o emparelhamento e arrisca juntar a um jogo masculino).
+
+- [ ] Exónimos ao nível da palavra (cidades PT ↔ local/EN: sevilha↔sevilla, bolonha↔bologna, veneza↔venezia, praga↔praha/prague, augsburgo↔augsburg, colonia↔koln/cologne, munique↔munchen/munich, genova↔genoa, napoles↔napoli, florenca↔fiorentina? não — só cidades que aparecem em nomes de clubes, etc.) e alcunhas frequentes (wolves↔wolverhampton, spurs↔tottenham, man utd/man united, man city): uma tabela pequena aplicada na normalização antes de comparar nomes. Não mudar o significado de nomes que já emparelham bem (os testes existentes do motor e do matcher continuam verdes).
+- [ ] Feminino: "F." / "F" final, "(F)", "Fem.", "Feminino", "Women", "W" final reconhecidos como o mesmo marcador de variante; nunca confundir com o "F" de "F.C."/"FC" no início ou a meio. Testes com os dois sentidos (junta feminino↔feminino entre casas; nunca feminino↔masculino).
+- [ ] Verificação real: `cd apps/api && PROBE_OUT=<scratch>/cov.json npm run odds:coverage -- FOOTBALL betclic,betano,lebull,placard,solverde,bwin,casinoportugal,goldenpark,retabet` antes e depois (um desporto de cada vez, sem a GoldenPark se ainda estiver bloqueada; a Betano precisa do sidecar local `BETANO_EGRESS_URL=http://127.0.0.1:8765 BETANO_EGRESS_TOKEN=localprobe` ou fica de fora); relatar cartões partidos antes/depois e confirmar zero junções erradas numa amostra dos novos pares.
+- [ ] `npm test` verde; commit `fix(odds): match team names across houses (exonyms, nicknames, women's markers)`.
