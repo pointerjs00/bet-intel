@@ -68,3 +68,21 @@ Estudo: `docs/analise-2026-11/odds/lebull.md` (ler todo; amostras em `docs/anali
 - [ ] Registar em `registry.ts`; acrescentar `lebull` ao comentário de `ODDS_SOURCES` nos `.env.example`.
 - [ ] Verificação real com `npm run odds:coverage` (futebol, ténis, basquetebol) contra `betclic,lebull`; relatar cartões com as duas casas e cartões partidos.
 - [ ] `npm test` verde; commit `feat(odds): Lebull adapter`.
+
+### Task 3: API — adaptador Bwin
+
+**Files:**
+- Create: `apps/api/src/services/odds/sources/bwin/` (`index.ts`, `map.ts`, testes `map.test.ts`, `index.test.ts`)
+- Create: `apps/api/src/services/odds/__fixtures__/bwin/`
+- Modify: os ficheiros da regra "uma casa nova toca sempre" (Global Constraints), com `HouseId` `bwin` (o slug `bwin` já existe em `sportAssets`, `importController` e `geminiVisionParser`).
+
+Estudo: `docs/analise-2026-11/odds/bwin.md` (ler todo; amostras `docs/analise-2026-11/odds/samples/bwin-*.json`).
+
+- [ ] Arranque: `GET https://www.bwin.pt/pt/api/clientconfig` → `publicAccessId` (cache 6 h). Pedidos à CDS com `x-bwin-accessid`, `x-bwin-browser-url`, `x-from-product: host-app`, `x-bwin-sports-api: prod` e os restantes parâmetros exatos do estudo.
+- [ ] Calendário 48 h por desporto via `.../cds-api/bettingoffer/fixtures` (paginação como no estudo; ≤ ~10 pedidos por desporto). `betRadarId` de `addons.betRadar` (só ids reais). `marketCount` quando existir. `mainMarkets` só com o 1X2 **simples** ("Resultado do jogo"); o "Resultado do Jogo - 2GV" (paga antecipado com 2 golos de vantagem) **nunca** pode receber a chave `FT.1X2.*` — manter o rótulo da casa e garantir com teste que `canonicalKey` devolve `null` para ele.
+- [ ] Basquetebol com nomes à americana ("X em casa dos Y"): `home` = Y, `away` = X; a seleção "1" é o primeiro participante (fora) — mapear para os nomes certos. Teste.
+- [ ] Ténis: mercados em `games` (não `optionMarkets`); tirar o sufixo de país dos nomes ("Roger Federer (SUI)" → "Roger Federer") em participantes e seleções.
+- [ ] `getMarkets` via `.../fixture-view?fixtureIds=<id>`: traduzir para rótulos que `canonicalKey` reconhece (já são PT; confirmar com testes de chaves esperadas: `FT.1X2.H`, `FT.TOTAL.goals.O.2.5`, `FT.BTTS.Y`, `FT.DC.HD`, `B.ML.H`, `T.WIN.A`).
+- [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
+- [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,bwin` nos três desportos; relatar.
+- [ ] `npm test` verde; commit `feat(odds): Bwin adapter`.

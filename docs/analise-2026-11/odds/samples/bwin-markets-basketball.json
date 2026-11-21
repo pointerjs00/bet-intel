@@ -1,0 +1,9 @@
+{
+"_nota":"GET /cds-api/bettingoffer/fixture-view (recorte). futebol=optionMarkets, ténis=games, basquetebol=optionMarkets",
+"sport":"basketball",
+"id":"20100427",
+"name":"Sacramento Kings em casa dos Los Angeles Lakers",
+"totalMarketsCount":88,
+"markets":[
+{"name":"Money Line (EUA)","params":{"TemplateId":"3450","CategoryId":"43"},"isMain":true,"options":[{"name":"SAC Kings","sourceName":"1","odds":5.75},{"name":"LA Lakers","sourceName":"2","odds":1.08}]}
+]}
