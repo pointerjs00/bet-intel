@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { ProviderFormatError } from '../../../sportsData/providerHealth';
-import { MAX_COMPETITIONS, REQUEST_GAP_MS, createGoldenParkSource, type GoldenParkDeps } from './index';
+import { BLOCK_MS, MAX_COMPETITIONS, REQUEST_GAP_MS, createGoldenParkSource, type GoldenParkDeps } from './index';
 
 const FIX = path.join(__dirname, '..', '..', '__fixtures__', 'goldenpark');
 const text = (name: string) => fs.readFileSync(path.join(FIX, name), 'utf8');
@@ -189,4 +189,36 @@ test('getMarkets: one request to the event page from the calendar hint (or the b
   await assert.rejects(createGoldenParkSource(nf.deps).getMarkets('9'), ProviderFormatError);
   const other = fake({ '/evento/9': ok({ tree: { components: [{ tree_compo_key: 'event_market_list', data: { event: { sport: { id: 9 } } } }] } }) });
   await assert.rejects(createGoldenParkSource(other.deps).getMarkets('9'), ProviderFormatError);
+});
+
+test('a 429/403/HTML answer starts a 10 min block: no request at all until it ends (listEvents and getMarkets); a 500 does not', async () => {
+  assert.equal(BLOCK_MS, 10 * 60 * 1000);
+  for (const reply of [{ status: 429, body: '' }, { status: 403, body: '' }, ok('<html>captcha</html>')]) {
+    let t = 0;
+    const f = fake({ '/desporte/21-tenis': reply }, { now: () => t });
+    const s = createGoldenParkSource(f.deps);
+    await assert.rejects(s.listEvents('TENNIS', FROM, TO));
+    assert.equal(f.calls.length, 1);
+    await assert.rejects(s.listEvents('FOOTBALL', FROM, TO), /blocked until/);
+    await assert.rejects(s.getMarkets('123', { pageUrl: '/evento/123-x' }), /blocked until/);
+    t += BLOCK_MS - 1000;
+    await assert.rejects(s.listEvents('BASKETBALL', FROM, TO), /blocked until/);
+    assert.equal(f.calls.length, 1, 'no requests during the block');
+    t += 2000;
+    await s.listEvents('TENNIS', FROM, TO).catch(() => undefined);
+    assert.equal(f.calls.length, 2, 'requests resume after the block');
+  }
+  const flaky = fake({ '/desporte/21-tenis': { status: 500, body: '' } }, { now: () => 0 });
+  const s = createGoldenParkSource(flaky.deps);
+  await assert.rejects(s.listEvents('TENNIS', FROM, TO), /HTTP 500/);
+  await assert.rejects(s.listEvents('TENNIS', FROM, TO), /HTTP 500/);
+  assert.equal(flaky.calls.length, 2);
+});
+
+test('requests queued behind the one that got blocked do not go out', async () => {
+  const f = fake({}, { now: () => 0 }, { status: 429, body: '' });
+  const s = createGoldenParkSource(f.deps);
+  const results = await Promise.allSettled([s.listEvents('FOOTBALL', FROM, TO), s.listEvents('BASKETBALL', FROM, TO), s.listEvents('TENNIS', FROM, TO)]);
+  assert.ok(results.every((r) => r.status === 'rejected'));
+  assert.equal(f.calls.length, 1, 'only the one 429');
 });

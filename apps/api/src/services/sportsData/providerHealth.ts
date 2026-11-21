@@ -37,6 +37,13 @@ function redis(): typeof import('../../utils/redis').redis {
 /** Thrown by adapters when a 200 response no longer has the fields we read. */
 export class ProviderFormatError extends Error {}
 
+/**
+ * A format error that means "stop asking for a while": an HTML (possible anti-bot / challenge) page where
+ * data was expected. Odds adapters start their fail-fast cooldown on it (checked with instanceof, never
+ * by message). Still a ProviderFormatError for health.
+ */
+export class BlockError extends ProviderFormatError {}
+
 async function notifyAll(title: string, body: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { prisma } = require('../../prisma') as typeof import('../../prisma');

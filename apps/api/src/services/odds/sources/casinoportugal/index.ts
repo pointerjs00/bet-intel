@@ -18,7 +18,7 @@
  * Health is recorded by the odds service around every call.
  */
 import { logger } from '../../../../utils/logger';
-import { ProviderFormatError } from '../../../sportsData/providerHealth';
+import { BlockError, ProviderFormatError } from '../../../sportsData/providerHealth';
 import type { OddsSource, OddsSport, SourceEvent, SourceMarket } from '../../types';
 import { SPORT_ID, type Dictionary, mapCalendarPage, mapEventMarketsResponse, nextCursor, parseConfig } from './map';
 
@@ -58,7 +58,7 @@ class HttpError extends Error {
 
 /** An answer that means "stop asking for a while": rate limit, forbidden or an anti-bot page. */
 const isBlock = (err: unknown): boolean =>
-  (err instanceof HttpError && (err.status === 429 || err.status === 403)) || (err instanceof ProviderFormatError && /HTML/.test(err.message));
+  (err instanceof HttpError && (err.status === 429 || err.status === 403)) || err instanceof BlockError;
 
 /** `2026-11-21T19:45:00.000Z` → `2026-11-21T19:45:00` (the API takes UTC without a zone suffix). */
 const apiDate = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, '');
@@ -135,7 +135,9 @@ export function createCasinoPortugalSource(deps: CasinoPortugalDeps = {}): OddsS
     try {
       return JSON.parse(raw) as unknown;
     } catch {
-      const err = new ProviderFormatError(`Casino Portugal ${what}: response is not JSON${/^\s*</.test(raw) ? ' (HTML page)' : ''}`);
+      const err = /^\s*</.test(raw)
+        ? new BlockError(`Casino Portugal ${what}: response is not JSON (HTML page)`)
+        : new ProviderFormatError(`Casino Portugal ${what}: response is not JSON`);
       if (isBlock(err)) blockedUntil = now() + BLOCK_MS;
       throw err;
     }

@@ -21,7 +21,7 @@
  * Health is recorded by the odds service around every call.
  */
 import { logger } from '../../../../utils/logger';
-import { ProviderFormatError } from '../../../sportsData/providerHealth';
+import { BlockError, ProviderFormatError } from '../../../sportsData/providerHealth';
 import type { OddsSource, OddsSport, SourceEvent, SourceMarket } from '../../types';
 import { loadLzma, type Decode } from './lzma';
 import { mapEvent, mapMarkets } from './map';
@@ -72,7 +72,7 @@ class HttpError extends Error {
 class BlockedError extends Error {}
 
 const isBlock = (err: unknown): boolean =>
-  (err instanceof HttpError && (err.status === 429 || err.status === 403)) || (err instanceof ProviderFormatError && /HTML/.test(err.message));
+  (err instanceof HttpError && (err.status === 429 || err.status === 403)) || err instanceof BlockError;
 
 const looksLikeHtml = (bytes: Uint8Array): boolean => /^\s*</.test(new TextDecoder().decode(bytes.subarray(0, 64)));
 
@@ -129,7 +129,7 @@ export function createSportsWidgetSource(house: SportsWidgetHouse, deps: SportsW
         if (!res.ok) throw new HttpError(res.status, `${name} ${what}: HTTP ${res.status}`);
         const bytes = new Uint8Array(await res.arrayBuffer());
         if (/text\/html/i.test(res.headers.get('content-type') ?? '') || looksLikeHtml(bytes)) {
-          throw new ProviderFormatError(`${name} ${what}: HTML page instead of data (possible challenge)`);
+          throw new BlockError(`${name} ${what}: HTML page instead of data (possible challenge)`);
         }
         return bytes;
       } catch (err) {

@@ -23,7 +23,7 @@
  * Health is recorded by the odds service around every call.
  */
 import { logger } from '../../../../utils/logger';
-import { ProviderFormatError } from '../../../sportsData/providerHealth';
+import { BlockError, ProviderFormatError } from '../../../sportsData/providerHealth';
 import type { OddsSource, OddsSport, SourceEvent, SourceMarket } from '../../types';
 import { isChallenge, parseCalendarHtml, parseEventPage, parseTabsContents, type PageMarket, type RawEvent } from './html';
 import { cursorOf, mapCalendarEvents, mapMarkets, parsePending, pendingBody } from './map';
@@ -75,7 +75,7 @@ class BlockedError extends Error {}
 
 /** An answer that means "stop asking for a while": rate limit, forbidden or an anti-bot page. */
 const isBlock = (err: unknown): boolean =>
-  (err instanceof HttpError && (err.status === 429 || err.status === 403)) || (err instanceof ProviderFormatError && /HTML page/.test(err.message));
+  (err instanceof HttpError && (err.status === 429 || err.status === 403)) || err instanceof BlockError;
 
 /** Builds the Retabet adapter. Each instance keeps its own session, calendar cache, pacing and block state. */
 export function createRetabetSource(deps: RetabetDeps = {}): OddsSource {
@@ -158,7 +158,7 @@ export function createRetabetSource(deps: RetabetDeps = {}): OddsSource {
   function rejectChallenge(html: string, what: string): void {
     if (!isChallenge(html)) return;
     block();
-    throw new ProviderFormatError(`Retabet ${what}: anti-bot page (HTML page)`);
+    throw new BlockError(`Retabet ${what}: anti-bot page (HTML page)`);
   }
 
   // ─── Session ───────────────────────────────────────────────────────────────
@@ -222,7 +222,9 @@ export function createRetabetSource(deps: RetabetDeps = {}): OddsSource {
       try {
         body = JSON.parse(raw);
       } catch {
-        const err = new ProviderFormatError(`Retabet calendar page ${page}: response is not JSON${/^\s*</.test(raw) ? ' (HTML page)' : ''}`);
+        const err = /^\s*</.test(raw)
+          ? new BlockError(`Retabet calendar page ${page}: response is not JSON (HTML page)`)
+          : new ProviderFormatError(`Retabet calendar page ${page}: response is not JSON`);
         if (isBlock(err)) block();
         throw err;
       }

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { ProviderFormatError } from '../../../sportsData/providerHealth';
-import { CONFIG_TTL_MS, MAX_PAGES, PAGE_SIZE, REQUEST_GAP_MS, createBwinSource, type BwinDeps } from './index';
+import { BLOCK_MS, CONFIG_TTL_MS, MAX_PAGES, PAGE_SIZE, REQUEST_GAP_MS, createBwinSource, type BwinDeps } from './index';
 
 const FIX = path.join(__dirname, '..', '..', '__fixtures__', 'bwin');
 const text = (name: string) => fs.readFileSync(path.join(FIX, name), 'utf8');
@@ -171,4 +171,27 @@ test('getMarkets maps fixture-view by the fixture own sport (one request)', asyn
   assert.ok((await createBwinSource(fb.deps).getMarkets('2:7914231')).some((m) => m.marketLabel === 'Resultado Final'));
   await assert.rejects(createBwinSource(fake({ [CONFIG]: config() }).deps).getMarkets('abc'), ProviderFormatError);
   await assert.rejects(createBwinSource(fake({ [CONFIG]: config(), [viewUrl('9')]: ok({ fixture: { sport: { id: 11 } } }) }).deps).getMarkets('9'), ProviderFormatError);
+});
+
+test('a 429, an HTML answer or a 403 that survives the config re-read starts a 10 min block with no request at all; a 500 does not', async () => {
+  assert.equal(BLOCK_MS, 10 * 60 * 1000);
+  for (const reply of [{ status: 429, body: '' }, { status: 403, body: '' }, ok('<html>captcha</html>')]) {
+    const f = fake({ [CONFIG]: config(), [calUrl(5, 0)]: reply, [calUrl(4, 0)]: ok(json('calendar-football.json')) });
+    const s = createBwinSource(f.deps);
+    await assert.rejects(s.listEvents('TENNIS', FROM, TO));
+    const sent = f.calls.length;
+    await assert.rejects(s.listEvents('FOOTBALL', FROM, TO), /blocked until/);
+    await assert.rejects(s.getMarkets('2:7914231'), /blocked until/);
+    f.advance(BLOCK_MS - 1000);
+    await assert.rejects(s.listEvents('FOOTBALL', FROM, TO), /blocked until/);
+    assert.equal(f.calls.length, sent, 'no requests during the block');
+    f.advance(2000);
+    await s.listEvents('FOOTBALL', FROM, TO).catch(() => undefined);
+    assert.ok(f.calls.length > sent, 'requests resume after the block');
+  }
+  const flaky = fake({ [CONFIG]: config(), [calUrl(5, 0)]: { status: 500, body: '' } });
+  const s = createBwinSource(flaky.deps);
+  await assert.rejects(s.listEvents('TENNIS', FROM, TO), /HTTP 500/);
+  await assert.rejects(s.listEvents('TENNIS', FROM, TO), /HTTP 500/);
+  assert.equal(flaky.calls.length, 3);
 });

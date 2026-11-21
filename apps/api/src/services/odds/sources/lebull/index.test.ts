@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { ProviderFormatError } from '../../../sportsData/providerHealth';
-import { CONFIG_TTL_MS, MAX_LEAGUES, REQUEST_GAP_MS, TREE_TTL_MS, createLebullSource, parseProcessEnv, type LebullDeps } from './index';
+import { BLOCK_MS, CONFIG_TTL_MS, MAX_LEAGUES, REQUEST_GAP_MS, TREE_TTL_MS, createLebullSource, parseProcessEnv, type LebullDeps } from './index';
 
 const FIX = path.join(__dirname, '..', '..', '__fixtures__', 'lebull');
 const text = (name: string) => fs.readFileSync(path.join(FIX, name), 'utf8');
@@ -132,7 +132,7 @@ test('a failing league keeps the others; every league failing throws', async () 
   const tree = { sports: [{ sportId: 1, countries: [{ leagues: [{ leagueId: 4485, eventsCount: 9 }, { leagueId: 4484, eventsCount: 8 }] }] }] };
   const partial = fake({ ...base(), [TREE]: ok(tree), [league(4485)]: ok(json('calendar-football.json')), [league(4484)]: { status: 500, body: '' } });
   assert.ok((await createLebullSource(partial.deps).listEvents('FOOTBALL', FROM, TO)).length >= 1);
-  const none = fake({ ...base(), [TREE]: ok(tree), [league(4485)]: { status: 500, body: '' }, [league(4484)]: { status: 429, body: '' } });
+  const none = fake({ ...base(), [TREE]: ok(tree), [league(4485)]: { status: 500, body: '' }, [league(4484)]: { status: 502, body: '' } });
   await assert.rejects(createLebullSource(none.deps).listEvents('FOOTBALL', FROM, TO), /HTTP 500/);
 });
 
@@ -173,4 +173,26 @@ test('basketball and tennis prematch go through their own mappers', async () => 
     const markets = await createLebullSource(deps).getMarkets(id);
     assert.ok(markets.some((m) => m.marketLabel === label), label);
   }
+});
+
+test('a 429/403/HTML answer stops the refresh and starts a 10 min block with no request at all; a 500 does not', async () => {
+  assert.equal(BLOCK_MS, 10 * 60 * 1000);
+  const tree = { sports: [{ sportId: 1, countries: [{ leagues: [{ leagueId: 4485, eventsCount: 9 }, { leagueId: 4484, eventsCount: 8 }] }] }] };
+  for (const reply of [{ status: 429, body: '' }, { status: 403, body: '' }, ok('<html>captcha</html>')]) {
+    const f = fake({ ...base(), [TREE]: ok(tree), [league(4485)]: reply, [league(4484)]: ok(json('calendar-football.json')) });
+    const s = createLebullSource(f.deps);
+    await assert.rejects(s.listEvents('FOOTBALL', FROM, TO));
+    assert.deepEqual(f.calls.map((c) => c.url), [INIT, PAGE, TREE, league(4485)], 'nothing after the blocked league');
+    await assert.rejects(s.getMarkets('123'), /blocked until/);
+    f.advance(BLOCK_MS - 1000);
+    await assert.rejects(s.listEvents('TENNIS', FROM, TO), /blocked until/);
+    assert.equal(f.calls.length, 4, 'no requests during the block');
+    f.advance(2000);
+    await s.listEvents('FOOTBALL', FROM, TO).catch(() => undefined);
+    assert.ok(f.calls.length > 4, 'requests resume after the block');
+  }
+  const flaky = fake({ ...base(), [TREE]: ok(tree), [league(4485)]: { status: 500, body: '' }, [league(4484)]: ok(json('calendar-football.json')) });
+  const s = createLebullSource(flaky.deps);
+  assert.ok((await s.listEvents('FOOTBALL', FROM, TO)).length >= 1);
+  await assert.rejects(s.getMarkets('999'), /HTTP 404/);
 });

@@ -4,7 +4,8 @@
  * Start-up (cached 6 h, nothing hard-coded): `GET lebull.pt/share/content/init` gives the sportsbook
  * host (`data.bootstrap.sb_host`); that host's HTML carries `window.PROCESS_ENV` with the API URL and the
  * public tenant id the site itself sends as `X-Auth-Tenant-Id`. Requests are plain GETs with a browser
- * User-Agent, no cookies and no token, ≥ 300 ms apart.
+ * User-Agent, no cookies and no token, ≥ 300 ms apart. A 429/403 or an HTML (anti-bot) answer stops the
+ * refresh and the adapter then fails fast, with no request at all, for BLOCK_MS (10 min).
  *
  * Calendar of one sport (no cheap per-date listing exists; `/sports/{id}/leagues/upcoming` is 2-7 MB
  * and top leagues only): the `/sports` tree (one request, shared by the three sports for 60 s), then
@@ -16,7 +17,7 @@
  * Health is recorded by the odds service around every call.
  */
 import { logger } from '../../../../utils/logger';
-import { ProviderFormatError } from '../../../sportsData/providerHealth';
+import { BlockError, ProviderFormatError } from '../../../sportsData/providerHealth';
 import type { OddsSource, OddsSport, SourceEvent, SourceMarket } from '../../types';
 import { MAIN_STAKE_TYPES, mapLeagueGames, mapPrematch, sportOfId, treeLeagues } from './map';
 
@@ -34,6 +35,8 @@ export const REQUEST_GAP_MS = 300;
 export const CONFIG_TTL_MS = 6 * 3_600_000;
 /** The `/sports` tree is shared by the calendars of the three sports for this long. */
 export const TREE_TTL_MS = 60_000;
+/** After a 429/403/HTML answer the adapter makes no request for this long. */
+export const BLOCK_MS = 10 * 60 * 1000;
 const TIMEOUT_MS = 15_000;
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
@@ -45,6 +48,7 @@ export interface LebullDeps {
   timeoutMs?: number;
 }
 
+const HTML_START = /^\s*</;
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 interface ApiConfig {
@@ -69,12 +73,30 @@ export function parseProcessEnv(html: string): ApiConfig {
   return { apiUrl, tenantId };
 }
 
-/** Builds the Lebull adapter. Each instance keeps its own config cache and request pacing. */
+/** HTTP status error (message "Lebull <what>: HTTP <status>"). */
+class HttpError extends Error {
+  constructor(readonly status: number, what: string) {
+    super(`Lebull ${what}: HTTP ${status}`);
+  }
+}
+
+/** The adapter is in its fail-fast period; nothing was sent. */
+class BlockedError extends Error {}
+
+/** An answer that means "stop asking for a while": rate limit, forbidden or an anti-bot page. */
+const isBlock = (err: unknown): boolean =>
+  (err instanceof HttpError && (err.status === 429 || err.status === 403)) || err instanceof BlockError;
+
+/** Builds the Lebull adapter. Each instance keeps its own config cache, request pacing and block state. */
 export function createLebullSource(deps: LebullDeps = {}): OddsSource {
   const doFetch = deps.fetch ?? (fetch as FetchLike);
   const sleep = deps.sleep ?? defaultSleep;
   const now = deps.now ?? Date.now;
 
+  let blockedUntil = 0;
+  const checkBlock = (what: string) => {
+    if (now() < blockedUntil) throw new BlockedError(`Lebull ${what}: skipped, blocked until ${new Date(blockedUntil).toISOString()}`);
+  };
   let gate: Promise<void> = Promise.resolve();
   let started = false;
   /** Serialises requests and keeps ≥ REQUEST_GAP_MS between their starts. */
@@ -88,15 +110,19 @@ export function createLebullSource(deps: LebullDeps = {}): OddsSource {
   };
 
   async function get(url: string, headers: Record<string, string>, what: string): Promise<Response> {
+    checkBlock(what);
     await pace();
+    // A request queued behind the one that got blocked must not go out either.
+    checkBlock(what);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), deps.timeoutMs ?? TIMEOUT_MS);
     try {
       const res = await doFetch(url, { method: 'GET', headers: { 'user-agent': USER_AGENT, 'accept-language': 'pt-PT', ...headers }, signal: controller.signal });
-      if (!res.ok) throw new Error(`Lebull ${what}: HTTP ${res.status}`);
+      if (!res.ok) throw new HttpError(res.status, what);
       return res;
     } catch (err) {
       if (controller.signal.aborted) throw new Error(`Lebull ${what}: timeout`);
+      if (isBlock(err)) blockedUntil = now() + BLOCK_MS;
       throw err;
     } finally {
       clearTimeout(timer);
@@ -132,10 +158,13 @@ export function createLebullSource(deps: LebullDeps = {}): OddsSource {
     const { apiUrl, tenantId } = await getConfig();
     const sep = path.includes('?') ? '&' : '?';
     const res = await get(`${apiUrl}${path}${sep}${QUERY}`, { accept: 'application/json', 'x-auth-tenant-id': tenantId }, what);
+    const raw = await res.text();
     try {
-      return (await res.json()) as T;
+      return JSON.parse(raw) as T;
     } catch {
-      throw new ProviderFormatError(`Lebull ${what}: response is not JSON`);
+      if (!HTML_START.test(raw)) throw new ProviderFormatError(`Lebull ${what}: response is not JSON`);
+      blockedUntil = now() + BLOCK_MS;
+      throw new BlockError(`Lebull ${what}: response is not JSON (HTML page)`);
     }
   }
 
@@ -169,6 +198,8 @@ export function createLebullSource(deps: LebullDeps = {}): OddsSource {
           out.push(ev);
         }
       } catch (err) {
+        // Rate limited or blocked: the whole house's problem, stop asking.
+        if (isBlock(err) || err instanceof BlockedError) throw err;
         failures++;
         firstError ??= err;
         logger.warn(`[odds] Lebull league ${league.leagueId} failed; keeping the rest`, { error: err instanceof Error ? err.message : String(err) });
