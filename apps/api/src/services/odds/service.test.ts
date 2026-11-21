@@ -543,3 +543,16 @@ test('a house that missed ESPN joins the ESPN key through a shared BetRadar id, 
     assert.equal(reads, 1);
   });
 }
+
+test('tennis house writing "Shelton B." keeps its selections against canonical "Ben Shelton"', async () => {
+  const m = win('Shelton B.', 1.6, 'Paul T.', 2.3);
+  const a = new FakeSource('betclic', [tev('betclic', 'b1', 'Shelton B.', 'Paul T.', m)], m);
+  const store = createOddsStore(createFakeRedis());
+  const cands = async () => [{ providerMatchId: 't9', league: 'atp', sport: 'TENNIS' as const, home: 'Ben Shelton', away: 'Tommy Paul', startsAt: TS }];
+  const svc = createOddsService({ sources: [a], store, candidates: cands, now: () => NOW, track: (_p, fn) => fn() });
+  await svc.refreshCatalogue(a, 'TENNIS');
+  const view = await svc.getEvent('espn:TENNIS:t9');
+  assert.equal(view!.rows.find((r) => r.key === 'T.WIN.A')?.prices.betclic?.odds, 1.6);
+  const list = await svc.listEvents('TENNIS', '2026-11-16');
+  assert.equal(list[0]!.main.find((r) => r.key === 'T.WIN.A')?.prices.betclic?.odds, 1.6);
+});

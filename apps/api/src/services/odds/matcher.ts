@@ -77,6 +77,7 @@ export function canonName(name: string, sport?: OddsSport): string {
 
 /** True when two names from different houses are the same side (exonyms, nicknames, women's markers folded). */
 export function namesMatch(a: string, b: string, sport?: OddsSport): boolean {
+  if (sport === 'TENNIS') return teamNamesMatch(a, b); // players: no club/variant rules
   const x = canonName(a, sport), y = canonName(b, sport);
   return teamNamesMatch(x, y) && !variantConflict(x, y);
 }

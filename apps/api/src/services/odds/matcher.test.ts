@@ -217,3 +217,9 @@ test('football: W and F markers, with or without dot, are the same', () => {
   assert.ok(namesMatch('Arsenal F', 'Arsenal (F)'));
   assert.ok(!namesMatch('Arsenal W.', 'Arsenal'));
 });
+
+test('tennis namesMatch behaves like teamNamesMatch (trailing W/B initials)', () => {
+  assert.ok(namesMatch('Shelton B.', 'Ben Shelton', 'TENNIS'));
+  assert.ok(namesMatch('Williams W.', 'Venus Williams', 'TENNIS'));
+  assert.ok(namesMatch('Bonzi B.', 'Benjamin Bonzi', 'TENNIS'));
+});
