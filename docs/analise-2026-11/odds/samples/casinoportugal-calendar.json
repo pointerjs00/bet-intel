@@ -1,0 +1,26 @@
+{
+ "_nota": "Recorte de GET /tenants/{tenant}/games/1,2/languages/pt/offer/cursors?sports=69&eventTypes=1&expectedNumberOfEvents=200&numberOfMarketsPerSport=6&marketTypes=1&startsAtFrom=..&startsAtTo=.. ; odds = inteiro/10000; so 2 eventos e o mercado 1x2",
+ "sports": [
+  { "id": 69, "name": "Futebol", "code": "soccer", "positionPrematch": 1, "positionLive": 1, "status": 3, "liveMetadataId": 1
+  }
+ ],
+ "categories": [
+  { "id": 733, "sportId": 69, "name": "França", "code": "FRA", "positionPrematch": 9, "status": 3
+  }
+ ],
+ "tournaments": [
+  { "id": 10933, "categoryId": 733, "name": "Ligue 1", "positionPrematch": 5, "positionLive": 5, "status": 3
+  }
+ ],
+ "cursorId": "<800+ chars, opaco, usar em /offer/cursors/{cursorId}>",
+ "markets": [
+  { "outcomes": [ { "id": 5158, "name": "Casa", "eventMarketOutcomeName": "{{E.C1.NAME}}", "position": 1, "status": 3 }, { "id": 5240, "name": "Fora", "eventMarketOutcomeName": "{{E.C2.NAME}}", "position": 3, "status": 3 }, { "id": 5168, "name": "Empate", "eventMarketOutcomeName": "Empate", "position": 2, "status": 3 } ], "id": 1708, "sportId": 69, "name": "1x2", "eventMarketName": "1x2", "positionPrematch": 9, "positionLive": 1, "status": 3
+  }
+ ],
+ "events": [
+  { "id": 1605656, "type": 1, "competitorType": 1, "playStatus": 1, "detailedPlayStatus": 1, "tournamentId": 10933, "tournamentRoundId": 18297, "tournamentSeasonId": 167, "name": "RC Lens vs. Toulouse FC", "startsAt": "2026-11-21T19:45:00Z", "competitors": [ { "ordinal": 1, "type": 1, "typeId": 131445, "teamName": "RC Lens", "gender": 1 }, { "ordinal": 2, "type": 1, "typeId": 130471, "teamName": "Toulouse FC", "gender": 1 } ], "markets": [ { "id": 1, "marketId": 1708, "outcomes": [ { "id": 1, "outcomeId": 5168, "odds": 36000, "status": 1 }, { "id": 2, "outcomeId": 5158, "odds": 20400, "status": 1 }, { "id": 3, "outcomeId": 5240, "odds": 32000, "status": 1 } ] } ], "totalMarketCount": 100, "version": "3686456873"
+  },
+  { "id": 1605657, "type": 1, "competitorType": 1, "playStatus": 1, "detailedPlayStatus": 1, "tournamentId": 10933, "tournamentRoundId": 18297, "tournamentSeasonId": 167, "name": "LOSC Lille vs. Lyon", "startsAt": "2026-11-21T19:45:00Z", "competitors": [ { "ordinal": 1, "type": 1, "typeId": 130379, "teamName": "LOSC Lille", "gender": 1 }, { "ordinal": 2, "type": 1, "typeId": 131375, "teamName": "Lyon", "gender": 1 } ], "markets": [ { "id": 3, "marketId": 1708, "outcomes": [ { "id": 1, "outcomeId": 5168, "odds": 32000, "status": 1 }, { "id": 2, "outcomeId": 5240, "odds": 31000, "status": 1 }, { "id": 3, "outcomeId": 5158, "odds": 22400, "status": 1 } ] } ], "totalMarketCount": 100, "version": "2425075343"
+  }
+ ]
+}

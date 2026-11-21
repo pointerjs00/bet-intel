@@ -103,3 +103,20 @@ Estudo: `docs/analise-2026-11/odds/goldenpark.md` (ler todo; amostras `docs/anal
 - [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
 - [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,goldenpark`; relatar.
 - [ ] `npm test` verde; commit `feat(odds): GoldenPark adapter`.
+
+### Task 5: API — adaptador Casino Portugal
+
+**Files:**
+- Create: `apps/api/src/services/odds/sources/casinoportugal/` (`index.ts`, `map.ts`, testes)
+- Create: `apps/api/src/services/odds/__fixtures__/casinoportugal/`
+- Modify: os ficheiros da regra "uma casa nova toca sempre" (Global Constraints), com `HouseId` `casinoportugal` (nome "Casino Portugal", logo por favicon de `casinoportugal.pt`).
+
+Estudo: `docs/analise-2026-11/odds/casinoportugal.md` (ler todo; amostras `docs/analise-2026-11/odds/samples/casinoportugal-*.json`). Plataforma NSoft AIO; API `aio-offer-distribution.de-2.nsoft.cloud/tenants/{tenantId}/...`.
+
+- [ ] Arranque: ler o `tenantId` do HTML de `https://www.casinoportugal.pt/desporto` (cache 6 h); Origin/Referer do site.
+- [ ] Calendário: `offer/cursors` com os ids de desporto do estudo (futebol 69, basquetebol 72, ténis 75 — confirmar no estudo), `eventTypes=1`, `startsAtFrom/To` da janela, `expectedNumberOfEvents=200`, paginação por `cursorId` (≤ 5 páginas por desporto). Filtrar por `startsAt` (as páginas não vêm por ordem). 1X2 do calendário em `mainMarkets`. Sem BetRadar (não tentar `offer-id/exchange`).
+- [ ] Odds: inteiro ÷ 10000. Nomes de mercado/seleção a partir do dicionário da própria resposta; resolver placeholders como `{{E.C1.NAME}}` para os nomes dos participantes (casa/fora) antes de devolver o rótulo.
+- [ ] `getMarkets`: `offer/events/{id}?excludeMarketMetadata=false`; testes de chaves esperadas (`FT.1X2.H`, `FT.TOTAL.goals.O.2.5`, `FT.BTTS.Y`, `B.ML.H`, `T.WIN.A`).
+- [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
+- [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,casinoportugal`; relatar.
+- [ ] `npm test` verde; commit `feat(odds): Casino Portugal adapter`.
