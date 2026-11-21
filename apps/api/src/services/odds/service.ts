@@ -6,7 +6,7 @@ import { teamKey, teamNamesMatch } from '../marketResolutionEngine';
 import { ProviderFormatError, tracked, type Provider } from '../sportsData/providerHealth';
 import { canonicalKey, swapTennisKey } from './canonical';
 import { mergeEvent, compareMultiple, type ComparedSelection, type HousePrice } from './compare';
-import { candidatesFor, eventKey, matchEvent, radarOf, type Candidate } from './matcher';
+import { candidatesFor, eventKey, matchEvent, namesMatch, radarOf, type Candidate } from './matcher';
 import { createOddsStore, type EventCtx, type MarketsSnapshot, type OddsStore } from './store';
 import { getSources } from './registry';
 import type { CanonicalSelection, HouseId, OddsSource, OddsSport, SourceEvent, SourceMarket } from './types';
@@ -240,8 +240,8 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
   ): CanonicalSelection[] | null {
     let swap = false;
     if (canon) {
-      const straight = teamNamesMatch(own.home, canon.home) && teamNamesMatch(own.away, canon.away);
-      const crossed = teamNamesMatch(own.home, canon.away) && teamNamesMatch(own.away, canon.home);
+      const straight = namesMatch(own.home, canon.home) && namesMatch(own.away, canon.away);
+      const crossed = namesMatch(own.home, canon.away) && namesMatch(own.away, canon.home);
       if (straight || !crossed) {
         if (!straight && sport === 'TENNIS') return null;
       } else if (sport === 'TENNIS') {

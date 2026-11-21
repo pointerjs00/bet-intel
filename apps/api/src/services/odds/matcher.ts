@@ -27,7 +27,7 @@ export interface Candidate {
 export const MATCH_WINDOW_MS = 30 * 60_000;
 
 const VARIANT_TOKENS = new Set([
-  'b', 'ii', 'iii', 'w', 'women', 'feminino', 'feminina', 'fem', 'femenino', 'reserves', 'reservas', 'reserve', 'castilla', 'youth', 'juniores', 'junior',
+  'b', 'ii', 'iii', 'feminino', 'reserves', 'reservas', 'reserve', 'castilla', 'youth', 'juniores', 'junior',
 ]);
 /** Words that make a name a different club when only one of the two names has them. */
 const OTHER_CLUB_TOKENS = new Set(['miami', 'braga', 'city', 'united', 'utd', 'gijon', 'lisboa', 'madrid', 'milan', 'sporting', 'real', 'athletic', 'atletico', 'olympique']);
@@ -39,10 +39,50 @@ const OTHER_CLUB_TOKENS = new Set(['miami', 'braga', 'city', 'united', 'utd', 'g
 const SUFFIX_CLUB_TOKENS = new Set(['city', 'united', 'utd']);
 const NOISE_TOKENS = new Set(['fc', 'cf', 'sc', 'ac', 'sl', 'cp', 'sad', 'club', 'de', 'the', 'fk', 'sk']);
 
+/** Women's-team markers; they are all the one same variant. */
+const WOMEN_TOKENS = new Set(['w', 'women', 'feminino', 'feminina', 'fem', 'femenino']);
+
+/** City exonyms (PT / local / EN) and nicknames, folded to one spelling. Keys and values are normalised. */
+const NAME_WORDS: Record<string, string> = {
+  sevilha: 'sevilla', bolonha: 'bologna', veneza: 'venezia', praga: 'praha', prague: 'praha', augsburgo: 'augsburg',
+  colonia: 'koln', cologne: 'koln', munique: 'munchen', munich: 'munchen', genova: 'genoa', napoles: 'napoli', naples: 'napoli',
+  saragoca: 'zaragoza', maiorca: 'mallorca', viena: 'wien', vienna: 'wien',
+  wolverhampton: 'wolves', spurs: 'tottenham',
+};
+/** Multi-word nicknames, applied before the word table. */
+const NAME_PHRASES: Array<[RegExp, string]> = [
+  [/\bman (?:utd|united)\b/g, 'manchester united'],
+  [/\bman city\b/g, 'manchester city'],
+  [/\bwolverhampton wanderers\b/g, 'wolves'],
+];
+
+/**
+ * A team name with its women's marker folded into one trailing "feminino" and its city exonyms/nicknames
+ * folded to one spelling. Leaves "F.C."/"FC"/"C.F." alone: only a standalone final "F"/"F." after a real
+ * word counts. Used only to compare names across houses (not by settlement).
+ */
+export function canonName(name: string): string {
+  let s = name.normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+  let women = false;
+  s = s.replace(/\s*\((?:f|w|fem\.?|women|feminino)\)/gi, () => { women = true; return ''; });
+  // Final marker after a word of 2+ letters ("Liverpool F.", "Arsenal W", "Chelsea Fem.", "Lyon Women").
+  s = s.replace(/(?<=[a-z]{2}\.?)\s+(?:f\.?|w|fem\.?|women|feminino|feminina|femenino)\s*$/i, () => { women = true; return ''; });
+  let n = s.toLowerCase().replace(/[-–.&]/g, ' ').replace(/\s+/g, ' ').trim();
+  for (const [re, to] of NAME_PHRASES) n = n.replace(re, to);
+  n = n.split(' ').map((t) => NAME_WORDS[t] ?? t).join(' ');
+  return women ? `${n} feminino` : n;
+}
+
+/** True when two names from different houses are the same side (exonyms, nicknames, women's markers folded). */
+export function namesMatch(a: string, b: string): boolean {
+  const x = canonName(a), y = canonName(b);
+  return teamNamesMatch(x, y) && !variantConflict(x, y);
+}
+
 function plainTokens(name: string): string[] {
   const n = name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/\b(?:u|sub)[\s-]?(\d{2})\b/g, 'u$1').replace(/[-–.&]/g, ' ');
-  return n.split(/\s+/).filter(Boolean);
+  return n.split(/\s+/).filter(Boolean).map((t) => (WOMEN_TOKENS.has(t) ? 'feminino' : t));
 }
 const isVariant = (t: string) => VARIANT_TOKENS.has(t) || /^u\d{2}$/.test(t);
 
@@ -69,6 +109,7 @@ function conflictOf(a: string, b: string): 'variant' | 'club' | 'suffix' | null 
 
 /** 2 = same side, 1 = same side but for a dropped city/united/utd suffix, 0 = different. */
 function sideScore(sport: OddsSport, a: string, b: string): 0 | 1 | 2 {
+  a = canonName(a); b = canonName(b);
   if (!teamNamesMatch(a, b)) return 0;
   if (sport === 'TENNIS') return 2;
   const c = conflictOf(a, b);
@@ -122,7 +163,7 @@ export function eventKey(ev: SourceEvent, match: Candidate | null): string | nul
   const t = Date.parse(ev.startsAt);
   if (Number.isNaN(t)) return null;
   const day = new Date(t).toISOString().slice(0, 10);
-  const keys = [teamKey(ev.home), teamKey(ev.away)];
+  const keys = [teamKey(canonName(ev.home)), teamKey(canonName(ev.away))];
   if (ev.sport === 'TENNIS') keys.sort();
   return `n:${ev.sport}:${day}:${keys[0]}:${keys[1]}`;
 }

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { mapEspnSummary } from '../sportsData/espnFootball';
 import { mapEspnNbaSummary } from '../sportsData/espnBasketball';
 import { mapEspnTennisScoreboard } from '../sportsData/espnTennis';
-import { basketballCandidate, eventKey, footballCandidate, matchEvent, tennisCandidate, type Candidate } from './matcher';
+import { basketballCandidate, eventKey, footballCandidate, matchEvent, namesMatch, tennisCandidate, type Candidate } from './matcher';
 import type { SourceEvent } from './types';
 
 const fx = (name: string) => JSON.parse(readFileSync(join(__dirname, '../sportsData/__fixtures__', name), 'utf8'));
@@ -142,4 +142,59 @@ test('betRadarId 0 is not an id', () => {
 test('candidatesFor tolerates an invalid date', async () => {
   const { candidatesFor } = await import('./matcher');
   assert.deepEqual(await candidatesFor('FOOTBALL', 'nope'), []);
+});
+
+// ─── Task 8: names across houses ────────────────────────────────────────────
+
+test('exonyms and nicknames join across houses', () => {
+  const pairs: Array<[string, string]> = [
+    ['Wolves', 'Wolverhampton Wanderers'], ['Spurs', 'Tottenham Hotspur'], ['Man Utd', 'Manchester United'],
+    ['Man United', 'Manchester United'], ['Man City', 'Manchester City'],
+    ['Sevilha', 'Sevilla'], ['Sevilha FC', 'Sevilla FC'], ['Bolonha', 'Bologna'], ['Veneza', 'Venezia'], ['Praga', 'Prague'],
+    ['Sparta Praga', 'Sparta Prague'], ['Sparta Praha', 'Sparta Prague'], ['Augsburgo', 'Augsburg'], ['FC Colonia', 'FC Koln'],
+    ['Colonia', 'Cologne'], ['Munique', 'Munchen'], ['Genova', 'Genoa'], ['Napoles', 'Napoli'], ['Napoli', 'Naples'],
+  ];
+  for (const [a, b] of pairs) assert.ok(namesMatch(a, b), `${a} = ${b}`);
+});
+
+test('exonyms do not join different clubs', () => {
+  assert.ok(!namesMatch('Sevilha', 'Sevilla Atletico'.replace('Atletico', 'Reservas')));
+  assert.ok(!namesMatch('Man Utd', 'Man City'));
+  assert.ok(!namesMatch('Bolonha', 'Genoa'));
+});
+
+test('women markers unify across houses and never meet men', () => {
+  const w = ['Liverpool F.', 'Liverpool (F)', 'Liverpool Women', 'Liverpool W', 'Liverpool Fem.', 'Liverpool Feminino', 'Liverpool (W)'];
+  for (const a of w) for (const b of w) assert.ok(namesMatch(a, b), `${a} = ${b}`);
+  for (const a of w) {
+    assert.ok(!namesMatch(a, 'Liverpool'), `${a} != Liverpool`);
+    assert.ok(!namesMatch(a, 'Liverpool FC'), `${a} != Liverpool FC`);
+    assert.ok(!namesMatch('Liverpool Reservas', a));
+  }
+});
+
+test('the F of F.C. / FC is not a women marker', () => {
+  assert.ok(namesMatch('F.C. Porto', 'FC Porto'));
+  assert.ok(namesMatch('F.C. Porto', 'Porto'));
+  assert.ok(namesMatch('Porto F.C.', 'Porto'));
+  assert.ok(namesMatch('Valencia C.F.', 'Valencia'));
+  assert.ok(!namesMatch('FC Porto', 'Porto Feminino'));
+});
+
+test('women events from two houses join; men and women at the same time stay apart', () => {
+  const t = '2026-11-22T14:00:00Z';
+  const c: Candidate = { providerMatchId: 'w1', league: 'x', sport: 'FOOTBALL', home: 'Arsenal Women', away: 'Chelsea Women', startsAt: t };
+  assert.equal(matchEvent(ev({ home: 'Arsenal F.', away: 'Chelsea F.', startsAt: t }), [c])?.providerMatchId, 'w1');
+  assert.equal(matchEvent(ev({ home: 'Arsenal (F)', away: 'Chelsea (F)', startsAt: t }), [c])?.providerMatchId, 'w1');
+  assert.equal(matchEvent(ev({ home: 'Arsenal Feminino', away: 'Chelsea Feminino', startsAt: t }), [c])?.providerMatchId, 'w1');
+  assert.equal(matchEvent(ev({ home: 'Arsenal', away: 'Chelsea', startsAt: t }), [c]), null);
+  const m: Candidate = { ...c, providerMatchId: 'm1', home: 'Arsenal', away: 'Chelsea' };
+  assert.equal(matchEvent(ev({ home: 'Arsenal F.', away: 'Chelsea F.', startsAt: t }), [m]), null);
+});
+
+test('event key is the same across spellings', () => {
+  const k = (home: string, away: string) => eventKey(ev({ home, away, startsAt: '2026-11-22T14:00:00Z' }), null);
+  assert.equal(k('Sevilha', 'Bolonha'), k('Sevilla', 'Bologna'));
+  assert.equal(k('Arsenal F.', 'Chelsea (F)'), k('Arsenal Women', 'Chelsea Feminino'));
+  assert.notEqual(k('Arsenal F.', 'Chelsea F.'), k('Arsenal', 'Chelsea'));
 });
