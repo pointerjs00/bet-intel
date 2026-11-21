@@ -2,7 +2,7 @@
 export type OddsSport = 'FOOTBALL' | 'BASKETBALL' | 'TENNIS';
 
 /** Betting houses the comparator can read from. */
-export type HouseId = 'betclic' | 'betano' | 'lebull' | 'placard' | 'solverde' | 'bwin';
+export type HouseId = 'betclic' | 'betano' | 'lebull' | 'placard' | 'solverde' | 'bwin' | 'goldenpark';
 
 /** An event as listed by one house (calendar entry). */
 export interface SourceEvent {

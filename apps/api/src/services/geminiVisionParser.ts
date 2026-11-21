@@ -61,7 +61,7 @@ function getGenAI(): GoogleGenAI {
 /** JSON schema the model must follow (enforced by the API, so no more half-formed JSON). */
 const RESULT_ENUM = ['WON', 'LOST', 'VOID', 'PENDING'];
 const SPORT_ENUM = ['FOOTBALL', 'BASKETBALL', 'TENNIS', 'HANDBALL', 'VOLLEYBALL', 'HOCKEY', 'RUGBY', 'AMERICAN_FOOTBALL', 'BASEBALL', 'OTHER'];
-const SITE_ENUM = ['betclic', 'placard', 'bet365', 'esconline', 'moosh', 'solverde', 'betano', 'betway', '888sport', 'bwin', 'lebull', 'unknown'];
+const SITE_ENUM = ['betclic', 'placard', 'bet365', 'esconline', 'moosh', 'solverde', 'betano', 'betway', '888sport', 'bwin', 'lebull', 'goldenpark', 'unknown'];
 const UNCERTAIN_ENUM = ['homeTeam', 'awayTeam', 'competition', 'market', 'selection', 'oddValue', 'eventDate', 'result'];
 
 const RESPONSE_SCHEMA = {
@@ -127,7 +127,7 @@ Rules:
 - sport: FOOTBALL, BASKETBALL, TENNIS, HANDBALL, VOLLEYBALL, HOCKEY, RUGBY, AMERICAN_FOOTBALL, BASEBALL, or OTHER
 - eventDate and betDate: ISO 8601 format
 - Extract ALL selections from accumulators
-- "site": the betting site whose branding (logo, colours, layout) the screenshot shows: betclic, placard, bet365, esconline, moosh, solverde, betano, betway, 888sport, bwin, lebull — or "unknown".
+- "site": the betting site whose branding (logo, colours, layout) the screenshot shows: betclic, placard, bet365, esconline, moosh, solverde, betano, betway, 888sport, bwin, lebull, goldenpark — or "unknown".
 - Per item, "uncertain": list the fields you could NOT read clearly or had to guess (e.g. a competition not shown on the slip, a player name abbreviated to an initial, a cut-off market). Empty array when everything was read directly.
 - IMPORTANT: Keep market names and selection descriptions EXACTLY as they appear in the screenshot — do NOT translate them to English. Examples: keep "Resultado (Tempo Regulamentar)" not "Match Result (Regular Time)", keep "SC Braga / Empate & Acima de 1,5" not "SC Braga / Draw & Over 1.5 Goals", keep "Resultado duplo/Golos - acima/abaixo" not "Double Chance/Goals - over/under".
 - IMPORTANT: Each item has its own "result" field. In Betclic screenshots, the status indicators are small circular icons shown horizontally near the top of the bet slip next to the "Múltipla" or "Simples" label — one icon per selection, ordered left-to-right matching the selections top-to-bottom. Interpret each icon: GREEN filled circle = "WON"; RED filled circle = "LOST"; GREY circle = "VOID"; CLOCK icon or outline circle = "PENDING". Match icon position to selection by order. Use selection text colour as a secondary confirmation: green = WON, red = LOST, grey = VOID, white/default = PENDING.

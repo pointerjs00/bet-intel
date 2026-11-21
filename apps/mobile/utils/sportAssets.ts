@@ -2116,6 +2116,7 @@ const SITE_LOGOS: Record<string, ImageSourcePropType> = {
   '888sport':{ uri: 'https://www.google.com/s2/favicons?domain=888sport.com&sz=128' },
   bwin:      { uri: 'https://www.google.com/s2/favicons?domain=bwin.com&sz=128' },
   lebull:    { uri: 'https://www.google.com/s2/favicons?domain=lebull.pt&sz=128' },
+  goldenpark: { uri: 'https://www.google.com/s2/favicons?domain=goldenpark.pt&sz=128' },
 };
 
 export interface BettingSite {
@@ -2149,6 +2150,7 @@ export const BETTING_SITES: BettingSite[] = [
   { slug: 'betano',    name: 'Betano',     logo: SITE_LOGOS.betano },
   { slug: 'bwin',      name: 'Bwin',       logo: SITE_LOGOS.bwin },
   { slug: 'lebull',    name: 'Lebull',     logo: SITE_LOGOS.lebull },
+  { slug: 'goldenpark', name: 'GoldenPark', logo: SITE_LOGOS.goldenpark },
 ];
 
 export interface CompetitionBranding {
