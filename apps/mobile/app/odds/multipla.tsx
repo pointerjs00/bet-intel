@@ -23,6 +23,11 @@ import type { HouseId, OddsEventView } from '../../utils/odds/types';
 
 const LEG_W = 150;
 const COL_W = 84;
+/** Fixed row heights: the pinned selection column and the scrolling house columns line up. */
+const HEAD_H = 62;
+const LEG_H = 96;
+const TOTAL_H = 44;
+const RET_H = 58;
 
 export default function OddsMultipleScreen() {
   const router = useRouter();
@@ -78,79 +83,88 @@ export default function OddsMultipleScreen() {
       ) : (
         <>
           <ScrollView contentContainerStyle={{ paddingBottom: 16, paddingHorizontal: 16 }}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View>
-                <View style={styles.row}>
-                  <View style={{ width: LEG_W }} />
-                  {columns.map((h) => {
-                    const ok = isSelectable(perHouse, h);
-                    const active = h === target;
-                    return (
-                      <Pressable
-                        key={h}
-                        accessibilityLabel={houseName(h)}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active, disabled: !ok }}
-                        disabled={!ok}
-                        onPress={() => setPicked(h)}
-                        style={[styles.cell, { width: COL_W, borderBottomColor: active ? colors.primary : 'transparent', borderBottomWidth: 2, opacity: ok ? 1 : 0.5 }]}
-                      >
-                        <SiteMark showName={false} size={22} slug={h} />
-                        <AppText numberOfLines={1} tone={active ? 'accent' : 'secondary'} variant="label">{houseName(h)}</AppText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
+            {/* The selection column stays put; only the house columns scroll sideways (up to 9 houses). Rows have fixed
+                heights so both sides line up. */}
+            <View style={styles.row}>
+              <View style={{ width: LEG_W }}>
+                <View style={{ height: HEAD_H }} />
                 {legs.map((l) => (
-                  <View key={l.eventKey} style={[styles.row, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                    <View style={[styles.legCell, { width: LEG_W }]}>
-                      <View style={styles.flex}>
-                        <AppText numberOfLines={2} variant="bodyStrong">{l.label}</AppText>
-                        <AppText numberOfLines={1} tone="secondary" variant="label">{l.market}</AppText>
-                        <AppText numberOfLines={1} tone="muted" variant="label">{`${l.home} – ${l.away}`}</AppText>
-                      </View>
-                      <Pressable accessibilityLabel={`Remover ${l.label}`} accessibilityRole="button" hitSlop={8} onPress={() => remove(l.eventKey)}>
-                        <Ionicons color={colors.textMuted} name="close-circle" size={18} />
-                      </Pressable>
+                  <View key={l.eventKey} style={[styles.legCell, { height: LEG_H, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                    <View style={styles.flex}>
+                      <AppText numberOfLines={2} variant="bodyStrong">{l.label}</AppText>
+                      <AppText numberOfLines={1} tone="secondary" variant="label">{l.market}</AppText>
+                      <AppText numberOfLines={1} tone="muted" variant="label">{`${l.home} – ${l.away}`}</AppText>
                     </View>
+                    <Pressable accessibilityLabel={`Remover ${l.label}`} accessibilityRole="button" hitSlop={8} onPress={() => remove(l.eventKey)}>
+                      <Ionicons color={colors.textMuted} name="close-circle" size={18} />
+                    </Pressable>
+                  </View>
+                ))}
+                <View style={[styles.legCell, { height: TOTAL_H, borderTopColor: colors.border, borderTopWidth: 1 }]}><AppText variant="bodyStrong">Odd total</AppText></View>
+                <View style={[styles.legCell, { height: RET_H }]}><AppText numberOfLines={2} tone="secondary" variant="caption">{`Retorno com ${formatEuro(stake)}`}</AppText></View>
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.flex}>
+                <View>
+                  <View style={[styles.row, { height: HEAD_H }]}>
                     {columns.map((h) => {
-                      const o = legOdd(views.get(l.eventKey), l.selectionKey, h);
+                      const ok = isSelectable(perHouse, h);
+                      const active = h === target;
                       return (
-                        <View key={h} style={[styles.cell, { width: COL_W }]}>
-                          <AppText tone={o === null ? 'muted' : 'primary'} variant="number">{o === null ? '—' : formatOdd(o)}</AppText>
+                        <Pressable
+                          key={h}
+                          accessibilityLabel={houseName(h)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active, disabled: !ok }}
+                          disabled={!ok}
+                          onPress={() => setPicked(h)}
+                          style={[styles.cell, { width: COL_W, borderBottomColor: active ? colors.primary : 'transparent', borderBottomWidth: 2, opacity: ok ? 1 : 0.5 }]}
+                        >
+                          <SiteMark showName={false} size={22} slug={h} />
+                          <AppText numberOfLines={1} tone={active ? 'accent' : 'secondary'} variant="label">{houseName(h)}</AppText>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  {legs.map((l) => (
+                    <View key={l.eventKey} style={[styles.row, { height: LEG_H, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                      {columns.map((h) => {
+                        const o = legOdd(views.get(l.eventKey), l.selectionKey, h);
+                        return (
+                          <View key={h} style={[styles.cell, { width: COL_W }]}>
+                            <AppText tone={o === null ? 'muted' : 'primary'} variant="number">{o === null ? '—' : formatOdd(o)}</AppText>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ))}
+
+                  <View style={[styles.row, { height: TOTAL_H, borderTopColor: colors.border, borderTopWidth: 1 }]}>
+                    {columns.map((h) => {
+                      const total = perHouse[h]?.total ?? null;
+                      const isBest = h === best && total !== null;
+                      return (
+                        <View key={h} style={[styles.cell, { width: COL_W, backgroundColor: isBest ? colors.surfaceRaised : 'transparent' }]}>
+                          <AppText tone={isBest ? 'accent' : total === null ? 'muted' : 'primary'} variant="number">{calculating ? '…' : total === null ? '—' : formatOdd(total)}</AppText>
                         </View>
                       );
                     })}
                   </View>
-                ))}
 
-                <View style={[styles.row, { borderTopColor: colors.border, borderTopWidth: 1 }]}>
-                  <View style={[styles.legCell, { width: LEG_W }]}><AppText variant="bodyStrong">Odd total</AppText></View>
-                  {columns.map((h) => {
-                    const total = perHouse[h]?.total ?? null;
-                    const isBest = h === best && total !== null;
-                    return (
-                      <View key={h} style={[styles.cell, { width: COL_W, backgroundColor: isBest ? colors.surfaceRaised : 'transparent' }]}>
-                        <AppText tone={isBest ? 'accent' : total === null ? 'muted' : 'primary'} variant="number">{calculating ? '…' : total === null ? '—' : formatOdd(total)}</AppText>
-                      </View>
-                    );
-                  })}
+                  <View style={[styles.row, { height: RET_H }]}>
+                    {columns.map((h) => {
+                      const total = perHouse[h]?.total ?? null;
+                      return (
+                        <View key={h} style={[styles.cell, { width: COL_W }]}>
+                          <AppText tone={total === null ? 'muted' : 'secondary'} variant="caption">{calculating ? '…' : total === null ? '—' : formatEuro(total * stake)}</AppText>
+                        </View>
+                      );
+                    })}
+                  </View>
                 </View>
-
-                <View style={styles.row}>
-                  <View style={[styles.legCell, { width: LEG_W }]}><AppText tone="secondary" variant="caption">{`Retorno com ${formatEuro(stake)}`}</AppText></View>
-                  {columns.map((h) => {
-                    const total = perHouse[h]?.total ?? null;
-                    return (
-                      <View key={h} style={[styles.cell, { width: COL_W }]}>
-                        <AppText tone={total === null ? 'muted' : 'secondary'} variant="caption">{calculating ? '…' : total === null ? '—' : formatEuro(total * stake)}</AppText>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            </ScrollView>
+              </ScrollView>
+            </View>
 
             {failed ? (
               <View style={[styles.notice, { backgroundColor: colors.surfaceRaised }]}>
