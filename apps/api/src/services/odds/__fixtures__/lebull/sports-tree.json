@@ -1,0 +1,395 @@
+{
+ "inplayEventsCount": 10,
+ "sports": [
+  {
+   "sportId": 1,
+   "sportName": "Football",
+   "eventsCount": 618,
+   "inplayEventsCount": 2,
+   "countries": [
+    {
+     "countryId": 1345,
+     "countryName": "Austria",
+     "eventsCount": 14,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 1,
+       "leagueId": 39659,
+       "leagueName": "Austria. Bundesliga",
+       "eventsCount": 12,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      },
+      {
+       "sportId": 1,
+       "leagueId": 39660,
+       "leagueName": "Austria. 2nd Division",
+       "eventsCount": 2,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 1304,
+     "countryName": "Argentina",
+     "eventsCount": 7,
+     "inplayEventsCount": 1,
+     "leagues": [
+      {
+       "sportId": 1,
+       "leagueId": 5276,
+       "leagueName": "Argentina Cup",
+       "eventsCount": 1,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      },
+      {
+       "sportId": 1,
+       "leagueId": 4564,
+       "leagueName": "Argentina. Primera Division",
+       "eventsCount": 5,
+       "inplayEventsCount": 1,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 1224,
+     "countryName": "Austraila",
+     "eventsCount": 9,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 1,
+       "leagueId": 4241,
+       "leagueName": "Australia. A-League",
+       "eventsCount": 9,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 1225,
+     "countryName": "England",
+     "eventsCount": 67,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 1,
+       "leagueId": 4485,
+       "leagueName": "England. Premier League",
+       "eventsCount": 20,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 1301,
+     "countryName": "Portugal",
+     "eventsCount": 18,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 1,
+       "leagueId": 4565,
+       "leagueName": "Portugal. Primeira League",
+       "eventsCount": 8,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    }
+   ],
+   "topLeagues": [
+    {
+     "sportId": 1,
+     "leagueId": 4230,
+     "leagueName": "UEFA Europa League",
+     "eventsCount": 15,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 1,
+     "leagueId": 4241,
+     "leagueName": "Australia. A-League",
+     "eventsCount": 9,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 1,
+     "leagueId": 4252,
+     "leagueName": "Ukraine. Premier League",
+     "eventsCount": 4,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 1,
+     "leagueId": 4261,
+     "leagueName": "Germany. Bundesliga",
+     "eventsCount": 17,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 1,
+     "leagueId": 4484,
+     "leagueName": "Italy. Serie A",
+     "eventsCount": 20,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 1,
+     "leagueId": 4485,
+     "leagueName": "England. Premier League",
+     "eventsCount": 20,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 1,
+     "leagueId": 4486,
+     "leagueName": "Spain. La Liga",
+     "eventsCount": 17,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    }
+   ]
+  },
+  {
+   "sportId": 4,
+   "sportName": "Basketball",
+   "eventsCount": 72,
+   "inplayEventsCount": 4,
+   "countries": [
+    {
+     "countryId": 799,
+     "countryName": "Austraila",
+     "eventsCount": 3,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 4,
+       "leagueId": 37845,
+       "leagueName": "Australia. NBL",
+       "eventsCount": 3,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 903,
+     "countryName": "Austria",
+     "eventsCount": 5,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 4,
+       "leagueId": 37931,
+       "leagueName": "Austria. Superliga",
+       "eventsCount": 5,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 1121,
+     "countryName": "Brazil",
+     "eventsCount": 2,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 4,
+       "leagueId": 7682,
+       "leagueName": "Brazil. NBB",
+       "eventsCount": 2,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 709,
+     "countryName": "USA",
+     "eventsCount": 9,
+     "inplayEventsCount": 4,
+     "leagues": [
+      {
+       "sportId": 4,
+       "leagueId": 998,
+       "leagueName": "NBA",
+       "eventsCount": 9,
+       "inplayEventsCount": 4,
+       "sportName": ""
+      }
+     ]
+    }
+   ],
+   "topLeagues": [
+    {
+     "sportId": 4,
+     "leagueId": 998,
+     "leagueName": "NBA",
+     "eventsCount": 9,
+     "inplayEventsCount": 4,
+     "sportName": ""
+    },
+    {
+     "sportId": 4,
+     "leagueId": 1047,
+     "leagueName": "Spain ACB",
+     "eventsCount": 5,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 4,
+     "leagueId": 1337,
+     "leagueName": "ABA League",
+     "eventsCount": 4,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 4,
+     "leagueId": 1379,
+     "leagueName": "Euroleague",
+     "eventsCount": 6,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 4,
+     "leagueId": 1886,
+     "leagueName": "Serbia. KLS",
+     "eventsCount": 4,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    }
+   ]
+  },
+  {
+   "sportId": 3,
+   "sportName": "Tennis",
+   "eventsCount": 23,
+   "inplayEventsCount": 3,
+   "countries": [
+    {
+     "countryId": 715,
+     "countryName": "ATP",
+     "eventsCount": 2,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 3,
+       "leagueId": 33669,
+       "leagueName": "ATP Finals. Hard",
+       "eventsCount": 2,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 3573,
+     "countryName": "ATP Doubles",
+     "eventsCount": 1,
+     "inplayEventsCount": 0,
+     "leagues": [
+      {
+       "sportId": 3,
+       "leagueId": 60020,
+       "leagueName": "ATP Finals. Hard. Doubles",
+       "eventsCount": 1,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    },
+    {
+     "countryId": 3019,
+     "countryName": "Challenger",
+     "eventsCount": 13,
+     "inplayEventsCount": 2,
+     "leagues": [
+      {
+       "sportId": 3,
+       "leagueId": 14186,
+       "leagueName": "ATP Challenger. Drummondville. Hard. Canada",
+       "eventsCount": 1,
+       "inplayEventsCount": 1,
+       "sportName": ""
+      },
+      {
+       "sportId": 3,
+       "leagueId": 10718,
+       "leagueName": "ATP Challenger. Helsinki. Hard. Doubles",
+       "eventsCount": 1,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      },
+      {
+       "sportId": 3,
+       "leagueId": 1432,
+       "leagueName": "ATP Challenger. Helsinki. Hard. Finland",
+       "eventsCount": 2,
+       "inplayEventsCount": 0,
+       "sportName": ""
+      }
+     ]
+    }
+   ],
+   "topLeagues": [
+    {
+     "sportId": 3,
+     "leagueId": 1383,
+     "leagueName": "ATP Challenger. Montevideo. Clay. Uruguay",
+     "eventsCount": 1,
+     "inplayEventsCount": 1,
+     "sportName": ""
+    },
+    {
+     "sportId": 3,
+     "leagueId": 1432,
+     "leagueName": "ATP Challenger. Helsinki. Hard. Finland",
+     "eventsCount": 2,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 3,
+     "leagueId": 10718,
+     "leagueName": "ATP Challenger. Helsinki. Hard. Doubles",
+     "eventsCount": 1,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    },
+    {
+     "sportId": 3,
+     "leagueId": 14186,
+     "leagueName": "ATP Challenger. Drummondville. Hard. Canada",
+     "eventsCount": 1,
+     "inplayEventsCount": 1,
+     "sportName": ""
+    },
+    {
+     "sportId": 3,
+     "leagueId": 16980,
+     "leagueName": "ATP Challenger. Kobe. Hard. Japan",
+     "eventsCount": 2,
+     "inplayEventsCount": 0,
+     "sportName": ""
+    }
+   ]
+  }
+ ]
+}

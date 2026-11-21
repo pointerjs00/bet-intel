@@ -2,7 +2,7 @@
 export type HouseId = 'betclic' | 'lebull' | 'betano' | 'placard' | 'solverde';
 export type OddsSport = 'FOOTBALL' | 'BASKETBALL' | 'TENNIS';
 
-export const HOUSE_ORDER: HouseId[] = ['betclic', 'lebull', 'betano', 'placard', 'solverde'];
+export const HOUSE_ORDER: HouseId[] = ['betclic', 'betano', 'lebull', 'placard', 'solverde'];
 
 export interface HousePrice {
   odds: number;
