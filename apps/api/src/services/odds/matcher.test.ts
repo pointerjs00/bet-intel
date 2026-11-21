@@ -158,7 +158,7 @@ test('exonyms and nicknames join across houses', () => {
 });
 
 test('exonyms do not join different clubs', () => {
-  assert.ok(!namesMatch('Sevilha', 'Sevilla Atletico'.replace('Atletico', 'Reservas')));
+  assert.ok(!namesMatch('Sevilha', 'Sevilla Reservas'));
   assert.ok(!namesMatch('Man Utd', 'Man City'));
   assert.ok(!namesMatch('Bolonha', 'Genoa'));
 });
@@ -197,4 +197,23 @@ test('event key is the same across spellings', () => {
   assert.equal(k('Sevilha', 'Bolonha'), k('Sevilla', 'Bologna'));
   assert.equal(k('Arsenal F.', 'Chelsea (F)'), k('Arsenal Women', 'Chelsea Feminino'));
   assert.notEqual(k('Arsenal F.', 'Chelsea F.'), k('Arsenal', 'Chelsea'));
+});
+
+test('tennis: a trailing first initial is not a women marker', () => {
+  for (const [a, b] of [['Tiafoe F.', 'Frances Tiafoe'], ['Auger-Aliassime F.', 'Felix Auger-Aliassime'], ['Cerundolo F.', 'Francisco Cerundolo']] as const) {
+    assert.ok(namesMatch(a, b, 'TENNIS'), a);
+    const t = '2026-11-22T14:00:00Z';
+    const c: Candidate = { providerMatchId: 't1', league: 'atp', sport: 'TENNIS', home: b, away: 'Other Player', startsAt: t };
+    assert.equal(matchEvent(ev({ sport: 'TENNIS', home: a, away: 'Other Player', startsAt: t }), [c])?.providerMatchId, 't1', a);
+  }
+  const k = (h: string, a: string) => eventKey(ev({ sport: 'TENNIS', home: h, away: a, startsAt: '2026-11-22T14:00:00Z' }), null);
+  assert.equal(k('Tiafoe F.', 'Sinner J.'), k('Sinner J.', 'Tiafoe F.'));
+  assert.ok(!k('Tiafoe F.', 'Sinner J.')!.includes('feminino'));
+});
+
+test('football: W and F markers, with or without dot, are the same', () => {
+  assert.ok(namesMatch('Arsenal W.', 'Arsenal W'));
+  assert.ok(namesMatch('Arsenal W.', 'Arsenal F.'));
+  assert.ok(namesMatch('Arsenal F', 'Arsenal (F)'));
+  assert.ok(!namesMatch('Arsenal W.', 'Arsenal'));
 });

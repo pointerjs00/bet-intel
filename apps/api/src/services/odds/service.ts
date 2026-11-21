@@ -240,8 +240,8 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
   ): CanonicalSelection[] | null {
     let swap = false;
     if (canon) {
-      const straight = namesMatch(own.home, canon.home) && namesMatch(own.away, canon.away);
-      const crossed = namesMatch(own.home, canon.away) && namesMatch(own.away, canon.home);
+      const straight = namesMatch(own.home, canon.home, sport) && namesMatch(own.away, canon.away, sport);
+      const crossed = namesMatch(own.home, canon.away, sport) && namesMatch(own.away, canon.home, sport);
       if (straight || !crossed) {
         if (!straight && sport === 'TENNIS') return null;
       } else if (sport === 'TENNIS') {

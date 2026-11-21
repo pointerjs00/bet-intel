@@ -59,9 +59,11 @@ const NAME_PHRASES: Array<[RegExp, string]> = [
 /**
  * A team name with its women's marker folded into one trailing "feminino" and its city exonyms/nicknames
  * folded to one spelling. Leaves "F.C."/"FC"/"C.F." alone: only a standalone final "F"/"F." after a real
- * word counts. Used only to compare names across houses (not by settlement).
+ * word counts ("F"/"F."/"W"/"W." alike). Not applied to tennis (pass the sport). Used only to compare names across houses (not by settlement).
  */
-export function canonName(name: string): string {
+export function canonName(name: string, sport?: OddsSport): string {
+  // Tennis players: "Tiafoe F." is a first initial, never a women's marker, and no club aliases apply.
+  if (sport === 'TENNIS') return name;
   let s = name.normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
   let women = false;
   s = s.replace(/\s*\((?:f|w|fem\.?|women|feminino)\)/gi, () => { women = true; return ''; });
@@ -74,8 +76,8 @@ export function canonName(name: string): string {
 }
 
 /** True when two names from different houses are the same side (exonyms, nicknames, women's markers folded). */
-export function namesMatch(a: string, b: string): boolean {
-  const x = canonName(a), y = canonName(b);
+export function namesMatch(a: string, b: string, sport?: OddsSport): boolean {
+  const x = canonName(a, sport), y = canonName(b, sport);
   return teamNamesMatch(x, y) && !variantConflict(x, y);
 }
 
@@ -109,7 +111,7 @@ function conflictOf(a: string, b: string): 'variant' | 'club' | 'suffix' | null 
 
 /** 2 = same side, 1 = same side but for a dropped city/united/utd suffix, 0 = different. */
 function sideScore(sport: OddsSport, a: string, b: string): 0 | 1 | 2 {
-  a = canonName(a); b = canonName(b);
+  a = canonName(a, sport); b = canonName(b, sport);
   if (!teamNamesMatch(a, b)) return 0;
   if (sport === 'TENNIS') return 2;
   const c = conflictOf(a, b);
@@ -163,7 +165,7 @@ export function eventKey(ev: SourceEvent, match: Candidate | null): string | nul
   const t = Date.parse(ev.startsAt);
   if (Number.isNaN(t)) return null;
   const day = new Date(t).toISOString().slice(0, 10);
-  const keys = [teamKey(canonName(ev.home)), teamKey(canonName(ev.away))];
+  const keys = [teamKey(canonName(ev.home, ev.sport)), teamKey(canonName(ev.away, ev.sport))];
   if (ev.sport === 'TENNIS') keys.sort();
   return `n:${ev.sport}:${day}:${keys[0]}:${keys[1]}`;
 }
