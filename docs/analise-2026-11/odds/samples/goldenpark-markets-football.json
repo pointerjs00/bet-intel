@@ -1,0 +1,41 @@
+{
+ "_nota": "recorte de POST /component/datatree url_key=/evento/12394030-fc-arouca-rio-ave; componente event_market_list.data.event (3 de 53 blocos)",
+ "event": {
+  "id": 12394030,
+  "label": "FC Arouca / Rio Ave",
+  "sport": {
+   "id": 13,
+   "label": "Futebol",
+   "icon": "soccer"
+  },
+  "category": {
+   "id": 46,
+   "label": "Portugal"
+  },
+  "competition": {
+   "id": 154,
+   "label": "Primeira Liga",
+   "display_mode": "vs"
+  },
+  "ts_creation": 1794219901,
+  "is_active": true,
+  "is_canceled": false,
+  "is_cashoutable": true,
+  "ts_start": 1795879800,
+  "type": "pm",
+  "state": "pm",
+  "nb_bets": 101,
+  "odds_provider_id": 4,
+  "start": "2026-11-28T16:30:00.000+01:00",
+  "creation": "2026-11-09T11:25:01.000+01:00",
+  "url": "/evento/12394030-fc-arouca-rio-ave",
+  "actors": [
+   {"id":1439945,"type":"home","label":"FC Arouca","abrev":"FC Arouca"},
+   {"id":550026,"type":"away","label":"Rio Ave","abrev":"Rio Ave"}
+  ],
+  "markets": [
+   {"order":1,"selection_order_type":"1x2","is_cashoutable":true,"nb_selection_by_line":3,"main":1,"filters":{"1000":1,"1310":100},"bets":[{"label":"Resultado do jogo","selections":[{"id":6266573107,"odds":1.61,"label":"FC Arouca"},{"id":6266573109,"odds":3.6,"label":"Empate"},{"id":6266573111,"odds":4.7,"label":"Rio Ave"}]}]},
+   {"order":2,"selection_order_type":"1x2","is_cashoutable":false,"nb_selection_by_line":3,"main":3,"filters":{"1000":2,"1310":101},"bets":[{"label":"Vencedor do jogo (2 golos de vantagem)","selections":[{"id":6267756287,"odds":1.45,"label":"FC Arouca"},{"id":6267756286,"odds":3.35,"label":"Empate"},{"id":6267756288,"odds":4.1,"label":"Rio Ave"}]}]}
+  ]
+ }
+}

@@ -86,3 +86,20 @@ Estudo: `docs/analise-2026-11/odds/bwin.md` (ler todo; amostras `docs/analise-20
 - [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
 - [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,bwin` nos três desportos; relatar.
 - [ ] `npm test` verde; commit `feat(odds): Bwin adapter`.
+
+### Task 4: API — adaptador GoldenPark
+
+**Files:**
+- Create: `apps/api/src/services/odds/sources/goldenpark/` (`index.ts`, `map.ts`, testes)
+- Create: `apps/api/src/services/odds/__fixtures__/goldenpark/`
+- Modify: os ficheiros da regra "uma casa nova toca sempre" (Global Constraints), com `HouseId` `goldenpark` (nome "GoldenPark", logo por favicon de `goldenpark.pt`).
+
+Estudo: `docs/analise-2026-11/odds/goldenpark.md` (ler todo; amostras `docs/analise-2026-11/odds/samples/goldenpark-*.json`). Plataforma Sportnco; API `POST https://ws.goldenpark.pt/component/datatree` com o corpo `context` do estudo (`url_key`, `device`, `version`, `lang: "pt"`, `timezone: "Europe/Lisbon"`), Origin/Referer `https://apostas.goldenpark.pt`.
+
+- [ ] Calendário: página do desporto (`/desporte/<id>-<slug>`) → lista de competições (`sport_page_all.a_z`) com contagens; depois `prematch_event_list` por competição (`/competicao/<id>-<slug>`), por ordem de nº de eventos, no máximo 20 competições de futebol, 8 de basquetebol e 6 de ténis por atualização, ≥ 300 ms entre pedidos. Filtrar pela janela de 48 h. Mercado principal do calendário em `mainMarkets`. Sem BetRadar (o `match_id` interno não é BetRadar: não o pôr em `extraIds`).
+- [ ] `getMarkets`: `url_key` `/evento/<id>-<slug>` (sem prefixo `/pt`); o slug vem do calendário — guardar em `pageUrl` do `SourceEvent` e usar o `hint`.
+- [ ] Rótulos já em PT: confirmar com testes de chaves (`FT.1X2.H`, `FT.TOTAL.goals.O.2.5`, `FT.BTTS.Y`, `B.ML.H`, `T.WIN.A`); traduzir só o que for preciso.
+- [ ] Ténis em pares com nomes abreviados: aceitar como vêm (ficam sem par se não emparelharem).
+- [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
+- [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,goldenpark`; relatar.
+- [ ] `npm test` verde; commit `feat(odds): GoldenPark adapter`.
