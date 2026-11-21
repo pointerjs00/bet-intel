@@ -1,0 +1,2850 @@
+{
+ "sports": [
+  {
+   "id": 72,
+   "name": "Basquetebol",
+   "info": "3x3",
+   "code": "basketball",
+   "positionPrematch": 3,
+   "positionLive": 3,
+   "status": 3,
+   "liveMetadataId": 3
+  }
+ ],
+ "categories": [
+  {
+   "id": 133,
+   "sportId": 72,
+   "name": "Áustria",
+   "code": "AUT",
+   "status": 3
+  },
+  {
+   "id": 335,
+   "sportId": 72,
+   "name": "Portugal",
+   "code": "PRT",
+   "positionPrematch": 1,
+   "positionLive": 1,
+   "status": 3
+  },
+  {
+   "id": 83,
+   "sportId": 72,
+   "name": "Finlândia",
+   "code": "FIN",
+   "status": 3
+  }
+ ],
+ "tournaments": [
+  {
+   "id": 5587,
+   "categoryId": 133,
+   "name": "Superliga, Feminino",
+   "positionPrematch": 52,
+   "positionLive": 52,
+   "status": 3
+  },
+  {
+   "id": 4209,
+   "categoryId": 83,
+   "name": "Liga Koris",
+   "positionPrematch": 22,
+   "positionLive": 22,
+   "status": 3
+  },
+  {
+   "id": 8881,
+   "categoryId": 335,
+   "name": "LPB",
+   "positionPrematch": 22,
+   "positionLive": 22,
+   "status": 3
+  }
+ ],
+ "cursorId": "<opaque>",
+ "markets": [
+  {
+   "outcomes": [
+    {
+     "id": 4224,
+     "name": "Acima",
+     "eventMarketOutcomeName": "Acima {{O.S.TOTAL}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    },
+    {
+     "id": 4316,
+     "name": "Abaixo",
+     "eventMarketOutcomeName": "Abaixo {{O.S.TOTAL}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    }
+   ],
+   "id": 1574,
+   "sportId": 72,
+   "name": "Total pontos (incl. Prol)",
+   "eventMarketName": "Total pontos (incl. Prol)",
+   "positionPrematch": 11,
+   "positionLive": 22,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4340,
+     "name": "Fora",
+     "eventMarketOutcomeName": "{{E.C2.NAME}}",
+     "position": 3,
+     "status": 3
+    },
+    {
+     "id": 4341,
+     "name": "Empate",
+     "eventMarketOutcomeName": "Empate",
+     "position": 2,
+     "status": 3
+    },
+    {
+     "id": 4338,
+     "name": "Casa",
+     "eventMarketOutcomeName": "{{E.C1.NAME}}",
+     "position": 1,
+     "status": 3
+    }
+   ],
+   "id": 1512,
+   "sportId": 72,
+   "name": "1ª parte - 1x2",
+   "eventMarketName": "1ª parte - 1x2",
+   "positionPrematch": 15,
+   "positionLive": 25,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4715,
+     "name": "Fora",
+     "eventMarketOutcomeName": "{{E.C2.NAME}} {{DISPLAY_IF((O.S.HANDICAP_VALUE*-1>=0),\"+\")}}{{O.S.HANDICAP_VALUE*-1}} ",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 3,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "HANDICAP_VALUE"
+      }
+     ]
+    },
+    {
+     "id": 4631,
+     "name": "Casa",
+     "eventMarketOutcomeName": "{{E.C1.NAME}} {{DISPLAY_IF((O.S.HANDICAP_VALUE>=0),\"+\")}}{{O.S.HANDICAP_VALUE}} ",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 3,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "HANDICAP_VALUE"
+      }
+     ]
+    }
+   ],
+   "id": 1595,
+   "sportId": 72,
+   "name": "Handicap  (incl. Prol)",
+   "eventMarketName": "Handicap  (incl. Prol)",
+   "positionPrematch": 12,
+   "positionLive": 23,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4126,
+     "name": "Abaixo",
+     "eventMarketOutcomeName": "Abaixo {{O.S.TOTAL}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    },
+    {
+     "id": 4210,
+     "name": "Acima",
+     "eventMarketOutcomeName": "Acima {{O.S.TOTAL}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    }
+   ],
+   "id": 1597,
+   "sportId": 72,
+   "name": "Casa - Total pontos (incl. Prol)",
+   "eventMarketName": "{{E.C1.NAME}} - Total pontos (incl. Prol)",
+   "positionPrematch": 13,
+   "positionLive": 24,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 5127,
+     "name": "1",
+     "eventMarketOutcomeName": "{{E.C1.NAME}}",
+     "position": 1,
+     "status": 3
+    },
+    {
+     "id": 5114,
+     "name": "2",
+     "eventMarketOutcomeName": "{{E.C2.NAME}}",
+     "position": 2,
+     "status": 3
+    }
+   ],
+   "id": 1566,
+   "sportId": 72,
+   "name": "Vencedor (incl. Prol)",
+   "eventMarketName": "Vencedor (incl. Prol)",
+   "positionPrematch": 10,
+   "positionLive": 20,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4092,
+     "name": "Acima",
+     "eventMarketOutcomeName": "Acima {{O.S.TOTAL}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    },
+    {
+     "id": 4236,
+     "name": "Abaixo",
+     "eventMarketOutcomeName": "Abaixo {{O.S.TOTAL}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    }
+   ],
+   "id": 1599,
+   "sportId": 72,
+   "name": "Casa - Total pontos (incl.Prol)",
+   "eventMarketName": "{{E.C2.NAME}} - Total pontos (incl.Prol)",
+   "positionPrematch": 14,
+   "positionLive": 24,
+   "status": 3
+  }
+ ],
+ "events": [
+  {
+   "id": 1674778,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 4209,
+   "tournamentRoundId": 32368,
+   "tournamentSeasonId": 1443,
+   "name": "Pyrinto Tampere vs. Lahti Basquetebol",
+   "startsAt": "2026-11-21T16:00:00Z",
+   "competitors": [
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 43718,
+     "teamName": "Lahti Basquetebol",
+     "gender": 1
+    },
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 31103,
+     "teamName": "Pyrinto Tampere",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1566,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5127,
+       "odds": 12500,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5114,
+       "odds": 22100,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 4,
+     "marketId": 1595,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4631,
+       "odds": 14900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4715,
+       "odds": 18400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4631,
+       "odds": 15900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-5.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4715,
+       "odds": 16100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-5.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4715,
+       "odds": 17200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4631,
+       "odds": 14100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4631,
+       "odds": 22700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-10.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4631,
+       "odds": 12200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4631,
+       "odds": 11800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4631,
+       "odds": 27500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-13.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4631,
+       "odds": 13500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4715,
+       "odds": 12900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 15,
+       "outcomeId": 4631,
+       "odds": 19700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-8.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 16,
+       "outcomeId": 4631,
+       "odds": 12900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 18,
+       "outcomeId": 4715,
+       "odds": 23200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 20,
+       "outcomeId": 4715,
+       "odds": 24800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 21,
+       "outcomeId": 4631,
+       "odds": 17000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-6.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 24,
+       "outcomeId": 4715,
+       "odds": 12400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-10.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 25,
+       "outcomeId": 4715,
+       "odds": 11300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-13.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 26,
+       "outcomeId": 4715,
+       "odds": 14200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-7.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 33,
+       "outcomeId": 4631,
+       "odds": 24300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-11.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 35,
+       "outcomeId": 4715,
+       "odds": 15100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-6.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 36,
+       "outcomeId": 4715,
+       "odds": 11900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-11.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 37,
+       "outcomeId": 4715,
+       "odds": 11600,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-12.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 39,
+       "outcomeId": 4631,
+       "odds": 18300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-7.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 41,
+       "outcomeId": 4715,
+       "odds": 20900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 43,
+       "outcomeId": 4631,
+       "odds": 21100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 46,
+       "outcomeId": 4715,
+       "odds": 13500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-8.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 50,
+       "outcomeId": 4631,
+       "odds": 26000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-12.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 52,
+       "outcomeId": 4715,
+       "odds": 19600,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-2.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 5,
+     "marketId": 1597,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4210,
+       "odds": 16100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "87.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4126,
+       "odds": 15900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "87.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4126,
+       "odds": 18100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "85.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4126,
+       "odds": 14200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "89.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4210,
+       "odds": 14400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "85.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4210,
+       "odds": 18400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "89.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4210,
+       "odds": 15200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "86.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4126,
+       "odds": 16900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "86.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4126,
+       "odds": 15000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "88.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4210,
+       "odds": 17200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "88.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 15,
+     "marketId": 1512,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4341,
+       "odds": 150000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4340,
+       "odds": 21100,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4338,
+       "odds": 14100,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 19,
+     "marketId": 1574,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4316,
+       "odds": 15000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "171.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4224,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "169.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4316,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "169.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4224,
+       "odds": 17200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "171.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4224,
+       "odds": 16500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "170.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4316,
+       "odds": 15500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "170.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4316,
+       "odds": 17300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "167.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4316,
+       "odds": 14000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "173.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4224,
+       "odds": 13500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "164.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4224,
+       "odds": 15400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "168.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4224,
+       "odds": 17900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "172.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4316,
+       "odds": 20400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "163.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 13,
+       "outcomeId": 4316,
+       "odds": 13300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "175.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4224,
+       "odds": 21000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "176.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 15,
+       "outcomeId": 4224,
+       "odds": 14400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "166.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 16,
+       "outcomeId": 4316,
+       "odds": 13600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "174.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 17,
+       "outcomeId": 4224,
+       "odds": 14900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "167.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 18,
+       "outcomeId": 4316,
+       "odds": 18800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "165.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 19,
+       "outcomeId": 4316,
+       "odds": 16700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "168.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 20,
+       "outcomeId": 4316,
+       "odds": 19600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "164.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 21,
+       "outcomeId": 4316,
+       "odds": 14500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "172.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 23,
+       "outcomeId": 4316,
+       "odds": 18000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "166.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 24,
+       "outcomeId": 4224,
+       "odds": 13100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "163.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 25,
+       "outcomeId": 4224,
+       "odds": 19300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "174.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 26,
+       "outcomeId": 4224,
+       "odds": 20200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "175.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 27,
+       "outcomeId": 4224,
+       "odds": 18600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "173.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 28,
+       "outcomeId": 4316,
+       "odds": 12900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "176.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 30,
+       "outcomeId": 4224,
+       "odds": 13900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "165.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 35,
+       "outcomeId": 4316,
+       "odds": 21400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "162.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 43,
+       "outcomeId": 4224,
+       "odds": 12800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "162.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 44,
+     "marketId": 1599,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4236,
+       "odds": 14900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "83.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4092,
+       "odds": 17300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "83.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4092,
+       "odds": 15200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "81.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4092,
+       "odds": 18600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "84.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4236,
+       "odds": 14100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "84.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4236,
+       "odds": 16800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "81.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4236,
+       "odds": 15800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "82.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4092,
+       "odds": 16200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "82.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4092,
+       "odds": 14400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "80.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4236,
+       "odds": 18100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "80.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    }
+   ],
+   "totalMarketCount": 41,
+   "version": "2792520302"
+  },
+  {
+   "id": 1674781,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 8881,
+   "tournamentRoundId": 20350,
+   "tournamentSeasonId": 1442,
+   "name": "CA Queluz vs. SC Braga",
+   "startsAt": "2026-11-21T19:45:00Z",
+   "competitors": [
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 40124,
+     "teamName": "SC Braga",
+     "gender": 1
+    },
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 40339,
+     "teamName": "CA Queluz",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1566,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5114,
+       "odds": 13100,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5127,
+       "odds": 20500,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 3,
+     "marketId": 1595,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4631,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "4.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4715,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "4.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4631,
+       "odds": 17100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4631,
+       "odds": 15000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4715,
+       "odds": 15000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4715,
+       "odds": 17100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4715,
+       "odds": 13600,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 13,
+       "outcomeId": 4631,
+       "odds": 14200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "6.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4631,
+       "odds": 11500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "11.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 17,
+       "outcomeId": 4631,
+       "odds": 18200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 21,
+       "outcomeId": 4631,
+       "odds": 12300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 22,
+       "outcomeId": 4631,
+       "odds": 11200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "12.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 23,
+       "outcomeId": 4631,
+       "odds": 23000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 24,
+       "outcomeId": 4715,
+       "odds": 28000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "12.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 25,
+       "outcomeId": 4715,
+       "odds": 21300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "8.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 26,
+       "outcomeId": 4715,
+       "odds": 14300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 27,
+       "outcomeId": 4631,
+       "odds": 12800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "8.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 32,
+       "outcomeId": 4715,
+       "odds": 11900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 40,
+       "outcomeId": 4631,
+       "odds": 11800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "10.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 41,
+       "outcomeId": 4715,
+       "odds": 12300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 42,
+       "outcomeId": 4715,
+       "odds": 22900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 44,
+       "outcomeId": 4631,
+       "odds": 24500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 45,
+       "outcomeId": 4715,
+       "odds": 26500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "11.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 46,
+       "outcomeId": 4631,
+       "odds": 13400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "7.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 49,
+       "outcomeId": 4715,
+       "odds": 12800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 50,
+       "outcomeId": 4715,
+       "odds": 24700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "10.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 51,
+       "outcomeId": 4715,
+       "odds": 18400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "6.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 53,
+       "outcomeId": 4631,
+       "odds": 21500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 54,
+       "outcomeId": 4631,
+       "odds": 19400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 55,
+       "outcomeId": 4715,
+       "odds": 19800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "7.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 5,
+     "marketId": 1574,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4316,
+       "odds": 15800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "177.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4224,
+       "odds": 16200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "177.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4224,
+       "odds": 15600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "176.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4316,
+       "odds": 16400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "176.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4316,
+       "odds": 15300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "178.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4224,
+       "odds": 16800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "178.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4316,
+       "odds": 20000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "171.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4224,
+       "odds": 18200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "180.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4224,
+       "odds": 14100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "173.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 15,
+       "outcomeId": 4316,
+       "odds": 20900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "170.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 21,
+       "outcomeId": 4224,
+       "odds": 13300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "171.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 22,
+       "outcomeId": 4224,
+       "odds": 20500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "183.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 23,
+       "outcomeId": 4316,
+       "odds": 14300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "180.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 24,
+       "outcomeId": 4316,
+       "odds": 17700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "174.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 26,
+       "outcomeId": 4224,
+       "odds": 18900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "181.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 27,
+       "outcomeId": 4316,
+       "odds": 19200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "172.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 30,
+       "outcomeId": 4316,
+       "odds": 17000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "175.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 35,
+       "outcomeId": 4316,
+       "odds": 12800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "184.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 36,
+       "outcomeId": 4224,
+       "odds": 21300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "184.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 37,
+       "outcomeId": 4224,
+       "odds": 15100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "175.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 38,
+       "outcomeId": 4224,
+       "odds": 13700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "172.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 41,
+       "outcomeId": 4224,
+       "odds": 12900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "170.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 42,
+       "outcomeId": 4316,
+       "odds": 13900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "181.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 43,
+       "outcomeId": 4224,
+       "odds": 19700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "182.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 47,
+       "outcomeId": 4316,
+       "odds": 14800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "179.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 49,
+       "outcomeId": 4224,
+       "odds": 17500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "179.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 51,
+       "outcomeId": 4224,
+       "odds": 14600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "174.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 52,
+       "outcomeId": 4316,
+       "odds": 18400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "173.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 54,
+       "outcomeId": 4316,
+       "odds": 13100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "183.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 56,
+       "outcomeId": 4316,
+       "odds": 13500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "182.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 9,
+     "marketId": 1599,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4236,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "90.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4092,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "90.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4236,
+       "odds": 18300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "88.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4092,
+       "odds": 14200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "88.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4236,
+       "odds": 14300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "92.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4236,
+       "odds": 15100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "91.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4236,
+       "odds": 17100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "89.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4092,
+       "odds": 15000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "89.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4092,
+       "odds": 18100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "92.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4092,
+       "odds": 17000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "91.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 33,
+     "marketId": 1597,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4126,
+       "odds": 16200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "86.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4210,
+       "odds": 15800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "86.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4210,
+       "odds": 16900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "87.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4126,
+       "odds": 15200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "87.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4210,
+       "odds": 14900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "85.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4210,
+       "odds": 18000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "88.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4126,
+       "odds": 14400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "88.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4126,
+       "odds": 18500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "84.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4210,
+       "odds": 14100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "84.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4126,
+       "odds": 17300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "85.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 69,
+     "marketId": 1512,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4341,
+       "odds": 140000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4340,
+       "odds": 14700,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4338,
+       "odds": 20000,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 41,
+   "version": "677237758"
+  },
+  {
+   "id": 1675282,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 5587,
+   "tournamentRoundId": 8103,
+   "tournamentSeasonId": 1609,
+   "name": "BK Duchess Klosterneuburg vs. Basquete Flames",
+   "startsAt": "2026-11-22T16:30:00Z",
+   "competitors": [
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 63764,
+     "teamName": "Basquete Flames",
+     "gender": 2
+    },
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 70823,
+     "teamName": "BK Duchess Klosterneuburg",
+     "gender": 2
+    }
+   ],
+   "markets": [
+    {
+     "id": 3,
+     "marketId": 1595,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4631,
+       "odds": 16100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-11.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4715,
+       "odds": 15900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-11.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4715,
+       "odds": 15200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-12.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4631,
+       "odds": 15200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-10.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4631,
+       "odds": 16800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-12.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4715,
+       "odds": 16900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-10.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4631,
+       "odds": 14400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4631,
+       "odds": 12000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4631,
+       "odds": 12500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-6.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4715,
+       "odds": 13400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-15.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4631,
+       "odds": 13000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-7.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4715,
+       "odds": 14000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-14.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 13,
+       "outcomeId": 4715,
+       "odds": 22300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-6.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4715,
+       "odds": 24000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 15,
+       "outcomeId": 4715,
+       "odds": 18100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 16,
+       "outcomeId": 4715,
+       "odds": 26000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 17,
+       "outcomeId": 4715,
+       "odds": 19200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-8.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 18,
+       "outcomeId": 4715,
+       "odds": 14600,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-13.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 19,
+       "outcomeId": 4631,
+       "odds": 17700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-13.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 20,
+       "outcomeId": 4631,
+       "odds": 21000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-16.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 21,
+       "outcomeId": 4631,
+       "odds": 11600,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 22,
+       "outcomeId": 4631,
+       "odds": 23600,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-18.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 23,
+       "outcomeId": 4631,
+       "odds": 19800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-15.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 24,
+       "outcomeId": 4631,
+       "odds": 18700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-14.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 25,
+       "outcomeId": 4631,
+       "odds": 13700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-8.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 26,
+       "outcomeId": 4715,
+       "odds": 12500,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-17.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 27,
+       "outcomeId": 4715,
+       "odds": 12100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-18.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 28,
+       "outcomeId": 4631,
+       "odds": 22300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-17.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 29,
+       "outcomeId": 4715,
+       "odds": 20700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-7.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 30,
+       "outcomeId": 4715,
+       "odds": 12900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-16.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 4,
+     "marketId": 1566,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5114,
+       "odds": 32500,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5127,
+       "odds": 10600,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 3,
+   "version": "1003316254"
+  }
+ ]
+}
