@@ -34,7 +34,7 @@ test('mergeEvent best is null when all are suspended', () => {
   assert.equal(out[0].best, null);
 });
 
-test('mergeEvent tie follows house order betclic, lebull, betano, placard, solverde', () => {
+test('mergeEvent tie follows house order betclic, betano, lebull, placard, solverde, bwin, casinoportugal, goldenpark, retabet', () => {
   const out = mergeEvent({
     solverde: [sel('solverde', 'k', 2.0)],
     placard: [sel('placard', 'k', 2.0)],
@@ -45,7 +45,17 @@ test('mergeEvent tie follows house order betclic, lebull, betano, placard, solve
   const out2 = mergeEvent({ lebull: [sel('lebull', 'k', 1.5)], betclic: [sel('betclic', 'k', 1.5)] });
   assert.equal(out2[0].best, 'betclic');
   const out3 = mergeEvent({ betano: [sel('betano', 'k', 1.5)], lebull: [sel('lebull', 'k', 1.5)] });
-  assert.equal(out3[0].best, 'lebull');
+  assert.equal(out3[0].best, 'betano');
+  const out4 = mergeEvent({ goldenpark: [sel('goldenpark', 'k', 1.5)], bwin: [sel('bwin', 'k', 1.5)] });
+  assert.equal(out4[0].best, 'bwin');
+  const out5 = mergeEvent({ goldenpark: [sel('goldenpark', 'k', 1.5)], solverde: [sel('solverde', 'k', 1.5)] });
+  assert.equal(out5[0].best, 'solverde');
+  const out6 = mergeEvent({ goldenpark: [sel('goldenpark', 'k', 1.5)], casinoportugal: [sel('casinoportugal', 'k', 1.5)] });
+  assert.equal(out6[0].best, 'casinoportugal');
+  const out7 = mergeEvent({ casinoportugal: [sel('casinoportugal', 'k', 1.5)], bwin: [sel('bwin', 'k', 1.5)] });
+  assert.equal(out7[0].best, 'bwin');
+  const out8 = mergeEvent({ retabet: [sel('retabet', 'k', 1.5)], goldenpark: [sel('goldenpark', 'k', 1.5)] });
+  assert.equal(out8[0].best, 'goldenpark');
 });
 
 test('mergeEvent keeps null-key selections as one row per house', () => {

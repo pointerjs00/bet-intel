@@ -1,0 +1,11 @@
+{"_nota": "Newcastle - Arsenal (id 38784300), 118 mercados no total. Mercados vem em HTML (GET pagina do evento = tab Principais; POST /api/sportsbookEventDetail/GetTabsContents = restantes tabs), aqui ja convertido em JSON pelo parser do estudo; selecoes cortadas a 6.",
+"event": {"id": 38784300, "tabs": {"1026": "Principais", "1024": "Jogo", "1017": "Golos", "1008": "Cantos", "1534": "Especiais"}},
+"markets": [
+{"tab": 1, "tag": 1026, "mid": 1561982279, "market": "1-X-2", "selections": [{"id": 4906323534, "label": "1", "odd": 5.25}, {"id": 4906323535, "label": "X", "odd": 4.07}, {"id": 4906323536, "label": "2", "odd": 1.46}]},
+{"tab": 1, "tag": 1026, "mid": 1571156420, "market": "1-X-2 / Vantagem 2 golos", "selections": [{"id": 4931774792, "label": "1", "odd": 5.05}, {"id": 4931774793, "label": "X", "odd": 4.04}, {"id": 4931774283, "label": "2", "odd": 1.44}]},
+{"tab": 1, "tag": 1026, "mid": 1571545910, "market": "1-X-2 / Vantagem 1 golo", "selections": [{"id": 4932986338, "label": "1", "odd": 2.44}, {"id": 4932986339, "label": "X", "odd": 3.76}, {"id": 4932986340, "label": "2", "odd": 1.22}]},
+{"tab": 1, "tag": 1026, "mid": 1561982324, "market": "Hipótese dupla", "selections": [{"id": 4906323737, "label": "1X", "odd": 2.2}, {"id": 4906323739, "label": "X2", "odd": 1.09}, {"id": 4906323738, "label": "12", "odd": 1.15}]},
+{"tab": 1, "tag": 1026, "mid": 1561982306, "market": "Marcam ambas as equipas", "selections": [{"id": 4906323673, "label": "Sim", "odd": 1.64}, {"id": 4906323674, "label": "Não", "odd": 1.88}]},
+{"tab": 1, "tag": 1024, "mid": 1572478167, "market": "Margem de vitória", "selections": [{"id": 4935611630, "label": "Newcastle 1 golo", "odd": 7.05}, {"id": 4935611627, "label": "Empate", "odd": 3.57}, {"id": 4935611631, "label": "Arsenal 1 golo", "odd": 3.29}, {"id": 4935611629, "label": "Newcastle 2 golos", "odd": 18.0}, {"id": 4935611632, "label": "Arsenal 2 golos", "odd": 4.04}, {"id": 4935611628, "label": "Newcastle 3 ou mais golos", "odd": 51.0}]},
+{"tab": 1, "tag": 1008, "mid": 1573121288, "market": "Cantos totales", "selections": [{"id": 4937484895, "label": "0-8", "odd": 2.58}, {"id": 4937484896, "label": "Entre 9 e 11 (ambos incluídos)", "odd": 2.58}, {"id": 4937484897, "label": "12 ou mais", "odd": 2.49}]}
+]}

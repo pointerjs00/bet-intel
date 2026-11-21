@@ -1,0 +1,49 @@
+{
+ "_nota": "recorte (2 eventos, 2 mercados cada) de POST https://ws.goldenpark.pt/component/datatree url_key=/competicao/206-nba; componente prematch_event_list.data.events",
+ "events": [
+  {
+   "id": 12419834,
+   "label": "Chicago Bulls / Washington Wizards",
+   "sport": {"id":4,"label":"Basquetebol","icon":"basketball"},
+   "category": {"id":7,"label":"Estados Unidos","url":"/categoria/7-estados-unidos"},
+   "competition": {"id":206,"label":"NBA","display_mode":"vs","url":"/competicao/206-nba"},
+   "ts_creation": 1794603896,
+   "is_canceled": false,
+   "is_cashoutable": true,
+   "ts_start": 1795222800,
+   "type": "pm",
+   "state": "pm",
+   "event_live_id": 12444125,
+   "nb_bets": 164,
+   "match_id": "14319598",
+   "start": "2026-11-21T02:00:00.000+01:00",
+   "creation": "2026-11-13T22:04:56.000+01:00",
+   "url": "/evento/12419834-chicago-bulls-washington-wizards",
+   "actors": [{"id":555466,"type":"home","label":"Chicago Bulls","abrev":"Chicago Bulls"},{"id":555461,"type":"away","label":"Washington Wizards","abrev":"Washington Wizards"}],
+   "markets": [{"order":1,"selection_order_type":"moneyline","is_cashoutable":true,"nb_selection_by_line":2,"main":1,"bets":[{"label":"Vencedor (inc. prolongamento)","selections":[{"id":6267593768,"odds":1.72,"odds_display":"1.72","label":"Chicago Bulls","abrev":"Chicago Bulls"},{"id":6267593767,"odds":2.02,"odds_display":"2.02","label":"Washington Wizards","abrev":"Washington Wizards"}]}]},{"order":300,"selection_order_type":"over_under","is_cashoutable":true,"nb_selection_by_line":2,"main":2,"group":"Pontos Totais","see_more":3,"bets":[{"label":"Mais/Menos de 238.5 pontos (inc. prolongamento)","selections":[{"id":6267652827,"odds":1.83,"odds_display":"1.83","label":"Mais de 238.5","abrev":"Mais"},{"id":6267652826,"odds":1.77,"odds_display":"1.77","label":"Menos de 238.5","abrev":"Menos de"}]}]}],
+   "filter_ids": [4]
+  },
+  {
+   "id": 12419822,
+   "label": "Oklahoma City Thunder / New Orleans Pelicans",
+   "sport": {"id":4,"label":"Basquetebol","icon":"basketball"},
+   "category": {"id":7,"label":"Estados Unidos","url":"/categoria/7-estados-unidos"},
+   "competition": {"id":206,"label":"NBA","display_mode":"vs","url":"/competicao/206-nba"},
+   "ts_creation": 1794603892,
+   "is_canceled": false,
+   "is_cashoutable": true,
+   "ts_start": 1795222800,
+   "type": "pm",
+   "state": "pm",
+   "event_live_id": 12444124,
+   "nb_bets": 171,
+   "match_id": "14319599",
+   "start": "2026-11-21T02:00:00.000+01:00",
+   "creation": "2026-11-13T22:04:52.000+01:00",
+   "url": "/evento/12419822-oklahoma-city-thunder-new-orleans-pelicans",
+   "actors": [{"id":555460,"type":"home","label":"Oklahoma City Thunder","abrev":"Oklahoma City Thunder"},{"id":555450,"type":"away","label":"New Orleans Pelicans","abrev":"New Orleans Pelicans"}],
+   "markets": [{"order":1,"selection_order_type":"moneyline","is_cashoutable":true,"nb_selection_by_line":2,"main":1,"bets":[{"label":"Vencedor (inc. prolongamento)","selections":[{"id":6267777713,"odds":1.17,"odds_display":"1.17","label":"Oklahoma City Thunder","abrev":"Oklahoma City Thunder"},{"id":6267777712,"odds":4.5,"odds_display":"4.50","label":"New Orleans Pelicans","abrev":"New Orleans Pelicans"}]}]},{"order":300,"selection_order_type":"over_under","is_cashoutable":true,"nb_selection_by_line":2,"main":2,"group":"Pontos Totais","see_more":3,"bets":[{"label":"Mais/Menos de 229.5 pontos (inc. prolongamento)","selections":[{"id":6267659546,"odds":1.81,"odds_display":"1.81","label":"Mais de 229.5","abrev":"Mais"},{"id":6267659545,"odds":1.78,"odds_display":"1.78","label":"Menos de 229.5","abrev":"Menos de"}]}]}],
+   "filter_ids": [4]
+  }
+ ]
+}

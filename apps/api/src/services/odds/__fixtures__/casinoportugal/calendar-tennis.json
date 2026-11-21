@@ -1,0 +1,1117 @@
+{
+ "sports": [
+  {
+   "id": 75,
+   "name": "Ténis",
+   "code": "tennis",
+   "positionPrematch": 2,
+   "positionLive": 2,
+   "status": 3,
+   "liveMetadataId": 4
+  }
+ ],
+ "categories": [
+  {
+   "id": 786,
+   "sportId": 75,
+   "name": "ATP",
+   "positionPrematch": 4,
+   "positionLive": 4,
+   "status": 3
+  },
+  {
+   "id": 501,
+   "sportId": 75,
+   "name": "Challenger",
+   "positionPrematch": 11,
+   "positionLive": 11,
+   "status": 3
+  },
+  {
+   "id": 565,
+   "sportId": 75,
+   "name": "Billie Jean King Cup",
+   "positionPrematch": 17,
+   "positionLive": 17,
+   "status": 3
+  }
+ ],
+ "tournaments": [
+  {
+   "id": 9986,
+   "categoryId": 565,
+   "name": "Taça Billie Jean King",
+   "positionPrematch": 14,
+   "positionLive": 14,
+   "status": 3
+  },
+  {
+   "id": 3660,
+   "categoryId": 501,
+   "name": "ATP Challenger Sydney, Austrália PM",
+   "positionPrematch": 25,
+   "positionLive": 25,
+   "status": 3
+  },
+  {
+   "id": 5453,
+   "categoryId": 786,
+   "name": "ATP Camp. Mundo Finais SM",
+   "positionPrematch": 10,
+   "positionLive": 10,
+   "status": 3
+  }
+ ],
+ "cursorId": "<opaque>",
+ "markets": [
+  {
+   "outcomes": [
+    {
+     "id": 5241,
+     "name": "1",
+     "eventMarketOutcomeName": "{{E.C1.NAME}}",
+     "position": 1,
+     "status": 3
+    },
+    {
+     "id": 5103,
+     "name": "2",
+     "eventMarketOutcomeName": "{{E.C2.NAME}}",
+     "position": 2,
+     "status": 3
+    }
+   ],
+   "id": 1713,
+   "sportId": 75,
+   "name": "Vencedor",
+   "eventMarketName": "Vencedor",
+   "positionPrematch": 20,
+   "positionLive": 1,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4947,
+     "name": "Home handicap",
+     "eventMarketOutcomeName": "{{E.C1.NAME}} {{DISPLAY_IF((O.S.HANDICAP_VALUE>=0),\"+\")}}{{O.S.HANDICAP_VALUE}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 3,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "HANDICAP_VALUE"
+      }
+     ]
+    },
+    {
+     "id": 4845,
+     "name": "Away handicap",
+     "eventMarketOutcomeName": "{{E.C2.NAME}} {{DISPLAY_IF((O.S.HANDICAP_VALUE*-1>=0),\"+\")}}{{O.S.HANDICAP_VALUE*-1}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 3,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "HANDICAP_VALUE"
+      }
+     ]
+    }
+   ],
+   "id": 1431,
+   "sportId": 75,
+   "name": "Xº set - Handicap de jogos",
+   "eventMarketName": "{{M.S.SET_NUMBER}}º  set - Handicap de jogos",
+   "positionPrematch": 25,
+   "positionLive": 6,
+   "status": 3,
+   "specifiers": [
+    {
+     "id": 5,
+     "ordinal": 1,
+     "type": 1,
+     "displayId": "SET_NUMBER"
+    }
+   ]
+  },
+  {
+   "outcomes": [
+    {
+     "id": 5164,
+     "name": "Fora",
+     "eventMarketOutcomeName": "{{E.C2.NAME}}",
+     "position": 2,
+     "status": 3
+    },
+    {
+     "id": 5155,
+     "name": "Casa",
+     "eventMarketOutcomeName": "{{E.C1.NAME}}",
+     "position": 1,
+     "status": 3
+    }
+   ],
+   "id": 1353,
+   "sportId": 75,
+   "name": "Xº set - Vencedor",
+   "eventMarketName": "{{M.S.SET_NUMBER}}º  set - Vencedor",
+   "positionPrematch": 23,
+   "positionLive": 3,
+   "status": 3,
+   "specifiers": [
+    {
+     "id": 5,
+     "ordinal": 1,
+     "type": 1,
+     "displayId": "SET_NUMBER"
+    }
+   ]
+  },
+  {
+   "outcomes": [
+    {
+     "id": 5068,
+     "name": "Casa",
+     "eventMarketOutcomeName": "{{E.C1.NAME}} {{DISPLAY_IF((O.S.HANDICAP_VALUE>=0),\"+\")}}{{O.S.HANDICAP_VALUE}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 3,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "HANDICAP_VALUE"
+      }
+     ]
+    },
+    {
+     "id": 4896,
+     "name": "Fora",
+     "eventMarketOutcomeName": "{{E.C2.NAME}} {{DISPLAY_IF((O.S.HANDICAP_VALUE*-1>=0),\"+\")}}{{O.S.HANDICAP_VALUE*-1}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 3,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "HANDICAP_VALUE"
+      }
+     ]
+    }
+   ],
+   "id": 1611,
+   "sportId": 75,
+   "name": "Handicap total de jogos",
+   "eventMarketName": "Handicap total de jogos",
+   "positionPrematch": 22,
+   "positionLive": 5,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4185,
+     "name": "Acima",
+     "eventMarketOutcomeName": "Acima {{O.S.TOTAL}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    },
+    {
+     "id": 4103,
+     "name": "Abaixo",
+     "eventMarketOutcomeName": "Abaixo {{O.S.TOTAL}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    }
+   ],
+   "id": 1694,
+   "sportId": 75,
+   "name": "Xº set - Total jogos",
+   "eventMarketName": "Set {{M.S.SET_NUMBER}} - Total jogos",
+   "positionPrematch": 24,
+   "positionLive": 4,
+   "status": 3,
+   "specifiers": [
+    {
+     "id": 5,
+     "ordinal": 1,
+     "type": 1,
+     "displayId": "SET_NUMBER"
+    }
+   ]
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4187,
+     "name": "Abaixo",
+     "eventMarketOutcomeName": "Abaixo {{O.S.TOTAL}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    },
+    {
+     "id": 4318,
+     "name": "Acima",
+     "eventMarketOutcomeName": "Acima {{O.S.TOTAL}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    }
+   ],
+   "id": 1663,
+   "sportId": 75,
+   "name": "Total jogos",
+   "eventMarketName": "Total jogos",
+   "positionPrematch": 21,
+   "positionLive": 2,
+   "status": 3
+  }
+ ],
+ "events": [
+  {
+   "id": 1684120,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 9986,
+   "tournamentRoundId": 6399,
+   "tournamentSeasonId": 1396,
+   "name": "Sakatsume, Himeno vs. Maria Florencia Urrutia",
+   "startsAt": "2026-11-21T04:10:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 104660,
+     "teamName": "Sakatsume, Himeno",
+     "gender": 2
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 69777,
+     "teamName": "Maria Florencia Urrutia",
+     "gender": 2
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1713,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5241,
+       "odds": 10090,
+       "status": 2
+      },
+      {
+       "id": 2,
+       "outcomeId": 5103,
+       "odds": 52000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 3,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "2"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5155,
+       "odds": 10300,
+       "status": 2
+      },
+      {
+       "id": 2,
+       "outcomeId": 5164,
+       "odds": 48000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 6,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5155,
+       "odds": 10400,
+       "status": 2
+      },
+      {
+       "id": 2,
+       "outcomeId": 5164,
+       "odds": 46000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 17,
+     "marketId": 1694,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4185,
+       "odds": 18800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "8.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4103,
+       "odds": 15000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "8.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 19,
+     "marketId": 1663,
+     "outcomes": [
+      {
+       "id": 12,
+       "outcomeId": 4187,
+       "odds": 17000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "16.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4318,
+       "odds": 16400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "16.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 23,
+     "marketId": 1431,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4845,
+       "odds": 18100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4947,
+       "odds": 15400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 24,
+     "marketId": 1611,
+     "outcomes": [
+      {
+       "id": 5,
+       "outcomeId": 5068,
+       "odds": 16400,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-7.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4896,
+       "odds": 16900,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-7.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    }
+   ],
+   "totalMarketCount": 14,
+   "version": "19465396"
+  },
+  {
+   "id": 1685339,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 9986,
+   "tournamentRoundId": 6399,
+   "tournamentSeasonId": 1396,
+   "name": "Burel, Clara vs. Gibson, Talia",
+   "startsAt": "2026-11-21T12:30:00Z",
+   "competitors": [
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 116186,
+     "teamName": "Gibson, Talia",
+     "gender": 2
+    },
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 68358,
+     "teamName": "Burel, Clara",
+     "gender": 2
+    }
+   ],
+   "markets": [
+    {
+     "id": 5,
+     "marketId": 1663,
+     "outcomes": [
+      {
+       "id": 4,
+       "outcomeId": 4318,
+       "odds": 16800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "20.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4187,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "20.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 7,
+     "marketId": 1431,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 6,
+       "outcomeId": 4845,
+       "odds": 14200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4947,
+       "odds": 19300,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-2.5"
+        }
+       ],
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 8,
+     "marketId": 1611,
+     "outcomes": [
+      {
+       "id": 4,
+       "outcomeId": 4896,
+       "odds": 16100,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-4.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 5068,
+       "odds": 16700,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-4.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 9,
+     "marketId": 1694,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4103,
+       "odds": 14700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4185,
+       "odds": 18500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "9.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 10,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "2"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5164,
+       "odds": 23200,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5155,
+       "odds": 13000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 15,
+     "marketId": 1713,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5241,
+       "odds": 12500,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5103,
+       "odds": 25000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 18,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5164,
+       "odds": 22400,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5155,
+       "odds": 13300,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 14,
+   "version": "474802247"
+  },
+  {
+   "id": 1645214,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 3660,
+   "tournamentRoundId": 34044,
+   "tournamentSeasonId": 2202,
+   "name": "Hoeyeraal H / Padgham E vs. Jung J / Rai A",
+   "startsAt": "2026-11-21T02:30:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 231920,
+     "teamName": "Hoeyeraal H / Padgham E",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 230869,
+     "teamName": "Jung J / Rai A",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "2"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5155,
+       "odds": 25000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5164,
+       "odds": 12800,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 2,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5164,
+       "odds": 13100,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5155,
+       "odds": 24000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 3,
+     "marketId": 1713,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5241,
+       "odds": 26000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5103,
+       "odds": 12500,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 7,
+   "version": "2928035545"
+  },
+  {
+   "id": 1685242,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 5453,
+   "tournamentRoundId": 34366,
+   "tournamentSeasonId": 2216,
+   "name": "Alcaraz, Carlos vs. Shelton, Ben",
+   "startsAt": "2026-11-21T13:30:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 129147,
+     "teamName": "Alcaraz, Carlos",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 130903,
+     "teamName": "Shelton, Ben",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1611,
+     "outcomes": [
+      {
+       "id": 13,
+       "outcomeId": 4896,
+       "odds": 17000,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 5068,
+       "odds": 15800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-3.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 5,
+     "marketId": 1713,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5103,
+       "odds": 30000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5241,
+       "odds": 11600,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 11,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "2"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5155,
+       "odds": 12600,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5164,
+       "odds": 24700,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 14,
+     "marketId": 1353,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5155,
+       "odds": 12500,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5164,
+       "odds": 25000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 17,
+     "marketId": 1431,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 6,
+       "outcomeId": 4947,
+       "odds": 15200,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4845,
+       "odds": 17800,
+       "specifiers": [
+        {
+         "id": 3,
+         "value": "-1.5"
+        }
+       ],
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 19,
+     "marketId": 1663,
+     "outcomes": [
+      {
+       "id": 2,
+       "outcomeId": 4318,
+       "odds": 16400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "22.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4187,
+       "odds": 16300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "22.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 20,
+     "marketId": 1694,
+     "specifiers": [
+      {
+       "id": 5,
+       "value": "1"
+      }
+     ],
+     "outcomes": [
+      {
+       "id": 9,
+       "outcomeId": 4103,
+       "odds": 21100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "9.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4185,
+       "odds": 13400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "9.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    }
+   ],
+   "totalMarketCount": 14,
+   "version": "1827598394"
+  }
+ ]
+}

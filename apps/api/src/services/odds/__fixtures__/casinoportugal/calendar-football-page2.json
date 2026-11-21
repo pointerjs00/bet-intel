@@ -1,0 +1,737 @@
+{
+ "sports": [],
+ "categories": [
+  {
+   "id": 705,
+   "sportId": 69,
+   "name": "Croácia",
+   "code": "HRV",
+   "status": 3
+  },
+  {
+   "id": 746,
+   "sportId": 69,
+   "name": "Perú",
+   "code": "PER",
+   "status": 3
+  },
+  {
+   "id": 670,
+   "sportId": 69,
+   "name": "Costa Rica",
+   "code": "CRI",
+   "status": 3
+  }
+ ],
+ "tournaments": [
+  {
+   "id": 11079,
+   "categoryId": 746,
+   "name": "Liga 1",
+   "positionPrematch": 23,
+   "positionLive": 23,
+   "status": 3
+  },
+  {
+   "id": 11018,
+   "categoryId": 670,
+   "name": "Primeira Divisão, Abertura",
+   "positionPrematch": 23,
+   "positionLive": 23,
+   "status": 3
+  },
+  {
+   "id": 11278,
+   "categoryId": 705,
+   "name": "HNL",
+   "positionPrematch": 22,
+   "positionLive": 22,
+   "status": 3
+  }
+ ],
+ "cursorId": "<opaque>",
+ "markets": [],
+ "events": [
+  {
+   "id": 1658900,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 11018,
+   "tournamentRoundId": 17671,
+   "tournamentSeasonId": 102,
+   "name": "CD Escorpiones Belen vs. AD San Carlos",
+   "startsAt": "2026-11-21T02:00:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 122030,
+     "teamName": "CD Escorpiones Belen",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 128369,
+     "teamName": "AD San Carlos",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5158,
+       "odds": 40000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5240,
+       "odds": 16600,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5168,
+       "odds": 35000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 4,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4909,
+       "odds": 12100,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4881,
+       "odds": 12500,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5076,
+       "odds": 19300,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 17,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 3104,
+       "odds": 16300,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 2502,
+       "odds": 19400,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 52,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4090,
+       "odds": 16200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4890,
+       "odds": 34000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4090,
+       "odds": 11800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4890,
+       "odds": 19100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4890,
+       "odds": 13600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4090,
+       "odds": 24900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4890,
+       "odds": 11200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4090,
+       "odds": 40000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4090,
+       "odds": 10200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 2
+      },
+      {
+       "id": 11,
+       "outcomeId": 4890,
+       "odds": 62000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    }
+   ],
+   "totalMarketCount": 79,
+   "version": "4011248649"
+  },
+  {
+   "id": 1620996,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 11079,
+   "tournamentRoundId": 28915,
+   "tournamentSeasonId": 139,
+   "name": "Sporting Cristal vs. CS Cienciano",
+   "startsAt": "2026-11-22T20:00:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 102783,
+     "teamName": "Sporting Cristal",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 132986,
+     "teamName": "CS Cienciano",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 3,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5168,
+       "odds": 40000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5240,
+       "odds": 50000,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5158,
+       "odds": 13600,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 4,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5076,
+       "odds": 11200,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4909,
+       "odds": 22700,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4881,
+       "odds": 11600,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 20,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 3104,
+       "odds": 15700,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 2502,
+       "odds": 19500,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 39,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4890,
+       "odds": 10500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4090,
+       "odds": 43000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4090,
+       "odds": 14000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4090,
+       "odds": 11000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4890,
+       "odds": 11800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4890,
+       "odds": 36500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4890,
+       "odds": 21500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4090,
+       "odds": 30000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4890,
+       "odds": 14800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4090,
+       "odds": 19900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    }
+   ],
+   "totalMarketCount": 100,
+   "version": "514106831"
+  },
+  {
+   "id": 1324041,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 11278,
+   "tournamentRoundId": 18352,
+   "tournamentSeasonId": 80,
+   "name": "NK Lokomotiva Zagreb vs. HNK Hajduk Split",
+   "startsAt": "2026-11-21T14:00:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 130418,
+     "teamName": "NK Lokomotiva Zagreb",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 133890,
+     "teamName": "HNK Hajduk Split",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 2,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5076,
+       "odds": 18900,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4909,
+       "odds": 11700,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4881,
+       "odds": 12200,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 3,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5168,
+       "odds": 35000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5240,
+       "odds": 16000,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5158,
+       "odds": 41000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 11,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4890,
+       "odds": 18800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4090,
+       "odds": 15900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4890,
+       "odds": 32500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4090,
+       "odds": 11700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4890,
+       "odds": 13400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4090,
+       "odds": 24100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4890,
+       "odds": 11100,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4090,
+       "odds": 38000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4090,
+       "odds": 10200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 2
+      },
+      {
+       "id": 11,
+       "outcomeId": 4890,
+       "odds": 56000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 13,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 3104,
+       "odds": 16100,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 2502,
+       "odds": 18900,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 79,
+   "version": "2488622115"
+  }
+ ]
+}

@@ -2,7 +2,7 @@
  * Canonical selection keys: two houses' selections are only compared when they map to the
  * same key. Pure module (no I/O). Format: see PLANO_ODDS / global constraints.
  */
-import { parseBet, sideOf } from '../marketResolutionEngine';
+import { parseBet, sideOf, teamKey } from '../marketResolutionEngine';
 import type { Leg, MatchContext, ParsedBet, Side } from '../marketResolutionEngine';
 import { playerOf } from '../tennisMarketEngine';
 import { PLAYER_MARKET, lineIn, overUnder, scopeOf, sideOf as basketSideOf } from '../basketballMarketEngine';
@@ -168,7 +168,18 @@ export function footballKey(
   ctx: { home: string; away: string },
 ): string | null {
   const matchCtx: MatchContext = { homeNames: [ctx.home], awayNames: [ctx.away] };
-  const bet = parseBet(marketLabel, selectionLabel, matchCtx);
+  let bet = parseBet(marketLabel, selectionLabel, matchCtx);
+  if (!bet) {
+    // A selection that is exactly one team's name ("Vitória SC" vs "SC Braga", "Vendée FC La Roche/Yon")
+    // can trip parseBet's fuzzy/combo reading; it means that side, so read it as "1"/"2".
+    const sel = teamKey(selectionLabel);
+    const home = sel !== '' && sel === teamKey(ctx.home);
+    const away = sel !== '' && sel === teamKey(ctx.away);
+    if (home !== away) {
+      selectionLabel = home ? '1' : '2';
+      bet = parseBet(marketLabel, selectionLabel, matchCtx);
+    }
+  }
   if (!bet || bet.legs.length === 0) return null;
   if (contradicts(bet, marketLabel, selectionLabel)) return null;
 

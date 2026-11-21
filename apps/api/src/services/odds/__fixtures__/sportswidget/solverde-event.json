@@ -1,0 +1,64 @@
+{
+ "_note": "Solverde, real rows (sync of 2026-11-21 05:5x UTC) for Liverpool-Manchester United (MRES+BTSC): same event id as Placard, different Structure ids for the sports and its own odds.",
+ "tables": {
+  "DictionaryEntry": {"columns": ["id","value"], "rows": [
+   [462,"GB|Reino Unido"],
+   [978,"Reino Unido"],
+   [1159,"EN|England"],
+   [8851,"Futebol"],
+   [9098,"soccer"],
+   [12488,"Inglaterra - Premier League"],
+   [49696,"Liverpool"],
+   [56220,"Manchester United"],
+   [63299,"{0}||1|1|"],
+   [63586,"Resultado Final (TR)"],
+   [63590,"Empate||X|3|"],
+   [63591,"{1}||2|5|"],
+   [63667,"Ambas as equipas marcam"],
+   [63669,"Sim||Y|1|"],
+   [63671,"Não||N|2|"]
+  ]},
+  "AdditionalValueKey": {"columns": ["key_id","key"], "rows": [
+   [14,"COUNTRY_ID"],
+   [0,"SPORT_ID"]
+  ]},
+  "AdditionalValue": {"columns": ["node_id","key_id","dictionary_id"], "rows": [
+   [105,0,9098],
+   [7833,14,462],
+   [9948,14,1159]
+  ]},
+  "MarketType": {"columns": ["id","market_type"], "rows": [
+   [15,"MRES"],
+   [27,"BTSC"]
+  ]},
+  "Structure": {"columns": ["node_id","parent_node_id","node_type_id","dictionary_id"], "rows": [
+   [105,0,1,8851],
+   [7833,105,2,978],
+   [9948,7833,3,12488]
+  ]},
+  "Event": {"columns": ["node_id","parent_node_id","start_date","participant_home_dictionary_id","participant_away_dictionary_id","is_displayed","is_active"], "rows": [
+   [34319247,9948,1795365000,49696,56220,true,true]
+  ]},
+  "Market": {"columns": ["node_id","parent_node_id","market_type_id","dictionary_id","is_active","is_displayed","is_bet_builder","is_cashout_allowed","market_handicap"], "rows": [
+   [910131289,34319247,27,63667,true,true,false,false,0],
+   [910131324,34319247,15,63586,true,true,false,false,0]
+  ]},
+  "Result": {"columns": ["node_id","parent_node_id","dictionary_id","handicap_dictionary_id","odd_map_id","ref_market_phase"], "rows": [
+   [3088020389,910131289,63671,0,137,0],
+   [3088020390,910131289,63669,0,48,0],
+   [3088020576,910131324,63591,0,183,0],
+   [3088020577,910131324,63590,0,28,0],
+   [3088020578,910131324,63299,0,294,0]
+  ]},
+  "OddMap": {"columns": ["id","dec"], "rows": [
+   [28,3750],
+   [48,1450],
+   [137,2300],
+   [183,4100],
+   [294,1580]
+  ]},
+  "NodesInPlayDetail": {"columns": ["node_id","data"], "rows": [
+   [34319247,"{\"eventType\":\"MATCH\",\"inPlay\":false,\"allowInPlay\":true,\"allowPrematch\":true,\"detailedScores\":[]}"]
+  ]}
+ }
+}

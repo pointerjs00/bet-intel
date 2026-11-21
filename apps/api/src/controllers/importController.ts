@@ -58,7 +58,7 @@ const bulkImportBoletinSchema = z.object({
   items: z.array(bulkImportItemSchema).min(1),
 });
 
-const KNOWN_SITE_SLUGS = ['betclic', 'placard', 'bet365', 'esconline', 'moosh', 'solverde', 'betway', '888sport', 'betano', 'bwin', 'lebull', 'outros'] as const;
+const KNOWN_SITE_SLUGS = ['betclic', 'placard', 'bet365', 'esconline', 'moosh', 'solverde', 'betway', '888sport', 'betano', 'bwin', 'lebull', 'casinoportugal', 'goldenpark', 'retabet', 'outros'] as const;
 
 // Each boletim is validated on its own (below), so one badly scanned bet doesn't reject the batch.
 const bulkImportSchema = z.object({

@@ -1,0 +1,1270 @@
+{
+ "fixture": {
+  "optionMarkets": [
+   {
+    "id": 1578106901,
+    "name": {
+     "value": "Money Line (EUA)"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2350067826,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings"
+      },
+      "sourceName": {
+       "value": "1"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 19,
+       "denominator": 4,
+       "odds": 5.75,
+       "americanOdds": 475
+      },
+      "participantId": 2554193
+     },
+     {
+      "id": 2350067827,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers"
+      },
+      "sourceName": {
+       "value": "2"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 1,
+       "denominator": 12,
+       "odds": 1.08,
+       "americanOdds": -1200
+      },
+      "participantId": 2554179
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "3450"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "43"
+     }
+    ],
+    "spread": 4.67,
+    "balanced": 1,
+    "isMain": true,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": true
+   },
+   {
+    "id": 1580654810,
+    "name": {
+     "value": "Diferença de pontos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2356857500,
+      "status": "Visible",
+      "name": {
+       "value": "Sacramento Kings +19,5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 5,
+       "denominator": 11,
+       "odds": 1.45,
+       "americanOdds": -220
+      },
+      "participantId": 2554193,
+      "attr": "+19,5"
+     },
+     {
+      "id": 2356857501,
+      "status": "Visible",
+      "name": {
+       "value": "Los Angeles Lakers -19,5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 13,
+       "denominator": 10,
+       "odds": 2.3,
+       "americanOdds": 130
+      },
+      "participantId": 2554179,
+      "attr": "-19,5"
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "8098"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "44"
+     }
+    ],
+    "spread": 0.85,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": true
+   },
+   {
+    "id": 1580654832,
+    "name": {
+     "value": "Totais"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2356857542,
+      "status": "Visible",
+      "name": {
+       "value": "Mais de 227.5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 6,
+       "odds": 1.67,
+       "americanOdds": -150
+      },
+      "totalsPrefix": "Over"
+     },
+     {
+      "id": 2356857543,
+      "status": "Visible",
+      "name": {
+       "value": "Menos de 227.5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 10,
+       "denominator": 11,
+       "odds": 1.91,
+       "americanOdds": -110
+      },
+      "totalsPrefix": "Under"
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "11577"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "48"
+     }
+    ],
+    "attr": "227.5",
+    "spread": 0.24,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": true
+   },
+   {
+    "id": 1580654862,
+    "name": {
+     "value": "1X2 & Ambas as equipas marcam 110 ou mais pontos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2356857614,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings e Sim"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 10,
+       "denominator": 1,
+       "odds": 11,
+       "americanOdds": 1000
+      }
+     },
+     {
+      "id": 2356857615,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings e Não"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 13,
+       "denominator": 1,
+       "odds": 14.5,
+       "americanOdds": 1350
+      }
+     },
+     {
+      "id": 2356857616,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers e Sim"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 19,
+       "denominator": 10,
+       "odds": 2.9,
+       "americanOdds": 190
+      }
+     },
+     {
+      "id": 2356857617,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers e Não"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 8,
+       "denominator": 13,
+       "odds": 1.62,
+       "americanOdds": -160
+      }
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "35292"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "1542"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": false
+   },
+   {
+    "id": 1580654880,
+    "name": {
+     "value": "1X2 & Ambas as equipas marcam 100 ou mais pontos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2356857652,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings e Sim"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 13,
+       "denominator": 2,
+       "odds": 7.75,
+       "americanOdds": 675
+      }
+     },
+     {
+      "id": 2356857653,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings e Não"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 40,
+       "denominator": 1,
+       "odds": 41,
+       "americanOdds": 4000
+      }
+     },
+     {
+      "id": 2356857657,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers e Sim"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 1,
+       "denominator": 2,
+       "odds": 1.5,
+       "americanOdds": -200
+      }
+     },
+     {
+      "id": 2356857662,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers e Não"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 23,
+       "denominator": 10,
+       "odds": 3.3,
+       "americanOdds": 230
+      }
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "35291"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "1542"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": false
+   },
+   {
+    "id": 1580767668,
+    "name": {
+     "value": "Totais do 1º Tempo"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357174850,
+      "status": "Visible",
+      "name": {
+       "value": "Mais de 123.5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 29,
+       "denominator": 20,
+       "odds": 2.45,
+       "americanOdds": 145
+      },
+      "totalsPrefix": "Over"
+     },
+     {
+      "id": 2357174853,
+      "status": "Visible",
+      "name": {
+       "value": "Menos de 123.5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 11,
+       "odds": 1.36,
+       "americanOdds": -275
+      },
+      "totalsPrefix": "Under"
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "15038"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "730"
+     }
+    ],
+    "attr": "123.5",
+    "spread": 1.09,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": true
+   },
+   {
+    "id": 1580767682,
+    "name": {
+     "value": "Diferencial do 1º Tempo"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357174885,
+      "status": "Visible",
+      "name": {
+       "value": "Sacramento Kings +13,5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 7,
+       "denominator": 20,
+       "odds": 1.35,
+       "americanOdds": -285
+      },
+      "participantId": 2554193,
+      "attr": "+13,5"
+     },
+     {
+      "id": 2357174886,
+      "status": "Visible",
+      "name": {
+       "value": "Los Angeles Lakers -13,5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 33,
+       "denominator": 20,
+       "odds": 2.65,
+       "americanOdds": 165
+      },
+      "participantId": 2554179,
+      "attr": "-13,5"
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "7068"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "728"
+     }
+    ],
+    "spread": 1.3,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": true
+   },
+   {
+    "id": 1580767723,
+    "name": {
+     "value": "Totais do Primeiro Quarto"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357174927,
+      "status": "Visible",
+      "name": {
+       "value": "Mais de 62.5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 5,
+       "denominator": 4,
+       "odds": 2.25,
+       "americanOdds": 125
+      },
+      "totalsPrefix": "Over"
+     },
+     {
+      "id": 2357174986,
+      "status": "Visible",
+      "name": {
+       "value": "Menos de 62.5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 9,
+       "odds": 1.44,
+       "americanOdds": -225
+      },
+      "totalsPrefix": "Under"
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "8643"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "731"
+     }
+    ],
+    "attr": "62.5",
+    "spread": 0.81,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": true
+   },
+   {
+    "id": 1580767762,
+    "name": {
+     "value": "Diferencial do 1º Quarto"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357175032,
+      "status": "Visible",
+      "name": {
+       "value": "Sacramento Kings +5,5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 6,
+       "odds": 1.67,
+       "americanOdds": -150
+      },
+      "participantId": 2554193,
+      "attr": "+5,5"
+     },
+     {
+      "id": 2357175043,
+      "status": "Visible",
+      "name": {
+       "value": "Los Angeles Lakers -5.5"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 10,
+       "denominator": 11,
+       "odds": 1.91,
+       "americanOdds": -110
+      },
+      "participantId": 2554179,
+      "attr": "-5.5"
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "2834"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "729"
+     }
+    ],
+    "spread": 0.24,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": true
+   },
+   {
+    "id": 1580767918,
+    "name": {
+     "value": "O total do 1º tempo será ímpar ou par?"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357175415,
+      "status": "Visible",
+      "name": {
+       "value": "Ímpar"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 5,
+       "odds": 1.8,
+       "americanOdds": -125
+      }
+     },
+     {
+      "id": 2357175416,
+      "status": "Visible",
+      "name": {
+       "value": "Par"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 5,
+       "odds": 1.78,
+       "americanOdds": -130
+      }
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "12173"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "48"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": false
+   },
+   {
+    "id": 1580767934,
+    "name": {
+     "value": "O total do 1º quarto será ímpar ou par?"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357175458,
+      "status": "Visible",
+      "name": {
+       "value": "Ímpar"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 5,
+       "odds": 1.78,
+       "americanOdds": -130
+      },
+      "totalsPrefix": "Over"
+     },
+     {
+      "id": 2357175460,
+      "status": "Visible",
+      "name": {
+       "value": "Par"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 4,
+       "denominator": 5,
+       "odds": 1.78,
+       "americanOdds": -130
+      },
+      "totalsPrefix": "Under"
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "12140"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "731"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": false
+   },
+   {
+    "id": 1580767957,
+    "name": {
+     "value": "Margem de Vitória do 1º Tempo"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357175539,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings vence por 1-3 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 11,
+       "denominator": 1,
+       "odds": 12.5,
+       "americanOdds": 1150
+      }
+     },
+     {
+      "id": 2357175540,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings vence por 4-6 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 14,
+       "denominator": 1,
+       "odds": 15,
+       "americanOdds": 1400
+      }
+     },
+     {
+      "id": 2357175541,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings vence por 7-9 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 18,
+       "denominator": 1,
+       "odds": 19.5,
+       "americanOdds": 1850
+      }
+     },
+     {
+      "id": 2357175542,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings vence por 10-12 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 30,
+       "denominator": 1,
+       "odds": 31,
+       "americanOdds": 3000
+      }
+     },
+     {
+      "id": 2357175543,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings vence por 13-15 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 40,
+       "denominator": 1,
+       "odds": 41,
+       "americanOdds": 4000
+      }
+     },
+     {
+      "id": 2357175544,
+      "status": "Visible",
+      "name": {
+       "value": "SAC Kings vence por 16+ pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 40,
+       "denominator": 1,
+       "odds": 41,
+       "americanOdds": 4000
+      }
+     },
+     {
+      "id": 2357175545,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers vence por 1-3 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 8,
+       "denominator": 1,
+       "odds": 9.25,
+       "americanOdds": 825
+      }
+     },
+     {
+      "id": 2357175546,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers vence por 4-6 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 15,
+       "denominator": 2,
+       "odds": 8.75,
+       "americanOdds": 775
+      }
+     },
+     {
+      "id": 2357175547,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers vence por 7-9 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 13,
+       "denominator": 2,
+       "odds": 7.5,
+       "americanOdds": 650
+      }
+     },
+     {
+      "id": 2357175548,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers vence por 10-12 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 6,
+       "denominator": 1,
+       "odds": 7.25,
+       "americanOdds": 625
+      }
+     },
+     {
+      "id": 2357175549,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers vence por 13-15 pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 15,
+       "denominator": 2,
+       "odds": 8.5,
+       "americanOdds": 750
+      }
+     },
+     {
+      "id": 2357175550,
+      "status": "Visible",
+      "name": {
+       "value": "LA Lakers vence por 16+ pontos"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 13,
+       "denominator": 5,
+       "odds": 3.6,
+       "americanOdds": 260
+      }
+     },
+     {
+      "id": 2357175551,
+      "status": "Visible",
+      "name": {
+       "value": "Empate"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 28,
+       "denominator": 1,
+       "odds": 29,
+       "americanOdds": 2800
+      }
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "35320"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "452"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": false
+   },
+   {
+    "id": 1580774487,
+    "name": {
+     "value": "Intervalo / Final"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 2357195586,
+      "status": "Visible",
+      "name": {
+       "value": "Sacramento Kings / Sacramento Kings"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 10,
+       "denominator": 1,
+       "odds": 11,
+       "americanOdds": 1000
+      },
+      "participantId": 2554193,
+      "version": 11181805217
+     },
+     {
+      "id": 2357195587,
+      "status": "Visible",
+      "name": {
+       "value": "X / SAC Kings"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 125,
+       "denominator": 1,
+       "odds": 126,
+       "americanOdds": 12500
+      },
+      "participantId": 2554193,
+      "version": 11181805217
+     },
+     {
+      "id": 2357195588,
+      "status": "Visible",
+      "name": {
+       "value": "Los Angeles Lakers / Sacramento Kings"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 18,
+       "denominator": 1,
+       "odds": 19.5,
+       "americanOdds": 1850
+      },
+      "participantId": 2554193,
+      "version": 11181805217
+     },
+     {
+      "id": 2357195589,
+      "status": "Visible",
+      "name": {
+       "value": "Sacramento Kings / Los Angeles Lakers"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 17,
+       "denominator": 4,
+       "odds": 5.25,
+       "americanOdds": 425
+      },
+      "participantId": 2554193,
+      "version": 11181805217
+     },
+     {
+      "id": 2357195590,
+      "status": "Visible",
+      "name": {
+       "value": "X / LA Lakers"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 22,
+       "denominator": 1,
+       "odds": 23,
+       "americanOdds": 2200
+      },
+      "participantId": 2554179,
+      "version": 11181805217
+     },
+     {
+      "id": 2357195591,
+      "status": "Visible",
+      "name": {
+       "value": "Los Angeles Lakers / Los Angeles Lakers"
+      },
+      "price": {
+       "id": -1,
+       "numerator": 3,
+       "denominator": 10,
+       "odds": 1.3,
+       "americanOdds": -325
+      },
+      "participantId": 2554179,
+      "version": 11181805217
+     }
+    ],
+    "parameters": [
+     {
+      "key": "TemplateId",
+      "type": "Integer",
+      "value": "2847"
+     },
+     {
+      "key": "CategoryId",
+      "type": "Integer",
+      "value": "835"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoEventCombo",
+    "minCombo": 1,
+    "resultOrder": "Default",
+    "source": "V1",
+    "isBetBuilder": false
+   },
+   {
+    "id": 4646208,
+    "name": {
+     "value": "Luka Doncic marca 8+ triplos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 7680072,
+      "status": "Visible",
+      "name": {
+       "value": "Sim"
+      },
+      "price": {
+       "id": 27598063,
+       "numerator": 6,
+       "denominator": 1,
+       "odds": 7.25,
+       "americanOdds": 625
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 1795214926137
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "8"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "806823"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "ThreePointer"
+     },
+     {
+      "key": "MarketSubType",
+      "type": "String",
+      "value": "YesNo"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FullTime"
+     }
+    ],
+    "attr": "8",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 806823,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 618,
+    "isBalancedLine": false,
+    "version": 1795214926137
+   }
+  ],
+  "games": [],
+  "participants": [
+   {
+    "participantId": 2554193,
+    "name": {
+     "value": "Sacramento Kings",
+     "short": "SAC Kings"
+    },
+    "image": {
+     "jersey": "2554193_1",
+     "rotateJersey": true,
+     "isParticipantProfile": false
+    },
+    "options": [],
+    "source": "V1"
+   },
+   {
+    "participantId": 2554179,
+    "name": {
+     "value": "Los Angeles Lakers",
+     "short": "LA Lakers"
+    },
+    "image": {
+     "jersey": "2554179_1",
+     "rotateJersey": true,
+     "isParticipantProfile": false
+    },
+    "options": [],
+    "source": "V1"
+   },
+   {
+    "id": 800418,
+    "participantId": 356254,
+    "name": {
+     "value": "Los Angeles Lakers"
+    },
+    "status": "Unknown",
+    "image": {
+     "jersey": "2_356254_1",
+     "rotateJersey": true,
+     "isParticipantProfile": false
+    },
+    "properties": {
+     "type": "HomeTeam"
+    },
+    "options": [],
+    "source": "V2"
+   },
+   {
+    "id": 800419,
+    "participantId": 356279,
+    "name": {
+     "value": "Sacramento Kings"
+    },
+    "status": "Unknown",
+    "image": {
+     "jersey": "2_356279_1",
+     "rotateJersey": true,
+     "isParticipantProfile": false
+    },
+    "properties": {
+     "type": "AwayTeam"
+    },
+    "options": [],
+    "source": "V2"
+   }
+  ],
+  "id": "20100427",
+  "name": {
+   "value": "Sacramento Kings em casa dos Los Angeles Lakers"
+  },
+  "sourceId": 20100427,
+  "source": "V1",
+  "fixtureType": "Standard",
+  "context": "v1|pt|20100427",
+  "addons": {
+   "betRadar": 73697010,
+   "statistics": true,
+   "participantDividend": {},
+   "liveMatchTracker": {
+    "sportradarId": 73697010,
+    "coverageLevel": 3
+   },
+   "sportcastId": 599320,
+   "betBuilderConsumerFixtureId": "50524",
+   "betBuilderProvider": "Default",
+   "betBuilderId": "599320",
+   "betBuilderTradingV2FixtureId": "6:50524"
+  },
+  "stage": "PreMatch",
+  "groupId": 4459746,
+  "liveType": "NotSet",
+  "liveAlert": true,
+  "startDate": "2026-11-21T03:10:00.000Z",
+  "cutOffDate": "2026-11-21T03:10:00.000Z",
+  "sport": {
+   "type": "Sport",
+   "id": 7,
+   "name": {
+    "value": "Basquetebol",
+    "sign": "MNfyHg=="
+   }
+  },
+  "competition": {
+   "parentLeagueId": 6004,
+   "statistics": true,
+   "sportId": 7,
+   "compoundId": "1:84131",
+   "type": "Competition",
+   "id": 84131,
+   "parentId": 9,
+   "name": {
+    "value": "NBA",
+    "sign": "zngEHw=="
+   }
+  },
+  "region": {
+   "code": "N-A",
+   "sportId": 7,
+   "type": "Region",
+   "id": 9,
+   "parentId": 7,
+   "name": {
+    "value": "América do Norte",
+    "sign": "fNOkRw=="
+   }
+  },
+  "viewType": "American",
+  "isOpenForBetting": true,
+  "isVirtual": false,
+  "totalMarketsCount": 88,
+  "conferences": [],
+  "marketGroups": {
+   "outrightMarketGroupIds": [],
+   "specialMarketGroupIds": [],
+   "type": "MarketGroups",
+   "id": 0
+  },
+  "priceBoostCount": 0,
+  "tv2RelatedFixtureId": "6:50524",
+  "linkedTv1EventIds": [],
+  "hybridFixtureData": {
+   "fixtureId": "6:50524",
+   "competitionId": 103497,
+   "regionId": 9,
+   "status": "Ok"
+  },
+  "contexts": [
+   "v1|pt|20100427",
+   "v2|pt|6:50524_67_any"
+  ],
+  "sequence": 3967,
+  "isPlannedInPlay": false,
+  "timestamp": 1795222677491000
+ }
+}

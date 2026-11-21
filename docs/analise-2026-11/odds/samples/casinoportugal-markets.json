@@ -1,0 +1,35 @@
+{
+ "_nota": "Recorte de GET /tenants/{tenant}/games/1,2/languages/pt/offer/events/{eventId}?excludeMarketMetadata=false ; 100 mercados no jogo (3 mostrados); odds/10000; specifiers id 2 = linha",
+ "events": [
+  {
+   "id": 1605656,
+   "name": "RC Lens vs. Toulouse FC",
+   "startsAt": "2026-11-21T19:45:00Z",
+   "totalMarketCount": 100,
+   "competitors": [ { "ordinal": 1, "type": 1, "typeId": 131445, "teamName": "RC Lens", "gender": 1 }, { "ordinal": 2, "type": 1, "typeId": 130471, "teamName": "Toulouse FC", "gender": 1 }
+   ],
+   "markets": [ { "id": 1, "marketId": 1708, "outcomes": [ { "id": 1, "outcomeId": 5168, "odds": 36000, "status": 1 }, { "id": 2, "outcomeId": 5158, "odds": 20400, "status": 1 }, { "id": 3, "outcomeId": 5240, "odds": 32000, "status": 1 } ] }, { "id": 6, "marketId": 1682, "outcomes": [ { "id": 7, "outcomeId": 4090, "odds": 24500, "specifiers": [ { "id": 2, "value": "3.5" } ], "status": 1 }, { "id": 8, "outcomeId": 4090, "odds": 42000, "specifiers": [ { "id": 2, "value": "4.5" } ], "status": 1 }, { "id": 9, "outcomeId": 4890, "odds": 11900, "specifiers": [ { "id": 2, "value": "4.5" } ], "status": 1 }, { "id": 10, "outcomeId": 4090, "odds": 16000, "specifiers": [ { "id": 2, "value": "2.5" } ], "mostBalanced": true, "status": 1 } ], "mostBalanced": true }, { "id": 25, "marketId": 1411, "outcomes": [ { "id": 1, "outcomeId": 3104, "odds": 15900, "status": 1 }, { "id": 2, "outcomeId": 2502, "odds": 24300, "status": 1 } ] }
+   ]
+  }
+ ],
+ "markets": [
+  {
+   "id": 1682,
+   "name": "Total de golos",
+   "outcomes": [ { "id": 4090, "name": "Acima" }, { "id": 4890, "name": "Abaixo" }
+   ]
+  },
+  {
+   "id": 1708,
+   "name": "1x2",
+   "outcomes": [ { "id": 5158, "name": "Casa" }, { "id": 5240, "name": "Fora" }, { "id": 5168, "name": "Empate" }
+   ]
+  },
+  {
+   "id": 1411,
+   "name": "As duas equipas marcam",
+   "outcomes": [ { "id": 3104, "name": "Sim" }, { "id": 2502, "name": "Não" }
+   ]
+  }
+ ]
+}

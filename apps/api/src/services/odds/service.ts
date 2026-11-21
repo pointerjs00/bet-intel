@@ -6,7 +6,7 @@ import { teamKey, teamNamesMatch } from '../marketResolutionEngine';
 import { ProviderFormatError, tracked, type Provider } from '../sportsData/providerHealth';
 import { canonicalKey, swapTennisKey } from './canonical';
 import { mergeEvent, compareMultiple, type ComparedSelection, type HousePrice } from './compare';
-import { candidatesFor, eventKey, matchEvent, type Candidate } from './matcher';
+import { candidatesFor, eventKey, matchEvent, matchLinked, namesMatch, radarOf, type Candidate } from './matcher';
 import { createOddsStore, type EventCtx, type MarketsSnapshot, type OddsStore } from './store';
 import { getSources } from './registry';
 import type { CanonicalSelection, HouseId, OddsSource, OddsSport, SourceEvent, SourceMarket } from './types';
@@ -157,16 +157,65 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     // Overlapping day windows return the same match more than once; a duplicate would read as a tie.
     const seen = new Set<string>();
     const unique = candidates.filter((c) => (seen.has(`${c.sport}|${c.providerMatchId}`) ? false : (seen.add(`${c.sport}|${c.providerMatchId}`), true)));
+    // Linked events of the other houses, built once and only if an event needs them.
+    // `shared` counts the houses on each key (tie-break between keys of one game).
+    let others: { cands: Candidate[]; shared: Map<string, number> } | null = null;
+    const otherCandidates = async () => {
+      if (others) return others;
+      const byKey = new Map<string, Candidate>();
+      const shared = new Map<string, number>();
+      for (const other of deps.sources) {
+        if (other.house === source.house) continue;
+        try {
+          const oes = (await store.getEvents(other.house, sport)) ?? [];
+          const links = await store.getLinks(other.house, oes.map((oe) => oe.houseEventId));
+          const counted = new Set<string>();
+          oes.forEach((oe, i) => {
+            const link = links[i];
+            if (!link) return;
+            if (!counted.has(link)) { counted.add(link); shared.set(link, (shared.get(link) ?? 0) + 1); }
+            // One candidate per key: several houses on the same key would read as a tie.
+            if (!byKey.has(link)) byKey.set(link, { providerMatchId: link, league: null, home: oe.home, away: oe.away, startsAt: oe.startsAt, sport });
+          });
+        } catch {
+          // a failing store read only drops that house from the scan
+        }
+      }
+      return (others = { cands: [...byKey.values()], shared });
+    };
     let linked = 0;
     for (const ev of events) {
       try {
         const match = matchEvent(ev, unique);
-        const key = eventKey(ev, match);
+        let key = eventKey(ev, match);
         if (!key) continue;
+        const radar = radarOf(ev);
+        let aliased = false;
+        if (!match && !radar) {
+          // No ESPN game and no BetRadar id: join an event another house has already linked.
+          // Several keys for the same game (houses that met on an n: key before a radar house listed
+          // it): the strongest key wins, so they all move together and converge on one card.
+          const { cands, shared } = await otherCandidates();
+          const near = matchLinked(ev, cands, shared);
+          if (near) { key = near.providerMatchId; aliased = true; }
+        }
+        if (radar && match) {
+          // Another house may have missed ESPN for this game: move its links onto the ESPN key now.
+          await store.setRadarAlias(sport, radar, key);
+          for (const [house, id] of Object.entries(await store.getIndex(`bet:${sport}:${radar}`)) as Array<[HouseId, string]>) {
+            if (house === source.house) continue;
+            await store.setLink(house, id, key);
+            await store.setIndex(key, house, id);
+          }
+        } else if (radar) {
+          const alias = await store.getRadarAlias(sport, radar);
+          if (alias) { key = alias; aliased = true; }
+        }
         await store.setLink(source.house, ev.houseEventId, key);
         await store.setIndex(key, source.house, ev.houseEventId);
-        // bet: keys have no external order: the first house to write decides.
-        if (!key.startsWith('bet:') || !(await store.getCtx(key))) await store.setCtx(key, canonicalCtx(ev, key, match));
+        // bet: keys have no external order: the first house to write decides. An aliased ESPN key keeps
+        // the order written by the house that matched ESPN.
+        if ((!key.startsWith('bet:') && !aliased) || !(await store.getCtx(key))) await store.setCtx(key, canonicalCtx(ev, key, match));
         linked++;
       } catch {
         recordFormat(source.house, 'evento do calendário com formato inesperado');
@@ -201,8 +250,8 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
   ): CanonicalSelection[] | null {
     let swap = false;
     if (canon) {
-      const straight = teamNamesMatch(own.home, canon.home) && teamNamesMatch(own.away, canon.away);
-      const crossed = teamNamesMatch(own.home, canon.away) && teamNamesMatch(own.away, canon.home);
+      const straight = namesMatch(own.home, canon.home, sport) && namesMatch(own.away, canon.away, sport);
+      const crossed = namesMatch(own.home, canon.away, sport) && namesMatch(own.away, canon.home, sport);
       if (straight || !crossed) {
         if (!straight && sport === 'TENNIS') return null;
       } else if (sport === 'TENNIS') {
@@ -238,35 +287,48 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     let countryCode: string | undefined;
     const houses: HouseId[] = [];
     const names: Partial<Record<HouseId, { home: string; away: string }>> = {};
-    for (const source of deps.sources) {
+    // Houses are fetched in parallel (each adapter paces its own requests); results keep the source order.
+    type HouseResult = { house: HouseId; countryCode?: string; sels?: CanonicalSelection[]; own?: { home: string; away: string }; se?: SourceEvent | null };
+    const results = await Promise.all(deps.sources.map(async (source): Promise<HouseResult | null> => {
       const houseEventId = index[source.house];
-      if (!houseEventId) continue;
+      if (!houseEventId) return null;
+      let cc: string | undefined;
       try {
+        // The index hash keeps a field after its house moved to another key: trust only the live link.
+        if ((await store.getLink(source.house, houseEventId)) !== key) return null;
         const se = await findSourceEvent(source.house, sport, houseEventId);
-        countryCode ??= se?.countryCode || undefined;
+        cc = se?.countryCode || undefined;
+        const out: HouseResult = { house: source.house, countryCode: cc, se };
         const seOwn = se ? { home: se.home, away: se.away } : undefined;
         // Left the stored calendar after kickoff: serve cache only, never count it as a failure.
         const gone = !se && stored !== null && Date.parse(stored.startsAt) < deps.now();
         let snap: MarketsSnapshot;
         if (gone) {
           const cached = await store.getMarkets(source.house, houseEventId);
-          if (!cached) continue;
+          if (!cached) return out;
           snap = cached;
         } else {
           snap = await marketsOf(source, houseEventId, seOwn, se?.pageUrl ? { pageUrl: se.pageUrl } : undefined);
         }
         // Own order: the live calendar entry, else the one saved with the cached markets.
         const own = seOwn ?? snap.own;
-        if (!own && sport === 'TENNIS') continue; // cannot orient: drop the house
+        if (!own && sport === 'TENNIS') return out; // cannot orient: drop the house
         const sels = canonicalise(sport, source.house, snap.markets, own ?? stored ?? { home: '', away: '' }, own ? stored : null);
-        if (sels === null) continue;
-        perHouse[source.house] = sels;
-        houses.push(source.house);
-        if (own) names[source.house] = { home: own.home, away: own.away };
-        if (!info && se) info = { home: se.home, away: se.away, startsAt: se.startsAt, competition: se.competition, live: se.live };
+        if (sels === null) return out;
+        return { ...out, sels, ...(own ? { own } : {}) };
       } catch {
         // already recorded by tracked(); the house is simply absent from this response
+        return { house: source.house, countryCode: cc };
       }
+    }));
+    for (const r of results) {
+      if (!r) continue;
+      countryCode ??= r.countryCode;
+      if (!r.sels) continue;
+      perHouse[r.house] = r.sels;
+      houses.push(r.house);
+      if (r.own) names[r.house] = { home: r.own.home, away: r.own.away };
+      if (!info && r.se) info = { home: r.se.home, away: r.se.away, startsAt: r.se.startsAt, competition: r.se.competition, live: r.se.live };
     }
     if (houses.length === 0) return null;
     if (!info && stored) info = { home: stored.home, away: stored.away, startsAt: stored.startsAt, competition: '', live: false };
@@ -286,11 +348,13 @@ export function createOddsService(partial: Partial<OddsServiceDeps> = {}) {
     const byKey = new Map<string, Array<{ house: HouseId; ev: SourceEvent }>>();
     for (const source of deps.sources) {
       try {
-        const events = (await store.getEvents(source.house, sport)) ?? [];
-        for (const ev of events) {
+        const events = ((await store.getEvents(source.house, sport)) ?? []).filter((ev) => {
           const t = Date.parse(ev.startsAt);
-          if (Number.isNaN(t) || lisbonDay(t) !== day) continue;
-          const key = await store.getLink(source.house, ev.houseEventId);
+          return !Number.isNaN(t) && lisbonDay(t) === day;
+        });
+        const links = await store.getLinks(source.house, events.map((ev) => ev.houseEventId));
+        for (const [i, ev] of events.entries()) {
+          const key = links[i];
           if (!key) continue;
           const list = byKey.get(key) ?? [];
           list.push({ house: source.house, ev });

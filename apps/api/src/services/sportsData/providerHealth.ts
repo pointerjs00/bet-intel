@@ -7,7 +7,7 @@
 import { logger } from '../../utils/logger';
 
 export type Provider = 'espn-football' | 'espn-tennis' | 'espn-basketball' | 'espn-preview' | 'livescore'
-  | 'odds-betclic' | 'odds-betano' | 'odds-lebull' | 'odds-placard' | 'odds-solverde';
+  | 'odds-betclic' | 'odds-betano' | 'odds-lebull' | 'odds-placard' | 'odds-solverde' | 'odds-bwin' | 'odds-casinoportugal' | 'odds-goldenpark' | 'odds-retabet';
 
 const FAIL_THRESHOLD = 10;
 const ALERT_COOLDOWN_S = 6 * 3600;
@@ -21,6 +21,10 @@ const LABEL: Record<Provider, string> = {
   'odds-betclic': 'Odds Betclic',
   'odds-betano': 'Odds Betano',
   'odds-lebull': 'Odds Lebull',
+  'odds-bwin': 'Odds Bwin',
+  'odds-casinoportugal': 'Odds Casino Portugal',
+  'odds-goldenpark': 'Odds GoldenPark',
+  'odds-retabet': 'Odds Retabet',
   'odds-placard': 'Odds Placard',
   'odds-solverde': 'Odds Solverde',
 };
@@ -32,6 +36,13 @@ function redis(): typeof import('../../utils/redis').redis {
 
 /** Thrown by adapters when a 200 response no longer has the fields we read. */
 export class ProviderFormatError extends Error {}
+
+/**
+ * A format error that means "stop asking for a while": an HTML (possible anti-bot / challenge) page where
+ * data was expected. Odds adapters start their fail-fast cooldown on it (checked with instanceof, never
+ * by message). Still a ProviderFormatError for health.
+ */
+export class BlockError extends ProviderFormatError {}
 
 async function notifyAll(title: string, body: string): Promise<void> {
   // eslint-disable-next-line @typescript-eslint/no-var-requires

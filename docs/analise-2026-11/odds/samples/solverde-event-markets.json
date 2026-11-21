@@ -1,0 +1,24 @@
+{
+ "_nota": "Mercados completos de um evento (solverde, Norwich City - Cardiff City), recortados a 18 de 153 mercados. type = código MarketType; line = handicap_dictionary_id.",
+ "event": {"houseEventId":"34816175","sport":"FOOTBALL","region":"Reino Unido","competition":"Inglaterra - Championship","home":"Norwich City","away":"Cardiff City","startsAt":"2026-11-21T12:30:00.000Z","live":false,"marketCount":153,"statscoreId":"6569390"},
+ "markets": [
+  {"type":"BTSC","market":"Ambas as equipas marcam","active":true,"selections":[{"sel":"Não","line":null,"odds":2.75},{"sel":"Sim","line":null,"odds":1.33}]},
+  {"type":"DNOB","market":"Empate anula aposta","active":true,"selections":[{"sel":"Cardiff City","line":null,"odds":2.75},{"sel":"Norwich City","line":null,"odds":1.25}]},
+  {"type":"H1RS","market":"1.ª Parte - Resultado","active":true,"selections":[{"sel":"Cardiff City","line":null,"odds":3.7},{"sel":"Empate","line":null,"odds":2.38},{"sel":"Norwich City","line":null,"odds":2.15}]},
+  {"type":"MRES","market":"Resultado Final (TR)","active":true,"selections":[{"sel":"Cardiff City","line":null,"odds":3.7},{"sel":"Empate","line":null,"odds":3.75},{"sel":"Norwich City","line":null,"odds":1.65}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Norwich City","line":"-1","odds":2.6},{"sel":"Cardiff City","line":"+1","odds":2},{"sel":"Empate","line":"-1","odds":3.65}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Norwich City","line":"-2","odds":4.5},{"sel":"Cardiff City","line":"+2","odds":1.4},{"sel":"Empate","line":"-2","odds":4.5}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Norwich City","line":"+1","odds":1.2},{"sel":"Cardiff City","line":"-1","odds":7},{"sel":"Empate","line":"+1","odds":5.5}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Norwich City","line":"-3","odds":8.5},{"sel":"Cardiff City","line":"+3","odds":1.13},{"sel":"Empate","line":"-3","odds":6.5}]},
+  {"type":"HCMR","market":"Handicap","active":true,"selections":[{"sel":"Norwich City","line":"+2","odds":1.04},{"sel":"Cardiff City","line":"-2","odds":13},{"sel":"Empate","line":"+2","odds":8}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"3.5","odds":1.8},{"sel":"menos de","line":"3.5","odds":1.83}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"2.5","odds":1.33},{"sel":"menos de","line":"2.5","odds":2.9}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"4.5","odds":2.8},{"sel":"menos de","line":"4.5","odds":1.35}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"1.5","odds":1.09},{"sel":"menos de","line":"1.5","odds":5.5}]},
+  {"type":"HCTG","market":"Total de golos","active":true,"selections":[{"sel":"Mais de","line":"5.5","odds":4.5},{"sel":"menos de","line":"5.5","odds":1.13}]},
+  {"type":"CSFT","market":"Resultado exato","active":true,"selections":[{"sel":"0 - 0","line":null,"odds":23},{"sel":"0 - 1","line":null,"odds":17},{"sel":"0 - 2","line":null,"odds":26},{"sel":"0 - 3","line":null,"odds":51},{"sel":"0 - 4","line":null,"odds":91},{"sel":"0 - 5","line":null,"odds":null}]},
+  {"type":"DBLC","market":"Hipótese dupla","active":true,"selections":[{"sel":"Cardiff City/Empate","line":null,"odds":2},{"sel":"Norwich City/Cardiff City","line":null,"odds":1.2},{"sel":"Norwich City/Empate","line":null,"odds":1.2}]},
+  {"type":"HTFT","market":"Intervalo / Final","active":true,"selections":[{"sel":"2/2","line":null,"odds":6},{"sel":"2/X","line":null,"odds":12},{"sel":"2/1","line":null,"odds":13},{"sel":"X/2","line":null,"odds":9},{"sel":"X/X","line":null,"odds":6.5},{"sel":"X/1","line":null,"odds":4.5}]},
+  {"type":"TOTG","market":"Total de golos (Exato)","active":true,"selections":[{"sel":"0-2","line":null,"odds":2.9},{"sel":"3","line":null,"odds":3.85},{"sel":"4+","line":null,"odds":1.8}]}
+ ]
+}

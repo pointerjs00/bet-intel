@@ -315,3 +315,13 @@ test('Betano "Ambas as Equipas Marcam ou Mais de 2.5 / Não (2-0, 1-0, …)" = B
   );
   assert.equal(footballKey('Ambas as Equipas Marcam ou Mais de 2.5', 'Não (2-0, 1-0, 0-0, 0-1 ou 0-2)', kz), 'FT.BTTS.N+FT.TOTAL.goals.U.2.5');
 });
+
+test('a selection that is exactly a team name is keyed even when parseBet trips on the name', () => {
+  const vit = { home: 'Vitória SC', away: 'SC Braga' };
+  assert.equal(footballKey('Resultado (Tempo Regulamentar)', 'Vitória SC', vit), 'FT.1X2.H');
+  assert.equal(footballKey('Resultado (Tempo Regulamentar)', 'SC Braga', vit), 'FT.1X2.A');
+  const ven = { home: 'Vendée FC La Roche/Yon', away: 'US Concarneau' };
+  assert.equal(footballKey('Resultado (Tempo Regulamentar)', 'Vendée FC La Roche/Yon', ven), 'FT.1X2.H');
+  // Still not a plain result under a corners market.
+  assert.equal(footballKey('Cantos 1X2', 'Vitória SC', vit), null);
+});

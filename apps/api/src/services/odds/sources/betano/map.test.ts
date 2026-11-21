@@ -188,3 +188,24 @@ test('mapEvent keeps the calendar totalMarketsAvailable as marketCount', () => {
   assert.equal(ev?.marketCount, 287);
   assert.equal(mapEvent({ id: '1', name: 'A - B', startTime: 1794858300000 }, 'FOOTBALL', NOW)?.marketCount, undefined);
 });
+
+test('mapEvent ignores betRadarId 0 (Betano sends it when there is none)', () => {
+  const ev = mapEvent({ id: '1', name: 'Harold Mayot - Francesco Passaro', startTime: 1794858300000, betRadarId: 0 }, 'TENNIS', NOW);
+  assert.equal(ev?.extraIds, undefined);
+  assert.equal(mapEvent({ id: '1', name: 'A - B', startTime: 1794858300000, betRadarId: '0' }, 'TENNIS', NOW)?.extraIds, undefined);
+});
+
+test('mapEvent reads the main markets from sixPackBlocks when markets is empty (basketball calendar)', () => {
+  const ev = mapEvent({
+    id: '9', name: 'Dayton Flyers - Utah Utes', startTime: 1794858300000, markets: [],
+    sixPackBlocks: [{ header: [{ name: 'Vencedor' }], columns: [
+      { name: 'Vencedor', type: 'H2HT', selections: [{ name: 'Dayton Flyers', price: 1.93, handicap: 0 }, { name: 'Utah Utes', price: 1.72, handicap: 0 }] },
+      { name: 'Handicap', type: 'FHOT', selections: [{ name: 'Dayton Flyers +1.5', price: 1.8, handicap: 1.5 }] },
+    ] }],
+  }, 'BASKETBALL', NOW);
+  assert.deepEqual(ev?.mainMarkets?.map((m) => [m.marketLabel, m.selectionLabel, m.odds, m.line]), [
+    ['Vencedor', 'Dayton Flyers', 1.93, null],
+    ['Vencedor', 'Utah Utes', 1.72, null],
+    ['Handicap', 'Dayton Flyers +1.5', 1.8, 1.5],
+  ]);
+});

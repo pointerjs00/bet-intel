@@ -1,0 +1,10 @@
+{
+"_nota":"GET /cds-api/bettingoffer/fixture-view (recorte). futebol=optionMarkets, ténis=games, basquetebol=optionMarkets",
+"sport":"tennis",
+"id":"20119484",
+"name":"Rebeka Masarova (SUI) - Laura Samson (CZE)",
+"totalMarketsCount":23,
+"markets":[
+{"name":"Vencedor do jogo","results":[{"name":"R. Masarova","sourceName":"1","odds":1.7},{"name":"L. Samson","sourceName":"2","odds":1.95}]},
+{"name":"Total jogos","results":[{"name":"Mais de 21,5","odds":1.59},{"name":"Menos de 21,5","odds":1.95}]}
+]}

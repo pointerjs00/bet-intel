@@ -1,0 +1,1321 @@
+{
+ "sports": [
+  {
+   "id": 69,
+   "name": "Futebol",
+   "code": "soccer",
+   "positionPrematch": 1,
+   "positionLive": 1,
+   "status": 3,
+   "liveMetadataId": 1
+  }
+ ],
+ "categories": [
+  {
+   "id": 822,
+   "sportId": 69,
+   "name": "Escócia",
+   "code": "SCO",
+   "status": 3
+  },
+  {
+   "id": 733,
+   "sportId": 69,
+   "name": "França",
+   "code": "FRA",
+   "positionPrematch": 9,
+   "status": 3
+  }
+ ],
+ "tournaments": [
+  {
+   "id": 11205,
+   "categoryId": 822,
+   "name": "Primeira Liga",
+   "positionPrematch": 21,
+   "positionLive": 21,
+   "status": 3
+  },
+  {
+   "id": 10933,
+   "categoryId": 733,
+   "name": "Ligue 1",
+   "positionPrematch": 5,
+   "positionLive": 5,
+   "status": 3
+  }
+ ],
+ "cursorId": "<opaque>",
+ "markets": [
+  {
+   "outcomes": [
+    {
+     "id": 5076,
+     "name": "1X",
+     "eventMarketOutcomeName": "{{E.C1.NAME}} ou Empate",
+     "info": "1X",
+     "position": 1,
+     "status": 3
+    },
+    {
+     "id": 4909,
+     "name": "X2",
+     "eventMarketOutcomeName": "Empate ou {{E.C2.NAME}}",
+     "position": 2,
+     "status": 3
+    },
+    {
+     "id": 4881,
+     "name": "12",
+     "eventMarketOutcomeName": "{{E.C1.NAME}} ou {{E.C2.NAME}}",
+     "position": 3,
+     "status": 3
+    }
+   ],
+   "id": 1409,
+   "sportId": 69,
+   "name": "Hipótese Dupla",
+   "eventMarketName": "Hipótese Dupla",
+   "positionPrematch": 11,
+   "positionLive": 6,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 4090,
+     "name": "Acima",
+     "eventMarketOutcomeName": "Acima {{O.S.TOTAL}}",
+     "position": 2,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    },
+    {
+     "id": 4890,
+     "name": "Abaixo",
+     "eventMarketOutcomeName": "Abaixo {{O.S.TOTAL}}",
+     "position": 1,
+     "status": 3,
+     "specifiers": [
+      {
+       "id": 2,
+       "ordinal": 1,
+       "type": 2,
+       "displayId": "TOTAL"
+      }
+     ]
+    }
+   ],
+   "id": 1682,
+   "sportId": 69,
+   "name": "Total de golos",
+   "eventMarketName": "Total de golos",
+   "positionPrematch": 10,
+   "positionLive": 2,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 3104,
+     "name": "Sim",
+     "eventMarketOutcomeName": "Sim",
+     "info": "Yes",
+     "position": 1,
+     "status": 3
+    },
+    {
+     "id": 2502,
+     "name": "Não",
+     "eventMarketOutcomeName": "Não",
+     "info": "No",
+     "position": 2,
+     "status": 3
+    }
+   ],
+   "id": 1411,
+   "sportId": 69,
+   "name": "As duas equipas marcam",
+   "eventMarketName": "As duas equipas marcam",
+   "positionPrematch": 11,
+   "positionLive": 7,
+   "status": 3
+  },
+  {
+   "outcomes": [
+    {
+     "id": 5158,
+     "name": "Casa",
+     "eventMarketOutcomeName": "{{E.C1.NAME}}",
+     "position": 1,
+     "status": 3
+    },
+    {
+     "id": 5240,
+     "name": "Fora",
+     "eventMarketOutcomeName": "{{E.C2.NAME}}",
+     "position": 3,
+     "status": 3
+    },
+    {
+     "id": 5168,
+     "name": "Empate",
+     "eventMarketOutcomeName": "Empate",
+     "position": 2,
+     "status": 3
+    }
+   ],
+   "id": 1708,
+   "sportId": 69,
+   "name": "1x2",
+   "eventMarketName": "1x2",
+   "positionPrematch": 9,
+   "positionLive": 1,
+   "status": 3
+  }
+ ],
+ "events": [
+  {
+   "id": 1605656,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 10933,
+   "tournamentRoundId": 18297,
+   "tournamentSeasonId": 167,
+   "name": "RC Lens vs. Toulouse FC",
+   "startsAt": "2026-11-21T19:45:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 131445,
+     "teamName": "RC Lens",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 130471,
+     "teamName": "Toulouse FC",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5168,
+       "odds": 36000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5158,
+       "odds": 20400,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5240,
+       "odds": 32000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 2,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4909,
+       "odds": 16600,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4881,
+       "odds": 12700,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5076,
+       "odds": 13100,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 6,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 7,
+       "outcomeId": 4090,
+       "odds": 24500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4090,
+       "odds": 42000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4890,
+       "odds": 11900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4090,
+       "odds": 16000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4890,
+       "odds": 14900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4890,
+       "odds": 21900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4090,
+       "odds": 11800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 16,
+       "outcomeId": 4890,
+       "odds": 43000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 17,
+       "outcomeId": 4890,
+       "odds": 94000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 18,
+       "outcomeId": 4090,
+       "odds": 10300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 2
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 25,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 3104,
+       "odds": 15900,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 2502,
+       "odds": 24300,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 100,
+   "version": "3686456873"
+  },
+  {
+   "id": 1605657,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 10933,
+   "tournamentRoundId": 18297,
+   "tournamentSeasonId": 167,
+   "name": "LOSC Lille vs. Lyon",
+   "startsAt": "2026-11-21T19:45:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 130379,
+     "teamName": "LOSC Lille",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 131375,
+     "teamName": "Lyon",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5076,
+       "odds": 13300,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4909,
+       "odds": 15700,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4881,
+       "odds": 13200,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 3,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5168,
+       "odds": 32000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5240,
+       "odds": 31500,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5158,
+       "odds": 22200,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 27,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4090,
+       "odds": 13200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4890,
+       "odds": 31000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4090,
+       "odds": 19900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4890,
+       "odds": 17300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4890,
+       "odds": 10900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4090,
+       "odds": 34000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4090,
+       "odds": 10600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4090,
+       "odds": 62000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4890,
+       "odds": 12700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4890,
+       "odds": 74000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "0.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 51,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 3104,
+       "odds": 18500,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 2502,
+       "odds": 20000,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 100,
+   "version": "3019735304"
+  },
+  {
+   "id": 1605659,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 10933,
+   "tournamentRoundId": 18297,
+   "tournamentSeasonId": 167,
+   "name": "FC Lorient vs. Stade Rennais FC",
+   "startsAt": "2026-11-22T16:15:00Z",
+   "competitors": [
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 129429,
+     "teamName": "Stade Rennais FC",
+     "gender": 1
+    },
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 128595,
+     "teamName": "FC Lorient",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5076,
+       "odds": 15200,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4909,
+       "odds": 13900,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4881,
+       "odds": 13000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 2,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5168,
+       "odds": 33000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5240,
+       "odds": 23100,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5158,
+       "odds": 27500,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 32,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 2,
+       "outcomeId": 4890,
+       "odds": 26500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.0"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4090,
+       "odds": 29000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4890,
+       "odds": 18300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4090,
+       "odds": 23800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.0"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 11,
+       "outcomeId": 4890,
+       "odds": 13200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 12,
+       "outcomeId": 4090,
+       "odds": 13900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.0"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 15,
+       "outcomeId": 4890,
+       "odds": 14700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.0"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 16,
+       "outcomeId": 4090,
+       "odds": 18000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 21,
+       "outcomeId": 4890,
+       "odds": 33500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 24,
+       "outcomeId": 4090,
+       "odds": 12500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 35,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 2502,
+       "odds": 20200,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 3104,
+       "odds": 16500,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 100,
+   "version": "251942769"
+  },
+  {
+   "id": 1603612,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 11205,
+   "tournamentRoundId": 28944,
+   "tournamentSeasonId": 225,
+   "name": "Motherwell FC vs. Glasgow Rangers",
+   "startsAt": "2026-11-21T20:00:00Z",
+   "competitors": [
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 128539,
+     "teamName": "Glasgow Rangers",
+     "gender": 1
+    },
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 133573,
+     "teamName": "Motherwell FC",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 3,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 3104,
+       "odds": 15400,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 2502,
+       "odds": 19900,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 21,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5168,
+       "odds": 39000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5240,
+       "odds": 14600,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5158,
+       "odds": 46000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 45,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4890,
+       "odds": 14700,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4890,
+       "odds": 11800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4090,
+       "odds": 32500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 4,
+       "outcomeId": 4890,
+       "odds": 10500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4090,
+       "odds": 14400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 6,
+       "outcomeId": 4090,
+       "odds": 20800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 7,
+       "outcomeId": 4090,
+       "odds": 48000,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "5.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 8,
+       "outcomeId": 4890,
+       "odds": 37500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 9,
+       "outcomeId": 4090,
+       "odds": 11200,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "1.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 10,
+       "outcomeId": 4890,
+       "odds": 21500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    },
+    {
+     "id": 50,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4881,
+       "odds": 11800,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5076,
+       "odds": 21100,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4909,
+       "odds": 11400,
+       "status": 1
+      }
+     ]
+    }
+   ],
+   "totalMarketCount": 82,
+   "version": "3938780663"
+  },
+  {
+   "id": 1605660,
+   "type": 1,
+   "competitorType": 1,
+   "playStatus": 1,
+   "detailedPlayStatus": 1,
+   "tournamentId": 10933,
+   "tournamentRoundId": 18297,
+   "tournamentSeasonId": 167,
+   "name": "Paris FC vs. Angers SCO",
+   "startsAt": "2026-11-22T14:00:00Z",
+   "competitors": [
+    {
+     "ordinal": 1,
+     "type": 1,
+     "typeId": 134490,
+     "teamName": "Paris FC",
+     "gender": 1
+    },
+    {
+     "ordinal": 2,
+     "type": 1,
+     "typeId": 130092,
+     "teamName": "Angers SCO",
+     "gender": 1
+    }
+   ],
+   "markets": [
+    {
+     "id": 1,
+     "marketId": 1708,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5168,
+       "odds": 50000,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 5240,
+       "odds": 76000,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 5158,
+       "odds": 13000,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 3,
+     "marketId": 1409,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 5076,
+       "odds": 10800,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4909,
+       "odds": 28500,
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4881,
+       "odds": 11400,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 58,
+     "marketId": 1411,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 2502,
+       "odds": 17700,
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 3104,
+       "odds": 18600,
+       "status": 1
+      }
+     ]
+    },
+    {
+     "id": 89,
+     "marketId": 1682,
+     "outcomes": [
+      {
+       "id": 1,
+       "outcomeId": 4890,
+       "odds": 14900,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 2,
+       "outcomeId": 4090,
+       "odds": 23300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 3,
+       "outcomeId": 4890,
+       "odds": 22300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 5,
+       "outcomeId": 4090,
+       "odds": 15400,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.5"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 13,
+       "outcomeId": 4890,
+       "odds": 17800,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.0"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 14,
+       "outcomeId": 4090,
+       "odds": 18600,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "3.0"
+        }
+       ],
+       "mostBalanced": true,
+       "status": 1
+      },
+      {
+       "id": 19,
+       "outcomeId": 4090,
+       "odds": 33500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.0"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 20,
+       "outcomeId": 4090,
+       "odds": 12300,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.0"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 21,
+       "outcomeId": 4890,
+       "odds": 12500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "4.0"
+        }
+       ],
+       "status": 1
+      },
+      {
+       "id": 22,
+       "outcomeId": 4890,
+       "odds": 34500,
+       "specifiers": [
+        {
+         "id": 2,
+         "value": "2.0"
+        }
+       ],
+       "status": 1
+      }
+     ],
+     "mostBalanced": true
+    }
+   ],
+   "totalMarketCount": 100,
+   "version": "3080907058"
+  }
+ ]
+}
