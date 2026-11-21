@@ -120,3 +120,19 @@ Estudo: `docs/analise-2026-11/odds/casinoportugal.md` (ler todo; amostras `docs/
 - [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
 - [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,casinoportugal`; relatar.
 - [ ] `npm test` verde; commit `feat(odds): Casino Portugal adapter`.
+
+### Task 6: API — adaptador Retabet
+
+**Files:**
+- Create: `apps/api/src/services/odds/sources/retabet/` (`index.ts`, `map.ts`, `html.ts` para o parser dos mercados, testes)
+- Create: `apps/api/src/services/odds/__fixtures__/retabet/`
+- Modify: os ficheiros da regra "uma casa nova toca sempre" (Global Constraints), com `HouseId` `retabet` (nome "Retabet", logo por favicon de `retabet.pt`).
+
+Estudo: `docs/analise-2026-11/odds/retabet.md` (ler todo; amostras `docs/analise-2026-11/odds/samples/retabet-*.json`). Plataforma própria (ASP.NET Core + React SSR), atrás de Akamai/F5; precisa do cookie de sessão de um `GET https://www.retabet.pt/` (guardar em memória e renovar quando um POST der 400).
+
+- [ ] Calendário 48 h: `GET /calendario` + `POST /api/sportsbookCalendarEvents/LoadPending` (cursor) para hoje; para amanhã, páginas de liga por id (do menu; ex. Premier League 6, LaLiga 1, Primeira Liga 123, NBA 41) — escolher as ligas de maior volume, no máximo ~25 pedidos de liga por atualização no total; ténis `GET /desportos/tenis/8` (hoje e amanhã). Hora de `du` (UTC), competição de `sdd` (sem o prefixo do país, que vai para `countryCode` quando der), `nb` → `marketCount`, mercado principal em `mainMarkets`. Sem BetRadar.
+- [ ] `getMarkets`: página do jogo ("Principais" em HTML) + `POST /api/sportsbookEventDetail/GetTabsContents`; parser HTML pequeno e testado com fixtures reais (sem dependência nova se der; se precisar, uma biblioteca leve já existente no `apps/api/package.json`, por exemplo `cheerio` se lá estiver). Uma mudança de classes CSS tem de dar `ProviderFormatError`, não uma lista vazia silenciosa.
+- [ ] Rótulos em PT: testes de chaves (`FT.1X2.H`, `FT.TOTAL.goals.O.2.5`, `FT.BTTS.Y`, `B.ML.H`, `T.WIN.A`).
+- [ ] Registar em `registry.ts`; `.env.example` (`ODDS_SOURCES`).
+- [ ] Verificação real `npm run odds:coverage -- <SPORT> betclic,retabet`; relatar.
+- [ ] `npm test` verde; commit `feat(odds): Retabet adapter`.
