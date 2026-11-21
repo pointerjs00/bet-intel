@@ -1,0 +1,5511 @@
+{
+ "fixture": {
+  "optionMarkets": [
+   {
+    "id": 207901980,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors vence sem sofrer golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673339,
+      "status": "Visible",
+      "name": {
+       "value": "Sim"
+      },
+      "price": {
+       "id": 2829548324,
+       "numerator": 3,
+       "denominator": 1,
+       "odds": 4,
+       "americanOdds": 300
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "NotToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870779
+     },
+     {
+      "id": 807673340,
+      "status": "Visible",
+      "name": {
+       "value": "Não"
+      },
+      "price": {
+       "id": 2829548328,
+       "numerator": 2,
+       "denominator": 11,
+       "odds": 1.18,
+       "americanOdds": -550
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw",
+        "ToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870779
+     }
+    ],
+    "parameters": [
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "TeamToWinToNil"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": false,
+    "sequenceNumber": 100,
+    "version": 72489133600
+   },
+   {
+    "id": 207901987,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors marca"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673354,
+      "status": "Visible",
+      "name": {
+       "value": "Sim"
+      },
+      "price": {
+       "id": 2829548451,
+       "numerator": 21,
+       "denominator": 100,
+       "odds": 1.21,
+       "americanOdds": -475
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671870803
+     },
+     {
+      "id": 807673355,
+      "status": "Visible",
+      "name": {
+       "value": "Não"
+      },
+      "price": {
+       "id": 2829548455,
+       "numerator": 27,
+       "denominator": 10,
+       "odds": 3.7,
+       "americanOdds": 270
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671870803
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "ToScore"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": false,
+    "sequenceNumber": 100,
+    "version": 72489133658
+   },
+   {
+    "id": 207901988,
+    "name": {
+     "value": "FC Seoul marca"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673356,
+      "status": "Visible",
+      "name": {
+       "value": "Sim"
+      },
+      "price": {
+       "id": 2829548459,
+       "numerator": 1,
+       "denominator": 4,
+       "odds": 1.25,
+       "americanOdds": -400
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671870803
+     },
+     {
+      "id": 807673357,
+      "status": "Visible",
+      "name": {
+       "value": "Não"
+      },
+      "price": {
+       "id": 2829548463,
+       "numerator": 23,
+       "denominator": 10,
+       "odds": 3.3,
+       "americanOdds": 230
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671870803
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132932"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "ToScore"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132932,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": false,
+    "sequenceNumber": 100,
+    "version": 72489133658
+   },
+   {
+    "id": 207902000,
+    "name": {
+     "value": "Margem de Vitória"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673385,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors vence por exatamente 1 golo(s)"
+      },
+      "price": {
+       "id": 2829548593,
+       "numerator": 29,
+       "denominator": 10,
+       "odds": 3.9,
+       "americanOdds": 290
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673386,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk vence por exatamente 2 golo(s)"
+      },
+      "price": {
+       "id": 2829548597,
+       "numerator": 21,
+       "denominator": 4,
+       "odds": 6.25,
+       "americanOdds": 525
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673387,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk vence por exatamente 3 golo(s)"
+      },
+      "price": {
+       "id": 2829548601,
+       "numerator": 11,
+       "denominator": 1,
+       "odds": 12,
+       "americanOdds": 1100
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673388,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors vence por 4 ou mais golos"
+      },
+      "price": {
+       "id": 2829548605,
+       "numerator": 37,
+       "denominator": 2,
+       "odds": 19.5,
+       "americanOdds": 1850
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673389,
+      "status": "Visible",
+      "name": {
+       "value": "Seul vence por exatamente 1 golo(s)"
+      },
+      "price": {
+       "id": 2829548609,
+       "numerator": 16,
+       "denominator": 5,
+       "odds": 4.2,
+       "americanOdds": 320
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673390,
+      "status": "Visible",
+      "name": {
+       "value": "Seoul vence por exatamente 2 golo(s)"
+      },
+      "price": {
+       "id": 2829548613,
+       "numerator": 13,
+       "denominator": 2,
+       "odds": 7.5,
+       "americanOdds": 650
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673391,
+      "status": "Visible",
+      "name": {
+       "value": "Seoul vence por exatamente 3 golo(s)"
+      },
+      "price": {
+       "id": 2829548617,
+       "numerator": 27,
+       "denominator": 2,
+       "odds": 14.5,
+       "americanOdds": 1350
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673392,
+      "status": "Visible",
+      "name": {
+       "value": "FC Seoul vence por 4 ou mais golos"
+      },
+      "price": {
+       "id": 2829548621,
+       "numerator": 25,
+       "denominator": 1,
+       "odds": 26,
+       "americanOdds": 2500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673393,
+      "status": "Visible",
+      "name": {
+       "value": "Empate com golos"
+      },
+      "price": {
+       "id": 2829548625,
+       "numerator": 14,
+       "denominator": 5,
+       "odds": 3.8,
+       "americanOdds": 280
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over",
+        "Draw"
+       ]
+      },
+      "version": 15671870815
+     },
+     {
+      "id": 807673394,
+      "status": "Visible",
+      "name": {
+       "value": "Sem golos"
+      },
+      "price": {
+       "id": 2829548629,
+       "numerator": 21,
+       "denominator": 2,
+       "odds": 11.5,
+       "americanOdds": 1050
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870815
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "WinningMargin"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 307602417948
+   },
+   {
+    "id": 207902005,
+    "name": {
+     "value": "Hipótese Dupla & Ambas marcam"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673404,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou X & Ambas marcam"
+      },
+      "price": {
+       "id": 2829548669,
+       "numerator": 23,
+       "denominator": 20,
+       "odds": 2.15,
+       "americanOdds": 115
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw",
+        "ToHappen",
+        "ToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870824
+     },
+     {
+      "id": 807673405,
+      "status": "Visible",
+      "name": {
+       "value": "X ou FC Seoul & Ambas marcam"
+      },
+      "price": {
+       "id": 2829548673,
+       "numerator": 13,
+       "denominator": 10,
+       "odds": 2.3,
+       "americanOdds": 130
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw",
+        "ToHappen",
+        "ToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870824
+     },
+     {
+      "id": 807673406,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou FC Seoul & Ambas marcam"
+      },
+      "price": {
+       "id": 2829548677,
+       "numerator": 11,
+       "denominator": 8,
+       "odds": 2.37,
+       "americanOdds": 138
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "ToHappen",
+        "Max",
+        "ToHappen"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870824
+     },
+     {
+      "id": 807673407,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou X & Ambas não marcam"
+      },
+      "price": {
+       "id": 2829548681,
+       "numerator": 23,
+       "denominator": 10,
+       "odds": 3.3,
+       "americanOdds": 230
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw",
+        "NotToHappen",
+        "NotToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870824
+     },
+     {
+      "id": 807673408,
+      "status": "Visible",
+      "name": {
+       "value": "X ou FC Seoul & Ambas não marcam"
+      },
+      "price": {
+       "id": 2829548685,
+       "numerator": 27,
+       "denominator": 10,
+       "odds": 3.7,
+       "americanOdds": 270
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw",
+        "NotToHappen",
+        "NotToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870824
+     },
+     {
+      "id": 807673409,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou FC Seoul & 1 Equipa ou Ambas não marcam"
+      },
+      "price": {
+       "id": 2829548689,
+       "numerator": 11,
+       "denominator": 8,
+       "odds": 2.37,
+       "americanOdds": 138
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "NotToHappen",
+        "Max",
+        "NotToHappen"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870824
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "DoubleChanceAndBTTS"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": false,
+    "sequenceNumber": 101,
+    "version": 190045776062
+   },
+   {
+    "id": 207905958,
+    "name": {
+     "value": "Handicap (3 opções) (-2) - Tempo Regulamentar"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807716261,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors (-2)"
+      },
+      "price": {
+       "id": 2829767890,
+       "numerator": 8,
+       "denominator": 1,
+       "odds": 9,
+       "americanOdds": 800
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671948537
+     },
+     {
+      "id": 807716262,
+      "status": "Visible",
+      "name": {
+       "value": "Handicap Empate - Jeonbuk Hyundai Motors (-2)"
+      },
+      "price": {
+       "id": 2829767894,
+       "numerator": 21,
+       "denominator": 4,
+       "odds": 6.25,
+       "americanOdds": 525
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw"
+       ]
+      },
+      "version": 15671948537
+     },
+     {
+      "id": 807716263,
+      "status": "Visible",
+      "name": {
+       "value": "FC Seoul (2)"
+      },
+      "price": {
+       "id": 2829767898,
+       "numerator": 1,
+       "denominator": 6,
+       "odds": 1.16,
+       "americanOdds": -625
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671948537
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Handicap",
+      "type": "Decimal",
+      "value": "-2.0000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Handicap"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 103,
+    "version": 101878696925
+   },
+   {
+    "id": 207902026,
+    "name": {
+     "value": "Resultado exato"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673651,
+      "status": "Visible",
+      "name": {
+       "value": "0:0"
+      },
+      "price": {
+       "id": 2829550765,
+       "numerator": 21,
+       "denominator": 2,
+       "odds": 11.5,
+       "americanOdds": 1050
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673652,
+      "status": "Visible",
+      "name": {
+       "value": "1:0"
+      },
+      "price": {
+       "id": 2829550769,
+       "numerator": 27,
+       "denominator": 4,
+       "odds": 7.75,
+       "americanOdds": 675
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673653,
+      "status": "Visible",
+      "name": {
+       "value": "2:0"
+      },
+      "price": {
+       "id": 2829550773,
+       "numerator": 19,
+       "denominator": 2,
+       "odds": 10.5,
+       "americanOdds": 950
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673654,
+      "status": "Visible",
+      "name": {
+       "value": "3:0"
+      },
+      "price": {
+       "id": 2829550777,
+       "numerator": 31,
+       "denominator": 2,
+       "odds": 16.5,
+       "americanOdds": 1550
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673655,
+      "status": "Visible",
+      "name": {
+       "value": "4:0"
+      },
+      "price": {
+       "id": 2829550781,
+       "numerator": 28,
+       "denominator": 1,
+       "odds": 29,
+       "americanOdds": 2800
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673656,
+      "status": "Visible",
+      "name": {
+       "value": "5:0"
+      },
+      "price": {
+       "id": 2829550785,
+       "numerator": 50,
+       "denominator": 1,
+       "odds": 51,
+       "americanOdds": 5000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673657,
+      "status": "Visible",
+      "name": {
+       "value": "6:0"
+      },
+      "price": {
+       "id": 2829550789,
+       "numerator": 90,
+       "denominator": 1,
+       "odds": 91,
+       "americanOdds": 9000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673658,
+      "status": "Visible",
+      "name": {
+       "value": "7:0"
+      },
+      "price": {
+       "id": 2829550793,
+       "numerator": 175,
+       "denominator": 1,
+       "odds": 176,
+       "americanOdds": 17500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15674186340
+     },
+     {
+      "id": 807673662,
+      "status": "Visible",
+      "name": {
+       "value": "0:1"
+      },
+      "price": {
+       "id": 2829550809,
+       "numerator": 15,
+       "denominator": 2,
+       "odds": 8.5,
+       "americanOdds": 750
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673663,
+      "status": "Visible",
+      "name": {
+       "value": "1:1"
+      },
+      "price": {
+       "id": 2829550813,
+       "numerator": 9,
+       "denominator": 2,
+       "odds": 5.5,
+       "americanOdds": 450
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673664,
+      "status": "Visible",
+      "name": {
+       "value": "2:1"
+      },
+      "price": {
+       "id": 2829550817,
+       "numerator": 7,
+       "denominator": 1,
+       "odds": 8,
+       "americanOdds": 700
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673665,
+      "status": "Visible",
+      "name": {
+       "value": "3:1"
+      },
+      "price": {
+       "id": 2829550821,
+       "numerator": 25,
+       "denominator": 2,
+       "odds": 13.5,
+       "americanOdds": 1250
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673666,
+      "status": "Visible",
+      "name": {
+       "value": "4:1"
+      },
+      "price": {
+       "id": 2829550825,
+       "numerator": 25,
+       "denominator": 1,
+       "odds": 26,
+       "americanOdds": 2500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673667,
+      "status": "Visible",
+      "name": {
+       "value": "5:1"
+      },
+      "price": {
+       "id": 2829550829,
+       "numerator": 50,
+       "denominator": 1,
+       "odds": 51,
+       "americanOdds": 5000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673668,
+      "status": "Visible",
+      "name": {
+       "value": "6:1"
+      },
+      "price": {
+       "id": 2829550833,
+       "numerator": 90,
+       "denominator": 1,
+       "odds": 91,
+       "americanOdds": 9000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673669,
+      "status": "Visible",
+      "name": {
+       "value": "7:1"
+      },
+      "price": {
+       "id": 2829550837,
+       "numerator": 150,
+       "denominator": 1,
+       "odds": 151,
+       "americanOdds": 15000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673673,
+      "status": "Visible",
+      "name": {
+       "value": "0:2"
+      },
+      "price": {
+       "id": 2829550853,
+       "numerator": 21,
+       "denominator": 2,
+       "odds": 11.5,
+       "americanOdds": 1050
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673674,
+      "status": "Visible",
+      "name": {
+       "value": "1:2"
+      },
+      "price": {
+       "id": 2829550857,
+       "numerator": 15,
+       "denominator": 2,
+       "odds": 8.5,
+       "americanOdds": 750
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673675,
+      "status": "Visible",
+      "name": {
+       "value": "2:2"
+      },
+      "price": {
+       "id": 2829550861,
+       "numerator": 9,
+       "denominator": 1,
+       "odds": 10,
+       "americanOdds": 900
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673676,
+      "status": "Visible",
+      "name": {
+       "value": "3:2"
+      },
+      "price": {
+       "id": 2829550865,
+       "numerator": 33,
+       "denominator": 2,
+       "odds": 17.5,
+       "americanOdds": 1650
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673677,
+      "status": "Visible",
+      "name": {
+       "value": "4:2"
+      },
+      "price": {
+       "id": 2829550869,
+       "numerator": 33,
+       "denominator": 1,
+       "odds": 34,
+       "americanOdds": 3300
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673678,
+      "status": "Visible",
+      "name": {
+       "value": "5:2"
+      },
+      "price": {
+       "id": 2829550873,
+       "numerator": 60,
+       "denominator": 1,
+       "odds": 61,
+       "americanOdds": 6000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673679,
+      "status": "Visible",
+      "name": {
+       "value": "6:2"
+      },
+      "price": {
+       "id": 2829550877,
+       "numerator": 90,
+       "denominator": 1,
+       "odds": 91,
+       "americanOdds": 9000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673684,
+      "status": "Visible",
+      "name": {
+       "value": "0:3"
+      },
+      "price": {
+       "id": 2829550897,
+       "numerator": 37,
+       "denominator": 2,
+       "odds": 19.5,
+       "americanOdds": 1850
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673685,
+      "status": "Visible",
+      "name": {
+       "value": "1:3"
+      },
+      "price": {
+       "id": 2829550901,
+       "numerator": 15,
+       "denominator": 1,
+       "odds": 16,
+       "americanOdds": 1500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673686,
+      "status": "Visible",
+      "name": {
+       "value": "2:3"
+      },
+      "price": {
+       "id": 2829550905,
+       "numerator": 37,
+       "denominator": 2,
+       "odds": 19.5,
+       "americanOdds": 1850
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673687,
+      "status": "Visible",
+      "name": {
+       "value": "3:3"
+      },
+      "price": {
+       "id": 2829550909,
+       "numerator": 25,
+       "denominator": 1,
+       "odds": 26,
+       "americanOdds": 2500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673688,
+      "status": "Visible",
+      "name": {
+       "value": "4:3"
+      },
+      "price": {
+       "id": 2829550913,
+       "numerator": 50,
+       "denominator": 1,
+       "odds": 51,
+       "americanOdds": 5000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673689,
+      "status": "Visible",
+      "name": {
+       "value": "5:3"
+      },
+      "price": {
+       "id": 2829550917,
+       "numerator": 70,
+       "denominator": 1,
+       "odds": 71,
+       "americanOdds": 6600
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673690,
+      "status": "Visible",
+      "name": {
+       "value": "6:3"
+      },
+      "price": {
+       "id": 2829550921,
+       "numerator": 150,
+       "denominator": 1,
+       "odds": 151,
+       "americanOdds": 15000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673695,
+      "status": "Visible",
+      "name": {
+       "value": "0:4"
+      },
+      "price": {
+       "id": 2829550941,
+       "numerator": 35,
+       "denominator": 1,
+       "odds": 36,
+       "americanOdds": 3500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673696,
+      "status": "Visible",
+      "name": {
+       "value": "1:4"
+      },
+      "price": {
+       "id": 2829550945,
+       "numerator": 30,
+       "denominator": 1,
+       "odds": 31,
+       "americanOdds": 3000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673697,
+      "status": "Visible",
+      "name": {
+       "value": "2:4"
+      },
+      "price": {
+       "id": 2829550949,
+       "numerator": 35,
+       "denominator": 1,
+       "odds": 36,
+       "americanOdds": 3500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673698,
+      "status": "Visible",
+      "name": {
+       "value": "3:4"
+      },
+      "price": {
+       "id": 2829550953,
+       "numerator": 50,
+       "denominator": 1,
+       "odds": 51,
+       "americanOdds": 5000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673699,
+      "status": "Visible",
+      "name": {
+       "value": "4:4"
+      },
+      "price": {
+       "id": 2829550957,
+       "numerator": 70,
+       "denominator": 1,
+       "odds": 71,
+       "americanOdds": 6600
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673700,
+      "status": "Visible",
+      "name": {
+       "value": "5:4"
+      },
+      "price": {
+       "id": 2829550961,
+       "numerator": 125,
+       "denominator": 1,
+       "odds": 126,
+       "americanOdds": 12500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673706,
+      "status": "Visible",
+      "name": {
+       "value": "0:5"
+      },
+      "price": {
+       "id": 2829550985,
+       "numerator": 66,
+       "denominator": 1,
+       "odds": 67,
+       "americanOdds": 6600
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673707,
+      "status": "Visible",
+      "name": {
+       "value": "1:5"
+      },
+      "price": {
+       "id": 2829550989,
+       "numerator": 50,
+       "denominator": 1,
+       "odds": 51,
+       "americanOdds": 5000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673708,
+      "status": "Visible",
+      "name": {
+       "value": "2:5"
+      },
+      "price": {
+       "id": 2829550993,
+       "numerator": 70,
+       "denominator": 1,
+       "odds": 71,
+       "americanOdds": 6600
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673709,
+      "status": "Visible",
+      "name": {
+       "value": "3:5"
+      },
+      "price": {
+       "id": 2829550997,
+       "numerator": 90,
+       "denominator": 1,
+       "odds": 91,
+       "americanOdds": 9000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673710,
+      "status": "Visible",
+      "name": {
+       "value": "4:5"
+      },
+      "price": {
+       "id": 2829551001,
+       "numerator": 125,
+       "denominator": 1,
+       "odds": 126,
+       "americanOdds": 12500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673717,
+      "status": "Visible",
+      "name": {
+       "value": "0:6"
+      },
+      "price": {
+       "id": 2829551029,
+       "numerator": 125,
+       "denominator": 1,
+       "odds": 126,
+       "americanOdds": 12500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673718,
+      "status": "Visible",
+      "name": {
+       "value": "1:6"
+      },
+      "price": {
+       "id": 2829551033,
+       "numerator": 90,
+       "denominator": 1,
+       "odds": 91,
+       "americanOdds": 9000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673719,
+      "status": "Visible",
+      "name": {
+       "value": "2:6"
+      },
+      "price": {
+       "id": 2829551037,
+       "numerator": 100,
+       "denominator": 1,
+       "odds": 101,
+       "americanOdds": 10000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673720,
+      "status": "Visible",
+      "name": {
+       "value": "3:6"
+      },
+      "price": {
+       "id": 2829551041,
+       "numerator": 125,
+       "denominator": 1,
+       "odds": 126,
+       "americanOdds": 12500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673721,
+      "status": "Visible",
+      "name": {
+       "value": "4:6"
+      },
+      "price": {
+       "id": 2829551045,
+       "numerator": 150,
+       "denominator": 1,
+       "odds": 151,
+       "americanOdds": 15000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15674186340
+     },
+     {
+      "id": 807673729,
+      "status": "Visible",
+      "name": {
+       "value": "1:7"
+      },
+      "price": {
+       "id": 2829551077,
+       "numerator": 175,
+       "denominator": 1,
+       "odds": 176,
+       "americanOdds": 17500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673730,
+      "status": "Visible",
+      "name": {
+       "value": "2:7"
+      },
+      "price": {
+       "id": 2829551081,
+       "numerator": 150,
+       "denominator": 1,
+       "odds": 151,
+       "americanOdds": 15000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ]
+      },
+      "version": 15671870929
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "DynamicCorrectScore"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 100,
+    "version": 3569937561618
+   },
+   {
+    "id": 207902031,
+    "name": {
+     "value": "Intervalo/Tempo Regulamentar"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673876,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors / Jeonbuk Hyundai Motors"
+      },
+      "price": {
+       "id": 2829551665,
+       "numerator": 5,
+       "denominator": 2,
+       "odds": 3.5,
+       "americanOdds": 250
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673877,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors / Empate"
+      },
+      "price": {
+       "id": 2829551669,
+       "numerator": 19,
+       "denominator": 2,
+       "odds": 10.5,
+       "americanOdds": 950
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673878,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors / FC Seoul"
+      },
+      "price": {
+       "id": 2829551673,
+       "numerator": 37,
+       "denominator": 2,
+       "odds": 19.5,
+       "americanOdds": 1850
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673879,
+      "status": "Visible",
+      "name": {
+       "value": "Empate / Jeonbuk Hyundai Motors"
+      },
+      "price": {
+       "id": 2829551677,
+       "numerator": 9,
+       "denominator": 2,
+       "odds": 5.5,
+       "americanOdds": 450
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw",
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673880,
+      "status": "Visible",
+      "name": {
+       "value": "Empate/Empate"
+      },
+      "price": {
+       "id": 2829551681,
+       "numerator": 17,
+       "denominator": 4,
+       "odds": 5.25,
+       "americanOdds": 425
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw",
+        "Draw"
+       ]
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673881,
+      "status": "Visible",
+      "name": {
+       "value": "Empate / FC Seoul"
+      },
+      "price": {
+       "id": 2829551685,
+       "numerator": 5,
+       "denominator": 1,
+       "odds": 6,
+       "americanOdds": 500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw",
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673882,
+      "status": "Visible",
+      "name": {
+       "value": "FC Seoul / Jeonbuk Hyundai Motors"
+      },
+      "price": {
+       "id": 2829551689,
+       "numerator": 37,
+       "denominator": 2,
+       "odds": 19.5,
+       "americanOdds": 1850
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673883,
+      "status": "Visible",
+      "name": {
+       "value": "FC Seoul / Empate"
+      },
+      "price": {
+       "id": 2829551693,
+       "numerator": 19,
+       "denominator": 2,
+       "odds": 10.5,
+       "americanOdds": 950
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870929
+     },
+     {
+      "id": 807673884,
+      "status": "Visible",
+      "name": {
+       "value": "Seul / Seul"
+      },
+      "price": {
+       "id": 2829551697,
+       "numerator": 16,
+       "denominator": 5,
+       "odds": 4.2,
+       "americanOdds": 320
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870929
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "HTandFTV2"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 278213260804
+   },
+   {
+    "id": 207902050,
+    "name": {
+     "value": "Equipa que marca o 1º golo"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673951,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors"
+      },
+      "price": {
+       "id": 2829550011,
+       "numerator": 4,
+       "denominator": 5,
+       "odds": 1.8,
+       "americanOdds": -125
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870974
+     },
+     {
+      "id": 807673952,
+      "status": "Visible",
+      "name": {
+       "value": "Sem golos"
+      },
+      "price": {
+       "id": 2829550017,
+       "numerator": 21,
+       "denominator": 2,
+       "odds": 11.5,
+       "americanOdds": 1050
+      },
+      "parameters": {
+       "optionTypes": [
+        "NotExists"
+       ]
+      },
+      "version": 15671870974
+     },
+     {
+      "id": 807673953,
+      "status": "Visible",
+      "name": {
+       "value": "Seul"
+      },
+      "price": {
+       "id": 2829550023,
+       "numerator": 98,
+       "denominator": 100,
+       "odds": 1.98,
+       "americanOdds": -102
+      },
+      "parameters": {
+       "optionTypes": [
+        "Equals"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870974
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "IntegerValue",
+      "type": "Integer",
+      "value": "1"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "XthHappening"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "1",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 137145288415
+   },
+   {
+    "id": 207905834,
+    "name": {
+     "value": "Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715893,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2829765917,
+       "numerator": 8,
+       "denominator": 11,
+       "odds": 1.72,
+       "americanOdds": -140
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941719
+     },
+     {
+      "id": 807715894,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2829765923,
+       "numerator": 9,
+       "denominator": 10,
+       "odds": 1.9,
+       "americanOdds": -110
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941719
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "2,5",
+    "spread": 0.18,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 96000799044
+   },
+   {
+    "id": 207905835,
+    "name": {
+     "value": "Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715895,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 3.5"
+      },
+      "price": {
+       "id": 2829765929,
+       "numerator": 9,
+       "denominator": 5,
+       "odds": 2.8,
+       "americanOdds": 180
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941719
+     },
+     {
+      "id": 807715896,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 3.5"
+      },
+      "price": {
+       "id": 2829765935,
+       "numerator": 34,
+       "denominator": 100,
+       "odds": 1.34,
+       "americanOdds": -295
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941719
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "3.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "3,5",
+    "spread": 1.46,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 96000799044
+   },
+   {
+    "id": 207905836,
+    "name": {
+     "value": "Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715897,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 1.5"
+      },
+      "price": {
+       "id": 2829765941,
+       "numerator": 21,
+       "denominator": 100,
+       "odds": 1.21,
+       "americanOdds": -475
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941719
+     },
+     {
+      "id": 807715898,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 1.5"
+      },
+      "price": {
+       "id": 2829765947,
+       "numerator": 27,
+       "denominator": 10,
+       "odds": 3.7,
+       "americanOdds": 270
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941719
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "1.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "1,5",
+    "spread": 2.49,
+    "balanced": 1,
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 96000799044
+   },
+   {
+    "id": 207905841,
+    "name": {
+     "value": "1ª Parte - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715907,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 1.5"
+      },
+      "price": {
+       "id": 2829766001,
+       "numerator": 31,
+       "denominator": 20,
+       "odds": 2.55,
+       "americanOdds": 155
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941719
+     },
+     {
+      "id": 807715908,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 1.5"
+      },
+      "price": {
+       "id": 2829766006,
+       "numerator": 39,
+       "denominator": 100,
+       "odds": 1.39,
+       "americanOdds": -250
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941719
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "1.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "attr": "1,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 84245099364
+   },
+   {
+    "id": 207905842,
+    "name": {
+     "value": "1ª Parte - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715909,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 0.5"
+      },
+      "price": {
+       "id": 2829766011,
+       "numerator": 3,
+       "denominator": 10,
+       "odds": 1.3,
+       "americanOdds": -325
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941719
+     },
+     {
+      "id": 807715910,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 0.5"
+      },
+      "price": {
+       "id": 2829766016,
+       "numerator": 39,
+       "denominator": 20,
+       "odds": 2.95,
+       "americanOdds": 195
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941719
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 84245099364
+   },
+   {
+    "id": 207905843,
+    "name": {
+     "value": "1ª Parte - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715911,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2829766021,
+       "numerator": 23,
+       "denominator": 4,
+       "odds": 6.75,
+       "americanOdds": 575
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941719
+     },
+     {
+      "id": 807715912,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2829766026,
+       "numerator": 1,
+       "denominator": 14,
+       "odds": 1.07,
+       "americanOdds": -1400
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941719
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 101,
+    "version": 84245099364
+   },
+   {
+    "id": 207905846,
+    "name": {
+     "value": "2ª Parte - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715917,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 1.5"
+      },
+      "price": {
+       "id": 2829766082,
+       "numerator": 88,
+       "denominator": 100,
+       "odds": 1.88,
+       "americanOdds": -112
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941735
+     },
+     {
+      "id": 807715918,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 1.5"
+      },
+      "price": {
+       "id": 2829766086,
+       "numerator": 73,
+       "denominator": 100,
+       "odds": 1.73,
+       "americanOdds": -135
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941735
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "1.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "1,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489399864
+   },
+   {
+    "id": 207905847,
+    "name": {
+     "value": "2ª Parte - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715919,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 0.5"
+      },
+      "price": {
+       "id": 2829766090,
+       "numerator": 2,
+       "denominator": 11,
+       "odds": 1.18,
+       "americanOdds": -550
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941735
+     },
+     {
+      "id": 807715920,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 0.5"
+      },
+      "price": {
+       "id": 2829766094,
+       "numerator": 31,
+       "denominator": 10,
+       "odds": 4.1,
+       "americanOdds": 310
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941735
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489399864
+   },
+   {
+    "id": 207905848,
+    "name": {
+     "value": "2ª Parte - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715921,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2829766098,
+       "numerator": 11,
+       "denominator": 4,
+       "odds": 3.75,
+       "americanOdds": 275
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941735
+     },
+     {
+      "id": 807715922,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2829766102,
+       "numerator": 1,
+       "denominator": 5,
+       "odds": 1.2,
+       "americanOdds": -500
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941735
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489399864
+   },
+   {
+    "id": 207905850,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715925,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 1.5"
+      },
+      "price": {
+       "id": 2829766114,
+       "numerator": 11,
+       "denominator": 10,
+       "odds": 2.1,
+       "americanOdds": 110
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941735
+     },
+     {
+      "id": 807715926,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 1.5"
+      },
+      "price": {
+       "id": 2829766120,
+       "numerator": 58,
+       "denominator": 100,
+       "odds": 1.58,
+       "americanOdds": -175
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941735
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "1.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "1,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 96000799292
+   },
+   {
+    "id": 207905851,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715927,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 0.5"
+      },
+      "price": {
+       "id": 2829766126,
+       "numerator": 21,
+       "denominator": 100,
+       "odds": 1.21,
+       "americanOdds": -475
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941735
+     },
+     {
+      "id": 807715928,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 0.5"
+      },
+      "price": {
+       "id": 2829766132,
+       "numerator": 27,
+       "denominator": 10,
+       "odds": 3.7,
+       "americanOdds": 270
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941735
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 96000799292
+   },
+   {
+    "id": 207905852,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715929,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2829766138,
+       "numerator": 17,
+       "denominator": 5,
+       "odds": 4.4,
+       "americanOdds": 340
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941735
+     },
+     {
+      "id": 807715930,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2829766144,
+       "numerator": 2,
+       "denominator": 13,
+       "odds": 1.15,
+       "americanOdds": -650
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941735
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 96000799292
+   },
+   {
+    "id": 207905854,
+    "name": {
+     "value": "FC Seoul - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715933,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 1.5"
+      },
+      "price": {
+       "id": 2829766188,
+       "numerator": 13,
+       "denominator": 10,
+       "odds": 2.3,
+       "americanOdds": 130
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715934,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 1.5"
+      },
+      "price": {
+       "id": 2829766194,
+       "numerator": 49,
+       "denominator": 100,
+       "odds": 1.49,
+       "americanOdds": -210
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941771
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "1.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132932"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "1,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132932,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 96000799746
+   },
+   {
+    "id": 207905855,
+    "name": {
+     "value": "FC Seoul - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715935,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2829766200,
+       "numerator": 17,
+       "denominator": 4,
+       "odds": 5.25,
+       "americanOdds": 425
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715936,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2829766206,
+       "numerator": 1,
+       "denominator": 9,
+       "odds": 1.11,
+       "americanOdds": -900
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941771
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132932"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132932,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 96000799746
+   },
+   {
+    "id": 207905856,
+    "name": {
+     "value": "FC Seoul - Total golos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715937,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 0.5"
+      },
+      "price": {
+       "id": 2829766212,
+       "numerator": 1,
+       "denominator": 4,
+       "odds": 1.25,
+       "americanOdds": -400
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715938,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 0.5"
+      },
+      "price": {
+       "id": 2829766218,
+       "numerator": 23,
+       "denominator": 10,
+       "odds": 3.3,
+       "americanOdds": 230
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941771
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132932"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132932,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 96000799746
+   },
+   {
+    "id": 207905862,
+    "name": {
+     "value": "1X2 & Total golos 2.5"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807715952,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors & mais 2.5 golos marcados"
+      },
+      "price": {
+       "id": 2829766280,
+       "numerator": 12,
+       "denominator": 5,
+       "odds": 3.4,
+       "americanOdds": 240
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Over"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715953,
+      "status": "Visible",
+      "name": {
+       "value": "FC Seoul & mais 2.5 golos marcados"
+      },
+      "price": {
+       "id": 2829766284,
+       "numerator": 3,
+       "denominator": 1,
+       "odds": 4,
+       "americanOdds": 300
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Over"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715954,
+      "status": "Visible",
+      "name": {
+       "value": "Empate & mais 2.5 golos marcados"
+      },
+      "price": {
+       "id": 2829766288,
+       "numerator": 31,
+       "denominator": 4,
+       "odds": 8.75,
+       "americanOdds": 775
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw",
+        "Over"
+       ]
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715955,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk & menos de 2.5 golos marcados"
+      },
+      "price": {
+       "id": 2829766292,
+       "numerator": 4,
+       "denominator": 1,
+       "odds": 5,
+       "americanOdds": 400
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Under"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715956,
+      "status": "Visible",
+      "name": {
+       "value": "FC Seoul & menos de 2.5 golos marcados"
+      },
+      "price": {
+       "id": 2829766296,
+       "numerator": 19,
+       "denominator": 4,
+       "odds": 5.75,
+       "americanOdds": 475
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Under"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671941771
+     },
+     {
+      "id": 807715957,
+      "status": "Visible",
+      "name": {
+       "value": "Empate & menos 2.5 golos marcados"
+      },
+      "price": {
+       "id": 2829766300,
+       "numerator": 16,
+       "denominator": 5,
+       "odds": 4.2,
+       "americanOdds": 320
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw",
+        "Under"
+       ]
+      },
+      "version": 15671941771
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "ThreeWayAndOverUnder"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 190046397962
+   },
+   {
+    "id": 207901942,
+    "name": {
+     "value": "1ª Parte - Resultado"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673162,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors"
+      },
+      "price": {
+       "id": 2829547464,
+       "numerator": 17,
+       "denominator": 10,
+       "odds": 2.7,
+       "americanOdds": 170
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870743
+     },
+     {
+      "id": 807673164,
+      "status": "Visible",
+      "name": {
+       "value": "X"
+      },
+      "price": {
+       "id": 2829547472,
+       "numerator": 23,
+       "denominator": 20,
+       "odds": 2.15,
+       "americanOdds": 115
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw"
+       ]
+      },
+      "version": 15671870743
+     },
+     {
+      "id": 807673163,
+      "status": "Visible",
+      "name": {
+       "value": "Seul"
+      },
+      "price": {
+       "id": 2829547468,
+       "numerator": 2,
+       "denominator": 1,
+       "odds": 3,
+       "americanOdds": 200
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870743
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "3way"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 100,
+    "version": 101878293704
+   },
+   {
+    "id": 207901943,
+    "name": {
+     "value": "Resultado do jogo"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673165,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors"
+      },
+      "sourceName": {
+       "value": "1"
+      },
+      "price": {
+       "id": 2829547476,
+       "numerator": 6,
+       "denominator": 5,
+       "odds": 2.2,
+       "americanOdds": 120
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870743
+     },
+     {
+      "id": 807673166,
+      "status": "Visible",
+      "name": {
+       "value": "X"
+      },
+      "price": {
+       "id": 2829547483,
+       "numerator": 21,
+       "denominator": 10,
+       "odds": 3.1,
+       "americanOdds": 210
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw"
+       ]
+      },
+      "version": 15671870743
+     },
+     {
+      "id": 807673167,
+      "status": "Visible",
+      "name": {
+       "value": "Seul"
+      },
+      "sourceName": {
+       "value": "2"
+      },
+      "price": {
+       "id": 2829547490,
+       "numerator": 31,
+       "denominator": 20,
+       "odds": 2.55,
+       "americanOdds": 155
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870743
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "3way"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": true,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 100,
+    "version": 154778782379
+   },
+   {
+    "id": 207905884,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors - Total golos (2ª Parte)"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807716012,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 0.5"
+      },
+      "price": {
+       "id": 2829766602,
+       "numerator": 3,
+       "denominator": 5,
+       "odds": 1.6,
+       "americanOdds": -165
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941884
+     },
+     {
+      "id": 807716013,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 0.5"
+      },
+      "price": {
+       "id": 2829766606,
+       "numerator": 21,
+       "denominator": 20,
+       "odds": 2.05,
+       "americanOdds": 105
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941884
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489400784
+   },
+   {
+    "id": 207905885,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors - Total golos (2ª Parte)"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807716014,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 1.5"
+      },
+      "price": {
+       "id": 2829766610,
+       "numerator": 29,
+       "denominator": 10,
+       "odds": 3.9,
+       "americanOdds": 290
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941884
+     },
+     {
+      "id": 807716015,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 1.5"
+      },
+      "price": {
+       "id": 2829766614,
+       "numerator": 2,
+       "denominator": 11,
+       "odds": 1.18,
+       "americanOdds": -550
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941884
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "1.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "1,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489400784
+   },
+   {
+    "id": 207905886,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors - Total golos (2ª Parte)"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807716016,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2829766618,
+       "numerator": 21,
+       "denominator": 2,
+       "odds": 11.5,
+       "americanOdds": 1050
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941884
+     },
+     {
+      "id": 807716017,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2829766622,
+       "numerator": 1,
+       "denominator": 50,
+       "odds": 1.02,
+       "americanOdds": -5000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941884
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132931"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132931,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489400784
+   },
+   {
+    "id": 207905887,
+    "name": {
+     "value": "Seoul - Total golos (2ª Parte)"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807716018,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 0.5"
+      },
+      "price": {
+       "id": 2829766626,
+       "numerator": 68,
+       "denominator": 100,
+       "odds": 1.68,
+       "americanOdds": -145
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941884
+     },
+     {
+      "id": 807716019,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 0.5"
+      },
+      "price": {
+       "id": 2829766630,
+       "numerator": 93,
+       "denominator": 100,
+       "odds": 1.93,
+       "americanOdds": -108
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941884
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "0.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132932"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "0,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132932,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489400784
+   },
+   {
+    "id": 207905888,
+    "name": {
+     "value": "Seoul - Total golos (2ª Parte)"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807716020,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 1.5"
+      },
+      "price": {
+       "id": 2829766634,
+       "numerator": 17,
+       "denominator": 5,
+       "odds": 4.4,
+       "americanOdds": 340
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941884
+     },
+     {
+      "id": 807716021,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 1.5"
+      },
+      "price": {
+       "id": 2829766638,
+       "numerator": 2,
+       "denominator": 13,
+       "odds": 1.15,
+       "americanOdds": -650
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941884
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "1.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132932"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "1,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132932,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72489400784
+   },
+   {
+    "id": 207901948,
+    "name": {
+     "value": "Hipótese dupla"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673224,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou X"
+      },
+      "price": {
+       "id": 2829547721,
+       "numerator": 2,
+       "denominator": 5,
+       "odds": 1.4,
+       "americanOdds": -250
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870743
+     },
+     {
+      "id": 807673225,
+      "status": "Visible",
+      "name": {
+       "value": "X ou FC Seoul"
+      },
+      "price": {
+       "id": 2829547725,
+       "numerator": 52,
+       "denominator": 100,
+       "odds": 1.52,
+       "americanOdds": -190
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870743
+     },
+     {
+      "id": 807673226,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou FC Seoul"
+      },
+      "price": {
+       "id": 2829547729,
+       "numerator": 27,
+       "denominator": 100,
+       "odds": 1.27,
+       "americanOdds": -375
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870743
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "DoubleChance"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 100,
+    "version": 101878293704
+   },
+   {
+    "id": 207901949,
+    "name": {
+     "value": "Empate anula aposta"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673227,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors"
+      },
+      "price": {
+       "id": 2829547733,
+       "numerator": 68,
+       "denominator": 100,
+       "odds": 1.68,
+       "americanOdds": -145
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870743
+     },
+     {
+      "id": 807673228,
+      "status": "Visible",
+      "name": {
+       "value": "Seul"
+      },
+      "price": {
+       "id": 2829547737,
+       "numerator": 19,
+       "denominator": 20,
+       "odds": 1.95,
+       "americanOdds": -105
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870743
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "DrawNoBet"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": false,
+    "sequenceNumber": 100,
+    "version": 72489133330
+   },
+   {
+    "id": 207905889,
+    "name": {
+     "value": "Seoul - Total golos (2ª Parte)"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807716022,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2829766642,
+       "numerator": 13,
+       "denominator": 1,
+       "odds": 14,
+       "americanOdds": 1300
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15671941884
+     },
+     {
+      "id": 807716023,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2829766646,
+       "numerator": 1,
+       "denominator": 125,
+       "odds": 1.01,
+       "americanOdds": -10000
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15671941884
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "FixtureParticipant",
+      "type": "Long",
+      "value": "40132932"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "fixtureParticipantId": 40132932,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 102,
+    "version": 72491716119
+   },
+   {
+    "id": 207901954,
+    "name": {
+     "value": "1ª Parte - Hipótese dupla"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673237,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou X"
+      },
+      "price": {
+       "id": 2829547815,
+       "numerator": 29,
+       "denominator": 100,
+       "odds": 1.29,
+       "americanOdds": -350
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870746
+     },
+     {
+      "id": 807673238,
+      "status": "Visible",
+      "name": {
+       "value": "X ou FC Seoul"
+      },
+      "price": {
+       "id": 2829547819,
+       "numerator": 4,
+       "denominator": 11,
+       "odds": 1.36,
+       "americanOdds": -275
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Draw"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870746
+     },
+     {
+      "id": 807673239,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors ou FC Seoul"
+      },
+      "price": {
+       "id": 2829547823,
+       "numerator": 11,
+       "denominator": 20,
+       "odds": 1.55,
+       "americanOdds": -185
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max",
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870746
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "DoubleChance"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": false,
+    "sequenceNumber": 100,
+    "version": 101878293789
+   },
+   {
+    "id": 207901957,
+    "name": {
+     "value": "Ambas as equipas marcam"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673245,
+      "status": "Visible",
+      "name": {
+       "value": "Sim"
+      },
+      "price": {
+       "id": 2829547847,
+       "numerator": 58,
+       "denominator": 100,
+       "odds": 1.58,
+       "americanOdds": -175
+      },
+      "parameters": {
+       "optionTypes": [
+        "ToHappen",
+        "ToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870746
+     },
+     {
+      "id": 807673246,
+      "status": "Visible",
+      "name": {
+       "value": "Não"
+      },
+      "price": {
+       "id": 2829547852,
+       "numerator": 11,
+       "denominator": 10,
+       "odds": 2.1,
+       "americanOdds": 110
+      },
+      "parameters": {
+       "optionTypes": [
+        "NotToHappen",
+        "NotToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870746
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "BTTS"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 100,
+    "version": 84244797548
+   },
+   {
+    "id": 207901958,
+    "name": {
+     "value": "Ambas marcam - 1ª Parte"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673247,
+      "status": "Visible",
+      "name": {
+       "value": "Sim"
+      },
+      "price": {
+       "id": 2829547857,
+       "numerator": 31,
+       "denominator": 10,
+       "odds": 4.1,
+       "americanOdds": 310
+      },
+      "parameters": {
+       "optionTypes": [
+        "ToHappen",
+        "ToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870746
+     },
+     {
+      "id": 807673248,
+      "status": "Visible",
+      "name": {
+       "value": "Não"
+      },
+      "price": {
+       "id": 2829547861,
+       "numerator": 2,
+       "denominator": 11,
+       "odds": 1.18,
+       "americanOdds": -550
+      },
+      "parameters": {
+       "optionTypes": [
+        "NotToHappen",
+        "NotToHappen"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870746
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "BTTS"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 100,
+    "version": 72489133388
+   },
+   {
+    "id": 207901969,
+    "name": {
+     "value": "Resultado da 2ª Parte"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 807673290,
+      "status": "Visible",
+      "name": {
+       "value": "Jeonbuk Hyundai Motors"
+      },
+      "price": {
+       "id": 2829548073,
+       "numerator": 6,
+       "denominator": 4,
+       "odds": 2.5,
+       "americanOdds": 150
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132931
+      },
+      "version": 15671870767
+     },
+     {
+      "id": 807673292,
+      "status": "Visible",
+      "name": {
+       "value": "X"
+      },
+      "price": {
+       "id": 2829548081,
+       "numerator": 29,
+       "denominator": 20,
+       "odds": 2.45,
+       "americanOdds": 145
+      },
+      "parameters": {
+       "optionTypes": [
+        "Draw"
+       ]
+      },
+      "version": 15671870767
+     },
+     {
+      "id": 807673291,
+      "status": "Visible",
+      "name": {
+       "value": "Seul"
+      },
+      "price": {
+       "id": 2829548077,
+       "numerator": 9,
+       "denominator": 5,
+       "odds": 2.8,
+       "americanOdds": 180
+      },
+      "parameters": {
+       "optionTypes": [
+        "Max"
+       ],
+       "fixtureParticipant": 40132932
+      },
+      "version": 15671870767
+     }
+    ],
+    "parameters": [
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Goal"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "3way"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "SecondHalf"
+     }
+    ],
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 100,
+    "version": 101878293922
+   },
+   {
+    "id": 208135325,
+    "name": {
+     "value": "Total cantos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 809619845,
+      "status": "Visible",
+      "name": {
+       "value": "Mais de 8.5"
+      },
+      "price": {
+       "id": 2839527784,
+       "numerator": 77,
+       "denominator": 100,
+       "odds": 1.77,
+       "americanOdds": -130
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15683518710
+     },
+     {
+      "id": 809619846,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 8.5"
+      },
+      "price": {
+       "id": 2839527788,
+       "numerator": 5,
+       "denominator": 6,
+       "odds": 1.83,
+       "americanOdds": -120
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15683518710
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "8.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Corner"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "8,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 103,
+    "version": 72547284923
+   },
+   {
+    "id": 208135326,
+    "name": {
+     "value": "Total cantos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 809619847,
+      "status": "Visible",
+      "name": {
+       "value": "Mais de 9.5"
+      },
+      "price": {
+       "id": 2839527792,
+       "numerator": 13,
+       "denominator": 10,
+       "odds": 2.3,
+       "americanOdds": 130
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15683518710
+     },
+     {
+      "id": 809619848,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 9.5"
+      },
+      "price": {
+       "id": 2839527796,
+       "numerator": 49,
+       "denominator": 100,
+       "odds": 1.49,
+       "americanOdds": -210
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15683518710
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "9.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Corner"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "9,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 103,
+    "version": 72547284923
+   },
+   {
+    "id": 208135327,
+    "name": {
+     "value": "Total cantos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 809619849,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 7.5"
+      },
+      "price": {
+       "id": 2839527800,
+       "numerator": 43,
+       "denominator": 100,
+       "odds": 1.43,
+       "americanOdds": -235
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15683518710
+     },
+     {
+      "id": 809619850,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 7.5"
+      },
+      "price": {
+       "id": 2839527804,
+       "numerator": 29,
+       "denominator": 20,
+       "odds": 2.45,
+       "americanOdds": 145
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15683518710
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "7.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Corner"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "RegularTime"
+     }
+    ],
+    "attr": "7,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 103,
+    "version": 72547284923
+   },
+   {
+    "id": 208135330,
+    "name": {
+     "value": "1ª Parte - Total cantos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 809619855,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 3.5"
+      },
+      "price": {
+       "id": 2839527824,
+       "numerator": 8,
+       "denominator": 15,
+       "odds": 1.53,
+       "americanOdds": -190
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15683518710
+     },
+     {
+      "id": 809619856,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 3.5"
+      },
+      "price": {
+       "id": 2839527828,
+       "numerator": 6,
+       "denominator": 5,
+       "odds": 2.2,
+       "americanOdds": 120
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15683518710
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "3.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Corner"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "attr": "3,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 103,
+    "version": 72547284923
+   },
+   {
+    "id": 208135331,
+    "name": {
+     "value": "1ª Parte - Total cantos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 809619857,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 4.5"
+      },
+      "price": {
+       "id": 2839527832,
+       "numerator": 6,
+       "denominator": 5,
+       "odds": 2.2,
+       "americanOdds": 120
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15683518710
+     },
+     {
+      "id": 809619858,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 4.5"
+      },
+      "price": {
+       "id": 2839527836,
+       "numerator": 52,
+       "denominator": 100,
+       "odds": 1.52,
+       "americanOdds": -190
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15683518710
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "4.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Corner"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "attr": "4,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 103,
+    "version": 72547284923
+   },
+   {
+    "id": 208135332,
+    "name": {
+     "value": "1ª Parte - Total cantos"
+    },
+    "status": "Visible",
+    "options": [
+     {
+      "id": 809619859,
+      "status": "Visible",
+      "name": {
+       "value": "Mais 2.5"
+      },
+      "price": {
+       "id": 2839527840,
+       "numerator": 19,
+       "denominator": 100,
+       "odds": 1.19,
+       "americanOdds": -525
+      },
+      "parameters": {
+       "optionTypes": [
+        "Over"
+       ]
+      },
+      "version": 15683518710
+     },
+     {
+      "id": 809619860,
+      "status": "Visible",
+      "name": {
+       "value": "Menos 2.5"
+      },
+      "price": {
+       "id": 2839527844,
+       "numerator": 14,
+       "denominator": 5,
+       "odds": 3.8,
+       "americanOdds": 280
+      },
+      "parameters": {
+       "optionTypes": [
+        "Under"
+       ]
+      },
+      "version": 15683518710
+     }
+    ],
+    "parameters": [
+     {
+      "key": "DecimalValue",
+      "type": "Decimal",
+      "value": "2.5000"
+     },
+     {
+      "key": "Happening",
+      "type": "String",
+      "value": "Corner"
+     },
+     {
+      "key": "MarketType",
+      "type": "String",
+      "value": "Over/Under"
+     },
+     {
+      "key": "Period",
+      "type": "String",
+      "value": "FirstHalf"
+     }
+    ],
+    "attr": "2,5",
+    "isMain": false,
+    "comboPrevention": "NoFixtureCombo",
+    "minCombo": 1,
+    "isEachWay": false,
+    "source": "V2",
+    "isBetBuilder": true,
+    "sequenceNumber": 103,
+    "version": 72547284923
+   }
+  ],
+  "games": [],
+  "participants": [
+   {
+    "id": 40132931,
+    "participantId": 199489,
+    "name": {
+     "value": "Jeonbuk Hyundai Motors"
+    },
+    "status": "NotDefined",
+    "image": {
+     "jersey": "2_199489_1",
+     "rotateJersey": true,
+     "isParticipantProfile": false
+    },
+    "properties": {
+     "type": "HomeTeam"
+    },
+    "options": [],
+    "source": "V2"
+   },
+   {
+    "id": 40132932,
+    "participantId": 211339,
+    "name": {
+     "value": "FC Seoul"
+    },
+    "status": "NotDefined",
+    "image": {
+     "jersey": "2_211339_1",
+     "rotateJersey": true,
+     "isParticipantProfile": false
+    },
+    "properties": {
+     "type": "AwayTeam"
+    },
+    "options": [],
+    "source": "V2"
+   }
+  ],
+  "id": "2:7914231",
+  "name": {
+   "value": "Jeonbuk Hyundai Motors - FC Seoul",
+   "sign": "ULMleA=="
+  },
+  "sourceId": 7914231,
+  "source": "V2",
+  "fixtureType": "PairGame",
+  "context": "v2|pt|2:7914231_67_any",
+  "addons": {
+   "betRadar": 76045118,
+   "statistics": true,
+   "runningBall": "578ksewka6c75grjpp4ztnc44",
+   "rule4Expected": false,
+   "isResulted": false,
+   "pricingState": "None",
+   "participantDividend": {},
+   "liveMatchTracker": {
+    "sportradarId": 76045118,
+    "coverageLevel": 4
+   },
+   "fixtureStatistics": {},
+   "betBuilderProvider": "None"
+  },
+  "stage": "PreMatch",
+  "liveAlert": true,
+  "scoreboard": {
+   "messages": {},
+   "corners": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "redCards": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "yellowCards": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "offsides": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "throwIns": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "penaltiesControl": {
+    "team1": {},
+    "team2": {}
+   },
+   "penalties": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "substitutions": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "goalKicks": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "freeKicks": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "scoreDetailed": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "fouls": {
+    "player1": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    },
+    "player2": {
+     "253": 0,
+     "254": 0,
+     "255": 0
+    }
+   },
+   "sportId": 4,
+   "id": "2:7914231",
+   "period": "Ainda não começou",
+   "periodId": 0,
+   "points": [],
+   "score": "0:0",
+   "timer": {
+    "running": false,
+    "base": "1970-01-01T00:00:00.000Z",
+    "visible": true,
+    "seconds": 0
+   },
+   "started": false
+  },
+  "startDate": "2026-11-21T05:00:00.000Z",
+  "cutOffDate": "2026-11-21T07:00:00.000Z",
+  "sport": {
+   "type": "Sport",
+   "isEsport": false,
+   "id": 4,
+   "name": {
+    "value": "Futebol"
+   }
+  },
+  "competition": {
+   "statistics": true,
+   "sportId": 4,
+   "compoundId": "2:102610",
+   "type": "Competition",
+   "id": 102610,
+   "parentId": 198,
+   "name": {
+    "value": "K-League 1"
+   }
+  },
+  "region": {
+   "code": "KOR",
+   "sportId": 4,
+   "type": "Region",
+   "id": 198,
+   "parentId": 4,
+   "name": {
+    "value": "Coreia do Sul"
+   }
+  },
+  "viewType": "NotSet",
+  "isOpenForBetting": true,
+  "isVirtual": false,
+  "totalMarketsCount": 114,
+  "conferences": [],
+  "marketGroups": {
+   "outrightMarketGroupIds": [],
+   "specialMarketGroupIds": [],
+   "type": "MarketGroups",
+   "id": 0
+  },
+  "priceBoostCount": 0,
+  "linkedTv1EventIds": [],
+  "contexts": [
+   "v2|pt|2:7914231_67_any"
+  ],
+  "isPlannedInPlay": true,
+  "timestamp": 1795176468436000
+ }
+}

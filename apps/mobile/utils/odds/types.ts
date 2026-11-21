@@ -1,8 +1,8 @@
 /** Mirrors the odds comparator API payloads (apps/api/src/services/odds). */
-export type HouseId = 'betclic' | 'lebull' | 'betano' | 'placard' | 'solverde';
+export type HouseId = 'betclic' | 'lebull' | 'betano' | 'placard' | 'solverde' | 'bwin';
 export type OddsSport = 'FOOTBALL' | 'BASKETBALL' | 'TENNIS';
 
-export const HOUSE_ORDER: HouseId[] = ['betclic', 'betano', 'lebull', 'placard', 'solverde'];
+export const HOUSE_ORDER: HouseId[] = ['betclic', 'betano', 'lebull', 'placard', 'solverde', 'bwin'];
 
 export interface HousePrice {
   odds: number;

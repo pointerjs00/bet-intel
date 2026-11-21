@@ -1,0 +1,1725 @@
+{
+ "totalCount": 210,
+ "fixtures": [
+  {
+   "optionMarkets": [
+    {
+     "id": 1578106585,
+     "name": {
+      "value": "Money Line (EUA)"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2350066870,
+       "status": "Visible",
+       "name": {
+        "value": "WAS Wizards"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 19,
+        "denominator": 20,
+        "odds": 1.95,
+        "americanOdds": -105
+       },
+       "participantId": 2554203
+      },
+      {
+       "id": 2350066871,
+       "status": "Visible",
+       "name": {
+        "value": "CHI Bulls"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 7,
+        "denominator": 10,
+        "odds": 1.7,
+        "americanOdds": -145
+       },
+       "participantId": 2554160
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "3450"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "43"
+      }
+     ],
+     "spread": 0.25,
+     "balanced": 1,
+     "isMain": true,
+     "comboPrevention": "NoEventCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580627964,
+     "name": {
+      "value": "Totais"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2356789839,
+       "status": "Visible",
+       "name": {
+        "value": "Mais de 238.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.78,
+        "americanOdds": -130
+       },
+       "totalsPrefix": "Over"
+      },
+      {
+       "id": 2356789840,
+       "status": "Visible",
+       "name": {
+        "value": "Menos de 238.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.78,
+        "americanOdds": -130
+       },
+       "totalsPrefix": "Under"
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "11577"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "48"
+      }
+     ],
+     "attr": "238.5",
+     "spread": 0,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoEventCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580628002,
+     "name": {
+      "value": "Diferença de pontos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2356789932,
+       "status": "Visible",
+       "name": {
+        "value": "Washington Wizards +2,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 6,
+        "odds": 1.67,
+        "americanOdds": -150
+       },
+       "participantId": 2554203,
+       "attr": "+2,5"
+      },
+      {
+       "id": 2356789934,
+       "status": "Visible",
+       "name": {
+        "value": "Chicago Bulls -2,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 10,
+        "denominator": 11,
+        "odds": 1.91,
+        "americanOdds": -110
+       },
+       "participantId": 2554160,
+       "attr": "-2,5"
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "8098"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "44"
+      }
+     ],
+     "spread": 0.24,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoEventCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580766395,
+     "name": {
+      "value": "Totais do 1º Tempo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2357171883,
+       "status": "Visible",
+       "name": {
+        "value": "Mais de 122.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 3,
+        "denominator": 4,
+        "odds": 1.75,
+        "americanOdds": -135
+       },
+       "totalsPrefix": "Over"
+      },
+      {
+       "id": 2357171884,
+       "status": "Visible",
+       "name": {
+        "value": "Menos de 122.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 3,
+        "denominator": 4,
+        "odds": 1.75,
+        "americanOdds": -135
+       },
+       "totalsPrefix": "Under"
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "15038"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "730"
+      }
+     ],
+     "attr": "122.5",
+     "spread": 0,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoEventCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580766452,
+     "name": {
+      "value": "Diferencial do 1º Quarto"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2357171991,
+       "status": "Visible",
+       "name": {
+        "value": "Washington Wizards +0,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.78,
+        "americanOdds": -130
+       },
+       "participantId": 2554203,
+       "attr": "+0,5"
+      },
+      {
+       "id": 2357172009,
+       "status": "Visible",
+       "name": {
+        "value": "Chicago Bulls -0,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.78,
+        "americanOdds": -130
+       },
+       "participantId": 2554160,
+       "attr": "-0,5"
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "2834"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "729"
+      }
+     ],
+     "spread": 0,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoEventCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580766543,
+     "name": {
+      "value": "Diferencial do 1º Tempo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2357172213,
+       "status": "Visible",
+       "name": {
+        "value": "Washington Wizards +0,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 5,
+        "denominator": 6,
+        "odds": 1.83,
+        "americanOdds": -120
+       },
+       "participantId": 2554203,
+       "attr": "+0,5"
+      },
+      {
+       "id": 2357172214,
+       "status": "Visible",
+       "name": {
+        "value": "Chicago Bulls -0,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 3,
+        "denominator": 4,
+        "odds": 1.75,
+        "americanOdds": -135
+       },
+       "participantId": 2554160,
+       "attr": "-0,5"
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "7068"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "728"
+      }
+     ],
+     "spread": 0.08,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoEventCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580766738,
+     "name": {
+      "value": "Totais do Primeiro Quarto"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2357172691,
+       "status": "Visible",
+       "name": {
+        "value": "Mais de 62.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.78,
+        "americanOdds": -130
+       },
+       "totalsPrefix": "Over"
+      },
+      {
+       "id": 2357172692,
+       "status": "Visible",
+       "name": {
+        "value": "Menos de 62.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 8,
+        "denominator": 11,
+        "odds": 1.72,
+        "americanOdds": -140
+       },
+       "totalsPrefix": "Under"
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "8643"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "731"
+      }
+     ],
+     "attr": "62.5",
+     "spread": 0.06,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoEventCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    }
+   ],
+   "games": [],
+   "participants": [
+    {
+     "participantId": 2554203,
+     "name": {
+      "value": "Washington Wizards",
+      "short": "WAS Wizards"
+     },
+     "image": {
+      "jersey": "2554203_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "options": [],
+     "source": "V1"
+    },
+    {
+     "participantId": 2554160,
+     "name": {
+      "value": "Chicago Bulls",
+      "short": "CHI Bulls"
+     },
+     "image": {
+      "jersey": "2554160_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "options": [],
+     "source": "V1"
+    },
+    {
+     "id": 800410,
+     "participantId": 356265,
+     "name": {
+      "value": "Chicago Bulls"
+     },
+     "status": "Unknown",
+     "image": {
+      "jersey": "2_356265_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "properties": {
+      "type": "HomeTeam"
+     },
+     "options": [],
+     "source": "V2"
+    },
+    {
+     "id": 800411,
+     "participantId": 356259,
+     "name": {
+      "value": "Washington Wizards"
+     },
+     "status": "Unknown",
+     "image": {
+      "jersey": "2_356259_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "properties": {
+      "type": "AwayTeam"
+     },
+     "options": [],
+     "source": "V2"
+    }
+   ],
+   "id": "20100419",
+   "name": {
+    "value": "Washington Wizards em casa dos Chicago Bulls"
+   },
+   "sourceId": 20100419,
+   "source": "V1",
+   "fixtureType": "Standard",
+   "context": "v1|pt|20100419",
+   "addons": {
+    "betRadar": 73697004,
+    "statistics": true,
+    "participantDividend": {},
+    "liveMatchTracker": {
+     "sportradarId": 73697004,
+     "coverageLevel": 3
+    },
+    "sportcastId": 599316,
+    "betBuilderConsumerFixtureId": "50520",
+    "betBuilderProvider": "Default",
+    "betBuilderId": "599316",
+    "betBuilderTradingV2FixtureId": "6:50520"
+   },
+   "stage": "PreMatch",
+   "groupId": 4459742,
+   "liveType": "NotSet",
+   "liveAlert": true,
+   "startDate": "2026-11-21T01:10:00.000Z",
+   "cutOffDate": "2026-11-21T01:10:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "id": 7,
+    "name": {
+     "value": "Basquetebol",
+     "sign": "MNfyHg=="
+    }
+   },
+   "competition": {
+    "parentLeagueId": 6004,
+    "statistics": true,
+    "sportId": 7,
+    "compoundId": "1:84131",
+    "type": "Competition",
+    "id": 84131,
+    "parentId": 9,
+    "name": {
+     "value": "NBA",
+     "sign": "zngEHw=="
+    }
+   },
+   "region": {
+    "code": "N-A",
+    "sportId": 7,
+    "type": "Region",
+    "id": 9,
+    "parentId": 7,
+    "name": {
+     "value": "América do Norte",
+     "sign": "fNOkRw=="
+    }
+   },
+   "viewType": "American",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 86,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 0,
+   "tv2RelatedFixtureId": "6:50520",
+   "linkedTv1EventIds": [],
+   "hybridFixtureData": {
+    "fixtureId": "6:50520",
+    "competitionId": 103497,
+    "regionId": 9,
+    "status": "Ok"
+   },
+   "contexts": [
+    "v1|pt|20100419",
+    "v2|pt|6:50520_67_any"
+   ],
+   "sequence": 12125,
+   "isPlannedInPlay": false,
+   "timestamp": 1795222450848000
+  },
+  {
+   "optionMarkets": [
+    {
+     "id": 1578135046,
+     "name": {
+      "value": "Money Line (EUA)"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2350146264,
+       "status": "Visible",
+       "name": {
+        "value": "CHA Hornets"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 9,
+        "denominator": 10,
+        "odds": 1.9,
+        "americanOdds": -110
+       },
+       "participantId": 2703392,
+       "version": 11184183744
+      },
+      {
+       "id": 2350146265,
+       "status": "Visible",
+       "name": {
+        "value": "ATL Hawks"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 8,
+        "denominator": 13,
+        "odds": 1.62,
+        "americanOdds": -160
+       },
+       "participantId": 2554151,
+       "version": 11184183744
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "3450"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "43"
+      }
+     ],
+     "spread": 0.28,
+     "balanced": 1,
+     "isMain": true,
+     "comboPrevention": "OtherLiveEvents",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1578135047,
+     "name": {
+      "value": "Diferença de pontos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2350146266,
+       "status": "Visible",
+       "name": {
+        "value": "Charlotte Hornets +1.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.8,
+        "americanOdds": -125
+       },
+       "participantId": 2703392,
+       "attr": "+1.5",
+       "version": 11184183745
+      },
+      {
+       "id": 2350146267,
+       "status": "Visible",
+       "name": {
+        "value": "Atlanta Hawks -1,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 8,
+        "denominator": 11,
+        "odds": 1.72,
+        "americanOdds": -140
+       },
+       "participantId": 2554151,
+       "attr": "-1,5",
+       "version": 11184183745
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "8098"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "44"
+      }
+     ],
+     "spread": 0.08,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "OtherLiveEvents",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1578135056,
+     "name": {
+      "value": "Resultado do 1º Tempo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2350146286,
+       "status": "Visible",
+       "name": {
+        "value": "CHA Hornets"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 2,
+        "denominator": 15,
+        "odds": 1.13,
+        "americanOdds": -750
+       },
+       "participantId": 2703392,
+       "version": 11184183746
+      },
+      {
+       "id": 2350146287,
+       "status": "Visible",
+       "name": {
+        "value": "ATL Hawks"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 5,
+        "denominator": 2,
+        "odds": 3.5,
+        "americanOdds": 250
+       },
+       "participantId": 2554151,
+       "version": 11184183746
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "7763"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "623"
+      }
+     ],
+     "isMain": false,
+     "comboPrevention": "OtherLiveEvents",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580951627,
+     "name": {
+      "value": "Totais"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2357665805,
+       "status": "Visible",
+       "name": {
+        "value": "Mais de 219.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 8,
+        "denominator": 11,
+        "odds": 1.72,
+        "americanOdds": -140
+       },
+       "totalsPrefix": "Over",
+       "version": 11184183675
+      },
+      {
+       "id": 2357665806,
+       "status": "Visible",
+       "name": {
+        "value": "Menos de 219.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.78,
+        "americanOdds": -130
+       },
+       "totalsPrefix": "Under",
+       "version": 11184183675
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "11577"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "48"
+      }
+     ],
+     "attr": "219.5",
+     "spread": 0.06,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "OtherLiveEvents",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580960609,
+     "name": {
+      "value": "Diferencial do 1º Tempo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 2357689216,
+       "status": "Visible",
+       "name": {
+        "value": "Charlotte Hornets -3,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 6,
+        "odds": 1.67,
+        "americanOdds": -150
+       },
+       "attr": "-3,5",
+       "version": 11184183748
+      },
+      {
+       "id": 2357689217,
+       "status": "Visible",
+       "name": {
+        "value": "Atlanta Hawks +3,5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 3,
+        "denominator": 4,
+        "odds": 1.75,
+        "americanOdds": -135
+       },
+       "attr": "+3,5",
+       "version": 11184183748
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "7068"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "728"
+      }
+     ],
+     "spread": 0.08,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "OtherLiveEvents",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580962051,
+     "name": {
+      "value": "Totais do 1º Tempo"
+     },
+     "status": "Suspended",
+     "options": [
+      {
+       "id": 2357692925,
+       "status": "Visible",
+       "name": {
+        "value": "Mais de 111.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 8,
+        "denominator": 13,
+        "odds": 1.62,
+        "americanOdds": -160
+       },
+       "totalsPrefix": "Over",
+       "version": 11184183671
+      },
+      {
+       "id": 2357692926,
+       "status": "Visible",
+       "name": {
+        "value": "Menos de 111.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.8,
+        "americanOdds": -125
+       },
+       "totalsPrefix": "Under",
+       "version": 11184183671
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "15038"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "730"
+      }
+     ],
+     "attr": "111.5",
+     "spread": 0.18,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "OtherLiveEvents",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580967900,
+     "name": {
+      "value": "Totais do 2º Trimestre (apenas pontos marcados neste trimestre)"
+     },
+     "status": "Suspended",
+     "options": [
+      {
+       "id": 2357708138,
+       "status": "Visible",
+       "name": {
+        "value": "Mais de 57.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 8,
+        "denominator": 13,
+        "odds": 1.62,
+        "americanOdds": -160
+       },
+       "totalsPrefix": "Over",
+       "version": 11184183738
+      },
+      {
+       "id": 2357708139,
+       "status": "Visible",
+       "name": {
+        "value": "Menos de 57.5"
+       },
+       "price": {
+        "id": -1,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.8,
+        "americanOdds": -125
+       },
+       "totalsPrefix": "Under",
+       "version": 11184183738
+      }
+     ],
+     "parameters": [
+      {
+       "key": "TemplateId",
+       "type": "Integer",
+       "value": "2839"
+      },
+      {
+       "key": "CategoryId",
+       "type": "Integer",
+       "value": "731"
+      }
+     ],
+     "attr": "57.5",
+     "spread": 0.18,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoCombo",
+     "minCombo": 1,
+     "resultOrder": "Default",
+     "source": "V1",
+     "isBetBuilder": true
+    }
+   ],
+   "games": [],
+   "participants": [
+    {
+     "participantId": 2703392,
+     "name": {
+      "value": "Charlotte Hornets",
+      "short": "CHA Hornets"
+     },
+     "image": {
+      "jersey": "2703392_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "options": [],
+     "source": "V1"
+    },
+    {
+     "participantId": 2554151,
+     "name": {
+      "value": "Atlanta Hawks",
+      "short": "ATL Hawks"
+     },
+     "image": {
+      "jersey": "2554151_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "options": [],
+     "source": "V1"
+    },
+    {
+     "id": 800408,
+     "participantId": 356260,
+     "name": {
+      "value": "Atlanta Hawks"
+     },
+     "status": "Unknown",
+     "image": {
+      "jersey": "2_356260_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "properties": {
+      "type": "HomeTeam"
+     },
+     "options": [],
+     "source": "V2"
+    },
+    {
+     "id": 800409,
+     "participantId": 356274,
+     "name": {
+      "value": "Charlotte Hornets"
+     },
+     "status": "Unknown",
+     "image": {
+      "jersey": "2_356274_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "properties": {
+      "type": "AwayTeam"
+     },
+     "options": [],
+     "source": "V2"
+    }
+   ],
+   "id": "20100828",
+   "name": {
+    "value": "Charlotte Hornets em casa dos Atlanta Hawks"
+   },
+   "sourceId": 20100828,
+   "source": "V1",
+   "fixtureType": "Standard",
+   "context": "v1|pt|20100828",
+   "addons": {
+    "betRadar": 73697002,
+    "statistics": true,
+    "participantDividend": {},
+    "liveMatchTracker": {
+     "sportradarId": 73697002,
+     "coverageLevel": 3
+    },
+    "sportcastId": 599312,
+    "betBuilderConsumerFixtureId": "50519",
+    "betBuilderProvider": "Default",
+    "betBuilderId": "599312",
+    "betBuilderTradingV2FixtureId": "6:50519"
+   },
+   "stage": "Live",
+   "groupId": 4459738,
+   "liveType": "NotSet",
+   "liveAlert": true,
+   "scoreboard": {
+    "totalPoints": {
+     "player1": {
+      "1": 31,
+      "3": 19,
+      "255": 50
+     },
+     "player2": {
+      "1": 23,
+      "3": 23,
+      "255": 46
+     }
+    },
+    "matchType": 2,
+    "sportId": 7,
+    "id": "20100828",
+    "period": "2º Q",
+    "periodId": 3,
+    "points": [],
+    "turn": "Player01",
+    "score": "50:46",
+    "indicator": "< 03:30",
+    "started": true
+   },
+   "startDate": "2026-11-21T00:00:00.000Z",
+   "cutOffDate": "2026-11-21T03:00:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "id": 7,
+    "name": {
+     "value": "Basquetebol",
+     "sign": "MNfyHg=="
+    }
+   },
+   "competition": {
+    "parentLeagueId": 6004,
+    "statistics": true,
+    "sportId": 7,
+    "compoundId": "1:84132",
+    "type": "Competition",
+    "id": 84132,
+    "parentId": 9,
+    "name": {
+     "value": "NBA",
+     "sign": "hfM6VQ=="
+    }
+   },
+   "region": {
+    "code": "N-A",
+    "sportId": 7,
+    "type": "Region",
+    "id": 9,
+    "parentId": 7,
+    "name": {
+     "value": "América do Norte",
+     "sign": "fNOkRw=="
+    }
+   },
+   "viewType": "American",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 22,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 0,
+   "tv2RelatedFixtureId": "6:50519",
+   "linkedTv1EventIds": [],
+   "hybridFixtureData": {
+    "fixtureId": "6:50519",
+    "competitionId": 103497,
+    "regionId": 9,
+    "status": "Ok"
+   },
+   "contexts": [
+    "v1|pt|20100828",
+    "v2|pt|6:50519_67_any"
+   ],
+   "sequence": 14582,
+   "isPlannedInPlay": false,
+   "timestamp": 1795222739886000
+  },
+  {
+   "optionMarkets": [],
+   "games": [
+    {
+     "id": 1578673088,
+     "name": {
+      "value": "Vencedor"
+     },
+     "results": [
+      {
+       "id": 2351581001,
+       "odds": 1.28,
+       "name": {
+        "value": "Geelong Venom"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "visibility": "Visible",
+       "numerator": 2,
+       "denominator": 7,
+       "americanOdds": -350,
+       "playerId": 3018420,
+       "version": 11181269691
+      },
+      {
+       "id": 2351581002,
+       "odds": 2.7,
+       "name": {
+        "value": "Southside Flyers"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "visibility": "Visible",
+       "numerator": 17,
+       "denominator": 10,
+       "americanOdds": 170,
+       "playerId": 2828053,
+       "version": 11181269691
+      }
+     ],
+     "templateId": 66,
+     "categoryId": 43,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 1.42,
+     "category": "Gridable",
+     "isMain": true,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1578673091,
+     "name": {
+      "value": "Totais"
+     },
+     "results": [
+      {
+       "id": 2351581008,
+       "odds": 1.67,
+       "name": {
+        "value": "Mais de 155.5"
+       },
+       "visibility": "Visible",
+       "totalsPrefix": "Over",
+       "numerator": 4,
+       "denominator": 6,
+       "americanOdds": -150,
+       "version": 11175554209
+      },
+      {
+       "id": 2351581009,
+       "odds": 1.8,
+       "name": {
+        "value": "Menos de 155.5"
+       },
+       "visibility": "Visible",
+       "totalsPrefix": "Under",
+       "numerator": 4,
+       "denominator": 5,
+       "americanOdds": -125,
+       "version": 11175554209
+      }
+     ],
+     "templateId": 102,
+     "categoryId": 48,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "attr": "155.5",
+     "spread": 0.13,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1578673093,
+     "name": {
+      "value": "Resultado do 1º Tempo"
+     },
+     "results": [
+      {
+       "id": 2351581013,
+       "odds": 1.4,
+       "name": {
+        "value": "Geelong Venom"
+       },
+       "visibility": "Visible",
+       "numerator": 2,
+       "denominator": 5,
+       "americanOdds": -250,
+       "playerId": 3018420,
+       "version": 11181269700
+      },
+      {
+       "id": 2351581014,
+       "odds": 2.4,
+       "name": {
+        "value": "Southside Flyers"
+       },
+       "visibility": "Visible",
+       "numerator": 7,
+       "denominator": 5,
+       "americanOdds": 140,
+       "playerId": 2828053,
+       "version": 11181269700
+      }
+     ],
+     "templateId": 13974,
+     "categoryId": 623,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1580114445,
+     "name": {
+      "value": "Handicap do 1º Tempo"
+     },
+     "results": [
+      {
+       "id": 2355412201,
+       "odds": 1.67,
+       "name": {
+        "value": "Geelong Venom -3.5"
+       },
+       "visibility": "Visible",
+       "attr": "-3.5",
+       "numerator": 4,
+       "denominator": 6,
+       "americanOdds": -150,
+       "playerId": 3018420,
+       "version": 11181269703
+      },
+      {
+       "id": 2355412202,
+       "odds": 1.75,
+       "name": {
+        "value": "Southside Flyers +3,5"
+       },
+       "visibility": "Visible",
+       "attr": "+3,5",
+       "numerator": 3,
+       "denominator": 4,
+       "americanOdds": -135,
+       "playerId": 2828053,
+       "version": 11181269703
+      }
+     ],
+     "templateId": 7698,
+     "categoryId": 728,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 0.08,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1578673097,
+     "name": {
+      "value": "Resultado do 1º período"
+     },
+     "results": [
+      {
+       "id": 2351581021,
+       "odds": 1.48,
+       "name": {
+        "value": "Geelong Venom"
+       },
+       "visibility": "Visible",
+       "numerator": 10,
+       "denominator": 21,
+       "americanOdds": -210,
+       "playerId": 3018420,
+       "version": 11181269705
+      },
+      {
+       "id": 2351581022,
+       "odds": 2.2,
+       "name": {
+        "value": "Southside Flyers"
+       },
+       "visibility": "Visible",
+       "numerator": 6,
+       "denominator": 5,
+       "americanOdds": 120,
+       "playerId": 2828053,
+       "version": 11181269705
+      }
+     ],
+     "templateId": 14610,
+     "categoryId": 1272,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1578673098,
+     "name": {
+      "value": "Handicap do 1º quarto"
+     },
+     "results": [
+      {
+       "id": 2351581023,
+       "odds": 1.65,
+       "name": {
+        "value": "Geelong Venom -1.5"
+       },
+       "visibility": "Visible",
+       "attr": "-1.5",
+       "numerator": 13,
+       "denominator": 20,
+       "americanOdds": -155,
+       "playerId": 3018420,
+       "version": 11181269709
+      },
+      {
+       "id": 2351581024,
+       "odds": 1.78,
+       "name": {
+        "value": "Southside Flyers +1,5"
+       },
+       "visibility": "Visible",
+       "attr": "+1,5",
+       "numerator": 4,
+       "denominator": 5,
+       "americanOdds": -130,
+       "playerId": 2828053,
+       "version": 11181269709
+      }
+     ],
+     "templateId": 7332,
+     "categoryId": 729,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 0.13,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1580114409,
+     "name": {
+      "value": "Handicap"
+     },
+     "results": [
+      {
+       "id": 2355412127,
+       "odds": 1.75,
+       "name": {
+        "value": "Geelong Venom -7.5"
+       },
+       "visibility": "Visible",
+       "attr": "-7.5",
+       "numerator": 3,
+       "denominator": 4,
+       "americanOdds": -135,
+       "playerId": 3018420,
+       "version": 11181269697
+      },
+      {
+       "id": 2355412128,
+       "odds": 1.72,
+       "name": {
+        "value": "Southside Flyers +7.5"
+       },
+       "visibility": "Visible",
+       "attr": "+7.5",
+       "numerator": 8,
+       "denominator": 11,
+       "americanOdds": -140,
+       "playerId": 2828053,
+       "version": 11181269697
+      }
+     ],
+     "templateId": 7699,
+     "categoryId": 44,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 0.03,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1580114454,
+     "name": {
+      "value": "Totais do 1º Tempo"
+     },
+     "results": [
+      {
+       "id": 2355412219,
+       "odds": 1.78,
+       "name": {
+        "value": "Mais de 80,5"
+       },
+       "visibility": "Visible",
+       "totalsPrefix": "Over",
+       "numerator": 4,
+       "denominator": 5,
+       "americanOdds": -130,
+       "version": 11175554212
+      },
+      {
+       "id": 2355412220,
+       "odds": 1.65,
+       "name": {
+        "value": "Menos de 80.5"
+       },
+       "visibility": "Visible",
+       "totalsPrefix": "Under",
+       "numerator": 13,
+       "denominator": 20,
+       "americanOdds": -155,
+       "version": 11175554212
+      }
+     ],
+     "templateId": 6710,
+     "categoryId": 730,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "attr": "80,5",
+     "spread": 0.13,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    },
+    {
+     "id": 1580114473,
+     "name": {
+      "value": "Totais do Primeiro Quarto"
+     },
+     "results": [
+      {
+       "id": 2355412257,
+       "odds": 1.87,
+       "name": {
+        "value": "Mais de 41.5"
+       },
+       "visibility": "Visible",
+       "totalsPrefix": "Over",
+       "numerator": 20,
+       "denominator": 23,
+       "americanOdds": -115,
+       "version": 11175541352
+      },
+      {
+       "id": 2355412258,
+       "odds": 1.67,
+       "name": {
+        "value": "Menos de 41.5"
+       },
+       "visibility": "Visible",
+       "totalsPrefix": "Under",
+       "numerator": 4,
+       "denominator": 6,
+       "americanOdds": -150,
+       "version": 11175541352
+      }
+     ],
+     "templateId": 7356,
+     "categoryId": 731,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "attr": "41.5",
+     "spread": 0.2,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": false
+    }
+   ],
+   "participants": [
+    {
+     "participantId": 3018420,
+     "name": {
+      "value": "Geelong Venom",
+      "short": "Geelong Venom"
+     },
+     "options": [],
+     "source": "V1"
+    },
+    {
+     "participantId": 2828053,
+     "name": {
+      "value": "Southside Flyers",
+      "short": "Southside Flyers"
+     },
+     "options": [],
+     "source": "V1"
+    }
+   ],
+   "id": "20105757",
+   "name": {
+    "value": "Geelong Venom - Southside Flyers"
+   },
+   "sourceId": 20105757,
+   "source": "V1",
+   "fixtureType": "Standard",
+   "context": "v1|pt|20105757",
+   "addons": {
+    "betRadar": 72704686,
+    "statistics": true,
+    "participantDividend": {},
+    "liveMatchTracker": {
+     "sportradarId": 72704686,
+     "coverageLevel": 3
+    },
+    "betBuilderProvider": "None"
+   },
+   "stage": "PreMatch",
+   "groupId": 4460803,
+   "liveType": "NotSet",
+   "liveAlert": true,
+   "startDate": "2026-11-21T04:00:00.000Z",
+   "cutOffDate": "2026-11-21T04:00:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "id": 7,
+    "name": {
+     "value": "Basquetebol",
+     "sign": "MNfyHg=="
+    }
+   },
+   "competition": {
+    "parentLeagueId": 7049,
+    "statistics": true,
+    "sportId": 7,
+    "compoundId": "1:79225",
+    "type": "Competition",
+    "id": 79225,
+    "parentId": 60,
+    "name": {
+     "value": "WNBL",
+     "sign": "Y2GyeA=="
+    }
+   },
+   "region": {
+    "code": "AUS",
+    "sportId": 7,
+    "type": "Region",
+    "id": 60,
+    "parentId": 7,
+    "name": {
+     "value": "Austrália",
+     "sign": "6ljgzg=="
+    }
+   },
+   "viewType": "European",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 42,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 0,
+   "linkedTv1EventIds": [],
+   "contexts": [
+    "v1|pt|20105757"
+   ],
+   "sequence": 531,
+   "isPlannedInPlay": false,
+   "timestamp": 1795210625660000
+  }
+ ]
+}

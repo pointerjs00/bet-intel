@@ -1,7 +1,7 @@
 import type { CanonicalSelection, HouseId } from './types';
 
 /** Tie-break / display order of houses. */
-export const HOUSE_ORDER: HouseId[] = ['betclic', 'betano', 'lebull', 'placard', 'solverde'];
+export const HOUSE_ORDER: HouseId[] = ['betclic', 'betano', 'lebull', 'placard', 'solverde', 'bwin'];
 
 export interface HousePrice {
   odds: number;

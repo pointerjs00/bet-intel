@@ -1,0 +1,614 @@
+{
+ "totalCount": 21,
+ "fixtures": [
+  {
+   "optionMarkets": [],
+   "games": [
+    {
+     "id": 1580578241,
+     "name": {
+      "value": "Vencedor do jogo"
+     },
+     "results": [
+      {
+       "id": 2356657485,
+       "odds": 2.65,
+       "name": {
+        "value": "J. Trotter"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "visibility": "Visible",
+       "numerator": 33,
+       "denominator": 20,
+       "americanOdds": 165,
+       "playerId": 2771280,
+       "version": 11180745028
+      },
+      {
+       "id": 2356657486,
+       "odds": 1.33,
+       "name": {
+        "value": "A. Mayo"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "visibility": "Visible",
+       "numerator": 1,
+       "denominator": 3,
+       "americanOdds": -300,
+       "playerId": 2831927,
+       "version": 11180745028
+      }
+     ],
+     "templateId": 62,
+     "categoryId": 33,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "category": "Gridable",
+     "isMain": true,
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580578242,
+     "name": {
+      "value": "Quem vencerá mais jogos na partida? (handicap de jogador)"
+     },
+     "results": [
+      {
+       "id": 2356657487,
+       "odds": 1.62,
+       "name": {
+        "value": "James Trotter (JPN) +3,5"
+       },
+       "visibility": "Visible",
+       "attr": "+3,5",
+       "numerator": 8,
+       "denominator": 13,
+       "americanOdds": -160,
+       "playerId": 2771280,
+       "version": 11182300828
+      },
+      {
+       "id": 2356657488,
+       "odds": 1.78,
+       "name": {
+        "value": "Aidan Mayo (USA) -3,5"
+       },
+       "visibility": "Visible",
+       "attr": "-3,5",
+       "numerator": 4,
+       "denominator": 5,
+       "americanOdds": -130,
+       "playerId": 2831927,
+       "version": 11182300828
+      }
+     ],
+     "templateId": 17511,
+     "categoryId": 36,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 0.16,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580578245,
+     "name": {
+      "value": "Total jogos"
+     },
+     "results": [
+      {
+       "id": 2356657493,
+       "odds": 1.72,
+       "name": {
+        "value": "Mais de 22,5"
+       },
+       "visibility": "Visible",
+       "numerator": 8,
+       "denominator": 11,
+       "americanOdds": -140,
+       "version": 11180745101
+      },
+      {
+       "id": 2356657494,
+       "odds": 1.72,
+       "name": {
+        "value": "Menos de 22,5"
+       },
+       "visibility": "Visible",
+       "numerator": 8,
+       "denominator": 11,
+       "americanOdds": -140,
+       "version": 11180745101
+      }
+     ],
+     "templateId": 12489,
+     "categoryId": 36,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "attr": "22,5",
+     "spread": 0,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580578252,
+     "name": {
+      "value": "2° set - Vencedor"
+     },
+     "results": [
+      {
+       "id": 2356657510,
+       "odds": 2.35,
+       "name": {
+        "value": "J. Trotter"
+       },
+       "visibility": "Visible",
+       "numerator": 27,
+       "denominator": 20,
+       "americanOdds": 135,
+       "playerId": 2771280,
+       "version": 11180307125
+      },
+      {
+       "id": 2356657511,
+       "odds": 1.4,
+       "name": {
+        "value": "A. Mayo"
+       },
+       "visibility": "Visible",
+       "numerator": 2,
+       "denominator": 5,
+       "americanOdds": -250,
+       "playerId": 2831927,
+       "version": 11180307125
+      }
+     ],
+     "templateId": 8695,
+     "categoryId": 35,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 0.95,
+     "description": "Set 2",
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": true
+    }
+   ],
+   "participants": [
+    {
+     "participantId": 2771280,
+     "name": {
+      "value": "James Trotter (JPN)",
+      "short": "J. Trotter"
+     },
+     "image": {
+      "jersey": "2771280",
+      "rotateJersey": false,
+      "isParticipantProfile": false
+     },
+     "options": [],
+     "source": "V1"
+    },
+    {
+     "participantId": 2831927,
+     "name": {
+      "value": "Aidan Mayo (USA)",
+      "short": "A. Mayo"
+     },
+     "image": {
+      "jersey": "2831927",
+      "rotateJersey": false,
+      "isParticipantProfile": false
+     },
+     "options": [],
+     "source": "V1"
+    }
+   ],
+   "id": "20121008",
+   "name": {
+    "value": "James Trotter (JPN) - Aidan Mayo (USA)"
+   },
+   "sourceId": 20121008,
+   "source": "V1",
+   "fixtureType": "Standard",
+   "context": "v1|pt|20121008",
+   "addons": {
+    "betRadar": 76683330,
+    "statistics": true,
+    "participantDividend": {},
+    "surface": "IndoorCourt",
+    "liveMatchTracker": {
+     "sportradarId": 76683330,
+     "coverageLevel": 3
+    },
+    "betBuilderProvider": "None"
+   },
+   "stage": "PreMatch",
+   "groupId": 4464052,
+   "liveType": "NotSet",
+   "liveAlert": true,
+   "startDate": "2026-11-21T01:45:00.000Z",
+   "cutOffDate": "2026-11-21T01:45:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "id": 5,
+    "name": {
+     "value": "Ténis",
+     "sign": "p2R2hw=="
+    }
+   },
+   "competition": {
+    "parentLeagueId": 47115,
+    "parentTournamentId": 10,
+    "statistics": false,
+    "sportId": 5,
+    "compoundId": "1:82795",
+    "type": "Competition",
+    "id": 82795,
+    "parentId": 6,
+    "name": {
+     "value": "ATP Challenger - Drummondville (CAN) - Piso Duro",
+     "sign": "bv27wQ=="
+    }
+   },
+   "region": {
+    "code": "WRL",
+    "sportId": 5,
+    "type": "Region",
+    "id": 6,
+    "parentId": 5,
+    "name": {
+     "value": "Mundo",
+     "sign": "6K422A=="
+    }
+   },
+   "tournament": {
+    "type": "Tournament",
+    "id": 10,
+    "parentId": 5,
+    "name": {
+     "value": "Challenger",
+     "sign": "yOmnKw=="
+    }
+   },
+   "viewType": "European",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 17,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 0,
+   "linkedTv1EventIds": [],
+   "contexts": [
+    "v1|pt|20121008"
+   ],
+   "sequence": 247,
+   "isPlannedInPlay": false,
+   "timestamp": 1795221650362000
+  },
+  {
+   "optionMarkets": [],
+   "games": [
+    {
+     "id": 1580691604,
+     "name": {
+      "value": "Vencedor do jogo"
+     },
+     "results": [
+      {
+       "id": 2356958765,
+       "odds": 1.87,
+       "name": {
+        "value": "L. Broady"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "visibility": "Visible",
+       "numerator": 20,
+       "denominator": 23,
+       "americanOdds": -115,
+       "playerId": 2655745,
+       "version": 11181193352
+      },
+      {
+       "id": 2356958766,
+       "odds": 1.67,
+       "name": {
+        "value": "J. Friend"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "visibility": "Visible",
+       "numerator": 4,
+       "denominator": 6,
+       "americanOdds": -150,
+       "playerId": 3016543,
+       "version": 11181193352
+      }
+     ],
+     "templateId": 62,
+     "categoryId": 33,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "category": "Gridable",
+     "isMain": true,
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580691608,
+     "name": {
+      "value": "Total jogos"
+     },
+     "results": [
+      {
+       "id": 2356958773,
+       "odds": 1.72,
+       "name": {
+        "value": "Mais de 22,5"
+       },
+       "visibility": "Visible",
+       "numerator": 8,
+       "denominator": 11,
+       "americanOdds": -140,
+       "version": 11181162172
+      },
+      {
+       "id": 2356958774,
+       "odds": 1.72,
+       "name": {
+        "value": "Menos de 22,5"
+       },
+       "visibility": "Visible",
+       "numerator": 8,
+       "denominator": 11,
+       "americanOdds": -140,
+       "version": 11181162172
+      }
+     ],
+     "templateId": 12489,
+     "categoryId": 36,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "attr": "22,5",
+     "spread": 0,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580691610,
+     "name": {
+      "value": "1º set - Vencedor"
+     },
+     "results": [
+      {
+       "id": 2356958779,
+       "odds": 1.8,
+       "name": {
+        "value": "L. Broady"
+       },
+       "visibility": "Visible",
+       "numerator": 4,
+       "denominator": 5,
+       "americanOdds": -125,
+       "playerId": 2655745,
+       "version": 11181193359
+      },
+      {
+       "id": 2356958780,
+       "odds": 1.65,
+       "name": {
+        "value": "J. Friend"
+       },
+       "visibility": "Visible",
+       "numerator": 13,
+       "denominator": 20,
+       "americanOdds": -155,
+       "playerId": 3016543,
+       "version": 11181193359
+      }
+     ],
+     "templateId": 452,
+     "categoryId": 35,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 0.15,
+     "description": "Set 1",
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": true
+    },
+    {
+     "id": 1580693829,
+     "name": {
+      "value": "Quem vencerá mais jogos na partida? (handicap de jogador)"
+     },
+     "results": [
+      {
+       "id": 2356966162,
+       "odds": 1.62,
+       "name": {
+        "value": "Liam Broady (GBR) +1,5"
+       },
+       "visibility": "Visible",
+       "attr": "+1,5",
+       "numerator": 8,
+       "denominator": 13,
+       "americanOdds": -160,
+       "playerId": 2655745,
+       "version": 11181193355
+      },
+      {
+       "id": 2356966163,
+       "odds": 1.78,
+       "name": {
+        "value": "Jay Friend (JPN) -1.5"
+       },
+       "visibility": "Visible",
+       "attr": "-1.5",
+       "numerator": 4,
+       "denominator": 5,
+       "americanOdds": -130,
+       "playerId": 3016543,
+       "version": 11181193355
+      }
+     ],
+     "templateId": 17511,
+     "categoryId": 36,
+     "resultOrder": "Default",
+     "combo1": "NoEventCombo",
+     "combo2": "Single",
+     "visibility": "Visible",
+     "balanced": 1,
+     "spread": 0.16,
+     "category": "Gridable",
+     "isMain": false,
+     "isBetBuilder": true
+    }
+   ],
+   "participants": [
+    {
+     "participantId": 2655745,
+     "name": {
+      "value": "Liam Broady (GBR)",
+      "short": "L. Broady"
+     },
+     "image": {
+      "jersey": "2655745",
+      "rotateJersey": false,
+      "isParticipantProfile": false
+     },
+     "options": [],
+     "source": "V1"
+    },
+    {
+     "participantId": 3016543,
+     "name": {
+      "value": "Jay Friend (JPN)",
+      "short": "J. Friend"
+     },
+     "options": [],
+     "source": "V1"
+    }
+   ],
+   "id": "20122006",
+   "name": {
+    "value": "Liam Broady (GBR) - Jay Friend (JPN)"
+   },
+   "sourceId": 20122006,
+   "source": "V1",
+   "fixtureType": "Standard",
+   "context": "v1|pt|20122006",
+   "addons": {
+    "betRadar": 76695070,
+    "statistics": true,
+    "participantDividend": {},
+    "surface": "IndoorCourt",
+    "liveMatchTracker": {
+     "sportradarId": 76695070,
+     "coverageLevel": 3
+    },
+    "betBuilderProvider": "None"
+   },
+   "stage": "PreMatch",
+   "groupId": 4464260,
+   "liveType": "NotSet",
+   "liveAlert": true,
+   "startDate": "2026-11-21T02:15:00.000Z",
+   "cutOffDate": "2026-11-21T02:15:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "id": 5,
+    "name": {
+     "value": "Ténis",
+     "sign": "p2R2hw=="
+    }
+   },
+   "competition": {
+    "parentLeagueId": 52463,
+    "parentTournamentId": 10,
+    "statistics": false,
+    "sportId": 5,
+    "compoundId": "1:83142",
+    "type": "Competition",
+    "id": 83142,
+    "parentId": 6,
+    "name": {
+     "value": "ATP Challenger - Kobe (JPN) - Piso Duro",
+     "sign": "V9Q6pQ=="
+    }
+   },
+   "region": {
+    "code": "WRL",
+    "sportId": 5,
+    "type": "Region",
+    "id": 6,
+    "parentId": 5,
+    "name": {
+     "value": "Mundo",
+     "sign": "6K422A=="
+    }
+   },
+   "tournament": {
+    "type": "Tournament",
+    "id": 10,
+    "parentId": 5,
+    "name": {
+     "value": "Challenger",
+     "sign": "yOmnKw=="
+    }
+   },
+   "viewType": "European",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 17,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 0,
+   "linkedTv1EventIds": [],
+   "contexts": [
+    "v1|pt|20122006"
+   ],
+   "sequence": 227,
+   "isPlannedInPlay": false,
+   "timestamp": 1795195094435000
+  }
+ ]
+}

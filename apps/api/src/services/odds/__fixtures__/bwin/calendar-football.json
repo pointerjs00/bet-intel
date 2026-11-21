@@ -1,0 +1,2985 @@
+{
+ "totalCount": 516,
+ "fixtures": [
+  {
+   "optionMarkets": [
+    {
+     "id": 207896191,
+     "name": {
+      "value": "Resultado do jogo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 807616513,
+       "status": "Visible",
+       "name": {
+        "value": "Sendai Ladies (F)"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "price": {
+        "id": 2829287031,
+        "numerator": 23,
+        "denominator": 10,
+        "odds": 3.3,
+        "americanOdds": 230
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max"
+        ],
+        "fixtureParticipant": 40132547
+       },
+       "version": 15674237833
+      },
+      {
+       "id": 807616514,
+       "status": "Visible",
+       "name": {
+        "value": "X"
+       },
+       "price": {
+        "id": 2829287032,
+        "numerator": 21,
+        "denominator": 10,
+        "odds": 3.1,
+        "americanOdds": 210
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw"
+        ]
+       },
+       "version": 15674237833
+      },
+      {
+       "id": 807616515,
+       "status": "Visible",
+       "name": {
+        "value": "Cerezo Osaka Ladies (F)"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "price": {
+        "id": 2829287033,
+        "numerator": 98,
+        "denominator": 100,
+        "odds": 1.98,
+        "americanOdds": -102
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15674237833
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "3way"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": true,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 62,
+     "version": 84270783042
+    },
+    {
+     "id": 207896192,
+     "name": {
+      "value": "Ambas as equipas marcam"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 807616516,
+       "status": "Visible",
+       "name": {
+        "value": "Sim"
+       },
+       "price": {
+        "id": 2829287034,
+        "numerator": 93,
+        "denominator": 100,
+        "odds": 1.93,
+        "americanOdds": -108
+       },
+       "parameters": {
+        "optionTypes": [
+         "ToHappen",
+         "ToHappen"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15674237833
+      },
+      {
+       "id": 807616517,
+       "status": "Visible",
+       "name": {
+        "value": "Não"
+       },
+       "price": {
+        "id": 2829287035,
+        "numerator": 77,
+        "denominator": 100,
+        "odds": 1.77,
+        "americanOdds": -130
+       },
+       "parameters": {
+        "optionTypes": [
+         "NotToHappen",
+         "NotToHappen"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15674237833
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "BTTS"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 63,
+     "version": 60750859931
+    },
+    {
+     "id": 207896193,
+     "name": {
+      "value": "Hipótese dupla"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 807616518,
+       "status": "Visible",
+       "name": {
+        "value": "Sendai Ladies (F) ou X"
+       },
+       "price": {
+        "id": 2829287036,
+        "numerator": 8,
+        "denominator": 11,
+        "odds": 1.72,
+        "americanOdds": -140
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Draw"
+        ],
+        "fixtureParticipant": 40132547
+       },
+       "version": 15674237833
+      },
+      {
+       "id": 807616519,
+       "status": "Visible",
+       "name": {
+        "value": "X ou Cerezo Osaka Ladies (F)"
+       },
+       "price": {
+        "id": 2829287037,
+        "numerator": 2,
+        "denominator": 7,
+        "odds": 1.28,
+        "americanOdds": -350
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Draw"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15674237833
+      },
+      {
+       "id": 807616520,
+       "status": "Visible",
+       "name": {
+        "value": "Sendai Ladies (F) ou Cerezo Osaka Ladies (F)"
+       },
+       "price": {
+        "id": 2829287038,
+        "numerator": 31,
+        "denominator": 100,
+        "odds": 1.31,
+        "americanOdds": -325
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Max"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15674237833
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "DoubleChance"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 63,
+     "version": 84270783042
+    },
+    {
+     "id": 208119499,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 809438223,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 2.5"
+       },
+       "price": {
+        "id": 2838609621,
+        "numerator": 6,
+        "denominator": 5,
+        "odds": 2.2,
+        "americanOdds": 120
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438224,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 2.5"
+       },
+       "price": {
+        "id": 2838609622,
+        "numerator": 3,
+        "denominator": 5,
+        "odds": 1.6,
+        "americanOdds": -165
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15682957501
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "2.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "2,5",
+     "spread": 0.6,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 63,
+     "version": 60779198905
+    },
+    {
+     "id": 208119500,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 809438225,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 1.5"
+       },
+       "price": {
+        "id": 2838609623,
+        "numerator": 37,
+        "denominator": 100,
+        "odds": 1.37,
+        "americanOdds": -275
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438226,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 1.5"
+       },
+       "price": {
+        "id": 2838609624,
+        "numerator": 37,
+        "denominator": 20,
+        "odds": 2.85,
+        "americanOdds": 185
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15682957501
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "1.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "1,5",
+     "spread": 1.48,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 63,
+     "version": 60779198905
+    },
+    {
+     "id": 208119501,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 809438227,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 3.5"
+       },
+       "price": {
+        "id": 2838609625,
+        "numerator": 31,
+        "denominator": 10,
+        "odds": 4.1,
+        "americanOdds": 310
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438228,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 3.5"
+       },
+       "price": {
+        "id": 2838609626,
+        "numerator": 1,
+        "denominator": 5,
+        "odds": 1.2,
+        "americanOdds": -500
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15682957501
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "3.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "3,5",
+     "spread": 2.9,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 63,
+     "version": 60779198905
+    },
+    {
+     "id": 208119504,
+     "name": {
+      "value": "1X2 & Total golos 2.5"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 809438233,
+       "status": "Visible",
+       "name": {
+        "value": "Sendai Ladies (F) & mais 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2838609631,
+        "numerator": 21,
+        "denominator": 4,
+        "odds": 6.25,
+        "americanOdds": 525
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Over"
+        ],
+        "fixtureParticipant": 40132547
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438234,
+       "status": "Visible",
+       "name": {
+        "value": "Cerezo Osaka Ladies (F) & mais 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2838609632,
+        "numerator": 13,
+        "denominator": 5,
+        "odds": 3.6,
+        "americanOdds": 260
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Over"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438235,
+       "status": "Visible",
+       "name": {
+        "value": "Empate & mais 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2838609633,
+        "numerator": 12,
+        "denominator": 1,
+        "odds": 13,
+        "americanOdds": 1200
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw",
+         "Over"
+        ]
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438236,
+       "status": "Visible",
+       "name": {
+        "value": "Sendai Ladies (F) & menos de 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2838609634,
+        "numerator": 5,
+        "denominator": 1,
+        "odds": 6,
+        "americanOdds": 500
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Under"
+        ],
+        "fixtureParticipant": 40132547
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438237,
+       "status": "Visible",
+       "name": {
+        "value": "Cerezo Osaka Ladies (F) & menos de 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2838609635,
+        "numerator": 29,
+        "denominator": 10,
+        "odds": 3.9,
+        "americanOdds": 290
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Under"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15682957501
+      },
+      {
+       "id": 809438238,
+       "status": "Visible",
+       "name": {
+        "value": "Empate & menos 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2838609636,
+        "numerator": 11,
+        "denominator": 4,
+        "odds": 3.75,
+        "americanOdds": 275
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw",
+         "Under"
+        ]
+       },
+       "version": 15682957501
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "2.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "ThreeWayAndOverUnder"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "2,5",
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 63,
+     "version": 154893770149
+    },
+    {
+     "id": 207896206,
+     "name": {
+      "value": "Equipa que marca o 1º golo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 807616771,
+       "status": "Visible",
+       "name": {
+        "value": "Sendai Ladies (F)"
+       },
+       "price": {
+        "id": 2829287289,
+        "numerator": 7,
+        "denominator": 5,
+        "odds": 2.4,
+        "americanOdds": 140
+       },
+       "parameters": {
+        "optionTypes": [
+         "Equals"
+        ],
+        "fixtureParticipant": 40132547
+       },
+       "version": 15674237839
+      },
+      {
+       "id": 807616772,
+       "status": "Visible",
+       "name": {
+        "value": "Sem golos"
+       },
+       "price": {
+        "id": 2829287290,
+        "numerator": 29,
+        "denominator": 4,
+        "odds": 8.25,
+        "americanOdds": 725
+       },
+       "parameters": {
+        "optionTypes": [
+         "NotExists"
+        ]
+       },
+       "version": 15674237839
+      },
+      {
+       "id": 807616773,
+       "status": "Visible",
+       "name": {
+        "value": "Cerezo Osaka Ladies (F)"
+       },
+       "price": {
+        "id": 2829287291,
+        "numerator": 73,
+        "denominator": 100,
+        "odds": 1.73,
+        "americanOdds": -135
+       },
+       "parameters": {
+        "optionTypes": [
+         "Equals"
+        ],
+        "fixtureParticipant": 40132548
+       },
+       "version": 15674237839
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "IntegerValue",
+       "type": "Integer",
+       "value": "1"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "XthHappening"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "1",
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 63,
+     "version": 84270783104
+    }
+   ],
+   "games": [],
+   "participants": [
+    {
+     "id": 40132547,
+     "participantId": 258887,
+     "name": {
+      "value": "Sendai Ladies (F)"
+     },
+     "status": "NotDefined",
+     "properties": {
+      "type": "HomeTeam"
+     },
+     "options": [],
+     "source": "V2"
+    },
+    {
+     "id": 40132548,
+     "participantId": 209439,
+     "name": {
+      "value": "Cerezo Osaka Ladies (F)"
+     },
+     "status": "NotDefined",
+     "properties": {
+      "type": "AwayTeam"
+     },
+     "options": [],
+     "source": "V2"
+    }
+   ],
+   "id": "2:7914039",
+   "name": {
+    "value": "Sendai Ladies (F) - Cerezo Osaka Ladies (F)",
+    "sign": "8awoJg=="
+   },
+   "sourceId": 7914039,
+   "source": "V2",
+   "fixtureType": "PairGame",
+   "context": "v2|pt|2:7914039_67_any",
+   "addons": {
+    "betRadar": 72339106,
+    "statistics": true,
+    "runningBall": "6nt3o7pjzy4qr14x30ejqr7ro",
+    "rule4Expected": false,
+    "isResulted": false,
+    "pricingState": "None",
+    "participantDividend": {},
+    "liveMatchTracker": {
+     "sportradarId": 72339106,
+     "coverageLevel": 1
+    },
+    "betBuilderProvider": "None"
+   },
+   "stage": "PreMatch",
+   "liveAlert": true,
+   "scoreboard": {
+    "corners": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "redCards": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "yellowCards": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "offsides": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "throwIns": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "penalties": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "substitutions": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "goalKicks": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "freeKicks": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "scoreDetailed": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "sportId": 4,
+    "id": "2:7914039",
+    "period": "Ainda não começou",
+    "periodId": 0,
+    "points": [],
+    "score": "0:0",
+    "timer": {
+     "running": false,
+     "base": "0001-01-01T00:00:00.000Z",
+     "visible": true,
+     "seconds": 0
+    },
+    "started": false
+   },
+   "startDate": "2026-11-21T05:00:00.000Z",
+   "cutOffDate": "2026-11-21T07:00:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "isEsport": false,
+    "id": 4,
+    "name": {
+     "value": "Futebol"
+    }
+   },
+   "competition": {
+    "statistics": true,
+    "sportId": 4,
+    "compoundId": "2:102931",
+    "type": "Competition",
+    "id": 102931,
+    "parentId": 52,
+    "name": {
+     "value": "WE League - Feminina"
+    }
+   },
+   "region": {
+    "code": "JPN",
+    "sportId": 4,
+    "type": "Region",
+    "id": 52,
+    "parentId": 4,
+    "name": {
+     "value": "Japão"
+    }
+   },
+   "viewType": "NotSet",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 15,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 0,
+   "linkedTv1EventIds": [],
+   "contexts": [
+    "v2|pt|2:7914039_67_any"
+   ],
+   "isPlannedInPlay": true,
+   "timestamp": 1795179812666000
+  },
+  {
+   "optionMarkets": [
+    {
+     "id": 207642161,
+     "name": {
+      "value": "Hipótese dupla"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 805857586,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC ou X"
+       },
+       "price": {
+        "id": 2819289421,
+        "numerator": 49,
+        "denominator": 100,
+        "odds": 1.49,
+        "americanOdds": -210
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Draw"
+        ],
+        "fixtureParticipant": 40031168
+       },
+       "version": 15655240726
+      },
+      {
+       "id": 805857587,
+       "status": "Visible",
+       "name": {
+        "value": "X ou Atlético São Luis"
+       },
+       "price": {
+        "id": 2819289425,
+        "numerator": 42,
+        "denominator": 100,
+        "odds": 1.42,
+        "americanOdds": -235
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Draw"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240726
+      },
+      {
+       "id": 805857588,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC ou Atlético São Luis"
+       },
+       "price": {
+        "id": 2819289429,
+        "numerator": 27,
+        "denominator": 100,
+        "odds": 1.27,
+        "americanOdds": -375
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Max"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240726
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "DoubleChance"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 148,
+     "version": 101797051304
+    },
+    {
+     "id": 207642170,
+     "name": {
+      "value": "Ambas as equipas marcam"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 805857607,
+       "status": "Visible",
+       "name": {
+        "value": "Sim"
+       },
+       "price": {
+        "id": 2819289547,
+        "numerator": 10,
+        "denominator": 21,
+        "odds": 1.47,
+        "americanOdds": -210
+       },
+       "parameters": {
+        "optionTypes": [
+         "ToHappen",
+         "ToHappen"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240741
+      },
+      {
+       "id": 805857608,
+       "status": "Visible",
+       "name": {
+        "value": "Não"
+       },
+       "price": {
+        "id": 2819289552,
+        "numerator": 13,
+        "denominator": 10,
+        "odds": 2.3,
+        "americanOdds": 130
+       },
+       "parameters": {
+        "optionTypes": [
+         "NotToHappen",
+         "NotToHappen"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240741
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "BTTS"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 148,
+     "version": 84176064531
+    },
+    {
+     "id": 207642179,
+     "name": {
+      "value": "1X2 & Ambas marcam"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 805857632,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC vence & ambas marcam"
+       },
+       "price": {
+        "id": 2819289649,
+        "numerator": 31,
+        "denominator": 10,
+        "odds": 4.1,
+        "americanOdds": 310
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "ToHappen"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240762
+      },
+      {
+       "id": 805857633,
+       "status": "Visible",
+       "name": {
+        "value": "Atlético São Luis vence & ambas marcam"
+       },
+       "price": {
+        "id": 2819289653,
+        "numerator": 29,
+        "denominator": 10,
+        "odds": 3.9,
+        "americanOdds": 290
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "ToHappen"
+        ],
+        "fixtureParticipant": 40031168
+       },
+       "boostedPrice": {
+        "id": 2837878805,
+        "numerator": 7,
+        "denominator": 2,
+        "odds": 4.5,
+        "americanOdds": 350
+       },
+       "version": 15655240762
+      },
+      {
+       "id": 805857634,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC vence & Atlético São Luis não marca"
+       },
+       "price": {
+        "id": 2819289657,
+        "numerator": 19,
+        "denominator": 5,
+        "odds": 4.8,
+        "americanOdds": 380
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "NotToHappen"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240762
+      },
+      {
+       "id": 805857635,
+       "status": "Visible",
+       "name": {
+        "value": "Atlético São Luis vence & Club Puebla FC não marca"
+       },
+       "price": {
+        "id": 2819289661,
+        "numerator": 7,
+        "denominator": 2,
+        "odds": 4.5,
+        "americanOdds": 350
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "NotToHappen"
+        ],
+        "fixtureParticipant": 40031168
+       },
+       "version": 15655240762
+      },
+      {
+       "id": 805857636,
+       "status": "Visible",
+       "name": {
+        "value": "Empate com golos"
+       },
+       "price": {
+        "id": 2819289665,
+        "numerator": 11,
+        "denominator": 4,
+        "odds": 3.75,
+        "americanOdds": 275
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw",
+         "ToHappen",
+         "ToHappen"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240762
+      },
+      {
+       "id": 805857637,
+       "status": "Visible",
+       "name": {
+        "value": "Empate sem golos"
+       },
+       "price": {
+        "id": 2819289669,
+        "numerator": 12,
+        "denominator": 1,
+        "odds": 13,
+        "americanOdds": 1200
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw",
+         "NotToHappen",
+         "NotToHappen"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655240762
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "ThreeWayAndBTTS"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 148,
+     "version": 1495695792941
+    },
+    {
+     "id": 207796089,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 806815462,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 2.5"
+       },
+       "price": {
+        "id": 2825509984,
+        "numerator": 58,
+        "denominator": 100,
+        "odds": 1.58,
+        "americanOdds": -175
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15663465656
+      },
+      {
+       "id": 806815463,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 2.5"
+       },
+       "price": {
+        "id": 2825509991,
+        "numerator": 11,
+        "denominator": 10,
+        "odds": 2.1,
+        "americanOdds": 110
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15663465656
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "2.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "2,5",
+     "spread": 0.52,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 150,
+     "version": 107713894670
+    },
+    {
+     "id": 207796090,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 806815464,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 3.5"
+       },
+       "price": {
+        "id": 2825509998,
+        "numerator": 29,
+        "denominator": 20,
+        "odds": 2.45,
+        "americanOdds": 145
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15663465656
+      },
+      {
+       "id": 806815465,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 3.5"
+       },
+       "price": {
+        "id": 2825510005,
+        "numerator": 43,
+        "denominator": 100,
+        "odds": 1.43,
+        "americanOdds": -235
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15663465656
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "3.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "3,5",
+     "spread": 1.02,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 150,
+     "version": 107713894670
+    },
+    {
+     "id": 207796091,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 806815466,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 1.5"
+       },
+       "price": {
+        "id": 2825510012,
+        "numerator": 1,
+        "denominator": 6,
+        "odds": 1.16,
+        "americanOdds": -625
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15663465656
+      },
+      {
+       "id": 806815467,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 1.5"
+       },
+       "price": {
+        "id": 2825510019,
+        "numerator": 16,
+        "denominator": 5,
+        "odds": 4.2,
+        "americanOdds": 320
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15663465656
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "1.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "1,5",
+     "spread": 3.04,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 150,
+     "version": 107713894670
+    },
+    {
+     "id": 207642239,
+     "name": {
+      "value": "Resultado do Jogo - 2GV"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 805858216,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "price": {
+        "id": 2819292658,
+        "numerator": 29,
+        "denominator": 20,
+        "odds": 2.45,
+        "americanOdds": 145
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max"
+        ],
+        "fixtureParticipant": 40031168
+       },
+       "version": 15655241035
+      },
+      {
+       "id": 805858217,
+       "status": "Visible",
+       "name": {
+        "value": "X"
+       },
+       "price": {
+        "id": 2819292666,
+        "numerator": 11,
+        "denominator": 5,
+        "odds": 3.2,
+        "americanOdds": 220
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw"
+        ]
+       },
+       "version": 15655241035
+      },
+      {
+       "id": 805858218,
+       "status": "Visible",
+       "name": {
+        "value": "Atlético São Luis"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "price": {
+        "id": 2819292674,
+        "numerator": 13,
+        "denominator": 10,
+        "odds": 2.3,
+        "americanOdds": 130
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655241035
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketSubType",
+       "type": "String",
+       "value": "2Up3wayPricing"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "3way"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": true,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 150,
+     "version": 172281002064
+    },
+    {
+     "id": 207642243,
+     "name": {
+      "value": "Equipa que marca o 1º golo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 805858227,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC"
+       },
+       "price": {
+        "id": 2819292712,
+        "numerator": 9,
+        "denominator": 10,
+        "odds": 1.9,
+        "americanOdds": -110
+       },
+       "parameters": {
+        "optionTypes": [
+         "Equals"
+        ],
+        "fixtureParticipant": 40031168
+       },
+       "version": 15655241035
+      },
+      {
+       "id": 805858228,
+       "status": "Visible",
+       "name": {
+        "value": "Sem golos"
+       },
+       "price": {
+        "id": 2819292718,
+        "numerator": 12,
+        "denominator": 1,
+        "odds": 13,
+        "americanOdds": 1200
+       },
+       "parameters": {
+        "optionTypes": [
+         "NotExists"
+        ]
+       },
+       "version": 15655241035
+      },
+      {
+       "id": 805858229,
+       "status": "Visible",
+       "name": {
+        "value": "Atlético São Luis"
+       },
+       "price": {
+        "id": 2819292724,
+        "numerator": 17,
+        "denominator": 20,
+        "odds": 1.85,
+        "americanOdds": -118
+       },
+       "parameters": {
+        "optionTypes": [
+         "Equals"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15655241035
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "IntegerValue",
+       "type": "Integer",
+       "value": "1"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "XthHappening"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "1",
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 150,
+     "version": 137039027688
+    },
+    {
+     "id": 207796117,
+     "name": {
+      "value": "1X2 & Total golos 2.5"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 806815521,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC & mais 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2825510376,
+        "numerator": 5,
+        "denominator": 2,
+        "odds": 3.5,
+        "americanOdds": 250
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Over"
+        ],
+        "fixtureParticipant": 40031168
+       },
+       "version": 15663465709
+      },
+      {
+       "id": 806815522,
+       "status": "Visible",
+       "name": {
+        "value": "Atlético São Luis & mais 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2825510380,
+        "numerator": 9,
+        "denominator": 4,
+        "odds": 3.25,
+        "americanOdds": 225
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Over"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15663465709
+      },
+      {
+       "id": 806815523,
+       "status": "Visible",
+       "name": {
+        "value": "Empate & mais 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2825510384,
+        "numerator": 27,
+        "denominator": 4,
+        "odds": 7.75,
+        "americanOdds": 675
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw",
+         "Over"
+        ]
+       },
+       "version": 15663465709
+      },
+      {
+       "id": 806815524,
+       "status": "Visible",
+       "name": {
+        "value": "Club Puebla FC & menos de 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2825510388,
+        "numerator": 21,
+        "denominator": 4,
+        "odds": 6.25,
+        "americanOdds": 525
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Under"
+        ],
+        "fixtureParticipant": 40031168
+       },
+       "version": 15663465709
+      },
+      {
+       "id": 806815525,
+       "status": "Visible",
+       "name": {
+        "value": "Atlético São Luis & menos de 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2825510392,
+        "numerator": 19,
+        "denominator": 4,
+        "odds": 5.75,
+        "americanOdds": 475
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Under"
+        ],
+        "fixtureParticipant": 40031169
+       },
+       "version": 15663465709
+      },
+      {
+       "id": 806815526,
+       "status": "Visible",
+       "name": {
+        "value": "Empate & menos 2.5 golos marcados"
+       },
+       "price": {
+        "id": 2825510396,
+        "numerator": 7,
+        "denominator": 2,
+        "odds": 4.5,
+        "americanOdds": 350
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw",
+         "Under"
+        ]
+       },
+       "version": 15663465709
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "2.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "ThreeWayAndOverUnder"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "2,5",
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 150,
+     "version": 189973955754
+    }
+   ],
+   "games": [],
+   "participants": [
+    {
+     "id": 40031168,
+     "participantId": 203641,
+     "name": {
+      "value": "Club Puebla FC"
+     },
+     "status": "NotDefined",
+     "image": {
+      "jersey": "2_203641_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "properties": {
+      "type": "HomeTeam"
+     },
+     "options": [],
+     "source": "V2"
+    },
+    {
+     "id": 40031169,
+     "participantId": 203259,
+     "name": {
+      "value": "Atlético São Luis"
+     },
+     "status": "NotDefined",
+     "image": {
+      "jersey": "2_203259_1",
+      "rotateJersey": true,
+      "isParticipantProfile": false
+     },
+     "properties": {
+      "type": "AwayTeam"
+     },
+     "options": [],
+     "source": "V2"
+    }
+   ],
+   "id": "2:7910804",
+   "name": {
+    "value": "Club Puebla FC - Atlético São Luis",
+    "sign": "UzvhIg=="
+   },
+   "sourceId": 7910804,
+   "source": "V2",
+   "fixtureType": "PairGame",
+   "context": "v2|pt|2:7910804_67_any",
+   "addons": {
+    "betRadar": 72055316,
+    "statistics": true,
+    "runningBall": "9f0pgjuq7oygyw3yal7peef4k",
+    "rule4Expected": false,
+    "isResulted": false,
+    "pricingState": "None",
+    "participantDividend": {},
+    "liveMatchTracker": {
+     "sportradarId": 72055316,
+     "coverageLevel": 4
+    },
+    "betBuilderProvider": "None"
+   },
+   "stage": "PreMatch",
+   "liveAlert": true,
+   "scoreboard": {
+    "corners": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "redCards": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "yellowCards": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "offsides": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "throwIns": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "penalties": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "substitutions": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "goalKicks": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "freeKicks": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "scoreDetailed": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "sportId": 4,
+    "id": "2:7910804",
+    "period": "Ainda não começou",
+    "periodId": 0,
+    "points": [],
+    "score": "0:0",
+    "timer": {
+     "running": false,
+     "base": "2026-11-21T00:55:59.089Z",
+     "visible": true,
+     "seconds": 0
+    },
+    "started": false
+   },
+   "startDate": "2026-11-21T01:00:00.000Z",
+   "cutOffDate": "2026-11-21T03:00:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "isEsport": false,
+    "id": 4,
+    "name": {
+     "value": "Futebol"
+    }
+   },
+   "competition": {
+    "statistics": true,
+    "sportId": 4,
+    "compoundId": "2:102373",
+    "type": "Competition",
+    "id": 102373,
+    "parentId": 43,
+    "name": {
+     "value": "Liga MX - Apertura"
+    }
+   },
+   "region": {
+    "code": "MEX",
+    "sportId": 4,
+    "type": "Region",
+    "id": 43,
+    "parentId": 4,
+    "name": {
+     "value": "México"
+    }
+   },
+   "viewType": "NotSet",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 114,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 1,
+   "linkedTv1EventIds": [],
+   "contexts": [
+    "v2|pt|2:7910804_67_any"
+   ],
+   "isPlannedInPlay": true,
+   "timestamp": 1795222559247155
+  },
+  {
+   "optionMarkets": [
+    {
+     "id": 208049264,
+     "name": {
+      "value": "Resultado do jogo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 808676404,
+       "status": "Visible",
+       "name": {
+        "value": "Rancho Santana FC"
+       },
+       "sourceName": {
+        "value": "1"
+       },
+       "price": {
+        "id": 2834653392,
+        "numerator": 13,
+        "denominator": 2,
+        "odds": 7.5,
+        "americanOdds": 650
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max"
+        ],
+        "fixtureParticipant": 40166313
+       },
+       "version": 15961892966
+      },
+      {
+       "id": 808676405,
+       "status": "Visible",
+       "name": {
+        "value": "X"
+       },
+       "price": {
+        "id": 2834653397,
+        "numerator": 5,
+        "denominator": 2,
+        "odds": 3.5,
+        "americanOdds": 250
+       },
+       "parameters": {
+        "optionTypes": [
+         "Draw"
+        ]
+       },
+       "version": 15961892966
+      },
+      {
+       "id": 808676406,
+       "status": "Visible",
+       "name": {
+        "value": "Art Municipal Jalapa"
+       },
+       "sourceName": {
+        "value": "2"
+       },
+       "price": {
+        "id": 2834653402,
+        "numerator": 29,
+        "denominator": 100,
+        "odds": 1.29,
+        "americanOdds": -350
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max"
+        ],
+        "fixtureParticipant": 40166314
+       },
+       "version": 15961892966
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "3way"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": true,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 390,
+     "version": 119886155147
+    },
+    {
+     "id": 208049266,
+     "name": {
+      "value": "Hipótese dupla"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 808676409,
+       "status": "Visible",
+       "name": {
+        "value": "Rancho Santana FC ou X"
+       },
+       "price": {
+        "id": 2834653417,
+        "numerator": 17,
+        "denominator": 10,
+        "odds": 2.7,
+        "americanOdds": 170
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Draw"
+        ],
+        "fixtureParticipant": 40166313
+       },
+       "version": 15961892966
+      },
+      {
+       "id": 808676410,
+       "status": "Visible",
+       "name": {
+        "value": "X ou Art Municipal Jalapa"
+       },
+       "price": {
+        "id": 2834653422,
+        "numerator": 1,
+        "denominator": 40,
+        "odds": 1.03,
+        "americanOdds": -4000
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Draw"
+        ],
+        "fixtureParticipant": 40166314
+       },
+       "version": 15961892966
+      },
+      {
+       "id": 808676411,
+       "status": "Visible",
+       "name": {
+        "value": "Rancho Santana FC ou Art Municipal Jalapa"
+       },
+       "price": {
+        "id": 2834653427,
+        "numerator": 17,
+        "denominator": 100,
+        "odds": 1.17,
+        "americanOdds": -600
+       },
+       "parameters": {
+        "optionTypes": [
+         "Max",
+         "Max"
+        ],
+        "fixtureParticipant": 40166314
+       },
+       "version": 15961892966
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "DoubleChance"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 390,
+     "version": 119886155147
+    },
+    {
+     "id": 208155931,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 809721340,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 4.5"
+       },
+       "price": {
+        "id": 2840234332,
+        "numerator": 4,
+        "denominator": 5,
+        "odds": 1.8,
+        "americanOdds": -125
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15967492996
+      },
+      {
+       "id": 809721341,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 4.5"
+       },
+       "price": {
+        "id": 2840234337,
+        "numerator": 4,
+        "denominator": 6,
+        "odds": 1.66,
+        "americanOdds": -150
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15967492996
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "4.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "4,5",
+     "spread": 0.14,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 391,
+     "version": 84604780740
+    },
+    {
+     "id": 208100611,
+     "name": {
+      "value": "Total golos"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 809277852,
+       "status": "Visible",
+       "name": {
+        "value": "Mais 3.5"
+       },
+       "price": {
+        "id": 2837820917,
+        "numerator": 2,
+        "denominator": 13,
+        "odds": 1.15,
+        "americanOdds": -650
+       },
+       "parameters": {
+        "optionTypes": [
+         "Over"
+        ]
+       },
+       "version": 15964282920
+      },
+      {
+       "id": 809277853,
+       "status": "Visible",
+       "name": {
+        "value": "Menos 3.5"
+       },
+       "price": {
+        "id": 2837820922,
+        "numerator": 14,
+        "denominator": 5,
+        "odds": 3.8,
+        "americanOdds": 280
+       },
+       "parameters": {
+        "optionTypes": [
+         "Under"
+        ]
+       },
+       "version": 15964282920
+      }
+     ],
+     "parameters": [
+      {
+       "key": "DecimalValue",
+       "type": "Decimal",
+       "value": "3.5000"
+      },
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "Over/Under"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "3,5",
+     "spread": 2.65,
+     "balanced": 1,
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 390,
+     "version": 84593832553
+    },
+    {
+     "id": 208156169,
+     "name": {
+      "value": "Equipa que marca o 4º golo"
+     },
+     "status": "Visible",
+     "options": [
+      {
+       "id": 809723601,
+       "status": "Visible",
+       "name": {
+        "value": "Rancho Santana FC"
+       },
+       "price": {
+        "id": 2840239036,
+        "numerator": 6,
+        "denominator": 5,
+        "odds": 2.2,
+        "americanOdds": 120
+       },
+       "parameters": {
+        "optionTypes": [
+         "Equals"
+        ],
+        "fixtureParticipant": 40166313
+       },
+       "version": 15967519480
+      },
+      {
+       "id": 809723602,
+       "status": "Visible",
+       "name": {
+        "value": "Sem golos"
+       },
+       "price": {
+        "id": 2840239041,
+        "numerator": 14,
+        "denominator": 5,
+        "odds": 3.8,
+        "americanOdds": 280
+       },
+       "parameters": {
+        "optionTypes": [
+         "NotExists"
+        ]
+       },
+       "version": 15967519480
+      },
+      {
+       "id": 809723603,
+       "status": "Visible",
+       "name": {
+        "value": "Art Municipal Jalapa"
+       },
+       "price": {
+        "id": 2840239046,
+        "numerator": 98,
+        "denominator": 100,
+        "odds": 1.98,
+        "americanOdds": -102
+       },
+       "parameters": {
+        "optionTypes": [
+         "Equals"
+        ],
+        "fixtureParticipant": 40166314
+       },
+       "version": 15967519480
+      }
+     ],
+     "parameters": [
+      {
+       "key": "Happening",
+       "type": "String",
+       "value": "Goal"
+      },
+      {
+       "key": "IntegerValue",
+       "type": "Integer",
+       "value": "4"
+      },
+      {
+       "key": "MarketType",
+       "type": "String",
+       "value": "XthHappening"
+      },
+      {
+       "key": "Period",
+       "type": "String",
+       "value": "RegularTime"
+      }
+     ],
+     "attr": "4",
+     "isMain": false,
+     "comboPrevention": "NoFixtureCombo",
+     "minCombo": 1,
+     "isEachWay": false,
+     "source": "V2",
+     "isBetBuilder": true,
+     "sequenceNumber": 391,
+     "version": 119904174171
+    }
+   ],
+   "games": [],
+   "participants": [
+    {
+     "id": 40166313,
+     "participantId": 283053,
+     "name": {
+      "value": "Rancho Santana FC"
+     },
+     "status": "NotDefined",
+     "properties": {
+      "type": "HomeTeam"
+     },
+     "options": [],
+     "source": "V2"
+    },
+    {
+     "id": 40166314,
+     "participantId": 197320,
+     "name": {
+      "value": "Art Municipal Jalapa"
+     },
+     "status": "NotDefined",
+     "properties": {
+      "type": "AwayTeam"
+     },
+     "options": [],
+     "source": "V2"
+    }
+   ],
+   "id": "2:7916453",
+   "name": {
+    "value": "Rancho Santana FC - Art Municipal Jalapa",
+    "sign": "uq1Icw=="
+   },
+   "sourceId": 7916453,
+   "source": "V2",
+   "fixtureType": "PairGame",
+   "context": "v2|pt|2:7916453_67_any",
+   "addons": {
+    "betRadar": 76880306,
+    "statistics": true,
+    "runningBall": "ba5kuoqx5hoa0h76lljbpual0",
+    "rule4Expected": false,
+    "isResulted": false,
+    "pricingState": "None",
+    "participantDividend": {},
+    "liveMatchTracker": {
+     "sportradarId": 76880306,
+     "coverageLevel": 1
+    },
+    "betBuilderProvider": "None"
+   },
+   "stage": "Live",
+   "liveAlert": true,
+   "scoreboard": {
+    "corners": {
+     "player1": {
+      "253": 0,
+      "254": 1,
+      "255": 1
+     },
+     "player2": {
+      "253": 0,
+      "254": 2,
+      "255": 2
+     }
+    },
+    "redCards": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "yellowCards": {
+     "player1": {
+      "253": 0,
+      "254": 1,
+      "255": 1
+     },
+     "player2": {
+      "253": 0,
+      "254": 2,
+      "255": 2
+     }
+    },
+    "offsides": {
+     "player1": {
+      "253": 0,
+      "254": 1,
+      "255": 1
+     },
+     "player2": {
+      "253": 0,
+      "254": 1,
+      "255": 1
+     }
+    },
+    "throwIns": {
+     "player1": {
+      "253": 0,
+      "254": 8,
+      "255": 8
+     },
+     "player2": {
+      "253": 0,
+      "254": 13,
+      "255": 13
+     }
+    },
+    "penalties": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "substitutions": {
+     "player1": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     },
+     "player2": {
+      "253": 0,
+      "254": 0,
+      "255": 0
+     }
+    },
+    "goalKicks": {
+     "player1": {
+      "253": 0,
+      "254": 6,
+      "255": 6
+     },
+     "player2": {
+      "253": 0,
+      "254": 4,
+      "255": 4
+     }
+    },
+    "freeKicks": {
+     "player1": {
+      "253": 0,
+      "254": 4,
+      "255": 4
+     },
+     "player2": {
+      "253": 0,
+      "254": 4,
+      "255": 4
+     }
+    },
+    "scoreDetailed": {
+     "player1": {
+      "253": 0,
+      "254": 1,
+      "255": 1
+     },
+     "player2": {
+      "253": 0,
+      "254": 2,
+      "255": 2
+     }
+    },
+    "sportId": 4,
+    "id": "2:7916453",
+    "period": "Intervalo",
+    "periodId": 2,
+    "points": [],
+    "score": "1:2",
+    "timer": {
+     "running": false,
+     "base": "2026-11-21T00:50:40.962Z",
+     "visible": true,
+     "seconds": 2700
+    },
+    "started": true
+   },
+   "startDate": "2026-11-21T00:00:00.000Z",
+   "cutOffDate": "2026-11-21T02:00:00.000Z",
+   "sport": {
+    "type": "Sport",
+    "isEsport": false,
+    "id": 4,
+    "name": {
+     "value": "Futebol"
+    }
+   },
+   "competition": {
+    "statistics": true,
+    "sportId": 4,
+    "compoundId": "2:102255",
+    "type": "Competition",
+    "id": 102255,
+    "parentId": 174,
+    "name": {
+     "value": "Divisão Premier"
+    }
+   },
+   "region": {
+    "code": "NCA",
+    "sportId": 4,
+    "type": "Region",
+    "id": 174,
+    "parentId": 4,
+    "name": {
+     "value": "Nicarágua"
+    }
+   },
+   "viewType": "NotSet",
+   "isOpenForBetting": true,
+   "isVirtual": false,
+   "totalMarketsCount": 18,
+   "conferences": [],
+   "marketGroups": {
+    "outrightMarketGroupIds": [],
+    "specialMarketGroupIds": [],
+    "type": "MarketGroups",
+    "id": 0
+   },
+   "priceBoostCount": 0,
+   "linkedTv1EventIds": [],
+   "contexts": [
+    "v2|pt|2:7916453_67_any"
+   ],
+   "isPlannedInPlay": true,
+   "timestamp": 1795222318784000
+  }
+ ]
+}
